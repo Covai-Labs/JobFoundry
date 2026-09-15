@@ -172,6 +172,13 @@ export function buildApp({
     return true;
   }
 
+  function canAccessJob(userId, jobId) {
+    if (!isRegisteredUser(db, userId)) return true;
+    return Boolean(
+      db.prepare('SELECT 1 FROM user_jobs WHERE user_id = ? AND job_id = ?').get(userId, jobId)
+    );
+  }
+
   // Health check
   app.get('/health', async () => ({ ok: true }));
 
@@ -942,6 +949,9 @@ export function buildApp({
     if (!authenticate(request, reply)) return;
 
     const { id } = request.params;
+    if (!canAccessJob(request.user.id, id)) {
+      return reply.code(404).send({ error: 'job not found' });
+    }
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
     if (!job) {
       return reply.code(404).send({ error: 'job not found' });
@@ -979,6 +989,9 @@ export function buildApp({
     if (!authenticate(request, reply)) return;
 
     const { id } = request.params;
+    if (!canAccessJob(request.user.id, id)) {
+      return reply.code(404).send({ error: 'job not found' });
+    }
     const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
     if (!job) {
       return reply.code(404).send({ error: 'job not found' });
@@ -1123,6 +1136,9 @@ export function buildApp({
       if (!authenticate(request, reply)) return;
 
       const { id } = request.params;
+      if (!canAccessJob(request.user.id, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
       const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
       if (!job) {
         return reply.code(404).send({ error: 'job not found' });
@@ -1222,6 +1238,10 @@ export function buildApp({
       const now = Date.now();
       const userId = request.user.id;
 
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
       if (description !== undefined) {
         db.prepare('UPDATE jobs SET description = ?, updated_at = ? WHERE id = ?').run(
           description,
@@ -1304,8 +1324,13 @@ export function buildApp({
       const { id } = request.params;
       const userId = request.user.id;
 
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
       if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
         db.prepare('DELETE FROM user_jobs WHERE job_id = ? AND user_id = ?').run(id, userId);
+        return { ok: true, id, changes: 1 };
       }
       // Also remove from master jobs table
       const info = db.prepare('DELETE FROM jobs WHERE id = ?').run(id);
@@ -1340,6 +1365,9 @@ export function buildApp({
       const userId = String(request.user.id || 'dev-user');
       if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
         return reply.code(400).send({ error: 'Invalid user ID format' });
+      }
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
       }
       const now = Date.now();
       const tailoredId = `tailored-${id}-${Date.now().toString(36)}`;

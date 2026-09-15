@@ -7,6 +7,7 @@ import { extractIndeed } from './indeed.js';
 import { extractGlassdoor } from './glassdoor.js';
 import { extractNaukri } from './naukri.js';
 import { extractGreenhouse, extractLever, extractAshby, extractGenericJob } from './ats.js';
+import { isSupportedGlassdoorHost, isSupportedIndeedHost } from '../../shared/supported-domains.js';
 
 /**
  * Identify the supported job platform represented by a URL or hostname.
@@ -30,8 +31,8 @@ export function detectPlatform(urlOrHostname) {
   const isDomain = (d) => host === d || host.endsWith('.' + d);
 
   if (isDomain('linkedin.com')) return 'linkedin';
-  if (isDomain('indeed.com') || /(^|\.)indeed\.[a-z.]+$/.test(host)) return 'indeed';
-  if (isDomain('glassdoor.com') || /(^|\.)glassdoor\.[a-z.]+$/.test(host)) return 'glassdoor';
+  if (isSupportedIndeedHost(host)) return 'indeed';
+  if (isSupportedGlassdoorHost(host)) return 'glassdoor';
   if (isDomain('naukri.com')) return 'naukri';
   if (isDomain('greenhouse.io')) return 'greenhouse';
   if (isDomain('lever.co')) return 'lever';

@@ -83,6 +83,12 @@ for (const hostname of ['indeed.com.evil.example', 'glassdoor.co.uk.attacker.exa
   });
 }
 
+for (const hostname of ['indeed.evil.com', 'glassdoor.evil.com']) {
+  test(`detectPlatform rejects unapproved country-domain lookalike ${hostname}`, () => {
+    assert.equal(detectPlatform(hostname), null);
+  });
+}
+
 test('LinkedIn: extracts single job detail page', () => {
   const doc = loadFixtureDoc(
     'linkedin-detail.html',

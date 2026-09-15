@@ -17,6 +17,7 @@ import { dedupJobs, createSessionCache } from '../background/dedup.js';
 import { makeHttpCtx } from '../background/providers/_http.mjs';
 import { extractKeywordsFromResume } from '../background/filters/resume-keywords.js';
 import { createRelayRunner } from '../background/relay.js';
+import { isSupportedIndeedHost } from '../shared/supported-domains.js';
 
 export const SCAN_ALARM_NAME = 'jobfoundry-periodic-scan';
 
@@ -488,7 +489,7 @@ export default defineBackground(() => {
                             url,
                             source: isDomain('linkedin.com')
                               ? 'linkedin'
-                              : isDomain('indeed.com') || /(^|\.)indeed\.[a-z.]+$/.test(host)
+                              : isSupportedIndeedHost(host)
                                 ? 'indeed'
                                 : 'web',
                             postedAt: item.datePosted ? Date.parse(item.datePosted) || null : null,
@@ -547,7 +548,7 @@ export default defineBackground(() => {
                 }
               }
 
-              if (isDomain('indeed.com') || /(^|\.)indeed\.[a-z.]+$/.test(host)) {
+              if (isSupportedIndeedHost(host)) {
                 const titleEl =
                   document.querySelector('[data-testid="jobsearch-JobInfoHeader-title"]') ||
                   document.querySelector('.jobsearch-JobInfoHeader-title') ||

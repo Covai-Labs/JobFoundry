@@ -136,6 +136,10 @@ test('tailoring never falls back to another users active resume', async () => {
     now,
     now
   );
+  db.prepare(
+    `INSERT INTO user_jobs (id, user_id, job_id, status, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run('alice-job-1', 'alice', 'job-1', 'new', now, now);
 
   try {
     const response = await app.inject({
