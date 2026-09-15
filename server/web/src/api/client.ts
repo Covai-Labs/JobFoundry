@@ -111,7 +111,10 @@ export class ApiClient {
         // Response wasn't JSON
       }
       console.error(
-        `[API Error] ${options.method || 'GET'} ${url} (${response.status}):`,
+        '[API Error] %s %s (%s):',
+        options.method || 'GET',
+        url,
+        response.status,
         errorMessage,
         details
       );

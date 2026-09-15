@@ -17,6 +17,15 @@ interface JobDetailModalProps {
   onDeleteJob?: (jobId: string) => void;
 }
 
+function safeHref(url?: string | null): string {
+  if (!url || typeof url !== 'string') return '#';
+  const trimmed = url.trim();
+  if (/^https?:\/\//i.test(trimmed)) {
+    return trimmed;
+  }
+  return '#';
+}
+
 export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   job,
   threshold = 75,
@@ -371,7 +380,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                         </>
                       )}
                       <a
-                        href={job.url}
+                        href={safeHref(job.url)}
                         target="_blank"
                         rel="noreferrer"
                         className="btn btn-secondary btn-sm"

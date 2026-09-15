@@ -10,14 +10,26 @@ import { extractGreenhouse, extractLever, extractAshby, extractGenericJob } from
 
 export function detectPlatform(urlOrHostname) {
   if (!urlOrHostname) return null;
-  const str = String(urlOrHostname).toLowerCase();
-  if (str.includes('linkedin.com')) return 'linkedin';
-  if (str.includes('indeed.com') || str.includes('indeed.')) return 'indeed';
-  if (str.includes('glassdoor.com') || str.includes('glassdoor.')) return 'glassdoor';
-  if (str.includes('naukri.com')) return 'naukri';
-  if (str.includes('greenhouse.io')) return 'greenhouse';
-  if (str.includes('lever.co')) return 'lever';
-  if (str.includes('ashbyhq.com')) return 'ashby';
+  let host = String(urlOrHostname).toLowerCase().trim();
+  try {
+    if (host.includes('://')) {
+      host = new URL(host).hostname.toLowerCase();
+    } else {
+      host = host.split('/')[0].split(':')[0];
+    }
+  } catch {
+    host = host.split('/')[0].split(':')[0];
+  }
+
+  const isDomain = (d) => host === d || host.endsWith('.' + d);
+
+  if (isDomain('linkedin.com')) return 'linkedin';
+  if (isDomain('indeed.com') || /(^|\.)indeed\.[a-z.]+$/.test(host)) return 'indeed';
+  if (isDomain('glassdoor.com') || /(^|\.)glassdoor\.[a-z.]+$/.test(host)) return 'glassdoor';
+  if (isDomain('naukri.com')) return 'naukri';
+  if (isDomain('greenhouse.io')) return 'greenhouse';
+  if (isDomain('lever.co')) return 'lever';
+  if (isDomain('ashbyhq.com')) return 'ashby';
   return null;
 }
 

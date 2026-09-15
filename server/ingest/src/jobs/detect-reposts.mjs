@@ -6,23 +6,44 @@
  * roles that are repeatedly renewed without active hiring.
  */
 
+const TITLE_STOP_WORDS = new Set([
+  'senior',
+  'sr',
+  'junior',
+  'jr',
+  'lead',
+  'principal',
+  'staff',
+  'remote',
+  'hybrid',
+  'onsite',
+  'full',
+  'time',
+  'part',
+]);
+
+const COMPANY_STOP_WORDS = new Set(['inc', 'corp', 'corporation', 'ltd', 'llc', 'gmbh', 'co']);
+
 export function normalizeJobTitle(title) {
   if (!title || typeof title !== 'string') return '';
   return title
     .toLowerCase()
-    .replace(/\b(senior|sr\.?|junior|jr\.?|lead|principal|staff)\b/g, '')
-    .replace(/\b(remote|hybrid|onsite|full-time|part-time)\b/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && !TITLE_STOP_WORDS.has(w))
+    .join(' ');
 }
 
 export function normalizeCompany(company) {
   if (!company || typeof company !== 'string') return '';
   return company
     .toLowerCase()
-    .replace(/\b(inc|corp|corporation|ltd|llc|gmbh|co)\b/g, '')
     .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
+    .trim()
+    .split(/\s+/)
+    .filter((w) => w && !COMPANY_STOP_WORDS.has(w))
+    .join(' ');
 }
 
 /**
