@@ -8,6 +8,12 @@ import { extractGlassdoor } from './glassdoor.js';
 import { extractNaukri } from './naukri.js';
 import { extractGreenhouse, extractLever, extractAshby, extractGenericJob } from './ats.js';
 
+/**
+ * Identify the supported job platform represented by a URL or hostname.
+ *
+ * @param {string} urlOrHostname - A complete URL or bare hostname to classify.
+ * @returns {string|null} The platform identifier, or null when the host is unsupported.
+ */
 export function detectPlatform(urlOrHostname) {
   if (!urlOrHostname) return null;
   let host = String(urlOrHostname).toLowerCase().trim();

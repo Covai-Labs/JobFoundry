@@ -24,6 +24,12 @@ const TITLE_STOP_WORDS = new Set([
 
 const COMPANY_STOP_WORDS = new Set(['inc', 'corp', 'corporation', 'ltd', 'llc', 'gmbh', 'co']);
 
+/**
+ * Normalize a job title for repost comparisons by removing common qualifiers.
+ *
+ * @param {string} title - The job title to normalize.
+ * @returns {string} A lowercase, space-delimited comparison key.
+ */
 export function normalizeJobTitle(title) {
   if (!title || typeof title !== 'string') return '';
   return title
@@ -35,6 +41,12 @@ export function normalizeJobTitle(title) {
     .join(' ');
 }
 
+/**
+ * Normalize a company name for repost comparisons by removing legal suffixes.
+ *
+ * @param {string} company - The company name to normalize.
+ * @returns {string} A lowercase, space-delimited comparison key.
+ */
 export function normalizeCompany(company) {
   if (!company || typeof company !== 'string') return '';
   return company

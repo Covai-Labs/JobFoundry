@@ -81,6 +81,11 @@ export class ApiClient {
     this.baseUrl = url.replace(/\/$/, '');
   }
 
+  /**
+   * Send an authenticated API request and decode its JSON response.
+   *
+   * @throws {ApiError} When the server returns a non-success status.
+   */
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {

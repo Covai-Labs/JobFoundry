@@ -237,6 +237,15 @@ export function buildApp({
 
   // Rate limiter store and helper to mitigate abuse and satisfy security auditing
   const rateLimitStore = new Map();
+  /**
+   * Enforce a process-local sliding-window request limit for a client address.
+   *
+   * @param {import('fastify').FastifyRequest} request - The incoming request.
+   * @param {import('fastify').FastifyReply} reply - The response used for limit errors.
+   * @param {number} max - Maximum requests allowed during the window.
+   * @param {number} windowMs - Sliding-window duration in milliseconds.
+   * @returns {boolean} Whether the request may continue.
+   */
   function checkRateLimit(request, reply, max = 60, windowMs = 60000) {
     const ip = request.ip || request.headers['x-forwarded-for'] || '127.0.0.1';
     const now = Date.now();
