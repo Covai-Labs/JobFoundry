@@ -108,6 +108,50 @@ test('tailor and artifact routes reject invalid job IDs before accessing storage
   }
 });
 
+test('tailoring never falls back to another users active resume', async () => {
+  const { app, db } = makeApp();
+  const now = Date.now();
+  const resume = JSON.stringify({ basics: { name: 'Bob' } });
+
+  db.prepare(
+    'INSERT INTO users (id, email, password_hash, name, api_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run('alice', 'alice@example.com', 'hash', 'Alice', 'alice-key', now, now);
+  db.prepare(
+    'INSERT INTO users (id, email, password_hash, name, api_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run('bob', 'bob@example.com', 'hash', 'Bob', 'bob-key', now, now);
+  db.prepare(
+    'INSERT INTO user_resumes (id, user_id, title, resume_json, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run('resume-bob', 'bob', 'Master Resume', resume, 1, now, now);
+  db.prepare(
+    `INSERT INTO jobs (id, title, company, location, url, source, description, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  ).run(
+    'job-1',
+    'Engineer',
+    'Acme',
+    'Remote',
+    'https://jobs.example.com/job-1',
+    'test',
+    'Build reliable systems.',
+    now,
+    now
+  );
+
+  try {
+    const response = await app.inject({
+      method: 'POST',
+      url: '/api/v1/jobs/job-1/tailor',
+      headers: { authorization: 'Bearer alice-key' },
+    });
+    assert.equal(response.statusCode, 400);
+    assert.deepEqual(response.json(), {
+      error: 'No active master resume found. Please upload one in Profile & Resume before tailoring.',
+    });
+  } finally {
+    await app.close();
+  }
+});
+
 test('artifact route serves safe files but cannot traverse outside the artifacts directory', async () => {
   const tempRoot = await mkdtemp(join(tmpdir(), 'jobfoundry-artifacts-'));
   const artifactsDir = join(tempRoot, 'artifacts');

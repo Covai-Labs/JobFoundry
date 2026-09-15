@@ -1358,27 +1358,15 @@ export function buildApp({
 
       // 2. Validate Master Resume
       let activeResume = null;
-      if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
-        const row = db
-          .prepare(
-            'SELECT resume_json FROM user_resumes WHERE user_id = ? AND is_active = 1 ORDER BY updated_at DESC LIMIT 1'
-          )
-          .get(userId);
-        if (row?.resume_json) {
-          try {
-            activeResume = JSON.parse(row.resume_json);
-          } catch {}
-        }
-      }
-      if (!activeResume) {
-        const row = db
-          .prepare('SELECT resume_json FROM user_resumes ORDER BY updated_at DESC LIMIT 1')
-          .get();
-        if (row?.resume_json) {
-          try {
-            activeResume = JSON.parse(row.resume_json);
-          } catch {}
-        }
+      const row = db
+        .prepare(
+          'SELECT resume_json FROM user_resumes WHERE user_id = ? AND is_active = 1 ORDER BY updated_at DESC LIMIT 1'
+        )
+        .get(userId);
+      if (row?.resume_json) {
+        try {
+          activeResume = JSON.parse(row.resume_json);
+        } catch {}
       }
       if (!activeResume) {
         return reply.code(400).send({
