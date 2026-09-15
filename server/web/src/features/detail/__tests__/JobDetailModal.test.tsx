@@ -45,7 +45,7 @@ describe('JobDetailModal external job link', () => {
   it.each([
     ['https://jobs.example.com/1', 'https://jobs.example.com/1'],
     ['http://jobs.example.com/2', 'http://jobs.example.com/2'],
-    ['  HTTPS://jobs.example.com/3  ', 'HTTPS://jobs.example.com/3'],
+    ['  HTTPS://jobs.example.com/3  ', 'https://jobs.example.com/3'],
   ])('preserves supported HTTP(S) URL %s', (url, expected) => {
     renderModal(url);
 

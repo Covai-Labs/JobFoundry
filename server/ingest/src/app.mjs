@@ -8,7 +8,7 @@ import {
   statSync,
   createReadStream,
 } from 'node:fs';
-import { resolve, extname } from 'node:path';
+import { resolve, relative, isAbsolute, extname } from 'node:path';
 
 // Configure global undici dispatcher with 30-minute timeout for multi-stage LLM calls
 try {
@@ -1337,7 +1337,10 @@ export function buildApp({
       if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
         return reply.code(400).send({ error: 'Invalid job ID format' });
       }
-      const userId = request.user.id;
+      const userId = String(request.user.id || 'dev-user');
+      if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
+        return reply.code(400).send({ error: 'Invalid user ID format' });
+      }
       const now = Date.now();
       const tailoredId = `tailored-${id}-${Date.now().toString(36)}`;
 
@@ -1398,8 +1401,8 @@ export function buildApp({
       }
 
       // 3. Perform Tailoring & Artifact Persistence
-      const safeUserId = String(userId || 'dev-user').replace(/[^a-zA-Z0-9_-]/g, '');
-      const safeJobId = id.replace(/[^a-zA-Z0-9_-]/g, '');
+      const safeUserId = userId;
+      const safeJobId = id;
       const resolvedBase = resolve(artifactsDir);
       const jobDir = resolve(resolvedBase, safeUserId, safeJobId);
       if (!jobDir.startsWith(resolvedBase)) {
@@ -1583,18 +1586,30 @@ export function buildApp({
       if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
         return reply.code(400).send({ error: 'Invalid job ID format' });
       }
-      const userId = request.user.id;
-      const safeUserId = String(userId || 'dev-user').replace(/[^a-zA-Z0-9_-]/g, '');
-      const safeFilename = filename.replace(/[^a-zA-Z0-9_.-]/g, '');
+      const userId = String(request.user.id || 'dev-user');
+      if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
+        return reply.code(400).send({ error: 'Invalid user ID format' });
+      }
+      if (!/^[a-zA-Z0-9_-]+\.[a-zA-Z0-9]+$/.test(filename)) {
+        return reply.code(400).send({ error: 'Invalid artifact filename' });
+      }
+      const safeFilename = filename;
 
       // Check user-partitioned artifact path first, then flat fallback
       const resolvedBase = resolve(artifactsDir);
-      let filePath = resolve(resolvedBase, safeUserId, id, safeFilename);
-      if (!existsSync(filePath)) {
+      let filePath = resolve(resolvedBase, userId, id, safeFilename);
+      if (!existsSync(filePath) || !statSync(filePath).isFile()) {
         filePath = resolve(resolvedBase, id, safeFilename);
       }
 
-      if (!filePath.startsWith(resolvedBase) || !existsSync(filePath)) {
+      const relativePath = relative(resolvedBase, filePath);
+      if (
+        !relativePath ||
+        relativePath.startsWith('..') ||
+        isAbsolute(relativePath) ||
+        !existsSync(filePath) ||
+        !statSync(filePath).isFile()
+      ) {
         return reply.code(404).send({ error: 'artifact not found' });
       }
 

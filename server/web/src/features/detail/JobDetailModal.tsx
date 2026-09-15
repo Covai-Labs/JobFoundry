@@ -21,8 +21,13 @@ interface JobDetailModalProps {
 function safeHref(url?: string | null): string {
   if (!url || typeof url !== 'string') return '#';
   const trimmed = url.trim();
-  if (/^https?:\/\//i.test(trimmed)) {
-    return trimmed;
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return parsed.href;
+    }
+  } catch {
+    // Invalid URLs use the non-navigating fallback.
   }
   return '#';
 }

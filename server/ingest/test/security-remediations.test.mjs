@@ -135,6 +135,14 @@ test('artifact route serves safe files but cannot traverse outside the artifacts
     });
     assert.notEqual(traversal.statusCode, 200);
     assert.notEqual(traversal.body, 'outside secret');
+
+    const malformedFilename = await app.inject({
+      method: 'GET',
+      url: '/api/v1/jobs/job-safe/artifacts/@@@',
+      headers: { authorization: 'Bearer testkey' },
+    });
+    assert.equal(malformedFilename.statusCode, 400);
+    assert.deepEqual(malformedFilename.json(), { error: 'Invalid artifact filename' });
   } finally {
     await app.close();
     await rm(tempRoot, { recursive: true, force: true });
