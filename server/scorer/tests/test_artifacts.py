@@ -20,13 +20,14 @@ def test_save_artifacts_all(tmp_path: Path):
 
     result = manager.save_artifacts(
         job_id="job-123",
+        user_id="legacy-admin",
         resume=sample_resume,
         pdf_bytes=sample_pdf_bytes,
         pdf_concise_bytes=sample_concise_pdf_bytes,
         plain_text=sample_plain_text,
     )
 
-    job_dir = tmp_path / "job-123"
+    job_dir = tmp_path / "legacy-admin" / "job-123"
     assert job_dir.exists()
 
     # Check json
@@ -65,11 +66,12 @@ def test_save_artifacts_from_base64(tmp_path: Path):
 
     result = manager.save_artifacts(
         job_id="job-456",
+        user_id="legacy-admin",
         resume={"name": "Alex"},
         pdf_base64=b64_pdf,
     )
 
-    pdf_path = tmp_path / "job-456" / "resume.pdf"
+    pdf_path = tmp_path / "legacy-admin" / "job-456" / "resume.pdf"
     assert pdf_path.exists()
     assert pdf_path.read_bytes() == sample_pdf_bytes
     assert result["pdf"] == str(pdf_path)
