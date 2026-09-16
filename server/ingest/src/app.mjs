@@ -244,6 +244,7 @@ export function buildApp({
 
   // Rate limiter store and helper to mitigate abuse and satisfy security auditing
   const rateLimitStore = new Map();
+  let lastRateLimitSweep = Date.now();
   /**
    * Enforce a process-local sliding-window request limit for a client address.
    *
@@ -255,15 +256,23 @@ export function buildApp({
    */
   function checkRateLimit(request, reply, max = 60, windowMs = 60000) {
     const ip = request.ip || request.headers['x-forwarded-for'] || '127.0.0.1';
+    const route = request.routeOptions?.url || request.url.split('?')[0];
+    const bucketKey = `${route}:${ip}`;
     const now = Date.now();
     const windowStart = now - windowMs;
-    const timestamps = (rateLimitStore.get(ip) || []).filter((ts) => ts > windowStart);
+    if (now - lastRateLimitSweep > windowMs) {
+      for (const [key, timestamps] of rateLimitStore) {
+        if (!timestamps.some((ts) => ts > windowStart)) rateLimitStore.delete(key);
+      }
+      lastRateLimitSweep = now;
+    }
+    const timestamps = (rateLimitStore.get(bucketKey) || []).filter((ts) => ts > windowStart);
     if (timestamps.length >= max) {
       reply.code(429).send({ error: 'Too many requests, please try again later.' });
       return false;
     }
     timestamps.push(now);
-    rateLimitStore.set(ip, timestamps);
+    rateLimitStore.set(bucketKey, timestamps);
     return true;
   }
 
@@ -1736,6 +1745,11 @@ export function buildApp({
       if (!authenticate(request, reply)) return;
       const userId = request.user?.id;
       const { sort_by = 'updated_at', order = 'desc', limit = 100 } = request.query || {};
+      const requestedLimit = Number(limit);
+      const safeLimit =
+        Number.isSafeInteger(requestedLimit) && requestedLimit > 0
+          ? Math.min(requestedLimit, 100)
+          : 100;
 
       const isMultiTenant = Boolean(userId && userId !== 'legacy-admin' && userId !== 'dev-user');
       const sortDirection = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
@@ -1783,7 +1797,7 @@ export function buildApp({
            WHERE uj.user_id = ?
            ${orderClause} LIMIT ?`
           )
-          .all(userId, Number(limit));
+          .all(userId, safeLimit);
       } else {
         rows = db
           .prepare(
@@ -1792,7 +1806,7 @@ export function buildApp({
                   created_at, updated_at
            FROM jobs ${orderClause} LIMIT ?`
           )
-          .all(Number(limit));
+          .all(safeLimit);
       }
 
       return { ok: true, jobs: rows };

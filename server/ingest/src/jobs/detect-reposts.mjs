@@ -17,9 +17,6 @@ const TITLE_STOP_WORDS = new Set([
   'remote',
   'hybrid',
   'onsite',
-  'full',
-  'time',
-  'part',
 ]);
 
 const COMPANY_STOP_WORDS = new Set(['inc', 'corp', 'corporation', 'ltd', 'llc', 'gmbh', 'co']);
@@ -35,6 +32,7 @@ export function normalizeJobTitle(title) {
   return title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, ' ')
+    .replace(/\b(full|part)\s+time\b/g, ' ')
     .trim()
     .split(/\s+/)
     .filter((w) => w && !TITLE_STOP_WORDS.has(w))

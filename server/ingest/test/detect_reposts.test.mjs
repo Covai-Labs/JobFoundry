@@ -15,6 +15,11 @@ test('detect-reposts: tokenizes punctuation-separated stop words before filterin
   assert.equal(normalizeCompany('Acme.Co / GmbH, LLC'), 'acme');
 });
 
+test('detect-reposts: preserves standalone employment words', () => {
+  assert.equal(normalizeJobTitle('Full Stack Engineer'), 'full stack engineer');
+  assert.equal(normalizeJobTitle('Part Engineer'), 'part engineer');
+});
+
 test('detect-reposts: preserves stop-word substrings inside meaningful words', () => {
   assert.equal(
     normalizeJobTitle('Stafford Principalities Engineer'),

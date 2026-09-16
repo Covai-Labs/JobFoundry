@@ -77,6 +77,27 @@ test('security rate limit releases an address after the sliding window expires',
   }
 });
 
+test('security rate limits isolate buckets by route', async () => {
+  const { app } = makeApp();
+
+  try {
+    for (let attempt = 0; attempt < 30; attempt += 1) {
+      const response = await app.inject({ method: 'PUT', url: '/api/v1/extension/config' });
+      assert.equal(response.statusCode, 401);
+    }
+    assert.equal(
+      (await app.inject({ method: 'PUT', url: '/api/v1/extension/config' })).statusCode,
+      429
+    );
+    assert.equal(
+      (await app.inject({ method: 'GET', url: '/api/v1/pipeline/stats' })).statusCode,
+      401
+    );
+  } finally {
+    await app.close();
+  }
+});
+
 test('tailor and artifact routes reject invalid job IDs before accessing storage', async () => {
   const { app } = makeApp();
 
