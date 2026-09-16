@@ -98,6 +98,24 @@ test('security rate limits isolate buckets by route', async () => {
   }
 });
 
+test('pipeline jobs normalizes invalid and excessive limits', async () => {
+  const { app } = makeApp();
+
+  try {
+    for (const limit of ['not-a-number', '-1', '1000000']) {
+      const response = await app.inject({
+        method: 'GET',
+        url: `/api/v1/pipeline/jobs?limit=${limit}`,
+        headers: { authorization: 'Bearer testkey' },
+      });
+      assert.equal(response.statusCode, 200);
+      assert.deepEqual(response.json(), { ok: true, jobs: [] });
+    }
+  } finally {
+    await app.close();
+  }
+});
+
 test('tailor and artifact routes reject invalid job IDs before accessing storage', async () => {
   const { app } = makeApp();
 
