@@ -567,7 +567,26 @@ export function buildApp({
 
   // --- AUTHENTICATION ROUTES ---
 
-  app.get('/api/v1/auth/registration', async () => getRegistrationStatus());
+  // GET /api/v1/auth/registration
+  app.get(
+    '/api/v1/auth/registration',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      return getRegistrationStatus();
+    }
+  );
 
   // POST /api/v1/auth/register
   app.post('/api/v1/auth/register', async (request, reply) => {
@@ -666,29 +685,61 @@ export function buildApp({
     return { user: request.user };
   });
 
-  app.get('/api/v1/admin/registration', async (request, reply) => {
-    if (!requireAdmin(request, reply)) return;
-    return getRegistrationStatus();
-  });
+  app.get(
+    '/api/v1/admin/registration',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      if (!requireAdmin(request, reply)) return;
+      return getRegistrationStatus();
+    }
+  );
 
-  app.put('/api/v1/admin/registration', async (request, reply) => {
-    if (!requireAdmin(request, reply)) return;
-    if (getRegistrationStatus().environmentLocked) {
-      return reply
-        .code(409)
-        .send({ error: 'registration is locked by REGISTRATION_MODE=disabled' });
-    }
-    const { open } = request.body || {};
-    if (typeof open !== 'boolean') {
-      return reply.code(400).send({ error: 'open must be a boolean' });
-    }
-    db.prepare(
-      `INSERT INTO system_settings (key, value, updated_at)
+  app.put(
+    '/api/v1/admin/registration',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!requireAdmin(request, reply)) return;
+      if (getRegistrationStatus().environmentLocked) {
+        return reply
+          .code(409)
+          .send({ error: 'registration is locked by REGISTRATION_MODE=disabled' });
+      }
+      const { open } = request.body || {};
+      if (typeof open !== 'boolean') {
+        return reply.code(400).send({ error: 'open must be a boolean' });
+      }
+      db.prepare(
+        `INSERT INTO system_settings (key, value, updated_at)
        VALUES ('registration_open', ?, ?)
        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
-    ).run(String(open), Date.now());
-    return getRegistrationStatus();
-  });
+      ).run(String(open), Date.now());
+      return getRegistrationStatus();
+    }
+  );
 
   // POST /api/v1/auth/api-key/rotate
   app.post('/api/v1/auth/api-key/rotate', async (request, reply) => {

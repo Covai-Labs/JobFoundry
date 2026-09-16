@@ -12,13 +12,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState(true);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
 
   useEffect(() => {
     api
       .getRegistrationStatus()
       .then((status) => setRegistrationOpen(status.open))
-      .catch(() => {});
+      .catch(() => setRegistrationOpen(null));
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -150,7 +150,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
           </button>
         </form>
 
-        {registrationOpen && (
+        {registrationOpen === true && (
           <div
             style={{
               marginTop: '2rem',

@@ -140,6 +140,8 @@ test('auth routes: register, login, me, rotate-api-key flow', async () => {
 });
 
 test('unauthenticated dev-user cannot access administrator routes', async () => {
+  const priorMode = process.env.REGISTRATION_MODE;
+  process.env.REGISTRATION_MODE = 'open';
   const db = openDb({ path: ':memory:' });
   const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
 
@@ -155,12 +157,17 @@ test('unauthenticated dev-user cannot access administrator routes', async () => 
     });
     assert.equal(update.statusCode, 403);
   } finally {
+    if (priorMode === undefined) delete process.env.REGISTRATION_MODE;
+    else process.env.REGISTRATION_MODE = priorMode;
     await app.close();
     db.close();
   }
 });
 
 test('registration policy is admin-controlled and environment locks take precedence', async () => {
+  const priorMode = process.env.REGISTRATION_MODE;
+  process.env.REGISTRATION_MODE = 'open';
+
   const db = openDb({ path: ':memory:' });
   const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
 
@@ -214,7 +221,6 @@ test('registration policy is admin-controlled and environment locks take precede
     db.close();
   }
 
-  const priorMode = process.env.REGISTRATION_MODE;
   process.env.REGISTRATION_MODE = 'disabled';
   const lockedDb = openDb({ path: ':memory:' });
   const lockedApp = buildApp({

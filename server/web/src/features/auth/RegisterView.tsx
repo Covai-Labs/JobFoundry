@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 
@@ -15,12 +15,16 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
   const [submitting, setSubmitting] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
 
-  useEffect(() => {
+  const loadStatus = useCallback(() => {
     api
       .getRegistrationStatus()
       .then((status) => setRegistrationOpen(status.open))
-      .catch(() => setRegistrationOpen(true));
+      .catch(() => setRegistrationOpen(null));
   }, []);
+
+  useEffect(() => {
+    loadStatus();
+  }, [loadStatus]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,6 +42,39 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
       setSubmitting(false);
     }
   };
+
+  if (registrationOpen === null) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
+          padding: '1.5rem',
+        }}
+      >
+        <div
+          className="card"
+          style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', textAlign: 'center' }}
+        >
+          <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Create Account</h1>
+          <p style={{ color: 'var(--text-muted)', margin: '0.75rem 0 1.5rem' }}>
+            Checking whether registration is available…
+          </p>
+          <button
+            type="button"
+            onClick={loadStatus}
+            className="btn btn-secondary"
+            style={{ width: '100%' }}
+          >
+            Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (registrationOpen === false) {
     return (
