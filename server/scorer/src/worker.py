@@ -271,6 +271,7 @@ async def process_unscored_jobs(
                             if artifact_manager:
                                 artifact_manager.save_artifacts(
                                     job_id=job_id,
+                                    user_id="legacy-admin",
                                     resume=tailor_res.resume,
                                     pdf_base64=tailor_res.pdf_base64,
                                     pdf_concise_base64=pdf_concise_b64,
@@ -480,4 +481,3 @@ class WorkerDaemon:
             "last_run_at": self._last_run_at,
             "last_stats": self._last_stats,
         }
-

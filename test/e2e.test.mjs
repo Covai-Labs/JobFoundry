@@ -140,7 +140,7 @@ asyncio.run(main())
   assert.equal(scoredJob.status, 'tailored', 'Status must transition to tailored');
   assert.ok(scoredJob.tailored_resume_id, 'Tailored resume ID must be set');
 
-  const jobArtifactsDir = join(artifactsDir, jobId);
+  const jobArtifactsDir = join(artifactsDir, 'legacy-admin', jobId);
   assert.ok(existsSync(join(jobArtifactsDir, 'resume.json')), 'resume.json must exist');
   assert.ok(existsSync(join(jobArtifactsDir, 'resume.pdf')), 'resume.pdf must exist');
   assert.ok(existsSync(join(jobArtifactsDir, 'resume-text.txt')), 'resume-text.txt must exist');

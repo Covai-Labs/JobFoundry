@@ -154,7 +154,7 @@ async def test_process_unscored_jobs_batch_with_tailoring_and_artifacts(tmp_path
         assert low_row[2] is None
 
         # Check artifact files exist for job-high
-        job_dir = tmp_path / "job-high"
+        job_dir = tmp_path / "legacy-admin" / "job-high"
         assert job_dir.exists()
         assert (job_dir / "resume.json").exists()
         assert (job_dir / "resume.txt").exists()
