@@ -5,11 +5,17 @@ export interface User {
   email: string;
   name: string;
   apiKey: string;
+  isAdmin?: boolean;
 }
 
 export interface AuthResponse {
   user: User;
   token: string;
+}
+
+export interface RegistrationStatus {
+  open: boolean;
+  environmentLocked: boolean;
 }
 
 export interface UserResume {
@@ -145,6 +151,17 @@ export class ApiClient {
     return this.request<AuthResponse>('/api/v1/auth/register', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+  async getRegistrationStatus(): Promise<RegistrationStatus> {
+    return this.request<RegistrationStatus>('/api/v1/auth/registration');
+  }
+
+  async updateRegistrationStatus(open: boolean): Promise<RegistrationStatus> {
+    return this.request<RegistrationStatus>('/api/v1/admin/registration', {
+      method: 'PUT',
+      body: JSON.stringify({ open }),
     });
   }
 

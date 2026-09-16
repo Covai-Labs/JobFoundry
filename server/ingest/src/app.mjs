@@ -115,7 +115,7 @@ export function buildApp({
 
     // 1. Check if token is a user API key
     const userByKey = db
-      .prepare('SELECT id, email, name, api_key FROM users WHERE api_key = ?')
+      .prepare('SELECT id, email, name, api_key, is_admin FROM users WHERE api_key = ?')
       .get(token);
     if (userByKey) {
       return {
@@ -123,6 +123,7 @@ export function buildApp({
         email: userByKey.email,
         name: userByKey.name,
         apiKey: userByKey.api_key,
+        isAdmin: Boolean(userByKey.is_admin),
       };
     }
 
@@ -130,7 +131,7 @@ export function buildApp({
     const payload = verifyToken(token, jwtSecret);
     if (payload && payload.userId) {
       const userById = db
-        .prepare('SELECT id, email, name, api_key FROM users WHERE id = ?')
+        .prepare('SELECT id, email, name, api_key, is_admin FROM users WHERE id = ?')
         .get(payload.userId);
       if (userById) {
         return {
@@ -138,13 +139,20 @@ export function buildApp({
           email: userById.email,
           name: userById.name,
           apiKey: userById.api_key,
+          isAdmin: Boolean(userById.is_admin),
         };
       }
     }
 
     // 3. Fallback: check legacy pre-shared API keys
     if (legacyKeys.has(token)) {
-      return { id: 'legacy-admin', email: 'admin@jobfoundry.local', name: 'Admin', apiKey: token };
+      return {
+        id: 'legacy-admin',
+        email: 'admin@jobfoundry.local',
+        name: 'Admin',
+        apiKey: token,
+        isAdmin: true,
+      };
     }
 
     return null;
@@ -159,6 +167,7 @@ export function buildApp({
         email: 'dev@jobfoundry.local',
         name: 'Developer',
         apiKey: '',
+        isAdmin: true,
       };
       return true;
     }
@@ -177,6 +186,27 @@ export function buildApp({
     return Boolean(
       db.prepare('SELECT 1 FROM user_jobs WHERE user_id = ? AND job_id = ?').get(userId, jobId)
     );
+  }
+
+  function getRegistrationStatus() {
+    const envMode = String(process.env.REGISTRATION_MODE || 'open')
+      .trim()
+      .toLowerCase();
+    const environmentLocked = envMode === 'disabled';
+    const setting = db
+      .prepare("SELECT value FROM system_settings WHERE key = 'registration_open'")
+      .get();
+    const registrationOpen = setting ? setting.value !== 'false' : true;
+    return { open: !environmentLocked && registrationOpen, environmentLocked };
+  }
+
+  function requireAdmin(request, reply) {
+    if (!authenticate(request, reply)) return false;
+    if (!request.user.isAdmin) {
+      reply.code(403).send({ error: 'administrator access required' });
+      return false;
+    }
+    return true;
   }
 
   // Health check
@@ -537,8 +567,13 @@ export function buildApp({
 
   // --- AUTHENTICATION ROUTES ---
 
+  app.get('/api/v1/auth/registration', async () => getRegistrationStatus());
+
   // POST /api/v1/auth/register
   app.post('/api/v1/auth/register', async (request, reply) => {
+    if (!getRegistrationStatus().open) {
+      return reply.code(403).send({ error: 'registration is currently closed' });
+    }
     const { email, password, name = '' } = request.body || {};
     if (!email || !password) {
       return reply.code(400).send({ error: 'email and password are required' });
@@ -548,33 +583,43 @@ export function buildApp({
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
-    if (existing) {
-      return reply.code(409).send({ error: 'email already registered' });
-    }
-
     const passwordHash = await hashPassword(password);
     const userId = `usr_${randomUUID()}`;
     const apiKey = generateApiKey();
     const now = Date.now();
 
-    db.prepare(
-      'INSERT INTO users (id, email, password_hash, name, api_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-    ).run(
-      userId,
-      normalizedEmail,
-      passwordHash,
-      name || normalizedEmail.split('@')[0],
-      apiKey,
-      now,
-      now
-    );
+    let isAdmin = false;
+    try {
+      db.transaction(() => {
+        const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
+        if (existing) throw new Error('email already registered');
+        isAdmin = !db.prepare('SELECT 1 FROM users LIMIT 1').get();
+        db.prepare(
+          'INSERT INTO users (id, email, password_hash, name, api_key, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+        ).run(
+          userId,
+          normalizedEmail,
+          passwordHash,
+          name || normalizedEmail.split('@')[0],
+          apiKey,
+          isAdmin ? 1 : 0,
+          now,
+          now
+        );
+      })();
+    } catch (err) {
+      if (err.message === 'email already registered') {
+        return reply.code(409).send({ error: err.message });
+      }
+      throw err;
+    }
 
     const user = {
       id: userId,
       email: normalizedEmail,
       name: name || normalizedEmail.split('@')[0],
       apiKey,
+      isAdmin,
     };
     const token = createToken({ userId, email: normalizedEmail }, jwtSecret);
 
@@ -604,6 +649,7 @@ export function buildApp({
       email: userRow.email,
       name: userRow.name,
       apiKey: userRow.api_key,
+      isAdmin: Boolean(userRow.is_admin),
     };
     const token = createToken({ userId: userRow.id, email: userRow.email }, jwtSecret);
 
@@ -614,6 +660,30 @@ export function buildApp({
   app.get('/api/v1/auth/me', async (request, reply) => {
     if (!authenticate(request, reply)) return;
     return { user: request.user };
+  });
+
+  app.get('/api/v1/admin/registration', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return;
+    return getRegistrationStatus();
+  });
+
+  app.put('/api/v1/admin/registration', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return;
+    if (getRegistrationStatus().environmentLocked) {
+      return reply
+        .code(409)
+        .send({ error: 'registration is locked by REGISTRATION_MODE=disabled' });
+    }
+    const { open } = request.body || {};
+    if (typeof open !== 'boolean') {
+      return reply.code(400).send({ error: 'open must be a boolean' });
+    }
+    db.prepare(
+      `INSERT INTO system_settings (key, value, updated_at)
+       VALUES ('registration_open', ?, ?)
+       ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at`
+    ).run(String(open), Date.now());
+    return getRegistrationStatus();
   });
 
   // POST /api/v1/auth/api-key/rotate

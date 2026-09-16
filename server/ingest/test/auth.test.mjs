@@ -49,6 +49,7 @@ test('auth routes: register, login, me, rotate-api-key flow', async () => {
   const regBody = JSON.parse(regRes.body);
   assert.equal(regBody.user.email, 'alice@example.com');
   assert.equal(regBody.user.name, 'Alice Developer');
+  assert.equal(regBody.user.isAdmin, true);
   assert.ok(regBody.user.apiKey.startsWith('jf_'));
   assert.ok(regBody.token);
 
@@ -78,6 +79,7 @@ test('auth routes: register, login, me, rotate-api-key flow', async () => {
   assert.equal(loginRes.statusCode, 200);
   const loginBody = JSON.parse(loginRes.body);
   assert.equal(loginBody.user.id, regBody.user.id);
+  assert.equal(loginBody.user.isAdmin, true);
   assert.ok(loginBody.token);
 
   // 4. Login with wrong password returns 401
@@ -135,4 +137,86 @@ test('auth routes: register, login, me, rotate-api-key flow', async () => {
     headers: { Authorization: `Bearer ${newApiKey}` },
   });
   assert.equal(newKeyRes.statusCode, 200);
+});
+
+test('registration policy is admin-controlled and environment locks take precedence', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
+
+  try {
+    const firstRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { email: 'admin@example.com', password: 'password123' },
+    });
+    assert.equal(firstRegistration.statusCode, 201);
+    const admin = JSON.parse(firstRegistration.body).user;
+    assert.equal(admin.isAdmin, true);
+
+    const secondRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { email: 'member@example.com', password: 'password123' },
+    });
+    assert.equal(secondRegistration.statusCode, 201);
+    const member = JSON.parse(secondRegistration.body).user;
+    assert.equal(member.isAdmin, false);
+
+    const denied = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/registration',
+      headers: { authorization: `Bearer ${member.apiKey}` },
+      payload: { open: false },
+    });
+    assert.equal(denied.statusCode, 403);
+
+    const closed = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/registration',
+      headers: { authorization: `Bearer ${admin.apiKey}` },
+      payload: { open: false },
+    });
+    assert.equal(closed.statusCode, 200);
+    assert.deepEqual(JSON.parse(closed.body), { open: false, environmentLocked: false });
+
+    const blockedRegistration = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { email: 'blocked@example.com', password: 'password123' },
+    });
+    assert.equal(blockedRegistration.statusCode, 403);
+    assert.deepEqual(JSON.parse(blockedRegistration.body), {
+      error: 'registration is currently closed',
+    });
+  } finally {
+    await app.close();
+    db.close();
+  }
+
+  const priorMode = process.env.REGISTRATION_MODE;
+  process.env.REGISTRATION_MODE = 'disabled';
+  const lockedDb = openDb({ path: ':memory:' });
+  const lockedApp = buildApp({
+    db: lockedDb,
+    apiKeys: ['operator-key'],
+    jwtSecret: 'test-jwt-key',
+  });
+
+  try {
+    const status = await lockedApp.inject({ method: 'GET', url: '/api/v1/auth/registration' });
+    assert.deepEqual(JSON.parse(status.body), { open: false, environmentLocked: true });
+
+    const update = await lockedApp.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/registration',
+      headers: { authorization: 'Bearer operator-key' },
+      payload: { open: true },
+    });
+    assert.equal(update.statusCode, 409);
+  } finally {
+    if (priorMode === undefined) delete process.env.REGISTRATION_MODE;
+    else process.env.REGISTRATION_MODE = priorMode;
+    await lockedApp.close();
+    lockedDb.close();
+  }
 });

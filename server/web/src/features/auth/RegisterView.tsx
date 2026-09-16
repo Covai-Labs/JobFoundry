@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../api/client';
 
 interface RegisterViewProps {
   onSwitchToLogin: () => void;
@@ -12,6 +13,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api
+      .getRegistrationStatus()
+      .then((status) => setRegistrationOpen(status.open))
+      .catch(() => setRegistrationOpen(true));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +38,39 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
       setSubmitting(false);
     }
   };
+
+  if (registrationOpen === false) {
+    return (
+      <div
+        style={{
+          minHeight: '100vh',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
+          padding: '1.5rem',
+        }}
+      >
+        <div
+          className="card"
+          style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', textAlign: 'center' }}
+        >
+          <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Registration Closed</h1>
+          <p style={{ color: 'var(--text-muted)', margin: '0.75rem 0 1.5rem' }}>
+            The local administrator is not accepting new accounts right now.
+          </p>
+          <button
+            type="button"
+            onClick={onSwitchToLogin}
+            className="btn btn-primary"
+            style={{ width: '100%' }}
+          >
+            Back to Sign In
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

@@ -12,6 +12,7 @@ import { useToast } from '../../context/ToastContext';
 import { ScraperSettingsTab } from './ScraperSettingsTab';
 import { ResumeManager } from '../resume/ResumeManager';
 import { ExtensionSyncView } from '../sync/ExtensionSyncView';
+import { RegistrationControls } from '../auth/RegistrationControls';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
 import {
   Laptop,
@@ -2147,6 +2148,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {/* TAB 5: EXTENSION & AUTH */}
               {activeTab === 'sync' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <RegistrationControls />
                   <ExtensionSyncView />
                 </div>
               )}
