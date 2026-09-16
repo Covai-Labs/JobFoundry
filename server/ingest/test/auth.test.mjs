@@ -139,6 +139,27 @@ test('auth routes: register, login, me, rotate-api-key flow', async () => {
   assert.equal(newKeyRes.statusCode, 200);
 });
 
+test('unauthenticated dev-user cannot access administrator routes', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
+
+  try {
+    const status = await app.inject({ method: 'GET', url: '/api/v1/auth/registration' });
+    assert.deepEqual(JSON.parse(status.body), { open: true, environmentLocked: false });
+
+    const update = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/admin/registration',
+      headers: { authorization: 'Bearer dev-user' },
+      payload: { open: false },
+    });
+    assert.equal(update.statusCode, 403);
+  } finally {
+    await app.close();
+    db.close();
+  }
+});
+
 test('registration policy is admin-controlled and environment locks take precedence', async () => {
   const db = openDb({ path: ':memory:' });
   const app = buildApp({ db, jwtSecret: 'test-jwt-key' });

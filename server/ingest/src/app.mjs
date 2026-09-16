@@ -167,7 +167,7 @@ export function buildApp({
         email: 'dev@jobfoundry.local',
         name: 'Developer',
         apiKey: '',
-        isAdmin: true,
+        isAdmin: false,
       };
       return true;
     }
@@ -591,6 +591,7 @@ export function buildApp({
     let isAdmin = false;
     try {
       db.transaction(() => {
+        if (!getRegistrationStatus().open) throw new Error('registration is currently closed');
         const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
         if (existing) throw new Error('email already registered');
         isAdmin = !db.prepare('SELECT 1 FROM users LIMIT 1').get();
@@ -608,6 +609,9 @@ export function buildApp({
         );
       })();
     } catch (err) {
+      if (err.message === 'registration is currently closed') {
+        return reply.code(403).send({ error: err.message });
+      }
       if (err.message === 'email already registered') {
         return reply.code(409).send({ error: err.message });
       }
