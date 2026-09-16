@@ -33,11 +33,12 @@ test('tokens: JWT create and verify with expiration and tamper resistance', () =
 
 test('auth routes: register, login, me, rotate-api-key flow', async () => {
   const priorMode = process.env.REGISTRATION_MODE;
-  process.env.REGISTRATION_MODE = 'open';
-  const db = openDb({ path: ':memory:' });
-  const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
-
+  let app;
+  let db;
   try {
+    process.env.REGISTRATION_MODE = 'open';
+    db = openDb({ path: ':memory:' });
+    app = buildApp({ db, jwtSecret: 'test-jwt-key' });
     // 1. Register a new user
     const regRes = await app.inject({
       method: 'POST',
@@ -150,11 +151,12 @@ test('auth routes: register, login, me, rotate-api-key flow', async () => {
 
 test('unauthenticated dev-user cannot access administrator routes', async () => {
   const priorMode = process.env.REGISTRATION_MODE;
-  process.env.REGISTRATION_MODE = 'open';
-  const db = openDb({ path: ':memory:' });
-  const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
-
+  let app;
+  let db;
   try {
+    process.env.REGISTRATION_MODE = 'open';
+    db = openDb({ path: ':memory:' });
+    app = buildApp({ db, jwtSecret: 'test-jwt-key' });
     const status = await app.inject({ method: 'GET', url: '/api/v1/auth/registration' });
     assert.deepEqual(JSON.parse(status.body), { open: true, environmentLocked: false });
 
@@ -175,84 +177,90 @@ test('unauthenticated dev-user cannot access administrator routes', async () => 
 
 test('registration policy is admin-controlled and environment locks take precedence', async () => {
   const priorMode = process.env.REGISTRATION_MODE;
-  process.env.REGISTRATION_MODE = 'open';
-
-  const db = openDb({ path: ':memory:' });
-  const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
-
   try {
-    const firstRegistration = await app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/register',
-      payload: { email: 'admin@example.com', password: 'password123' },
-    });
-    assert.equal(firstRegistration.statusCode, 201);
-    const admin = JSON.parse(firstRegistration.body).user;
-    assert.equal(admin.isAdmin, true);
+    process.env.REGISTRATION_MODE = 'open';
+    {
+      const db = openDb({ path: ':memory:' });
+      const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
 
-    const secondRegistration = await app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/register',
-      payload: { email: 'member@example.com', password: 'password123' },
-    });
-    assert.equal(secondRegistration.statusCode, 201);
-    const member = JSON.parse(secondRegistration.body).user;
-    assert.equal(member.isAdmin, false);
+      try {
+        const firstRegistration = await app.inject({
+          method: 'POST',
+          url: '/api/v1/auth/register',
+          payload: { email: 'admin@example.com', password: 'password123' },
+        });
+        assert.equal(firstRegistration.statusCode, 201);
+        const admin = JSON.parse(firstRegistration.body).user;
+        assert.equal(admin.isAdmin, true);
 
-    const denied = await app.inject({
-      method: 'PUT',
-      url: '/api/v1/admin/registration',
-      headers: { authorization: `Bearer ${member.apiKey}` },
-      payload: { open: false },
-    });
-    assert.equal(denied.statusCode, 403);
+        const secondRegistration = await app.inject({
+          method: 'POST',
+          url: '/api/v1/auth/register',
+          payload: { email: 'member@example.com', password: 'password123' },
+        });
+        assert.equal(secondRegistration.statusCode, 201);
+        const member = JSON.parse(secondRegistration.body).user;
+        assert.equal(member.isAdmin, false);
 
-    const closed = await app.inject({
-      method: 'PUT',
-      url: '/api/v1/admin/registration',
-      headers: { authorization: `Bearer ${admin.apiKey}` },
-      payload: { open: false },
-    });
-    assert.equal(closed.statusCode, 200);
-    assert.deepEqual(JSON.parse(closed.body), { open: false, environmentLocked: false });
+        const denied = await app.inject({
+          method: 'PUT',
+          url: '/api/v1/admin/registration',
+          headers: { authorization: `Bearer ${member.apiKey}` },
+          payload: { open: false },
+        });
+        assert.equal(denied.statusCode, 403);
 
-    const blockedRegistration = await app.inject({
-      method: 'POST',
-      url: '/api/v1/auth/register',
-      payload: { email: 'blocked@example.com', password: 'password123' },
-    });
-    assert.equal(blockedRegistration.statusCode, 403);
-    assert.deepEqual(JSON.parse(blockedRegistration.body), {
-      error: 'registration is currently closed',
-    });
-  } finally {
-    await app.close();
-    db.close();
-  }
+        const closed = await app.inject({
+          method: 'PUT',
+          url: '/api/v1/admin/registration',
+          headers: { authorization: `Bearer ${admin.apiKey}` },
+          payload: { open: false },
+        });
+        assert.equal(closed.statusCode, 200);
+        assert.deepEqual(JSON.parse(closed.body), { open: false, environmentLocked: false });
 
-  process.env.REGISTRATION_MODE = 'disabled';
-  const lockedDb = openDb({ path: ':memory:' });
-  const lockedApp = buildApp({
-    db: lockedDb,
-    apiKeys: ['operator-key'],
-    jwtSecret: 'test-jwt-key',
-  });
+        const blockedRegistration = await app.inject({
+          method: 'POST',
+          url: '/api/v1/auth/register',
+          payload: { email: 'blocked@example.com', password: 'password123' },
+        });
+        assert.equal(blockedRegistration.statusCode, 403);
+        assert.deepEqual(JSON.parse(blockedRegistration.body), {
+          error: 'registration is currently closed',
+        });
+      } finally {
+        await app.close();
+        db.close();
+      }
+    }
 
-  try {
-    const status = await lockedApp.inject({ method: 'GET', url: '/api/v1/auth/registration' });
-    assert.deepEqual(JSON.parse(status.body), { open: false, environmentLocked: true });
+    process.env.REGISTRATION_MODE = 'disabled';
+    {
+      const lockedDb = openDb({ path: ':memory:' });
+      const lockedApp = buildApp({
+        db: lockedDb,
+        apiKeys: ['operator-key'],
+        jwtSecret: 'test-jwt-key',
+      });
 
-    const update = await lockedApp.inject({
-      method: 'PUT',
-      url: '/api/v1/admin/registration',
-      headers: { authorization: 'Bearer operator-key' },
-      payload: { open: true },
-    });
-    assert.equal(update.statusCode, 409);
+      try {
+        const status = await lockedApp.inject({ method: 'GET', url: '/api/v1/auth/registration' });
+        assert.deepEqual(JSON.parse(status.body), { open: false, environmentLocked: true });
+
+        const update = await lockedApp.inject({
+          method: 'PUT',
+          url: '/api/v1/admin/registration',
+          headers: { authorization: 'Bearer operator-key' },
+          payload: { open: true },
+        });
+        assert.equal(update.statusCode, 409);
+      } finally {
+        await lockedApp.close();
+        lockedDb.close();
+      }
+    }
   } finally {
     if (priorMode === undefined) delete process.env.REGISTRATION_MODE;
     else process.env.REGISTRATION_MODE = priorMode;
-    await lockedApp.close();
-    lockedDb.close();
   }
 });
