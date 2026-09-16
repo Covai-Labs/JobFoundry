@@ -149,7 +149,8 @@ test('tailoring never falls back to another users active resume', async () => {
     });
     assert.equal(response.statusCode, 400);
     assert.deepEqual(response.json(), {
-      error: 'No active master resume found. Please upload one in Profile & Resume before tailoring.',
+      error:
+        'No active master resume found. Please upload one in Profile & Resume before tailoring.',
     });
   } finally {
     await app.close();

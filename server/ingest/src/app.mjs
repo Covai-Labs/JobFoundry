@@ -1610,13 +1610,8 @@ export function buildApp({
         return reply.code(400).send({ error: 'Invalid artifact filename' });
       }
       const safeFilename = filename;
-
-      // Check user-partitioned artifact path first, then flat fallback
       const resolvedBase = resolve(artifactsDir);
-      let filePath = resolve(resolvedBase, userId, id, safeFilename);
-      if (!existsSync(filePath) || !statSync(filePath).isFile()) {
-        filePath = resolve(resolvedBase, id, safeFilename);
-      }
+      const filePath = resolve(resolvedBase, userId, id, safeFilename);
 
       const relativePath = relative(resolvedBase, filePath);
       if (
