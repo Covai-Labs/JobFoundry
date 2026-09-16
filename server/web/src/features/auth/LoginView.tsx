@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { api } from '../../api/client';
 
 interface LoginViewProps {
   onSwitchToRegister: () => void;
@@ -11,6 +12,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    api
+      .getRegistrationStatus()
+      .then((status) => setRegistrationOpen(status.open))
+      .catch(() => setRegistrationOpen(null));
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,29 +150,31 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
           </button>
         </form>
 
-        <div
-          style={{
-            marginTop: '2rem',
-            textAlign: 'center',
-            fontSize: '0.85rem',
-            color: 'var(--text-muted)',
-          }}
-        >
-          Don't have an account yet?{' '}
-          <button
-            onClick={onSwitchToRegister}
+        {registrationOpen === true && (
+          <div
             style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-primary-light, #818cf8)',
-              cursor: 'pointer',
-              fontWeight: 600,
-              padding: 0,
+              marginTop: '2rem',
+              textAlign: 'center',
+              fontSize: '0.85rem',
+              color: 'var(--text-muted)',
             }}
           >
-            Create Account
-          </button>
-        </div>
+            Don't have an account yet?{' '}
+            <button
+              onClick={onSwitchToRegister}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--color-primary-light, #818cf8)',
+                cursor: 'pointer',
+                fontWeight: 600,
+                padding: 0,
+              }}
+            >
+              Create Account
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
