@@ -80,6 +80,16 @@ export function buildApp({
     requestIdHeader: 'x-request-id',
     genReqId: (req) =>
       req.headers['x-request-id'] || `req_${randomUUID().replace(/-/g, '').slice(0, 12)}`,
+    trustProxy: (() => {
+      const value = String(process.env.TRUST_PROXY || '').trim();
+      if (!value) return false;
+      if (value === 'true' || value === '1') return true;
+      if (value === 'false' || value === '0') return false;
+      return value
+        .split(',')
+        .map((part) => part.trim())
+        .filter(Boolean);
+    })(),
   });
 
   // Handle empty JSON bodies gracefully across DELETE, PUT, POST
@@ -589,65 +599,81 @@ export function buildApp({
   );
 
   // POST /api/v1/auth/register
-  app.post('/api/v1/auth/register', async (request, reply) => {
-    if (!getRegistrationStatus().open) {
-      return reply.code(403).send({ error: 'registration is currently closed' });
-    }
-    const { email, password, name = '' } = request.body || {};
-    if (!email || !password) {
-      return reply.code(400).send({ error: 'email and password are required' });
-    }
-    if (typeof password !== 'string' || password.length < 6) {
-      return reply.code(400).send({ error: 'password must be at least 6 characters' });
-    }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const passwordHash = await hashPassword(password);
-    const userId = `usr_${randomUUID()}`;
-    const apiKey = generateApiKey();
-    const now = Date.now();
-
-    let isAdmin = false;
-    try {
-      db.transaction(() => {
-        if (!getRegistrationStatus().open) throw new Error('registration is currently closed');
-        const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
-        if (existing) throw new Error('email already registered');
-        isAdmin = !db.prepare('SELECT 1 FROM users LIMIT 1').get();
-        db.prepare(
-          'INSERT INTO users (id, email, password_hash, name, api_key, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-        ).run(
-          userId,
-          normalizedEmail,
-          passwordHash,
-          name || normalizedEmail.split('@')[0],
-          apiKey,
-          isAdmin ? 1 : 0,
-          now,
-          now
-        );
-      })();
-    } catch (err) {
-      if (err.message === 'registration is currently closed') {
-        return reply.code(403).send({ error: err.message });
+  app.post(
+    '/api/v1/auth/register',
+    {
+      config: {
+        rateLimit: {
+          max: 15,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 15,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 15)) return;
+      if (!getRegistrationStatus().open) {
+        return reply.code(403).send({ error: 'registration is currently closed' });
       }
-      if (err.message === 'email already registered') {
-        return reply.code(409).send({ error: err.message });
+      const { email, password, name = '' } = request.body || {};
+      if (!email || !password) {
+        return reply.code(400).send({ error: 'email and password are required' });
       }
-      throw err;
+      if (typeof password !== 'string' || password.length < 6) {
+        return reply.code(400).send({ error: 'password must be at least 6 characters' });
+      }
+
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const passwordHash = await hashPassword(password);
+      const userId = `usr_${randomUUID()}`;
+      const apiKey = generateApiKey();
+      const now = Date.now();
+
+      let isAdmin = false;
+      try {
+        db.transaction(() => {
+          if (!getRegistrationStatus().open) throw new Error('registration is currently closed');
+          const existing = db.prepare('SELECT id FROM users WHERE email = ?').get(normalizedEmail);
+          if (existing) throw new Error('email already registered');
+          isAdmin = !db.prepare('SELECT 1 FROM users LIMIT 1').get();
+          db.prepare(
+            'INSERT INTO users (id, email, password_hash, name, api_key, is_admin, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+          ).run(
+            userId,
+            normalizedEmail,
+            passwordHash,
+            name || normalizedEmail.split('@')[0],
+            apiKey,
+            isAdmin ? 1 : 0,
+            now,
+            now
+          );
+        })();
+      } catch (err) {
+        if (err.message === 'registration is currently closed') {
+          return reply.code(403).send({ error: err.message });
+        }
+        if (err.message === 'email already registered') {
+          return reply.code(409).send({ error: err.message });
+        }
+        throw err;
+      }
+
+      const user = {
+        id: userId,
+        email: normalizedEmail,
+        name: name || normalizedEmail.split('@')[0],
+        apiKey,
+        isAdmin,
+      };
+      const token = createToken({ userId, email: normalizedEmail }, jwtSecret);
+
+      return reply.code(201).send({ user, token });
     }
-
-    const user = {
-      id: userId,
-      email: normalizedEmail,
-      name: name || normalizedEmail.split('@')[0],
-      apiKey,
-      isAdmin,
-    };
-    const token = createToken({ userId, email: normalizedEmail }, jwtSecret);
-
-    return reply.code(201).send({ user, token });
-  });
+  );
 
   // POST /api/v1/auth/login
   app.post('/api/v1/auth/login', async (request, reply) => {

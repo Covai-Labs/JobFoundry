@@ -32,111 +32,120 @@ test('tokens: JWT create and verify with expiration and tamper resistance', () =
 });
 
 test('auth routes: register, login, me, rotate-api-key flow', async () => {
+  const priorMode = process.env.REGISTRATION_MODE;
+  process.env.REGISTRATION_MODE = 'open';
   const db = openDb({ path: ':memory:' });
   const app = buildApp({ db, jwtSecret: 'test-jwt-key' });
 
-  // 1. Register a new user
-  const regRes = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/register',
-    payload: {
-      email: 'Alice@Example.com',
-      password: 'password123',
-      name: 'Alice Developer',
-    },
-  });
-  assert.equal(regRes.statusCode, 201);
-  const regBody = JSON.parse(regRes.body);
-  assert.equal(regBody.user.email, 'alice@example.com');
-  assert.equal(regBody.user.name, 'Alice Developer');
-  assert.equal(regBody.user.isAdmin, true);
-  assert.ok(regBody.user.apiKey.startsWith('jf_'));
-  assert.ok(regBody.token);
+  try {
+    // 1. Register a new user
+    const regRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: 'Alice@Example.com',
+        password: 'password123',
+        name: 'Alice Developer',
+      },
+    });
+    assert.equal(regRes.statusCode, 201);
+    const regBody = JSON.parse(regRes.body);
+    assert.equal(regBody.user.email, 'alice@example.com');
+    assert.equal(regBody.user.name, 'Alice Developer');
+    assert.equal(regBody.user.isAdmin, true);
+    assert.ok(regBody.user.apiKey.startsWith('jf_'));
+    assert.ok(regBody.token);
 
-  const token = regBody.token;
-  const userApiKey = regBody.user.apiKey;
+    const token = regBody.token;
+    const userApiKey = regBody.user.apiKey;
 
-  // 2. Duplicate registration returns 409
-  const dupRes = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/register',
-    payload: {
-      email: 'alice@example.com',
-      password: 'anotherpassword',
-    },
-  });
-  assert.equal(dupRes.statusCode, 409);
+    // 2. Duplicate registration returns 409
+    const dupRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: {
+        email: 'alice@example.com',
+        password: 'anotherpassword',
+      },
+    });
+    assert.equal(dupRes.statusCode, 409);
 
-  // 3. Login with correct credentials
-  const loginRes = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/login',
-    payload: {
-      email: 'alice@example.com',
-      password: 'password123',
-    },
-  });
-  assert.equal(loginRes.statusCode, 200);
-  const loginBody = JSON.parse(loginRes.body);
-  assert.equal(loginBody.user.id, regBody.user.id);
-  assert.equal(loginBody.user.isAdmin, true);
-  assert.ok(loginBody.token);
+    // 3. Login with correct credentials
+    const loginRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: 'alice@example.com',
+        password: 'password123',
+      },
+    });
+    assert.equal(loginRes.statusCode, 200);
+    const loginBody = JSON.parse(loginRes.body);
+    assert.equal(loginBody.user.id, regBody.user.id);
+    assert.equal(loginBody.user.isAdmin, true);
+    assert.ok(loginBody.token);
 
-  // 4. Login with wrong password returns 401
-  const badLoginRes = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/login',
-    payload: {
-      email: 'alice@example.com',
-      password: 'wrongpassword',
-    },
-  });
-  assert.equal(badLoginRes.statusCode, 401);
+    // 4. Login with wrong password returns 401
+    const badLoginRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: {
+        email: 'alice@example.com',
+        password: 'wrongpassword',
+      },
+    });
+    assert.equal(badLoginRes.statusCode, 401);
 
-  // 5. GET /api/v1/auth/me with JWT
-  const meRes = await app.inject({
-    method: 'GET',
-    url: '/api/v1/auth/me',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  assert.equal(meRes.statusCode, 200);
-  assert.equal(JSON.parse(meRes.body).user.email, 'alice@example.com');
+    // 5. GET /api/v1/auth/me with JWT
+    const meRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(meRes.statusCode, 200);
+    assert.equal(JSON.parse(meRes.body).user.email, 'alice@example.com');
 
-  // 6. GET /api/v1/auth/me with personal API key
-  const meApiRes = await app.inject({
-    method: 'GET',
-    url: '/api/v1/auth/me',
-    headers: { Authorization: `Bearer ${userApiKey}` },
-  });
-  assert.equal(meApiRes.statusCode, 200);
-  assert.equal(JSON.parse(meApiRes.body).user.id, regBody.user.id);
+    // 6. GET /api/v1/auth/me with personal API key
+    const meApiRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { Authorization: `Bearer ${userApiKey}` },
+    });
+    assert.equal(meApiRes.statusCode, 200);
+    assert.equal(JSON.parse(meApiRes.body).user.id, regBody.user.id);
 
-  // 7. Rotate API key
-  const rotateRes = await app.inject({
-    method: 'POST',
-    url: '/api/v1/auth/api-key/rotate',
-    headers: { Authorization: `Bearer ${token}` },
-  });
-  assert.equal(rotateRes.statusCode, 200);
-  const newApiKey = JSON.parse(rotateRes.body).apiKey;
-  assert.ok(newApiKey.startsWith('jf_'));
-  assert.notEqual(newApiKey, userApiKey);
+    // 7. Rotate API key
+    const rotateRes = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/api-key/rotate',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    assert.equal(rotateRes.statusCode, 200);
+    const newApiKey = JSON.parse(rotateRes.body).apiKey;
+    assert.ok(newApiKey.startsWith('jf_'));
+    assert.notEqual(newApiKey, userApiKey);
 
-  // Old API key no longer valid
-  const oldKeyRes = await app.inject({
-    method: 'GET',
-    url: '/api/v1/auth/me',
-    headers: { Authorization: `Bearer ${userApiKey}` },
-  });
-  assert.equal(oldKeyRes.statusCode, 401);
+    // Old API key no longer valid
+    const oldKeyRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { Authorization: `Bearer ${userApiKey}` },
+    });
+    assert.equal(oldKeyRes.statusCode, 401);
 
-  // New API key works
-  const newKeyRes = await app.inject({
-    method: 'GET',
-    url: '/api/v1/auth/me',
-    headers: { Authorization: `Bearer ${newApiKey}` },
-  });
-  assert.equal(newKeyRes.statusCode, 200);
+    // New API key works
+    const newKeyRes = await app.inject({
+      method: 'GET',
+      url: '/api/v1/auth/me',
+      headers: { Authorization: `Bearer ${newApiKey}` },
+    });
+    assert.equal(newKeyRes.statusCode, 200);
+  } finally {
+    if (priorMode === undefined) delete process.env.REGISTRATION_MODE;
+    else process.env.REGISTRATION_MODE = priorMode;
+    await app.close();
+    db.close();
+  }
 });
 
 test('unauthenticated dev-user cannot access administrator routes', async () => {
