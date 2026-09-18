@@ -61,7 +61,7 @@ jobs:
           files: dist-extension/*.zip
 
   build-appimage:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     container: almalinux:10
     permissions:
       contents: write
@@ -91,7 +91,7 @@ jobs:
           files: build/appimage/output/*.AppImage
 
   build-windows-payload:
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-latest
     container: almalinux:10
     permissions:
       contents: write
