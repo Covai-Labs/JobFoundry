@@ -75,7 +75,7 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 
 ## Quick Install
 
-- 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/deadrat-in/JobFoundry/releases), allow executing, double-click. No Docker needed.
+- 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/deadrat-in/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below).
 - 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/deadrat-in/JobFoundry/releases), trust the cert once, install, launch from the Start menu.
 - 🐳 **Any OS with Docker:** `curl -fsSL https://raw.githubusercontent.com/deadrat-in/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
 - 🧩 **Extension:** grab the Chrome/Firefox `.zip` from [Releases](https://github.com/deadrat-in/JobFoundry/releases) and load unpacked — no build needed.
