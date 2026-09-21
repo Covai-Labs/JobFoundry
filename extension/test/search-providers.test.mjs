@@ -12,19 +12,19 @@ const EXT = resolve(import.meta.dirname, '..');
 const { parseLinkedInJobCards, linkedinSearchProvider } = await import(
   join(EXT, 'src', 'background', 'search', 'linkedin.ts')
 );
-const { parseIndeedGraphQLResponse, buildIndeedGraphQLQuery, indeedSearchProvider } = await import(
+const { parseIndeedGraphQLResponse, buildIndeedGraphQLQuery } = await import(
   join(EXT, 'src', 'background', 'search', 'indeed.ts')
 );
-const { parseGlassdoorGraphQLResponse, glassdoorSearchProvider } = await import(
+const { parseGlassdoorGraphQLResponse } = await import(
   join(EXT, 'src', 'background', 'search', 'glassdoor.ts')
 );
-const { parseZipRecruiterResponse, ziprecruiterSearchProvider } = await import(
+const { parseZipRecruiterResponse } = await import(
   join(EXT, 'src', 'background', 'search', 'ziprecruiter.ts')
 );
-const { parseGoogleJobsHtml, googleSearchProvider } = await import(
+const { parseGoogleJobsHtml } = await import(
   join(EXT, 'src', 'background', 'search', 'google.ts')
 );
-const { parseNaukriResponse, naukriSearchProvider } = await import(
+const { parseNaukriResponse } = await import(
   join(EXT, 'src', 'background', 'search', 'naukri.ts')
 );
 const { adzunaSearchProvider } = await import(
@@ -135,10 +135,13 @@ test('Indeed: parseIndeedGraphQLResponse maps structured GraphQL jobs', () => {
   assert.ok(jobs[0].description.includes('React and Node'));
 });
 
-test('Indeed: buildIndeedGraphQLQuery escapes quotes safely', () => {
+test('Indeed: buildIndeedGraphQLQuery escapes quotes and backslashes safely', () => {
   const query = buildIndeedGraphQLQuery({ searchTerm: 'Senior "Go" Developer', location: 'Seattle, WA' });
   assert.ok(query.includes('\\"Go\\"'));
   assert.ok(query.includes('Seattle, WA'));
+
+  const queryBackslash = buildIndeedGraphQLQuery({ searchTerm: 'Dev C:\\' });
+  assert.ok(queryBackslash.includes('\\\\'));
 });
 
 // 3. Glassdoor Parser Tests
@@ -317,8 +320,7 @@ test('runSearchPipeline: executes search across enabled boards, deduplicates, an
     return { ok: true, json: async () => ({ data: {} }), text: async () => '' };
   };
 
-  let simulatedFpCounter = 0;
-  const mockFingerprint = async (desc) => {
+  const mockFingerprint = async () => {
     // Both jobs share the exact same description -> duplicate fingerprint
     return 'duplicate_simhash_fp_1234';
   };

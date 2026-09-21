@@ -89,10 +89,11 @@ export async function runSearchPipeline({
   let boardIds = enabledBoards;
   if (!boardIds || boardIds.length === 0) {
     const configBoards = config?.searchBoards || {};
-    boardIds = Object.keys(configBoards).filter((k) => configBoards[k] === true);
-    if (boardIds.length === 0) {
-      // Default to the top 3 core boards
-      boardIds = ['linkedin', 'indeed', 'glassdoor'];
+    const configuredKeys = Object.keys(configBoards);
+    boardIds = configuredKeys.filter((k) => configBoards[k] === true);
+    if (configuredKeys.length === 0) {
+      // Default to the core boards only when nothing is configured in settings
+      boardIds = ['linkedin', 'indeed', 'glassdoor', 'hiringcafe'];
     }
   }
 

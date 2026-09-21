@@ -15,16 +15,15 @@ const INDEED_PUBLIC_API_KEY =
   '161092c2017b5bbab13edb12461a62d5a833871e7cad6d9d475304573de67ac8';
 
 export function buildIndeedGraphQLQuery(criteria: SearchCriteria, cursor?: string | null): string {
-  const sanitizedWhat = (criteria.searchTerm || '').replace(/"/g, '\\"');
-  const whatClause = sanitizedWhat ? `what: "${sanitizedWhat}"` : '';
+  const searchTerm = criteria.searchTerm || '';
+  const whatClause = searchTerm ? `what: ${JSON.stringify(searchTerm)}` : '';
 
   let locationClause = '';
   if (criteria.location) {
-    const sanitizedLoc = criteria.location.replace(/"/g, '\\"');
-    locationClause = `location: { where: "${sanitizedLoc}", radius: 50, radiusUnit: MILES }`;
+    locationClause = `location: { where: ${JSON.stringify(criteria.location)}, radius: 50, radiusUnit: MILES }`;
   }
 
-  const cursorClause = cursor ? `cursor: "${cursor}"` : '';
+  const cursorClause = cursor ? `cursor: ${JSON.stringify(cursor)}` : '';
 
   return `
     query GetJobData {
