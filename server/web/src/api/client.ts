@@ -16,6 +16,7 @@ export interface AuthResponse {
 export interface RegistrationStatus {
   open: boolean;
   environmentLocked: boolean;
+  userCount?: number;
 }
 
 export interface UserResume {

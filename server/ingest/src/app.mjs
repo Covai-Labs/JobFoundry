@@ -208,7 +208,8 @@ export function buildApp({
       .prepare("SELECT value FROM system_settings WHERE key = 'registration_open'")
       .get();
     const registrationOpen = setting ? setting.value !== 'false' : true;
-    return { open: !environmentLocked && registrationOpen, environmentLocked };
+    const userCount = db.prepare('SELECT COUNT(*) as n FROM users').get().n;
+    return { open: !environmentLocked && registrationOpen, environmentLocked, userCount };
   }
 
   function requireAdmin(request, reply) {

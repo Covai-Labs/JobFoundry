@@ -14,11 +14,15 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [userCount, setUserCount] = useState<number | null>(null);
 
   const loadStatus = useCallback(() => {
     api
       .getRegistrationStatus()
-      .then((status) => setRegistrationOpen(status.open))
+      .then((status) => {
+        setRegistrationOpen(status.open);
+        setUserCount(status.userCount ?? null);
+      })
       .catch(() => setRegistrationOpen(null));
   }, []);
 
@@ -144,9 +148,13 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
               objectFit: 'contain',
             }}
           />
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>Create Account</h1>
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
+            {userCount === 0 ? 'Create Administrator Account' : 'Create Account'}
+          </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-            Get your personal AI-powered job search pipeline
+            {userCount === 0
+              ? 'Fresh start: Set up your administrator account to begin'
+              : 'Get your personal AI-powered job search pipeline'}
           </p>
         </div>
 
@@ -240,7 +248,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
             className="btn btn-primary"
             style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }}
           >
-            {submitting ? 'Creating account...' : 'Create Account'}
+            {submitting
+              ? 'Creating account...'
+              : userCount === 0
+              ? 'Create Administrator Account'
+              : 'Create Account'}
           </button>
         </form>
 

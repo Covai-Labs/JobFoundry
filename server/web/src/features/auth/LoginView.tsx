@@ -12,14 +12,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(true);
+  const [userCount, setUserCount] = useState<number | null>(null);
 
   useEffect(() => {
     api
       .getRegistrationStatus()
-      .then((status) => setRegistrationOpen(status.open))
+      .then((status) => {
+        setRegistrationOpen(status.open);
+        setUserCount(status.userCount ?? null);
+        if (status.userCount === 0 && status.open) {
+          onSwitchToRegister();
+        }
+      })
       .catch(() => setRegistrationOpen(null));
-  }, []);
+  }, [onSwitchToRegister]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +83,34 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
             Sign in to access your automated job command center
           </p>
         </div>
+
+        {userCount === 0 && (
+          <div
+            style={{
+              padding: '1rem',
+              marginBottom: '1.5rem',
+              background: 'rgba(99, 102, 241, 0.15)',
+              border: '1px solid rgba(99, 102, 241, 0.4)',
+              borderRadius: 'var(--radius-md)',
+              textAlign: 'center',
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>
+              🚀 Fresh Installation Detected
+            </div>
+            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              No accounts exist yet. Create your administrator account to get started.
+            </div>
+            <button
+              type="button"
+              onClick={onSwitchToRegister}
+              className="btn btn-primary btn-sm"
+              style={{ width: '100%' }}
+            >
+              Create Administrator Account →
+            </button>
+          </div>
+        )}
 
         {error && (
           <div
