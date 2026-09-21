@@ -39,7 +39,7 @@ export const adzunaSearchProvider: AdzunaSearchProvider = {
       return [];
     }
 
-    const country = (criteria.adzunaCountry || 'us').trim().toLowerCase();
+    const country = criteria.adzunaCountry?.trim().toLowerCase() || 'us';
     const resultsWanted = criteria.resultsWanted ?? 25;
     const resultsPerPage = Math.min(50, resultsWanted);
 
@@ -47,7 +47,8 @@ export const adzunaSearchProvider: AdzunaSearchProvider = {
     const seenUrls = new Set<string>();
 
     let page = 1;
-    const maxPages = Math.ceil(resultsWanted / resultsPerPage);
+    // Allow an extra page buffer to reach resultsWanted quota if some items are duplicate URLs
+    const maxPages = Math.min(10, Math.ceil(resultsWanted / resultsPerPage) + 2);
 
     while (page <= maxPages && jobs.length < resultsWanted) {
       const take = Math.min(resultsPerPage, resultsWanted - jobs.length);

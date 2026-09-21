@@ -53,7 +53,24 @@ test('LinkedIn: parseLinkedInJobCards extracts jobs from HTML cards', () => {
   assert.equal(jobs[0].company, 'Stripe');
   assert.equal(jobs[0].location, 'San Francisco, CA');
   assert.equal(jobs[0].url, 'https://www.linkedin.com/jobs/view/senior-software-engineer-12345');
+  assert.equal(jobs[0].salaryMin, 180000);
+  assert.equal(jobs[0].salaryMax, 220000);
   assert.equal(jobs[0].source, 'linkedin');
+});
+
+test('LinkedIn: parseLinkedInJobCards correctly scales K/M salary abbreviations', () => {
+  const cardWithK = `
+    <div class="base-search-card">
+      <a class="base-card__full-link" href="https://www.linkedin.com/jobs/view/staff-engineer-777"></a>
+      <h3 class="base-search-card__title">Staff Engineer</h3>
+      <h4 class="base-search-card__subtitle">Vercel</h4>
+      <span class="job-search-card__salary-info">$140K - $180.5K/yr</span>
+    </div>
+  `;
+  const jobs = parseLinkedInJobCards(cardWithK);
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].salaryMin, 140000);
+  assert.equal(jobs[0].salaryMax, 180500);
 });
 
 test('LinkedIn: parseLinkedInJobCards handles empty or invalid HTML', () => {

@@ -48,11 +48,21 @@ export function parseLinkedInJobCards(html: string): RawAggregatorJob[] {
         let salaryCurrency: string | undefined;
 
         if (salaryText) {
-          const numbers = salaryText.match(/\d[\d,]*/g);
-          if (numbers && numbers.length > 0) {
-            salaryMin = parseInt(numbers[0].replace(/,/g, ''), 10);
+          const numbers = [...salaryText.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?/g)].map(
+            ([, value, suffix]) => {
+              const multiplier =
+                suffix?.toLowerCase() === 'm'
+                  ? 1_000_000
+                  : suffix?.toLowerCase() === 'k'
+                    ? 1_000
+                    : 1;
+              return Math.round(Number(value.replace(/,/g, '')) * multiplier);
+            }
+          );
+          if (numbers.length > 0) {
+            salaryMin = numbers[0];
             if (numbers.length > 1) {
-              salaryMax = parseInt(numbers[1].replace(/,/g, ''), 10);
+              salaryMax = numbers[1];
             }
           }
           if (salaryText.includes('$')) salaryCurrency = 'USD';
