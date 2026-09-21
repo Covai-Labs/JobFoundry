@@ -254,8 +254,8 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
             {submitting
               ? 'Creating account...'
               : userCount === 0
-              ? 'Create Administrator Account'
-              : 'Create Account'}
+                ? 'Create Administrator Account'
+                : 'Create Account'}
           </button>
         </form>
 

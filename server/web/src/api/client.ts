@@ -315,6 +315,12 @@ export class ApiClient {
     });
   }
 
+  async rescoreJob(id: string): Promise<{ ok: boolean; job: Job }> {
+    return this.request<{ ok: boolean; job: Job }>(`/api/v1/jobs/${id}/score`, {
+      method: 'POST',
+    });
+  }
+
   async getCopilotData(id: string): Promise<{ ok: boolean; data: CopilotArtifacts }> {
     return this.request<{ ok: boolean; data: CopilotArtifacts }>(`/api/v1/jobs/${id}/copilot`);
   }

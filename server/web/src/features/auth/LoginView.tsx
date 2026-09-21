@@ -98,7 +98,13 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
             <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>
               🚀 Fresh Installation Detected
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+            <div
+              style={{
+                fontSize: '0.8rem',
+                color: 'var(--text-secondary)',
+                marginBottom: '0.75rem',
+              }}
+            >
               No accounts exist yet. Create your administrator account to get started.
             </div>
             <button

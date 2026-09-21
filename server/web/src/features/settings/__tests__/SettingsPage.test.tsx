@@ -384,7 +384,9 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Default AI Gateway/i }));
 
     await waitFor(() => {
-      expect(screen.getByText(/Default AI Gateway \(Primary Model & Credentials\)/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Default AI Gateway \(Primary Model & Credentials\)/i)
+      ).toBeInTheDocument();
     });
 
     expect(screen.getByText('Engine Inheritance Overview')).toBeInTheDocument();
@@ -422,8 +424,9 @@ describe('SettingsPage', () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText(/Default AI Gateway \(Primary Model & Credentials\)/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Default AI Gateway \(Primary Model & Credentials\)/i)
+      ).toBeInTheDocument();
     });
   });
 });
-

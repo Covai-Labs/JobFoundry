@@ -158,7 +158,11 @@ test('unauthenticated dev-user cannot access administrator routes', async () => 
     db = openDb({ path: ':memory:' });
     app = buildApp({ db, jwtSecret: 'test-jwt-key' });
     const status = await app.inject({ method: 'GET', url: '/api/v1/auth/registration' });
-    assert.deepEqual(JSON.parse(status.body), { open: true, environmentLocked: false });
+    assert.deepEqual(JSON.parse(status.body), {
+      open: true,
+      environmentLocked: false,
+      userCount: 0,
+    });
 
     const update = await app.inject({
       method: 'PUT',
@@ -217,7 +221,11 @@ test('registration policy is admin-controlled and environment locks take precede
           payload: { open: false },
         });
         assert.equal(closed.statusCode, 200);
-        assert.deepEqual(JSON.parse(closed.body), { open: false, environmentLocked: false });
+        assert.deepEqual(JSON.parse(closed.body), {
+          open: false,
+          environmentLocked: false,
+          userCount: 2,
+        });
 
         const blockedRegistration = await app.inject({
           method: 'POST',
@@ -245,7 +253,11 @@ test('registration policy is admin-controlled and environment locks take precede
 
       try {
         const status = await lockedApp.inject({ method: 'GET', url: '/api/v1/auth/registration' });
-        assert.deepEqual(JSON.parse(status.body), { open: false, environmentLocked: true });
+        assert.deepEqual(JSON.parse(status.body), {
+          open: false,
+          environmentLocked: true,
+          userCount: 0,
+        });
 
         const update = await lockedApp.inject({
           method: 'PUT',

@@ -97,6 +97,29 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   const [sanitizing, setSanitizing] = useState(false);
   const [sanitizeSuccess, setSanitizeSuccess] = useState<string | null>(null);
 
+  const [rescoring, setRescoring] = useState(false);
+  const [rescoreSuccess, setRescoreSuccess] = useState<string | null>(null);
+  const [rescoreError, setRescoreError] = useState<string | null>(null);
+
+  const handleRescore = async () => {
+    if (!job || rescoring) return;
+    setRescoring(true);
+    setRescoreError(null);
+    setRescoreSuccess(null);
+    try {
+      const res = await api.rescoreJob(job.id);
+      if (res.ok && res.job) {
+        onJobUpdated(res.job);
+        setRescoreSuccess('Fit score evaluation refreshed!');
+        setTimeout(() => setRescoreSuccess(null), 4000);
+      }
+    } catch (err: any) {
+      setRescoreError(err.message || 'Fit re-scoring failed');
+    } finally {
+      setRescoring(false);
+    }
+  };
+
   const handleSanitize = async () => {
     if (!job) return;
     setSanitizing(true);
@@ -221,6 +244,14 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                   </option>
                 ))}
               </select>
+              <button
+                onClick={handleRescore}
+                disabled={rescoring}
+                className="btn btn-secondary btn-sm"
+                title="Re-run AI fit scoring against current master resume"
+              >
+                {rescoring ? 'Scoring...' : '⚡ Re-score'}
+              </button>
               <TailorButton job={job} onTailored={onJobUpdated} />
             </div>
           </div>
@@ -259,9 +290,20 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       marginBottom: '0.75rem',
                     }}
                   >
-                    <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)' }}>
-                      Fit Screener Evaluation
-                    </h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                      <h3 style={{ fontSize: '1rem', color: 'var(--text-primary)', margin: 0 }}>
+                        Fit Screener Evaluation
+                      </h3>
+                      <button
+                        onClick={handleRescore}
+                        disabled={rescoring}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                        title="Re-calculate AI fit score"
+                      >
+                        {rescoring ? 'Scoring...' : '🔄 Re-calculate'}
+                      </button>
+                    </div>
                     {job.fit_score !== null && job.fit_score !== undefined ? (
                       <span
                         className={`score-badge score-${scoreCat}`}
@@ -273,6 +315,38 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
                       <span className="score-badge score-unscored">Unscored</span>
                     )}
                   </div>
+
+                  {rescoreSuccess && (
+                    <div
+                      style={{
+                        background: 'rgba(34, 197, 94, 0.15)',
+                        border: '1px solid rgba(34, 197, 94, 0.4)',
+                        color: 'var(--color-green, #22c55e)',
+                        padding: '0.4rem 0.75rem',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        marginBottom: '0.75rem',
+                      }}
+                    >
+                      ✓ {rescoreSuccess}
+                    </div>
+                  )}
+
+                  {rescoreError && (
+                    <div
+                      style={{
+                        background: 'rgba(239, 68, 68, 0.15)',
+                        border: '1px solid rgba(239, 68, 68, 0.4)',
+                        color: 'var(--color-red, #ef4444)',
+                        padding: '0.4rem 0.75rem',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.8rem',
+                        marginBottom: '0.75rem',
+                      }}
+                    >
+                      ⚠️ {rescoreError}
+                    </div>
+                  )}
 
                   {fitNotes.error || job.status === 'score_failed' ? (
                     <p

@@ -246,6 +246,7 @@ export const SETTINGS_METADATA = {
  */
 export function getTrustedApiBaseOrigins(env = process.env) {
   const tailorPort = env.TAILOR_PORT || 8081;
+  const scorerPort = env.SCORER_PORT || 8001;
   const defaults = [
     'http://127.0.0.1:11434',
     'http://localhost:11434',
@@ -253,6 +254,10 @@ export function getTrustedApiBaseOrigins(env = process.env) {
     'http://localhost:8081',
     `http://127.0.0.1:${tailorPort}`,
     `http://localhost:${tailorPort}`,
+    'http://127.0.0.1:8001',
+    'http://localhost:8001',
+    `http://127.0.0.1:${scorerPort}`,
+    `http://localhost:${scorerPort}`,
   ];
 
   const sources = (env.ALLOWED_LLM_BASES || '')

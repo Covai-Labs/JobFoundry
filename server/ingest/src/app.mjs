@@ -477,7 +477,8 @@ export function buildApp({
           baseSetting = getEffectiveSettingWithSource(db, 'scorer_api_base', { userId });
         }
       } else {
-        const inheritDefault = getEffectiveSetting(db, `${feature}_inherit_default`, process.env, userId) ?? true;
+        const inheritDefault =
+          getEffectiveSetting(db, `${feature}_inherit_default`, process.env, userId) ?? true;
         if (inheritDefault) {
           keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
           if (!keySetting.value) {
@@ -510,8 +511,7 @@ export function buildApp({
       const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
       const fallbackKeyAllowed = !registered || keySetting.source === 'user';
       const effectiveKey = hasExplicitKey ? apiKey : fallbackKeyAllowed ? keySetting.value : '';
-      let effectiveModel =
-        model || modelSetting.value || 'openrouter/openrouter/free';
+      let effectiveModel = model || modelSetting.value || 'openrouter/openrouter/free';
       if (effectiveModel === 'openrouter/free') {
         effectiveModel = 'openrouter/openrouter/free';
       } else if (effectiveModel === 'openrouter/auto') {
@@ -945,7 +945,8 @@ export function buildApp({
     try {
       const userId = request.user.id;
       const registered = isRegisteredUser(db, userId);
-      const inherit = getEffectiveSetting(db, 'scorer_inherit_default', process.env, userId) ?? true;
+      const inherit =
+        getEffectiveSetting(db, 'scorer_inherit_default', process.env, userId) ?? true;
       let keySetting = inherit
         ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
         : getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
@@ -960,11 +961,13 @@ export function buildApp({
           ? keySetting.value
           : ''
         : keySetting.value;
-      const model = (inherit ? getEffectiveSetting(db, 'default_llm_model', process.env, userId) : null) ||
+      const model =
+        (inherit ? getEffectiveSetting(db, 'default_llm_model', process.env, userId) : null) ||
         getEffectiveSetting(db, 'scorer_model', process.env, userId) ||
         getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
         'openrouter/openrouter/free';
-      const apiBase = (inherit ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) : null) ||
+      const apiBase =
+        (inherit ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) : null) ||
         getEffectiveSetting(db, 'scorer_api_base', process.env, userId) ||
         getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
         '';
@@ -1585,6 +1588,118 @@ export function buildApp({
     }
   );
 
+  // POST /api/v1/jobs/:id/score & /api/v1/jobs/:id/rescore - Trigger fit re-scoring
+  const handleScoreJob = async (request, reply) => {
+    if (!checkRateLimit(request, reply, 30)) return;
+    if (!authenticate(request, reply)) return;
+
+    const { id } = request.params;
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+      return reply.code(400).send({ error: 'Invalid job ID format' });
+    }
+    const userId = String(request.user.id || 'dev-user');
+    if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
+      return reply.code(400).send({ error: 'Invalid user ID format' });
+    }
+    if (!canAccessJob(userId, id)) {
+      return reply.code(404).send({ error: 'job not found' });
+    }
+
+    const jobRecord = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+    if (!jobRecord) {
+      return reply.code(404).send({ error: 'job not found' });
+    }
+    if (!jobRecord.description || jobRecord.description.trim().length < 10) {
+      return reply.code(400).send({
+        error:
+          'Job description is missing or too short. Cannot evaluate fit score without job content.',
+      });
+    }
+
+    // Reset scoring state
+    const now = Date.now();
+    if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
+      db.prepare(
+        "UPDATE user_jobs SET fit_score = NULL, fit_notes = NULL, status = 'new', attempt_count = 0, updated_at = ? WHERE job_id = ? AND user_id = ?"
+      ).run(now, id, userId);
+    } else {
+      db.prepare(
+        "UPDATE jobs SET fit_score = NULL, fit_notes = NULL, status = 'new', attempt_count = 0, updated_at = ? WHERE id = ?"
+      ).run(now, id);
+    }
+
+    // Trigger immediate worker tick on the scorer daemon
+    const scorerPort = process.env.SCORER_PORT || 8001;
+    const scorerUrl = `http://127.0.0.1:${scorerPort}/api/v1/worker/tick`;
+    try {
+      await safeFetch(scorerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
+    } catch (e) {
+      request.log?.warn?.(`Scorer tick trigger failed: ${e.message}`);
+    }
+
+    // Query fresh job state
+    let job;
+    if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
+      job = db
+        .prepare(
+          `SELECT 
+            j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+            COALESCE(uj.fit_score, j.fit_score) as fit_score,
+            COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
+            COALESCE(uj.status, j.status) as status,
+            COALESCE(uj.tailored_resume_id, j.tailored_resume_id) as tailored_resume_id,
+            COALESCE(uj.created_at, j.created_at) as created_at,
+            COALESCE(uj.updated_at, j.updated_at) as updated_at
+          FROM user_jobs uj
+          JOIN jobs j ON uj.job_id = j.id
+          WHERE uj.user_id = ? AND j.id = ?`
+        )
+        .get(userId, id);
+    } else {
+      job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+    }
+
+    return { ok: true, job };
+  };
+
+  app.post(
+    '/api/v1/jobs/:id/score',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    handleScoreJob
+  );
+
+  app.post(
+    '/api/v1/jobs/:id/rescore',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    handleScoreJob
+  );
+
   // POST /api/v1/jobs/:id/tailor - Trigger manual tailor execution
   app.post(
     '/api/v1/jobs/:id/tailor',
@@ -1650,7 +1765,8 @@ export function buildApp({
       }
 
       // BYOK: a registered user may only tailor with their own key — never a shared one.
-      const tailorInherit = getEffectiveSetting(db, 'tailor_inherit_default', process.env, userId) ?? true;
+      const tailorInherit =
+        getEffectiveSetting(db, 'tailor_inherit_default', process.env, userId) ?? true;
       let tailorKeySetting = tailorInherit
         ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
         : getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
@@ -1729,11 +1845,17 @@ export function buildApp({
       const tailorTimeoutMs =
         (Number(getEffectiveSetting(db, 'tailor_timeout_seconds', process.env, userId)) || 900) *
         1000;
-      const tailorModel = (tailorInherit ? getEffectiveSetting(db, 'default_llm_model', process.env, userId) : null) ||
+      const tailorModel =
+        (tailorInherit
+          ? getEffectiveSetting(db, 'default_llm_model', process.env, userId)
+          : null) ||
         getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
         getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
         'openrouter/openrouter/free';
-      const tailorBase = (tailorInherit ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) : null) ||
+      const tailorBase =
+        (tailorInherit
+          ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId)
+          : null) ||
         getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
         getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
         '';
@@ -1859,14 +1981,17 @@ export function buildApp({
       getEffectiveSetting(db, 'copilot_cover_letter_prompt_template', process.env, userId) ||
       systemPrompt;
 
-    const inheritDefault = getEffectiveSetting(db, 'copilot_inherit_default', process.env, userId) ?? true;
+    const inheritDefault =
+      getEffectiveSetting(db, 'copilot_inherit_default', process.env, userId) ?? true;
     let copilotModel = '';
     let copilotKey = '';
     let copilotBase = '';
 
     if (inheritDefault) {
       copilotModel = getEffectiveSetting(db, 'default_llm_model', process.env, userId) || '';
-      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', {
+        userId,
+      });
       copilotKey = isRegisteredUser(db, userId)
         ? defaultKeySetting.source === 'user'
           ? defaultKeySetting.value
@@ -1892,7 +2017,9 @@ export function buildApp({
         'openrouter/openrouter/free';
     }
     if (!copilotKey) {
-      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', {
+        userId,
+      });
       copilotKey = isRegisteredUser(db, userId)
         ? defaultKeySetting.source === 'user'
           ? defaultKeySetting.value
