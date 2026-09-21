@@ -1310,6 +1310,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               setNewScorerKey(e.target.value);
                               setIsDirty(true);
                             }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newScorerKey.trim() && !saving) {
+                                e.preventDefault();
+                                handleSaveAll();
+                              }
+                            }}
                             className="input-text"
                             placeholder={
                               LLM_PROVIDERS.find((x) => x.id === selectedScorerProvider)
@@ -1318,6 +1324,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             style={{ flex: 1 }}
                             autoFocus
                           />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAll()}
+                            disabled={saving || !newScorerKey.trim()}
+                            className="btn btn-primary btn-sm"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                          </button>
                           <button
                             type="button"
                             onClick={() => {
@@ -1714,11 +1734,31 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   setNewTailorKey(e.target.value);
                                   setIsDirty(true);
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newTailorKey.trim() && !saving) {
+                                    e.preventDefault();
+                                    handleSaveAll();
+                                  }
+                                }}
                                 className="input-text"
                                 placeholder="Enter custom key for tailor service"
                                 style={{ flex: 1 }}
                                 autoFocus
                               />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAll()}
+                                disabled={saving || !newTailorKey.trim()}
+                                className="btn btn-primary btn-sm"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -2301,11 +2341,31 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   setNewCopilotKey(e.target.value);
                                   setIsDirty(true);
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newCopilotKey.trim() && !saving) {
+                                    e.preventDefault();
+                                    handleSaveAll();
+                                  }
+                                }}
                                 className="input-text"
                                 placeholder="Enter custom key for Copilot"
                                 style={{ flex: 1 }}
                                 autoFocus
                               />
+                              <button
+                                type="button"
+                                onClick={() => handleSaveAll()}
+                                disabled={saving || !newCopilotKey.trim()}
+                                className="btn btn-primary btn-sm"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                              </button>
                               <button
                                 type="button"
                                 onClick={() => {
@@ -3058,11 +3118,31 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               setNewOpikKey(e.target.value);
                               setIsDirty(true);
                             }}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter' && newOpikKey.trim() && !saving) {
+                                e.preventDefault();
+                                handleSaveAll();
+                              }
+                            }}
                             className="input-text"
                             placeholder="Enter Opik API Key"
                             style={{ flex: 1 }}
                             autoFocus
                           />
+                          <button
+                            type="button"
+                            onClick={() => handleSaveAll()}
+                            disabled={saving || !newOpikKey.trim()}
+                            className="btn btn-primary btn-sm"
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.35rem',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                          </button>
                           <button
                             type="button"
                             onClick={() => {

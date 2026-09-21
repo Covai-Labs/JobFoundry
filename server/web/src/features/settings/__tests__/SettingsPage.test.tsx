@@ -298,4 +298,54 @@ describe('SettingsPage', () => {
       screen.getByRole('button', { name: /Custom \/ Self-Hosted Gateway/i })
     ).toBeInTheDocument();
   });
+
+  it('allows editing API key with inline Save and Cancel options', async () => {
+    const updateSpy = vi.spyOn(api, 'updateSettings').mockResolvedValue({
+      ok: true,
+      settings: {
+        scorer_api_key: 'sk-or-••••••••9999',
+      } as any,
+      meta: {} as any,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/AI Fit Scorer/i));
+
+    // Initially displays masked key and Change Key button
+    const changeKeyBtn = screen.getByRole('button', { name: /Change Key/i });
+    expect(changeKeyBtn).toBeInTheDocument();
+
+    // Click Change Key
+    fireEvent.click(changeKeyBtn);
+
+    // Save and Cancel buttons should both be present
+    const saveKeyBtn = screen.getByRole('button', { name: /^Save$/i });
+    const cancelKeyBtn = screen.getByRole('button', { name: /^Cancel$/i });
+    expect(saveKeyBtn).toBeInTheDocument();
+    expect(cancelKeyBtn).toBeInTheDocument();
+
+    // Save button disabled when input is empty
+    expect(saveKeyBtn).toBeDisabled();
+
+    // Enter a new key
+    const keyInput = screen.getByPlaceholderText(/sk-or-v1/i);
+    fireEvent.change(keyInput, { target: { value: 'sk-or-v1-new-secret-key-12345' } });
+    expect(saveKeyBtn).not.toBeDisabled();
+
+    // Click Save
+    fireEvent.click(saveKeyBtn);
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scorer_api_key: 'sk-or-v1-new-secret-key-12345',
+        })
+      );
+    });
+  });
 });
+

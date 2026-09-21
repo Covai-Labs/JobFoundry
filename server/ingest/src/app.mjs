@@ -516,7 +516,7 @@ export function buildApp({
         const tailorPayload = {
           model: effectiveModel,
           api_key: effectiveKey,
-          ...(explicitBase ? { api_base: explicitBase } : {}),
+          api_base: explicitBase || directBase,
         };
         const tailorResp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/test-llm`, {
           method: 'POST',

@@ -276,6 +276,8 @@ async def test_llm_connection(payload: TestLlmRequest) -> TestLlmResponse:
         except Exception as e:
             return TestLlmResponse(success=False, model=payload.model, error=str(e))
         kwargs["api_base"] = payload.api_base
+    elif (payload.model or "").startswith("openrouter/"):
+        kwargs["api_base"] = "https://openrouter.ai/api/v1"
 
     try:
         await acompletion(**kwargs)
