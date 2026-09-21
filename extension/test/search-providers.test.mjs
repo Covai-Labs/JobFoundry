@@ -21,21 +21,15 @@ const { parseGlassdoorGraphQLResponse } = await import(
 const { parseZipRecruiterResponse } = await import(
   join(EXT, 'src', 'background', 'search', 'ziprecruiter.ts')
 );
-const { parseGoogleJobsHtml } = await import(
-  join(EXT, 'src', 'background', 'search', 'google.ts')
-);
-const { parseNaukriResponse } = await import(
-  join(EXT, 'src', 'background', 'search', 'naukri.ts')
-);
+const { parseGoogleJobsHtml } = await import(join(EXT, 'src', 'background', 'search', 'google.ts'));
+const { parseNaukriResponse } = await import(join(EXT, 'src', 'background', 'search', 'naukri.ts'));
 const { adzunaSearchProvider } = await import(
   join(EXT, 'src', 'background', 'search', 'adzuna.ts')
 );
 const { hiringcafeSearchProvider } = await import(
   join(EXT, 'src', 'background', 'search', 'hiringcafe.ts')
 );
-const { runSearchPipeline } = await import(
-  join(EXT, 'src', 'background', 'search', 'index.ts')
-);
+const { runSearchPipeline } = await import(join(EXT, 'src', 'background', 'search', 'index.ts'));
 
 // 1. LinkedIn Parser Tests
 test('LinkedIn: parseLinkedInJobCards extracts jobs from HTML cards', () => {
@@ -136,7 +130,10 @@ test('Indeed: parseIndeedGraphQLResponse maps structured GraphQL jobs', () => {
 });
 
 test('Indeed: buildIndeedGraphQLQuery escapes quotes and backslashes safely', () => {
-  const query = buildIndeedGraphQLQuery({ searchTerm: 'Senior "Go" Developer', location: 'Seattle, WA' });
+  const query = buildIndeedGraphQLQuery({
+    searchTerm: 'Senior "Go" Developer',
+    location: 'Seattle, WA',
+  });
   assert.ok(query.includes('\\"Go\\"'));
   assert.ok(query.includes('Seattle, WA'));
 
@@ -474,4 +471,3 @@ test('HiringCafe: extracts direct ATS apply links and pre-parsed salary from SSR
   assert.equal(jobs[0].source, 'hiringcafe');
   assert.ok(requestedUrl.includes('hiringcafe.com/?searchState='));
 });
-

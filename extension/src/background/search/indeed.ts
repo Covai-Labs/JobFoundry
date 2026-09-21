@@ -11,8 +11,7 @@ import type {
 } from './types.ts';
 
 const INDEED_GRAPHQL_ENDPOINT = 'https://apis.indeed.com/graphql';
-const INDEED_PUBLIC_API_KEY =
-  '161092c2017b5bbab13edb12461a62d5a833871e7cad6d9d475304573de67ac8';
+const INDEED_PUBLIC_API_KEY = '161092c2017b5bbab13edb12461a62d5a833871e7cad6d9d475304573de67ac8';
 
 export function buildIndeedGraphQLQuery(criteria: SearchCriteria, cursor?: string | null): string {
   const searchTerm = criteria.searchTerm || '';
@@ -95,11 +94,13 @@ export function parseIndeedGraphQLResponse(json: any): {
     const title = String(job.title).trim();
     const company = String(job.source?.name || 'Unknown Company').trim();
     const key = job.key ? String(job.key) : '';
-    const viewUrl = job.recruit?.viewJobUrl || (key ? `https://www.indeed.com/viewjob?jk=${key}` : '');
+    const viewUrl =
+      job.recruit?.viewJobUrl || (key ? `https://www.indeed.com/viewjob?jk=${key}` : '');
 
     if (!viewUrl) continue;
 
-    const locFormatted = job.location?.formatted?.long || job.location?.formatted?.short || job.location?.city || '';
+    const locFormatted =
+      job.location?.formatted?.long || job.location?.formatted?.short || job.location?.city || '';
     const descHtml = job.description?.html || '';
 
     const range = job.compensation?.baseSalary?.range;
@@ -108,9 +109,10 @@ export function parseIndeedGraphQLResponse(json: any): {
 
     let postedAt: string | undefined;
     if (job.datePublished) {
-      postedAt = typeof job.datePublished === 'number'
-        ? new Date(job.datePublished).toISOString()
-        : String(job.datePublished);
+      postedAt =
+        typeof job.datePublished === 'number'
+          ? new Date(job.datePublished).toISOString()
+          : String(job.datePublished);
     }
 
     jobs.push({
@@ -136,7 +138,10 @@ export const indeedSearchProvider: AggregatorSearchProvider = {
   id: 'indeed',
   displayName: 'Indeed',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchImpl = options.fetchFn || globalThis.fetch;
     const resultsWanted = criteria.resultsWanted || 25;
     const collected: RawAggregatorJob[] = [];
@@ -158,7 +163,8 @@ export const indeedSearchProvider: AggregatorSearchProvider = {
             'indeed-locale': 'en-US',
             'user-agent':
               'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Indeed App 193.1',
-            'indeed-app-info': 'appv=193.1; appid=com.indeed.jobsearch; osv=16.6.1; os=ios; dtype=phone',
+            'indeed-app-info':
+              'appv=193.1; appid=com.indeed.jobsearch; osv=16.6.1; os=ios; dtype=phone',
           },
           body: JSON.stringify({ query }),
         });
@@ -189,7 +195,9 @@ export const indeedSearchProvider: AggregatorSearchProvider = {
           await new Promise((resolve) => setTimeout(resolve, options.delayMs));
         }
       } catch (err: any) {
-        options.logger?.error?.(`[indeed-search] error on page ${page + 1}: ${err?.message || err}`);
+        options.logger?.error?.(
+          `[indeed-search] error on page ${page + 1}: ${err?.message || err}`
+        );
         break;
       }
     }

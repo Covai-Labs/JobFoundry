@@ -28,7 +28,9 @@ export function parseNaukriResponse(json: any): RawAggregatorJob[] {
     const jdUrl = item?.jdURL;
     let url = '';
     if (jdUrl) {
-      url = jdUrl.startsWith('http') ? jdUrl : `https://www.naukri.com${jdUrl.startsWith('/') ? '' : '/'}${jdUrl}`;
+      url = jdUrl.startsWith('http')
+        ? jdUrl
+        : `https://www.naukri.com${jdUrl.startsWith('/') ? '' : '/'}${jdUrl}`;
     } else if (jobId) {
       url = `https://www.naukri.com/job-listings-${jobId}`;
     }
@@ -49,9 +51,10 @@ export function parseNaukriResponse(json: any): RawAggregatorJob[] {
 
     let postedAt: string | undefined;
     if (item?.createdDate) {
-      postedAt = typeof item.createdDate === 'number'
-        ? new Date(item.createdDate).toISOString()
-        : String(item.createdDate);
+      postedAt =
+        typeof item.createdDate === 'number'
+          ? new Date(item.createdDate).toISOString()
+          : String(item.createdDate);
     }
 
     jobs.push({
@@ -72,7 +75,10 @@ export const naukriSearchProvider: AggregatorSearchProvider = {
   id: 'naukri',
   displayName: 'Naukri',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchImpl = options.fetchFn || globalThis.fetch;
     const resultsWanted = criteria.resultsWanted || 20;
     const collected: RawAggregatorJob[] = [];

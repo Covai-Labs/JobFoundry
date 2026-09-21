@@ -15,7 +15,9 @@ export function parseGoogleJobsHtml(html: string): RawAggregatorJob[] {
   if (!html || typeof html !== 'string') return jobs;
 
   // Google Jobs emits structured Schema.org JobPosting in JSON-LD or internal tokens
-  const jsonLdMatch = html.match(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+  const jsonLdMatch = html.match(
+    /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi
+  );
   if (jsonLdMatch) {
     for (const scriptTag of jsonLdMatch) {
       try {
@@ -59,9 +61,13 @@ export function parseGoogleJobsHtml(html: string): RawAggregatorJob[] {
       const doc = new DOMParser().parseFromString(html, 'text/html');
       const cards = doc.querySelectorAll('[data-share-url], [jsname="ibnC6b"], .iFjolb');
       for (const card of cards) {
-        const url = card.getAttribute('data-share-url') || card.querySelector('a')?.getAttribute('href') || '';
+        const url =
+          card.getAttribute('data-share-url') ||
+          card.querySelector('a')?.getAttribute('href') ||
+          '';
         const title = card.querySelector('[role="heading"], .BjJfJf')?.textContent?.trim() || '';
-        const company = card.querySelector('.vNEEBe, .nJlHg')?.textContent?.trim() || 'Unknown Company';
+        const company =
+          card.querySelector('.vNEEBe, .nJlHg')?.textContent?.trim() || 'Unknown Company';
         const location = card.querySelector('.Qk80Jf')?.textContent?.trim() || '';
 
         if (title && url) {
@@ -86,7 +92,10 @@ export const googleSearchProvider: AggregatorSearchProvider = {
   id: 'google',
   displayName: 'Google Jobs',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchImpl = options.fetchFn || globalThis.fetch;
     const resultsWanted = criteria.resultsWanted || 20;
 

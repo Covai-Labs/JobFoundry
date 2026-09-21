@@ -81,7 +81,9 @@ export async function runSearchPipeline({
       totalFound: 0,
       newIngested: 0,
       droppedDedup: 0,
-      errors: ['No search terms configured. Please configure target job titles in settings or master resume.'],
+      errors: [
+        'No search terms configured. Please configure target job titles in settings or master resume.',
+      ],
     };
   }
 
@@ -117,17 +119,21 @@ export async function runSearchPipeline({
   }
 
   const resultsCap = resultsWantedPerTerm || config?.searchMaxResultsPerTerm || 25;
-  const targetLocation = location || (config?.locationFilter?.allow?.includes('remote') ? 'remote' : undefined);
+  const targetLocation =
+    location || (config?.locationFilter?.allow?.includes('remote') ? 'remote' : undefined);
   const isRemote = location
     ? /remote|anywhere|worldwide/i.test(location)
-    : (config?.locationFilter?.allow?.some((l: string) => /remote|anywhere|worldwide/i.test(l)) || false);
+    : config?.locationFilter?.allow?.some((l: string) => /remote|anywhere|worldwide/i.test(l)) ||
+      false;
 
   const rawPooled: RawAggregatorJob[] = [];
   const errors: string[] = [];
 
   // Execute search per term across enabled boards
   for (const term of terms) {
-    logger.info?.(`[aggregator-search] Searching for "${term}" across: ${activeProviders.map((p) => p.id).join(', ')}`);
+    logger.info?.(
+      `[aggregator-search] Searching for "${term}" across: ${activeProviders.map((p) => p.id).join(', ')}`
+    );
 
     const criteria: SearchCriteria = {
       searchTerm: term,
@@ -182,9 +188,7 @@ export async function runSearchPipeline({
   }
 
   // Compute fingerprints
-  const withFps = await Promise.all(
-    normalized.map((job) => withFingerprint(job, fingerprint))
-  );
+  const withFps = await Promise.all(normalized.map((job) => withFingerprint(job, fingerprint)));
 
   // Deduplication
   const dedupCache = cache || createSessionCache();

@@ -67,10 +67,23 @@ async function hydrate() {
 
   // Populate search boards checkboxes
   const boards = currentConfig.searchBoards || {};
-  const boardIds = ['linkedin', 'indeed', 'glassdoor', 'hiringcafe', 'adzuna', 'ziprecruiter', 'google', 'naukri'];
+  const boardIds = [
+    'linkedin',
+    'indeed',
+    'glassdoor',
+    'hiringcafe',
+    'adzuna',
+    'ziprecruiter',
+    'google',
+    'naukri',
+  ];
   for (const bid of boardIds) {
     const el = $(`#board-${bid}`);
-    if (el) el.checked = boards[bid] !== undefined ? Boolean(boards[bid]) : (bid === 'linkedin' || bid === 'indeed' || bid === 'glassdoor' || bid === 'hiringcafe');
+    if (el)
+      el.checked =
+        boards[bid] !== undefined
+          ? Boolean(boards[bid])
+          : bid === 'linkedin' || bid === 'indeed' || bid === 'glassdoor' || bid === 'hiringcafe';
   }
 
   // Populate Adzuna fields
@@ -219,7 +232,16 @@ export function init() {
     const status = $('#search-settings-status');
     try {
       const searchBoards: Record<string, boolean> = {};
-      const boardIds = ['linkedin', 'indeed', 'glassdoor', 'hiringcafe', 'adzuna', 'ziprecruiter', 'google', 'naukri'];
+      const boardIds = [
+        'linkedin',
+        'indeed',
+        'glassdoor',
+        'hiringcafe',
+        'adzuna',
+        'ziprecruiter',
+        'google',
+        'naukri',
+      ];
       for (const bid of boardIds) {
         const el = $(`#board-${bid}`);
         if (el) searchBoards[bid] = Boolean(el.checked);

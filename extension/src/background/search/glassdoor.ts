@@ -97,7 +97,11 @@ export function parseGlassdoorGraphQLResponse(json: any): RawAggregatorJob[] {
     const job = jv.job;
 
     const title = (job?.jobTitleText || header?.jobTitleText || '').trim();
-    const company = (header?.employer?.name || header?.employerNameFromSearch || 'Unknown Company').trim();
+    const company = (
+      header?.employer?.name ||
+      header?.employerNameFromSearch ||
+      'Unknown Company'
+    ).trim();
     const listingId = job?.listingId || '';
 
     let url = header?.jobLink || '';
@@ -137,7 +141,10 @@ export const glassdoorSearchProvider: AggregatorSearchProvider = {
   id: 'glassdoor',
   displayName: 'Glassdoor',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchImpl = options.fetchFn || globalThis.fetch;
     const resultsWanted = criteria.resultsWanted || 25;
     const collected: RawAggregatorJob[] = [];
@@ -196,7 +203,9 @@ export const glassdoorSearchProvider: AggregatorSearchProvider = {
           await new Promise((resolve) => setTimeout(resolve, options.delayMs));
         }
       } catch (err: any) {
-        options.logger?.error?.(`[glassdoor-search] error on page ${pageNumber}: ${err?.message || err}`);
+        options.logger?.error?.(
+          `[glassdoor-search] error on page ${pageNumber}: ${err?.message || err}`
+        );
         break;
       }
     }

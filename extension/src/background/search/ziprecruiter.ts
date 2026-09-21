@@ -41,8 +41,10 @@ export function parseZipRecruiterResponse(json: any): {
 
     const postedAt = item?.posted_time || '';
 
-    const salaryMin = typeof item?.compensation_min === 'number' ? item.compensation_min : undefined;
-    const salaryMax = typeof item?.compensation_max === 'number' ? item.compensation_max : undefined;
+    const salaryMin =
+      typeof item?.compensation_min === 'number' ? item.compensation_min : undefined;
+    const salaryMax =
+      typeof item?.compensation_max === 'number' ? item.compensation_max : undefined;
     const salaryCurrency = item?.compensation_currency || undefined;
 
     jobs.push({
@@ -69,7 +71,10 @@ export const ziprecruiterSearchProvider: AggregatorSearchProvider = {
   id: 'ziprecruiter',
   displayName: 'ZipRecruiter',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchImpl = options.fetchFn || globalThis.fetch;
     const resultsWanted = criteria.resultsWanted || 20;
     const collected: RawAggregatorJob[] = [];
@@ -129,7 +134,9 @@ export const ziprecruiterSearchProvider: AggregatorSearchProvider = {
           await new Promise((resolve) => setTimeout(resolve, options.delayMs));
         }
       } catch (err: any) {
-        options.logger?.error?.(`[ziprecruiter-search] error on page ${page + 1}: ${err?.message || err}`);
+        options.logger?.error?.(
+          `[ziprecruiter-search] error on page ${page + 1}: ${err?.message || err}`
+        );
         break;
       }
     }

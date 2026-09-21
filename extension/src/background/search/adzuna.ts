@@ -22,7 +22,10 @@ export const adzunaSearchProvider: AdzunaSearchProvider = {
   id: 'adzuna',
   displayName: 'Adzuna',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchFn = options.fetchFn ?? fetch;
     const logger = options.logger;
 
@@ -30,7 +33,9 @@ export const adzunaSearchProvider: AdzunaSearchProvider = {
     const appKey = criteria.adzunaAppKey?.trim();
 
     if (!appId || !appKey) {
-      logger?.info?.('[Adzuna] Missing adzunaAppId or adzunaAppKey in configuration. Skipping Adzuna search.');
+      logger?.info?.(
+        '[Adzuna] Missing adzunaAppId or adzunaAppKey in configuration. Skipping Adzuna search.'
+      );
       return [];
     }
 

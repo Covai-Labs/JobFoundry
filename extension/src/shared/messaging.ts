@@ -51,4 +51,3 @@ interface JobFoundryProtocol {
 }
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<JobFoundryProtocol>();
-

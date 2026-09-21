@@ -125,7 +125,10 @@ export const linkedinSearchProvider: AggregatorSearchProvider = {
   id: 'linkedin',
   displayName: 'LinkedIn',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchImpl = options.fetchFn || globalThis.fetch;
     const resultsWanted = criteria.resultsWanted || 25;
     const collected: RawAggregatorJob[] = [];
@@ -191,7 +194,9 @@ export const linkedinSearchProvider: AggregatorSearchProvider = {
           await new Promise((resolve) => setTimeout(resolve, options.delayMs));
         }
       } catch (err: any) {
-        options.logger?.error?.(`[linkedin-search] failed on page ${page + 1}: ${err?.message || err}`);
+        options.logger?.error?.(
+          `[linkedin-search] failed on page ${page + 1}: ${err?.message || err}`
+        );
         break;
       }
     }

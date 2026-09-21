@@ -38,19 +38,14 @@ function mapHiringCafeHit(hit: any): RawAggregatorJob | null {
   const processed = hit.v5_processed_job_data || {};
   const org = hit.attributed_org || {};
 
-  const applyUrl = hit.apply_url || (hit.objectID ? `${HIRINGCAFE_BASE_URL}/job/${hit.objectID}` : null);
+  const applyUrl =
+    hit.apply_url || (hit.objectID ? `${HIRINGCAFE_BASE_URL}/job/${hit.objectID}` : null);
   if (!applyUrl) return null;
 
   const title =
-    jobInfo.title ||
-    jobInfo.job_title_raw ||
-    processed.core_job_title ||
-    'Unknown Title';
+    jobInfo.title || jobInfo.job_title_raw || processed.core_job_title || 'Unknown Title';
 
-  const company =
-    org.name ||
-    processed.company_name ||
-    'Unknown Company';
+  const company = org.name || processed.company_name || 'Unknown Company';
 
   const location =
     processed.formatted_workplace_location ||
@@ -58,22 +53,19 @@ function mapHiringCafeHit(hit: any): RawAggregatorJob | null {
     processed.workplace_states?.[0] ||
     undefined;
 
-  const description =
-    processed.requirements_summary ||
-    jobInfo.description ||
-    undefined;
+  const description = processed.requirements_summary || jobInfo.description || undefined;
 
-  const salaryMin = typeof processed.yearly_min_compensation === 'number'
-    ? processed.yearly_min_compensation
-    : undefined;
-  const salaryMax = typeof processed.yearly_max_compensation === 'number'
-    ? processed.yearly_max_compensation
-    : undefined;
+  const salaryMin =
+    typeof processed.yearly_min_compensation === 'number'
+      ? processed.yearly_min_compensation
+      : undefined;
+  const salaryMax =
+    typeof processed.yearly_max_compensation === 'number'
+      ? processed.yearly_max_compensation
+      : undefined;
   const salaryCurrency = processed.listed_compensation_currency || undefined;
 
-  const postedAt =
-    processed.estimated_publish_date ||
-    undefined;
+  const postedAt = processed.estimated_publish_date || undefined;
 
   return {
     title,
@@ -97,7 +89,10 @@ export const hiringcafeSearchProvider: HiringCafeSearchProvider = {
   id: 'hiringcafe',
   displayName: 'HiringCafe',
 
-  async search(criteria: SearchCriteria, options: SearchProviderOptions = {}): Promise<RawAggregatorJob[]> {
+  async search(
+    criteria: SearchCriteria,
+    options: SearchProviderOptions = {}
+  ): Promise<RawAggregatorJob[]> {
     const fetchFn = options.fetchFn ?? fetch;
     const logger = options.logger;
     const resultsWanted = criteria.resultsWanted ?? 25;
@@ -172,7 +167,9 @@ export const hiringcafeSearchProvider: HiringCafeSearchProvider = {
           const parsed = parseNextDataScript(html);
 
           if (!parsed) {
-            logger?.warn?.('[HiringCafe] Failed to extract Next.js hydration payload from response');
+            logger?.warn?.(
+              '[HiringCafe] Failed to extract Next.js hydration payload from response'
+            );
             break;
           }
 
