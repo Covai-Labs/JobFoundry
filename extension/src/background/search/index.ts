@@ -10,6 +10,8 @@ import { glassdoorSearchProvider } from './glassdoor.ts';
 import { ziprecruiterSearchProvider } from './ziprecruiter.ts';
 import { googleSearchProvider } from './google.ts';
 import { naukriSearchProvider } from './naukri.ts';
+import { adzunaSearchProvider } from './adzuna.ts';
+import { hiringcafeSearchProvider } from './hiringcafe.ts';
 
 import { normalizeJob, withFingerprint } from '../normalize.js';
 import { fingerprintText } from '../fingerprint.js';
@@ -23,6 +25,8 @@ export const searchProviderMap: Record<string, AggregatorSearchProvider> = {
   ziprecruiter: ziprecruiterSearchProvider,
   google: googleSearchProvider,
   naukri: naukriSearchProvider,
+  adzuna: adzunaSearchProvider,
+  hiringcafe: hiringcafeSearchProvider,
 };
 
 export interface RunSearchPipelineOptions {
@@ -127,6 +131,9 @@ export async function runSearchPipeline({
       location: targetLocation,
       isRemote,
       resultsWanted: resultsCap,
+      adzunaAppId: config?.adzunaAppId,
+      adzunaAppKey: config?.adzunaAppKey,
+      adzunaCountry: config?.adzunaCountry,
     };
 
     await Promise.all(

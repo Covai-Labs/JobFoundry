@@ -10,6 +10,9 @@ export interface SearchCriteria {
   resultsWanted?: number;
   hoursOld?: number;
   countryIndeed?: string;
+  adzunaAppId?: string;
+  adzunaAppKey?: string;
+  adzunaCountry?: string;
 }
 
 export interface RawAggregatorJob {

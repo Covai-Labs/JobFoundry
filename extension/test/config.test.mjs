@@ -66,6 +66,18 @@ test('defaults match the implementation plan table exactly', () => {
       'a16z-speedrun-talent': true,
     },
     trackedCompanies: [],
+    searchBoards: {
+      linkedin: true,
+      indeed: true,
+      glassdoor: true,
+      hiringcafe: true,
+      adzuna: false,
+      ziprecruiter: false,
+      google: false,
+      naukri: false,
+    },
+    searchMaxResultsPerTerm: 25,
+    adzunaCountry: 'us',
   });
 });
 

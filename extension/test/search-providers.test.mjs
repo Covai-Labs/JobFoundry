@@ -27,6 +27,12 @@ const { parseGoogleJobsHtml, googleSearchProvider } = await import(
 const { parseNaukriResponse, naukriSearchProvider } = await import(
   join(EXT, 'src', 'background', 'search', 'naukri.ts')
 );
+const { adzunaSearchProvider } = await import(
+  join(EXT, 'src', 'background', 'search', 'adzuna.ts')
+);
+const { hiringcafeSearchProvider } = await import(
+  join(EXT, 'src', 'background', 'search', 'hiringcafe.ts')
+);
 const { runSearchPipeline } = await import(
   join(EXT, 'src', 'background', 'search', 'index.ts')
 );
@@ -334,3 +340,136 @@ test('runSearchPipeline: executes search across enabled boards, deduplicates, an
   assert.equal(sentPayload.jobs[0].title, 'Lead Software Engineer');
   assert.equal(sentPayload.jobs[0].source, 'linkedin');
 });
+
+// 7. Adzuna Provider Tests
+test('Adzuna: skips search gracefully when credentials are not configured', async () => {
+  const jobs = await adzunaSearchProvider.search({
+    searchTerm: 'React Developer',
+  });
+  assert.deepEqual(jobs, []);
+});
+
+test('Adzuna: executes API search when appId and appKey are configured', async () => {
+  const mockApiResponse = {
+    results: [
+      {
+        id: '12345678',
+        title: '<strong>Senior</strong> Frontend Engineer',
+        redirect_url: 'https://www.adzuna.com/land/ad/12345678',
+        company: { display_name: 'Tech Corp' },
+        location: { display_name: 'Bangalore, India' },
+        description: 'We are looking for a Senior Frontend Engineer with React experience.',
+        salary_min: 1500000,
+        salary_max: 2200000,
+        created: '2026-09-20T10:00:00Z',
+      },
+    ],
+  };
+
+  let requestedUrl = '';
+  const mockFetch = async (url) => {
+    requestedUrl = String(url);
+    return {
+      ok: true,
+      json: async () => mockApiResponse,
+    };
+  };
+
+  const jobs = await adzunaSearchProvider.search(
+    {
+      searchTerm: 'Frontend Engineer',
+      adzunaAppId: 'test_app_id',
+      adzunaAppKey: '6d80dc8dee6b79122aeff578491e7f85',
+      adzunaCountry: 'in',
+    },
+    { fetchFn: mockFetch }
+  );
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].title, 'Senior Frontend Engineer'); // stripped HTML
+  assert.equal(jobs[0].company, 'Tech Corp');
+  assert.equal(jobs[0].location, 'Bangalore, India');
+  assert.equal(jobs[0].url, 'https://www.adzuna.com/land/ad/12345678');
+  assert.equal(jobs[0].salaryMin, 1500000);
+  assert.equal(jobs[0].salaryMax, 2200000);
+  assert.equal(jobs[0].source, 'adzuna');
+  assert.ok(requestedUrl.includes('api.adzuna.com/v1/api/jobs/in/search/1'));
+  assert.ok(requestedUrl.includes('app_id=test_app_id'));
+  assert.ok(requestedUrl.includes('app_key=6d80dc8dee6b79122aeff578491e7f85'));
+});
+
+// 8. HiringCafe Provider Tests
+test('HiringCafe: extracts direct ATS apply links and pre-parsed salary from SSR HTML', async () => {
+  const mockSsrHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head><title>HiringCafe</title></head>
+      <body>
+        <script id="__NEXT_DATA__" type="application/json">
+        {
+          "buildId": "test_build_id_123",
+          "props": {
+            "pageProps": {
+              "ssrHits": [
+                {
+                  "objectID": "icims_12345",
+                  "apply_url": "https://company.greenhouse.io/jobs/998877",
+                  "job_information": {
+                    "title": "Principal Infrastructure Engineer"
+                  },
+                  "attributed_org": {
+                    "name": "Cloud Native Labs"
+                  },
+                  "v5_processed_job_data": {
+                    "core_job_title": "Infrastructure Engineer",
+                    "formatted_workplace_location": "Remote, US",
+                    "requirements_summary": "Kubernetes, Go, Terraform, 7+ years experience.",
+                    "yearly_min_compensation": 190000,
+                    "yearly_max_compensation": 240000,
+                    "listed_compensation_currency": "USD",
+                    "estimated_publish_date": "2026-09-21T08:00:00.000Z"
+                  }
+                }
+              ],
+              "ssrPage": 0,
+              "ssrTotalCount": 1
+            }
+          }
+        }
+        </script>
+      </body>
+    </html>
+  `;
+
+  let requestedUrl = '';
+  const mockFetch = async (url) => {
+    requestedUrl = String(url);
+    return {
+      ok: true,
+      text: async () => mockSsrHtml,
+      json: async () => ({}),
+    };
+  };
+
+  const jobs = await hiringcafeSearchProvider.search(
+    {
+      searchTerm: 'Infrastructure Engineer',
+      isRemote: true,
+    },
+    { fetchFn: mockFetch }
+  );
+
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].title, 'Principal Infrastructure Engineer');
+  assert.equal(jobs[0].company, 'Cloud Native Labs');
+  assert.equal(jobs[0].location, 'Remote, US');
+  // Crucial: Direct ATS apply link is preserved
+  assert.equal(jobs[0].url, 'https://company.greenhouse.io/jobs/998877');
+  assert.equal(jobs[0].salaryMin, 190000);
+  assert.equal(jobs[0].salaryMax, 240000);
+  assert.equal(jobs[0].salaryCurrency, 'USD');
+  assert.equal(jobs[0].description, 'Kubernetes, Go, Terraform, 7+ years experience.');
+  assert.equal(jobs[0].source, 'hiringcafe');
+  assert.ok(requestedUrl.includes('hiringcafe.com/?searchState='));
+});
+

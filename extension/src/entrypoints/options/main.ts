@@ -65,6 +65,19 @@ async function hydrate() {
   if ($('#passive-mode')) $('#passive-mode').checked = Boolean(currentConfig.passiveMode);
   if ($('#active-mode')) $('#active-mode').checked = Boolean(currentConfig.activeMode);
 
+  // Populate search boards checkboxes
+  const boards = currentConfig.searchBoards || {};
+  const boardIds = ['linkedin', 'indeed', 'glassdoor', 'hiringcafe', 'adzuna', 'ziprecruiter', 'google', 'naukri'];
+  for (const bid of boardIds) {
+    const el = $(`#board-${bid}`);
+    if (el) el.checked = boards[bid] !== undefined ? Boolean(boards[bid]) : (bid === 'linkedin' || bid === 'indeed' || bid === 'glassdoor' || bid === 'hiringcafe');
+  }
+
+  // Populate Adzuna fields
+  if ($('#adzuna-app-id')) $('#adzuna-app-id').value = currentConfig.adzunaAppId || '';
+  if ($('#adzuna-app-key')) $('#adzuna-app-key').value = currentConfig.adzunaAppKey || '';
+  if ($('#adzuna-country')) $('#adzuna-country').value = currentConfig.adzunaCountry || 'us';
+
   updateConnectionBadge();
 }
 
@@ -198,6 +211,40 @@ export function init() {
       if (syncStatus) {
         syncStatus.textContent = `Auto-connect error: ${err?.message || err}`;
         syncStatus.style.color = 'var(--red)';
+      }
+    }
+  });
+
+  $('#save-search-settings-btn')?.addEventListener('click', async () => {
+    const status = $('#search-settings-status');
+    try {
+      const searchBoards: Record<string, boolean> = {};
+      const boardIds = ['linkedin', 'indeed', 'glassdoor', 'hiringcafe', 'adzuna', 'ziprecruiter', 'google', 'naukri'];
+      for (const bid of boardIds) {
+        const el = $(`#board-${bid}`);
+        if (el) searchBoards[bid] = Boolean(el.checked);
+      }
+
+      const patch: Partial<Config> = {
+        searchBoards,
+        adzunaAppId: $('#adzuna-app-id')?.value.trim() || undefined,
+        adzunaAppKey: $('#adzuna-app-key')?.value.trim() || undefined,
+        adzunaCountry: $('#adzuna-country')?.value.trim().toLowerCase() || 'us',
+      };
+
+      await setConfig(patch);
+      if (status) {
+        status.textContent = 'Search settings saved!';
+        status.style.color = 'var(--green)';
+        setTimeout(() => {
+          if (status) status.textContent = '';
+        }, 3000);
+      }
+      await hydrate();
+    } catch (err: any) {
+      if (status) {
+        status.textContent = `Save error: ${err?.message || err}`;
+        status.style.color = 'var(--red)';
       }
     }
   });
