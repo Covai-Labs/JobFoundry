@@ -13,7 +13,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(null);
+  const [registrationOpen, setRegistrationOpen] = useState<boolean | null>(true);
   const [userCount, setUserCount] = useState<number | null>(null);
 
   const loadStatus = useCallback(() => {
