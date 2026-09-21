@@ -32,11 +32,23 @@ export interface JobsDiscoveredResult {
   error?: string;
 }
 
+export interface SearchBoardsResult {
+  ok: boolean;
+  termsSearched?: string[];
+  totalFound?: number;
+  newIngested?: number;
+  droppedDedup?: number;
+  errors?: string[];
+  error?: string;
+}
+
 interface JobFoundryProtocol {
   'popup:scanNow': () => ScanNowResult;
+  'popup:searchBoardsNow': () => SearchBoardsResult;
   'popup:captureActiveTab': () => CaptureActiveTabResult;
   'popup:autoConnect': () => AutoConnectResult;
   'content:jobsDiscovered': (data: JobsDiscoveredPayload) => JobsDiscoveredResult;
 }
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<JobFoundryProtocol>();
+

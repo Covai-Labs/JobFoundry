@@ -10,6 +10,7 @@ export const DOM = {
   scrapersCount: '#active-scrapers-count',
   autoConnect: '#auto-connect',
   captureTab: '#capture-tab',
+  searchBoardsNow: '#search-boards-now',
   scanNow: '#scan-now',
   passiveMode: '#passive-mode',
   activeMode: '#active-mode',
@@ -186,6 +187,41 @@ export async function scanNow({
   }
 }
 
+export async function searchBoardsNow({
+  doc = document,
+  sendMessage: send = sendMessage,
+}: {
+  doc?: Document;
+  sendMessage?: (type: 'popup:searchBoardsNow', payload?: any) => Promise<any>;
+} = {}) {
+  const status = $<HTMLElement>(doc, DOM.status);
+  if (status) {
+    status.textContent = 'Searching LinkedIn, Indeed & Glassdoor...';
+    status.style.color = '';
+  }
+  try {
+    const response = await send('popup:searchBoardsNow', undefined);
+    if (response?.ok) {
+      if (status) {
+        status.textContent = `✓ Search complete: ${response.newIngested ?? 0} new job(s) ingested (${response.totalFound ?? 0} found)`;
+        status.style.color = '#10b981';
+      }
+    } else if (response && !response.ok) {
+      if (status) {
+        status.textContent = `Search failed: ${response.error || response.errors?.[0] || 'No jobs found'}`;
+        status.style.color = '#ef4444';
+      }
+    }
+    return response;
+  } catch (err: any) {
+    if (status) {
+      status.textContent = `Search error: ${err?.message ?? err}`;
+      status.style.color = '#ef4444';
+    }
+    return { ok: false, error: err?.message ?? String(err) };
+  }
+}
+
 export async function verifyConnection({
   doc = document,
   config,
@@ -320,6 +356,10 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
 
   $<HTMLButtonElement>(doc, DOM.scanNow)?.addEventListener('click', () => {
     scanNow(opts).catch(() => {});
+  });
+
+  $<HTMLButtonElement>(doc, DOM.searchBoardsNow)?.addEventListener('click', () => {
+    searchBoardsNow(opts).catch(() => {});
   });
 
   $<HTMLInputElement>(doc, DOM.passiveMode)?.addEventListener('change', (e: any) => {
