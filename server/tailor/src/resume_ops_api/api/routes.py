@@ -253,8 +253,14 @@ async def get_task_status(
 @router.post("/api/v1/test-llm", response_model=TestLlmResponse)
 async def test_llm_connection(payload: TestLlmRequest) -> TestLlmResponse:
     start_time = time.perf_counter()
+    model = payload.model
+    if model == "openrouter/free":
+        model = "openrouter/openrouter/free"
+    elif model == "openrouter/auto":
+        model = "openrouter/openrouter/auto"
+
     kwargs = {
-        "model": payload.model,
+        "model": model,
         "messages": [{"role": "user", "content": "Reply with OK"}],
         "max_tokens": 5,
         "timeout": 15,

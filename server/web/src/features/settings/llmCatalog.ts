@@ -26,14 +26,14 @@ export const LLM_PROVIDERS: LlmProviderMeta[] = [
     keyHelp: 'Provides unified multi-model routing across commercial and open-weight models.',
     recommendedModels: [
       {
-        id: 'openrouter/free',
+        id: 'openrouter/openrouter/free',
         name: 'OpenRouter Free Tier',
         tier: 'fast',
         description: 'Zero-cost high-throughput evaluation',
         provider: 'openrouter',
       },
       {
-        id: 'openrouter/auto',
+        id: 'openrouter/openrouter/auto',
         name: 'OpenRouter Auto Router',
         tier: 'fast',
         description: 'Auto-routes to the best value model',

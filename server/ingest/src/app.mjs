@@ -467,8 +467,13 @@ export function buildApp({
       const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
       const fallbackKeyAllowed = !registered || keySetting.source === 'user';
       const effectiveKey = hasExplicitKey ? apiKey : fallbackKeyAllowed ? keySetting.value : '';
-      const effectiveModel =
+      let effectiveModel =
         model || modelSetting.value || 'openrouter/google/gemini-2.0-flash-exp:free';
+      if (effectiveModel === 'openrouter/free') {
+        effectiveModel = 'openrouter/openrouter/free';
+      } else if (effectiveModel === 'openrouter/auto') {
+        effectiveModel = 'openrouter/openrouter/auto';
+      }
 
       let explicitBase = null;
       if (typeof apiBase === 'string' && apiBase.trim()) {
