@@ -118,7 +118,9 @@ export async function runSearchPipeline({
 
   const resultsCap = resultsWantedPerTerm || config?.searchMaxResultsPerTerm || 25;
   const targetLocation = location || (config?.locationFilter?.allow?.includes('remote') ? 'remote' : undefined);
-  const isRemote = config?.locationFilter?.allow?.some((l: string) => /remote|anywhere|worldwide/i.test(l)) || false;
+  const isRemote = location
+    ? /remote|anywhere|worldwide/i.test(location)
+    : (config?.locationFilter?.allow?.some((l: string) => /remote|anywhere|worldwide/i.test(l)) || false);
 
   const rawPooled: RawAggregatorJob[] = [];
   const errors: string[] = [];
@@ -190,17 +192,19 @@ export async function runSearchPipeline({
   const droppedDedup = withFps.length - survivors.length;
 
   let newIngested = 0;
+  let ingestionFailed = false;
   if (survivors.length > 0 && sendJobs) {
     try {
       await sendJobs({ jobs: survivors });
       newIngested = survivors.length;
     } catch (err: any) {
+      ingestionFailed = true;
       errors.push(`Failed to ingest jobs to server: ${err?.message || err}`);
     }
   }
 
   return {
-    ok: errors.length === 0 || survivors.length > 0,
+    ok: !ingestionFailed && (errors.length === 0 || newIngested > 0),
     termsSearched: terms,
     totalFound,
     newIngested,
