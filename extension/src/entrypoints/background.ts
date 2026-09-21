@@ -9,6 +9,7 @@ import {
 } from '../shared/config.ts';
 import type { Config } from '../shared/config.ts';
 import { runScanPipeline } from '../background/scan.js';
+import { runSearchPipeline } from '../background/search/index.ts';
 import { sendJobs } from '../shared/ingest-client.js';
 import { checkLiveness } from '../background/liveness/index.js';
 import { normalizeJob, withFingerprint } from '../background/normalize.js';
@@ -378,6 +379,32 @@ export default defineBackground(() => {
         },
       });
       return { ok: true, scanned: Array.isArray(jobs) ? jobs.length : 0 };
+    } catch (err: any) {
+      return { ok: false, error: err?.message ?? String(err) };
+    }
+  });
+
+  onMessage('popup:searchBoardsNow', async () => {
+    try {
+      const config = await getConfig();
+      if (config.serverUrl && config.apiKey) {
+        await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
+        await flushOfflineJobs(sendJobs, { getConfig }).catch(() => {});
+      }
+      const result = await runSearchPipeline({
+        getConfig,
+        sendJobs: async (args) => {
+          try {
+            return await sendJobs(args);
+          } catch (err) {
+            if (args.jobs?.length) {
+              await enqueueOfflineJobs(args.jobs);
+            }
+            throw err;
+          }
+        },
+      });
+      return result;
     } catch (err: any) {
       return { ok: false, error: err?.message ?? String(err) };
     }

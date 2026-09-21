@@ -93,6 +93,103 @@
           </div>
         </section>
 
+        <!-- Aggregator Job Search Providers -->
+        <section class="card">
+          <div class="card-header">
+            <div>
+              <h2>🔍 Multi-Board Search Providers</h2>
+              <p class="desc">
+                In-browser job aggregators queried automatically using your active resume job
+                targets.
+              </p>
+            </div>
+            <button id="save-search-settings-btn" type="button" class="btn btn-primary btn-sm">
+              💾 Save Search Settings
+            </button>
+          </div>
+
+          <div
+            class="search-boards-grid"
+            style="
+              display: grid;
+              grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+              gap: 0.75rem;
+              margin-top: 1rem;
+            "
+          >
+            <label class="check-label">
+              <input id="board-hiringcafe" type="checkbox" />
+              <span><strong>HiringCafe</strong> (Direct ATS apply links)</span>
+            </label>
+            <label class="check-label">
+              <input id="board-linkedin" type="checkbox" />
+              <span><strong>LinkedIn</strong> (Guest search)</span>
+            </label>
+            <label class="check-label">
+              <input id="board-indeed" type="checkbox" />
+              <span><strong>Indeed</strong> (GraphQL)</span>
+            </label>
+            <label class="check-label">
+              <input id="board-glassdoor" type="checkbox" />
+              <span><strong>Glassdoor</strong> (GraphQL)</span>
+            </label>
+            <label class="check-label">
+              <input id="board-adzuna" type="checkbox" />
+              <span><strong>Adzuna</strong> (Official REST API)</span>
+            </label>
+            <label class="check-label">
+              <input id="board-ziprecruiter" type="checkbox" />
+              <span><strong>ZipRecruiter</strong></span>
+            </label>
+            <label class="check-label">
+              <input id="board-google" type="checkbox" />
+              <span><strong>Google Jobs</strong></span>
+            </label>
+            <label class="check-label">
+              <input id="board-naukri" type="checkbox" />
+              <span><strong>Naukri</strong></span>
+            </label>
+          </div>
+
+          <div
+            style="
+              margin-top: 1.25rem;
+              padding: 1rem;
+              border-radius: 8px;
+              background: rgba(0, 0, 0, 0.03);
+              border: 1px solid rgba(0, 0, 0, 0.08);
+            "
+          >
+            <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 0.35rem">
+              Adzuna API Credentials (Optional)
+            </div>
+            <p class="desc" style="font-size: 0.85rem; margin-bottom: 0.75rem">
+              Get free developer credentials at
+              <a href="https://developer.adzuna.com" target="_blank" rel="noopener"
+                >developer.adzuna.com</a
+              >
+              to enable official Adzuna search queries.
+            </p>
+            <div style="display: grid; grid-template-columns: 1fr 1.5fr 100px; gap: 0.75rem">
+              <div class="field">
+                <label for="adzuna-app-id" style="font-size: 0.8rem">Adzuna App ID:</label>
+                <input id="adzuna-app-id" type="text" placeholder="e.g. 12345678" />
+              </div>
+              <div class="field">
+                <label for="adzuna-app-key" style="font-size: 0.8rem">Adzuna App Key:</label>
+                <input id="adzuna-app-key" type="password" placeholder="32-char hex key" />
+              </div>
+              <div class="field">
+                <label for="adzuna-country" style="font-size: 0.8rem">Country:</label>
+                <input id="adzuna-country" type="text" placeholder="in, us, gb" />
+              </div>
+            </div>
+          </div>
+          <div style="margin-top: 0.75rem; display: flex; align-items: center; gap: 0.75rem">
+            <span id="search-settings-status" class="save-status"></span>
+          </div>
+        </section>
+
         <!-- Advanced Manual Connection Settings (Collapsible) -->
         <details class="card manual-details">
           <summary class="manual-summary">

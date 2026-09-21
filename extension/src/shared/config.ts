@@ -38,7 +38,25 @@ export interface Config {
   locationFilter: LocationFilterConfig;
   portals: Record<string, boolean | string | any>;
   trackedCompanies: TrackedCompany[];
+  searchBoards?: Record<string, boolean>;
+  searchMaxResultsPerTerm?: number;
+  adzunaAppId?: string;
+  adzunaAppKey?: string;
+  adzunaCountry?: string;
 }
+
+export const DEFAULT_SEARCH_BOARDS: Record<string, boolean> = {
+  linkedin: true,
+  indeed: true,
+  glassdoor: true,
+  hiringcafe: true,
+  adzuna: false,
+  ziprecruiter: false,
+  google: false,
+  naukri: false,
+};
+
+export const DEFAULT_SEARCH_MAX_RESULTS = 25;
 
 export const DEFAULT_CONFIG: Config = {
   serverUrl: null,
@@ -103,6 +121,9 @@ export const DEFAULT_CONFIG: Config = {
     'a16z-speedrun-talent': true,
   },
   trackedCompanies: [],
+  searchBoards: DEFAULT_SEARCH_BOARDS,
+  searchMaxResultsPerTerm: DEFAULT_SEARCH_MAX_RESULTS,
+  adzunaCountry: 'us',
 };
 
 export const defaults = DEFAULT_CONFIG;
