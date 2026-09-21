@@ -197,7 +197,7 @@ export const linkedinSearchProvider: AggregatorSearchProvider = {
           break;
         }
 
-        start += batch.length;
+        start += 25;
 
         // Friendly delay between pages if configured
         if (options.delayMs) {

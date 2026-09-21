@@ -196,7 +196,7 @@ export async function searchBoardsNow({
 } = {}) {
   const status = $<HTMLElement>(doc, DOM.status);
   if (status) {
-    status.textContent = 'Searching LinkedIn, Indeed & Glassdoor...';
+    status.textContent = 'Searching enabled job boards...';
     status.style.color = '';
   }
   try {

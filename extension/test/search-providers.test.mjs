@@ -327,8 +327,13 @@ test('runSearchPipeline: executes search across enabled boards, deduplicates, an
   };
 
   const mockFetch = async (url) => {
-    if (typeof url === 'string' && url.includes('linkedin.com')) {
-      return { ok: true, text: async () => mockLinkedInHtml };
+    try {
+      const parsed = new URL(typeof url === 'string' ? url : url.toString());
+      if (parsed.hostname === 'linkedin.com' || parsed.hostname.endsWith('.linkedin.com')) {
+        return { ok: true, text: async () => mockLinkedInHtml };
+      }
+    } catch {
+      // not a valid URL
     }
     // Return empty for other providers
     return { ok: true, json: async () => ({ data: {} }), text: async () => '' };

@@ -9,10 +9,7 @@ import type {
   SearchCriteria,
   SearchProviderOptions,
 } from './types.ts';
-
-function stripHtml(html: string): string {
-  return html.replace(/<[^>]*>/g, '').trim();
-}
+import { htmlToText } from '../providers/_html-to-text.mjs';
 
 export interface AdzunaSearchProvider extends AggregatorSearchProvider {
   search(criteria: SearchCriteria, options?: SearchProviderOptions): Promise<RawAggregatorJob[]>;
@@ -51,12 +48,11 @@ export const adzunaSearchProvider: AdzunaSearchProvider = {
     const maxPages = Math.min(10, Math.ceil(resultsWanted / resultsPerPage) + 2);
 
     while (page <= maxPages && jobs.length < resultsWanted) {
-      const take = Math.min(resultsPerPage, resultsWanted - jobs.length);
       const url = new URL(`https://api.adzuna.com/v1/api/jobs/${country}/search/${page}`);
       url.searchParams.set('app_id', appId);
       url.searchParams.set('app_key', appKey);
       url.searchParams.set('what', criteria.searchTerm);
-      url.searchParams.set('results_per_page', String(take));
+      url.searchParams.set('results_per_page', String(resultsPerPage));
 
       if (criteria.location?.trim()) {
         url.searchParams.set('where', criteria.location.trim());
@@ -86,10 +82,10 @@ export const adzunaSearchProvider: AdzunaSearchProvider = {
           if (!rawUrl || seenUrls.has(rawUrl)) continue;
           seenUrls.add(rawUrl);
 
-          const title = stripHtml(item.title || 'Unknown Title');
+          const title = htmlToText(item.title || 'Unknown Title');
           const company = item.company?.display_name || 'Unknown Company';
           const location = item.location?.display_name || undefined;
-          const description = item.description ? stripHtml(item.description) : undefined;
+          const description = item.description ? htmlToText(item.description) : undefined;
           const salaryMin = typeof item.salary_min === 'number' ? item.salary_min : undefined;
           const salaryMax = typeof item.salary_max === 'number' ? item.salary_max : undefined;
           const postedAt = item.created || undefined;
@@ -109,7 +105,7 @@ export const adzunaSearchProvider: AdzunaSearchProvider = {
           if (jobs.length >= resultsWanted) break;
         }
 
-        if (results.length < take) {
+        if (results.length < resultsPerPage) {
           // No more pages available
           break;
         }

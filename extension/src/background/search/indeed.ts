@@ -109,10 +109,12 @@ export function parseIndeedGraphQLResponse(json: any): {
 
     let postedAt: string | undefined;
     if (job.datePublished) {
-      postedAt =
-        typeof job.datePublished === 'number'
-          ? new Date(job.datePublished).toISOString()
-          : String(job.datePublished);
+      if (typeof job.datePublished === 'number') {
+        const date = new Date(job.datePublished);
+        postedAt = Number.isNaN(date.getTime()) ? undefined : date.toISOString();
+      } else {
+        postedAt = String(job.datePublished);
+      }
     }
 
     jobs.push({
