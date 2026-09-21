@@ -208,7 +208,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     error?: string;
     latencyMs?: number;
   } | null>(null);
-  const [defaultPromptTemplates, setDefaultPromptTemplates] = useState<Partial<PromptTemplateDefaults>>({});
+  const [defaultPromptTemplates, setDefaultPromptTemplates] = useState<
+    Partial<PromptTemplateDefaults>
+  >({});
 
   // LLM Test Connection State
   const [testingLlm, setTestingLlm] = useState(false);
@@ -581,15 +583,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         const isInherited = formSettings.copilot_inherit_model !== false;
         const model = isInherited ? formSettings.tailor_model : formSettings.copilot_model;
         const apiBase = isInherited
-          ? (tailorSyncWithScorer ? formSettings.scorer_api_base : formSettings.tailor_api_base)
+          ? tailorSyncWithScorer
+            ? formSettings.scorer_api_base
+            : formSettings.tailor_api_base
           : formSettings.copilot_api_base;
         const apiKey = isInherited
-          ? (tailorSyncWithScorer
-              ? (editingScorerKey ? newScorerKey : formSettings.scorer_api_key)
-              : (editingTailorKey ? newTailorKey : formSettings.tailor_api_key))
-          : (editingCopilotKey ? newCopilotKey : formSettings.copilot_api_key);
+          ? tailorSyncWithScorer
+            ? editingScorerKey
+              ? newScorerKey
+              : formSettings.scorer_api_key
+            : editingTailorKey
+              ? newTailorKey
+              : formSettings.tailor_api_key
+          : editingCopilotKey
+            ? newCopilotKey
+            : formSettings.copilot_api_key;
         const provider = isInherited
-          ? (tailorSyncWithScorer ? selectedScorerProvider : selectedTailorProvider)
+          ? tailorSyncWithScorer
+            ? selectedScorerProvider
+            : selectedTailorProvider
           : selectedCopilotProvider;
         const res = await api.testLlmConnection({ model, apiBase, apiKey, provider });
         setCopilotTestResult(res);
@@ -1952,10 +1964,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onChange={(e) => handleFieldChange('tailor_style', e.target.value)}
                         className="input-text"
                       >
-                        <option value="executive">Executive (High-impact leadership & scale metrics)</option>
-                        <option value="tech">Tech (Deep technical architecture & tooling focus)</option>
+                        <option value="executive">
+                          Executive (High-impact leadership & scale metrics)
+                        </option>
+                        <option value="tech">
+                          Tech (Deep technical architecture & tooling focus)
+                        </option>
                         <option value="concise">Concise (Dense, single-line action bullets)</option>
-                        <option value="academic">Academic (Methodologies & publications focus)</option>
+                        <option value="academic">
+                          Academic (Methodologies & publications focus)
+                        </option>
                       </select>
                     </div>
 
@@ -2116,7 +2134,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         marginBottom: '1.25rem',
                       }}
                     >
-                      Powers LinkedIn recruiter connection notes, custom screening question answers, and tailored cover letters.
+                      Powers LinkedIn recruiter connection notes, custom screening question answers,
+                      and tailored cover letters.
                     </p>
 
                     {/* Inherit Toggle */}
@@ -2482,7 +2501,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         marginBottom: '1.25rem',
                       }}
                     >
-                      Enforce strict truthfulness invariants and eliminate AI buzzwords across all Copilot outputs.
+                      Enforce strict truthfulness invariants and eliminate AI buzzwords across all
+                      Copilot outputs.
                     </p>
 
                     {/* Anti-Slop Checkbox */}
@@ -2528,7 +2548,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           marginLeft: '1.65rem',
                         }}
                       >
-                        Strictly forbids generic AI cliches ("testament to", "spearheaded", "delve into", "pivotal role", "in summary", "tapestry", "pleased to apply") and bans unsubstantiated metrics.
+                        Strictly forbids generic AI cliches ("testament to", "spearheaded", "delve
+                        into", "pivotal role", "in summary", "tapestry", "pleased to apply") and
+                        bans unsubstantiated metrics.
                       </div>
                     </div>
 
@@ -2555,8 +2577,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         className="input-text"
                         style={{ width: '100%', resize: 'vertical' }}
                       />
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
-                        Injected as explicit negative and positive constraints into all Copilot prompt templates.
+                      <div
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                          marginTop: '0.3rem',
+                        }}
+                      >
+                        Injected as explicit negative and positive constraints into all Copilot
+                        prompt templates.
                       </div>
                     </div>
                   </div>
@@ -2586,18 +2615,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       <button
                         type="button"
                         onClick={() => {
-                          if (!confirm('Reset all Copilot prompt templates to system defaults?')) return;
-                          if (defaultPromptTemplates) {
-                            handleFieldChange('copilot_system_prompt_template', defaultPromptTemplates.copilot_system_prompt_template || '');
-                            handleFieldChange('copilot_outreach_prompt_template', defaultPromptTemplates.copilot_outreach_prompt_template || '');
-                            handleFieldChange('copilot_qa_prompt_template', defaultPromptTemplates.copilot_qa_prompt_template || '');
-                            handleFieldChange('copilot_cover_letter_prompt_template', defaultPromptTemplates.copilot_cover_letter_prompt_template || '');
-                            setIsDirty(true);
-                            toast.info('Prompt templates restored to system defaults');
+                          const keys = [
+                            'copilot_system_prompt_template',
+                            'copilot_outreach_prompt_template',
+                            'copilot_qa_prompt_template',
+                            'copilot_cover_letter_prompt_template',
+                          ] as const;
+                          const available = keys.filter((k) => defaultPromptTemplates[k]);
+                          if (available.length === 0) {
+                            toast.error('System default prompt templates are not loaded yet');
+                            return;
                           }
+                          if (!confirm('Reset all Copilot prompt templates to system defaults?'))
+                            return;
+                          available.forEach((k) =>
+                            handleFieldChange(k, defaultPromptTemplates[k] as string)
+                          );
+                          setIsDirty(true);
+                          toast.info('Prompt templates restored to system defaults');
                         }}
                         className="btn btn-secondary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem' }}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          fontSize: '0.78rem',
+                        }}
                       >
                         <RotateCcw size={13} /> Restore All Defaults
                       </button>
@@ -2609,7 +2652,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         marginBottom: '1.5rem',
                       }}
                     >
-                      Customize the underlying LLM instructions. Leave empty to use system defaults. Templates accept standard variables like <code>{'{resume_toon}'}</code>, <code>{'{job_toon}'}</code>, <code>{'{persona}'}</code>, <code>{'{question}'}</code>.
+                      Customize the underlying LLM instructions. Leave empty to use system defaults.
+                      Templates accept standard variables like <code>{'{resume_toon}'}</code>,{' '}
+                      <code>{'{job_toon}'}</code>, <code>{'{persona}'}</code>,{' '}
+                      <code>{'{question}'}</code>.
                     </p>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -2622,8 +2668,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           background: 'var(--bg-glass)',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
                             Base System Prompt Template
                           </span>
                           <button
@@ -2646,8 +2705,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         <textarea
                           rows={4}
                           value={formSettings.copilot_system_prompt_template || ''}
-                          onChange={(e) => handleFieldChange('copilot_system_prompt_template', e.target.value)}
-                          placeholder={defaultPromptTemplates.copilot_system_prompt_template || 'System prompt instructions...'}
+                          onChange={(e) =>
+                            handleFieldChange('copilot_system_prompt_template', e.target.value)
+                          }
+                          placeholder={
+                            defaultPromptTemplates.copilot_system_prompt_template ||
+                            'System prompt instructions...'
+                          }
                           className="input-text"
                           style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
                         />
@@ -2662,8 +2726,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           background: 'var(--bg-glass)',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
                             Recruiter Outreach Prompt Template
                           </span>
                           <button
@@ -2686,8 +2763,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         <textarea
                           rows={4}
                           value={formSettings.copilot_outreach_prompt_template || ''}
-                          onChange={(e) => handleFieldChange('copilot_outreach_prompt_template', e.target.value)}
-                          placeholder={defaultPromptTemplates.copilot_outreach_prompt_template || 'Recruiter outreach prompt...'}
+                          onChange={(e) =>
+                            handleFieldChange('copilot_outreach_prompt_template', e.target.value)
+                          }
+                          placeholder={
+                            defaultPromptTemplates.copilot_outreach_prompt_template ||
+                            'Recruiter outreach prompt...'
+                          }
                           className="input-text"
                           style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
                         />
@@ -2702,8 +2784,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           background: 'var(--bg-glass)',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
                             Screening Q&A Prompt Template
                           </span>
                           <button
@@ -2726,8 +2821,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         <textarea
                           rows={4}
                           value={formSettings.copilot_qa_prompt_template || ''}
-                          onChange={(e) => handleFieldChange('copilot_qa_prompt_template', e.target.value)}
-                          placeholder={defaultPromptTemplates.copilot_qa_prompt_template || 'Q&A prompt...'}
+                          onChange={(e) =>
+                            handleFieldChange('copilot_qa_prompt_template', e.target.value)
+                          }
+                          placeholder={
+                            defaultPromptTemplates.copilot_qa_prompt_template || 'Q&A prompt...'
+                          }
                           className="input-text"
                           style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
                         />
@@ -2742,8 +2841,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           background: 'var(--bg-glass)',
                         }}
                       >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '0.5rem',
+                          }}
+                        >
+                          <span
+                            style={{
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
                             Cover Letter Prompt Template
                           </span>
                           <button
@@ -2766,8 +2878,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         <textarea
                           rows={4}
                           value={formSettings.copilot_cover_letter_prompt_template || ''}
-                          onChange={(e) => handleFieldChange('copilot_cover_letter_prompt_template', e.target.value)}
-                          placeholder={defaultPromptTemplates.copilot_cover_letter_prompt_template || 'Cover letter prompt...'}
+                          onChange={(e) =>
+                            handleFieldChange(
+                              'copilot_cover_letter_prompt_template',
+                              e.target.value
+                            )
+                          }
+                          placeholder={
+                            defaultPromptTemplates.copilot_cover_letter_prompt_template ||
+                            'Cover letter prompt...'
+                          }
                           className="input-text"
                           style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
                         />

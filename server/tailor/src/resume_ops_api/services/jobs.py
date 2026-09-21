@@ -92,6 +92,10 @@ class AsyncJobRunner:
                 theme=job.theme,
                 task_id=job.id,
                 sections=job.request_payload.get("sections"),
+                model=job.request_payload.get("model"),
+                api_key=job.request_payload.get("api_key"),
+                api_base=job.request_payload.get("api_base"),
+                style=job.request_payload.get("style"),
             )
             await self.store.mark_completed(job_id=job.id, resume=result.resume, pdf_path=result.pdf_path)
             if job.callback_url:

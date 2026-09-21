@@ -8,7 +8,7 @@ import {
   statSync,
   createReadStream,
 } from 'node:fs';
-import { resolve, relative, isAbsolute, extname } from 'node:path';
+import { resolve, relative, isAbsolute, extname, sep } from 'node:path';
 
 // Configure global undici dispatcher with 30-minute timeout for multi-stage LLM calls
 try {
@@ -1768,9 +1768,19 @@ export function buildApp({
 
   function resolveCopilotConfig(userId) {
     const inherit = getEffectiveSetting(db, 'copilot_inherit_model', process.env, userId);
-    const stopSlop = getEffectiveSetting(db, 'copilot_stop_slop_enabled', process.env, userId) ?? true;
+    const stopSlop =
+      getEffectiveSetting(db, 'copilot_stop_slop_enabled', process.env, userId) ?? true;
     const constraints = getEffectiveSetting(db, 'copilot_constraints', process.env, userId) || '';
-    const systemPrompt = getEffectiveSetting(db, 'copilot_system_prompt_template', process.env, userId) || '';
+    const systemPrompt =
+      getEffectiveSetting(db, 'copilot_system_prompt_template', process.env, userId) || '';
+    const outreachPromptTemplate =
+      getEffectiveSetting(db, 'copilot_outreach_prompt_template', process.env, userId) ||
+      systemPrompt;
+    const qaPromptTemplate =
+      getEffectiveSetting(db, 'copilot_qa_prompt_template', process.env, userId) || systemPrompt;
+    const coverLetterPromptTemplate =
+      getEffectiveSetting(db, 'copilot_cover_letter_prompt_template', process.env, userId) ||
+      systemPrompt;
 
     let copilotModel = '';
     let copilotKey = '';
@@ -1780,29 +1790,37 @@ export function buildApp({
       copilotModel = getEffectiveSetting(db, 'copilot_model', process.env, userId) || '';
       const keySetting = getEffectiveSettingWithSource(db, 'copilot_api_key', { userId });
       copilotKey = isRegisteredUser(db, userId)
-        ? keySetting.source === 'user' ? keySetting.value : ''
+        ? keySetting.source === 'user'
+          ? keySetting.value
+          : ''
         : keySetting.value;
       copilotBase = getEffectiveSetting(db, 'copilot_api_base', process.env, userId) || '';
     }
 
     if (!copilotModel) {
-      copilotModel = getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
+      copilotModel =
+        getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
         getEffectiveSetting(db, 'scorer_model', process.env, userId);
     }
     if (!copilotKey) {
       const tailorKeySetting = getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
       copilotKey = isRegisteredUser(db, userId)
-        ? tailorKeySetting.source === 'user' ? tailorKeySetting.value : ''
+        ? tailorKeySetting.source === 'user'
+          ? tailorKeySetting.value
+          : ''
         : tailorKeySetting.value;
     }
     if (!copilotKey) {
       const scorerKeySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
       copilotKey = isRegisteredUser(db, userId)
-        ? scorerKeySetting.source === 'user' ? scorerKeySetting.value : ''
+        ? scorerKeySetting.source === 'user'
+          ? scorerKeySetting.value
+          : ''
         : scorerKeySetting.value;
     }
     if (!copilotBase) {
-      copilotBase = getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
+      copilotBase =
+        getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
         getEffectiveSetting(db, 'scorer_api_base', process.env, userId);
     }
 
@@ -1813,17 +1831,40 @@ export function buildApp({
       stopSlop: Boolean(stopSlop),
       constraints,
       systemPrompt,
+      outreachPromptTemplate,
+      qaPromptTemplate,
+      coverLetterPromptTemplate,
     };
   }
 
-  function getCopilotArtifacts(userId, jobId) {
-    const safeUserId = String(userId);
-    const safeJobId = String(jobId);
+  function getTailoredResumeArtifact(userId, jobId) {
+    const safeUserId = String(userId).replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeJobId = String(jobId).replace(/[^a-zA-Z0-9_-]/g, '');
     const resolvedBase = resolve(artifactsDir);
     const jobDir = resolve(resolvedBase, safeUserId, safeJobId);
-    if (!jobDir.startsWith(resolvedBase)) return null;
+    if (!jobDir.startsWith(resolvedBase + sep)) return null;
+
+    const tailoredFile = resolve(jobDir, 'resume.json');
+    if (!tailoredFile.startsWith(resolvedBase + sep)) return null;
+    if (existsSync(tailoredFile)) {
+      try {
+        return JSON.parse(readFileSync(tailoredFile, 'utf-8'));
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  function getCopilotArtifacts(userId, jobId) {
+    const safeUserId = String(userId).replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeJobId = String(jobId).replace(/[^a-zA-Z0-9_-]/g, '');
+    const resolvedBase = resolve(artifactsDir);
+    const jobDir = resolve(resolvedBase, safeUserId, safeJobId);
+    if (!jobDir.startsWith(resolvedBase + sep)) return null;
 
     const copilotFile = resolve(jobDir, 'copilot.json');
+    if (!copilotFile.startsWith(resolvedBase + sep)) return null;
     if (!existsSync(copilotFile)) {
       return { outreach: null, qa_history: [], cover_letter: null };
     }
@@ -1835,14 +1876,17 @@ export function buildApp({
   }
 
   function saveCopilotArtifacts(userId, jobId, data) {
-    const safeUserId = String(userId);
-    const safeJobId = String(jobId);
+    const safeUserId = String(userId).replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeJobId = String(jobId).replace(/[^a-zA-Z0-9_-]/g, '');
     const resolvedBase = resolve(artifactsDir);
     const jobDir = resolve(resolvedBase, safeUserId, safeJobId);
-    if (!jobDir.startsWith(resolvedBase)) return false;
+    if (!jobDir.startsWith(resolvedBase + sep)) return false;
+
+    const copilotFile = resolve(jobDir, 'copilot.json');
+    if (!copilotFile.startsWith(resolvedBase + sep)) return false;
 
     mkdirSync(jobDir, { recursive: true });
-    writeFileSync(resolve(jobDir, 'copilot.json'), JSON.stringify(data, null, 2), 'utf-8');
+    writeFileSync(copilotFile, JSON.stringify(data, null, 2), 'utf-8');
     return true;
   }
 
@@ -1911,7 +1955,8 @@ export function buildApp({
       const activeResume = activeResumeRecord?.resume;
       if (!activeResume) {
         return reply.code(400).send({
-          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+          error:
+            'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
         });
       }
 
@@ -1923,14 +1968,7 @@ export function buildApp({
       }
 
       // Check for tailored resume artifact
-      let tailoredResume = null;
-      const safeJobDir = resolve(resolve(artifactsDir), userId, id);
-      const tailoredFile = resolve(safeJobDir, 'resume.json');
-      if (existsSync(tailoredFile)) {
-        try {
-          tailoredResume = JSON.parse(readFileSync(tailoredFile, 'utf-8'));
-        } catch {}
-      }
+      const tailoredResume = getTailoredResumeArtifact(userId, id);
 
       const persona = request.body?.persona || 'recruiter';
       const tailorPort = process.env.TAILOR_PORT || 8081;
@@ -1954,7 +1992,9 @@ export function buildApp({
             ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
             ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
             stop_slop: cfg.stopSlop,
-            ...(cfg.systemPrompt ? { system_prompt_template: cfg.systemPrompt } : {}),
+            ...(cfg.outreachPromptTemplate
+              ? { system_prompt_template: cfg.outreachPromptTemplate }
+              : {}),
           }),
         });
 
@@ -2008,12 +2048,16 @@ export function buildApp({
 
       const jobRecord = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
       if (!jobRecord) return reply.code(404).send({ error: 'Job not found' });
+      if (!jobRecord.description || !jobRecord.description.trim()) {
+        return reply.code(400).send({ error: 'Job description is missing.' });
+      }
 
       const activeResumeRecord = getActiveResume(db, userId);
       const activeResume = activeResumeRecord?.resume;
       if (!activeResume) {
         return reply.code(400).send({
-          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+          error:
+            'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
         });
       }
 
@@ -2024,16 +2068,7 @@ export function buildApp({
         });
       }
 
-      let tailoredResume = null;
-      const safeJobDir = resolve(resolve(artifactsDir), userId, id);
-      const tailoredFile = resolve(safeJobDir, 'resume.json');
-      if (existsSync(tailoredFile)) {
-        try {
-          tailoredResume = JSON.parse(readFileSync(tailoredFile, 'utf-8'));
-        } catch {}
-      }
-
-      const qaPromptTemplate = getEffectiveSetting(db, 'copilot_qa_prompt_template', process.env, userId) || '';
+      const tailoredResume = getTailoredResumeArtifact(userId, id);
       const tailorPort = process.env.TAILOR_PORT || 8081;
       const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
 
@@ -2047,7 +2082,7 @@ export function buildApp({
             question,
             resume: activeResume,
             tailored_resume: tailoredResume,
-            job_description: jobRecord.description || '',
+            job_description: jobRecord.description,
             job_title: jobRecord.title,
             company: jobRecord.company,
             ...(cfg.model ? { model: cfg.model } : {}),
@@ -2055,7 +2090,7 @@ export function buildApp({
             ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
             ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
             stop_slop: cfg.stopSlop,
-            ...(qaPromptTemplate ? { system_prompt_template: qaPromptTemplate } : {}),
+            ...(cfg.qaPromptTemplate ? { system_prompt_template: cfg.qaPromptTemplate } : {}),
           }),
         });
 
@@ -2124,7 +2159,8 @@ export function buildApp({
       const activeResume = activeResumeRecord?.resume;
       if (!activeResume) {
         return reply.code(400).send({
-          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+          error:
+            'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
         });
       }
 
@@ -2135,39 +2171,35 @@ export function buildApp({
         });
       }
 
-      let tailoredResume = null;
-      const safeJobDir = resolve(resolve(artifactsDir), userId, id);
-      const tailoredFile = resolve(safeJobDir, 'resume.json');
-      if (existsSync(tailoredFile)) {
-        try {
-          tailoredResume = JSON.parse(readFileSync(tailoredFile, 'utf-8'));
-        } catch {}
-      }
-
-      const coverPromptTemplate = getEffectiveSetting(db, 'copilot_cover_letter_prompt_template', process.env, userId) || '';
+      const tailoredResume = getTailoredResumeArtifact(userId, id);
       const tailorPort = process.env.TAILOR_PORT || 8081;
       const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
 
       try {
-        const resp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/copilot/cover-letter`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(60000),
-          redirect: 'error',
-          body: JSON.stringify({
-            resume: activeResume,
-            tailored_resume: tailoredResume,
-            job_description: jobRecord.description,
-            job_title: jobRecord.title,
-            company: jobRecord.company,
-            ...(cfg.model ? { model: cfg.model } : {}),
-            ...(cfg.apiKey ? { api_key: cfg.apiKey } : {}),
-            ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
-            ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
-            stop_slop: cfg.stopSlop,
-            ...(coverPromptTemplate ? { system_prompt_template: coverPromptTemplate } : {}),
-          }),
-        });
+        const resp = await safeFetch(
+          `${resumeOpsUrl.replace(/\/$/, '')}/api/v1/copilot/cover-letter`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(60000),
+            redirect: 'error',
+            body: JSON.stringify({
+              resume: activeResume,
+              tailored_resume: tailoredResume,
+              job_description: jobRecord.description,
+              job_title: jobRecord.title,
+              company: jobRecord.company,
+              ...(cfg.model ? { model: cfg.model } : {}),
+              ...(cfg.apiKey ? { api_key: cfg.apiKey } : {}),
+              ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
+              ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
+              stop_slop: cfg.stopSlop,
+              ...(cfg.coverLetterPromptTemplate
+                ? { system_prompt_template: cfg.coverLetterPromptTemplate }
+                : {}),
+            }),
+          }
+        );
 
         if (!resp.ok) {
           const errBody = await resp.text().catch(() => '');
@@ -2182,7 +2214,9 @@ export function buildApp({
         return { ok: true, cover_letter: data };
       } catch (err) {
         request.log?.error?.(err);
-        return reply.code(502).send({ error: err.message || 'Copilot cover letter generation failed' });
+        return reply
+          .code(502)
+          .send({ error: err.message || 'Copilot cover letter generation failed' });
       }
     }
   );
@@ -2211,7 +2245,8 @@ export function buildApp({
       const activeResume = activeResumeRecord?.resume;
       if (!activeResume) {
         return reply.code(400).send({
-          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+          error:
+            'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
         });
       }
 
@@ -2263,7 +2298,17 @@ export function buildApp({
             ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
             ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
             stop_slop: cfg.stopSlop,
-            ...(cfg.systemPrompt ? { system_prompt_template: cfg.systemPrompt } : {}),
+            ...(endpoint === '/api/v1/copilot/outreach'
+              ? cfg.outreachPromptTemplate
+                ? { system_prompt_template: cfg.outreachPromptTemplate }
+                : {}
+              : endpoint === '/api/v1/copilot/qa'
+                ? cfg.qaPromptTemplate
+                  ? { system_prompt_template: cfg.qaPromptTemplate }
+                  : {}
+                : cfg.coverLetterPromptTemplate
+                  ? { system_prompt_template: cfg.coverLetterPromptTemplate }
+                  : {}),
           }),
         });
 

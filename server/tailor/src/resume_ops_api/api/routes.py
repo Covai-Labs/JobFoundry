@@ -89,6 +89,7 @@ async def tailor_resume(
         model=payload.model,
         api_key=payload.api_key,
         api_base=payload.api_base,
+        style=payload.style,
     )
 
     theme = container.theme_service.resolve(payload.theme)

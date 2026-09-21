@@ -27,7 +27,8 @@ describe('CopilotView', () => {
       ok: true,
       data: {
         outreach: {
-          connection_note: 'Hi Alex, saw CloudCorp is hiring Staff Distributed Systems Engineers. Led multi-region Kafka migrations.',
+          connection_note:
+            'Hi Alex, saw CloudCorp is hiring Staff Distributed Systems Engineers. Led multi-region Kafka migrations.',
           connection_note_char_count: 104,
           connection_note_tier_fits: {
             free_200: true,
@@ -46,7 +47,9 @@ describe('CopilotView', () => {
     render(<CopilotView jobId="job-copilot-1" jobTitle="Staff Engineer" company="CloudCorp" />);
 
     expect(screen.getByText(/Application & Outreach Copilot/i)).toBeInTheDocument();
-    expect(screen.getByText(/Grounded in your active Master Resume for Staff Engineer at CloudCorp/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Grounded in your active Master Resume for Staff Engineer at CloudCorp/i)
+    ).toBeInTheDocument();
 
     await waitFor(() => {
       expect(screen.getByText(/LinkedIn Connection Note/i)).toBeInTheDocument();
@@ -69,7 +72,8 @@ describe('CopilotView', () => {
       ok: true,
       qa: {
         question: 'Describe a time you handled an outage.',
-        answer: 'During a critical Kafka cluster failure, I led the failover across regions within 4 minutes.',
+        answer:
+          'During a critical Kafka cluster failure, I led the failover across regions within 4 minutes.',
         star_structure: {
           situation: 'Underlying network partition disconnected primary broker.',
           task: 'Restore partition consumer offsets without data corruption.',
@@ -85,7 +89,9 @@ describe('CopilotView', () => {
     const qaTabBtn = screen.getByRole('button', { name: /Screening Q&A Assistant/i });
     fireEvent.click(qaTabBtn);
 
-    expect(screen.getByPlaceholderText(/Paste any question from the application form/i)).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/Paste any question from the application form/i)
+    ).toBeInTheDocument();
 
     const input = screen.getByPlaceholderText(/Paste any question from the application form/i);
     fireEvent.change(input, { target: { value: 'Describe a time you handled an outage.' } });
@@ -94,8 +100,13 @@ describe('CopilotView', () => {
     fireEvent.click(generateBtn);
 
     await waitFor(() => {
-      expect(api.generateCopilotQA).toHaveBeenCalledWith('job-copilot-1', 'Describe a time you handled an outage.');
-      expect(screen.getByText(/Zero message loss and recovered SLA in 4 minutes/i)).toBeInTheDocument();
+      expect(api.generateCopilotQA).toHaveBeenCalledWith(
+        'job-copilot-1',
+        'Describe a time you handled an outage.'
+      );
+      expect(
+        screen.getByText(/Zero message loss and recovered SLA in 4 minutes/i)
+      ).toBeInTheDocument();
       expect(screen.getByText(/Kafka Pipeline Outage Remediation/i)).toBeInTheDocument();
     });
   });
@@ -113,7 +124,8 @@ describe('CopilotView', () => {
     vi.mocked(api.generateCopilotCoverLetter).mockResolvedValue({
       ok: true,
       cover_letter: {
-        cover_letter: 'Dear CloudCorp Team,\n\nI am writing to express my interest...\n\nIn my previous role, I designed scalable distributed queues...\n\nI would welcome the opportunity to discuss further.',
+        cover_letter:
+          'Dear CloudCorp Team,\n\nI am writing to express my interest...\n\nIn my previous role, I designed scalable distributed queues...\n\nI would welcome the opportunity to discuss further.',
         word_count: 215,
         paragraph_breakdown: {
           hook: 'Targeting high-scale infrastructure at CloudCorp.',
@@ -136,7 +148,9 @@ describe('CopilotView', () => {
 
     await waitFor(() => {
       expect(screen.getByText('215 words')).toBeInTheDocument();
-      expect(screen.getByText(/Targeting high-scale infrastructure at CloudCorp/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Targeting high-scale infrastructure at CloudCorp/i)
+      ).toBeInTheDocument();
       expect(screen.getAllByText(/Distributed Systems/i).length).toBeGreaterThan(0);
     });
   });

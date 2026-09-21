@@ -3,7 +3,12 @@
  * Provides SQLite persistence with .env fallback and secure secret masking.
  */
 
-export const SENSITIVE_KEYS = new Set(['scorer_api_key', 'tailor_api_key', 'copilot_api_key', 'opik_api_key']);
+export const SENSITIVE_KEYS = new Set([
+  'scorer_api_key',
+  'tailor_api_key',
+  'copilot_api_key',
+  'opik_api_key',
+]);
 
 export const DEFAULT_COPILOT_SYSTEM_PROMPT =
   'You are an articulate candidate ghost writer and career strategist drafting job application content grounded strictly in the candidate master resume.';

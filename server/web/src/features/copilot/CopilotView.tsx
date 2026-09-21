@@ -12,10 +12,7 @@ import {
   UserCheck,
   Layers,
 } from 'lucide-react';
-import {
-  api,
-  CopilotArtifacts,
-} from '../../api/client';
+import { api, CopilotArtifacts } from '../../api/client';
 
 interface CopilotViewProps {
   jobId: string;
@@ -48,24 +45,35 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
   const [persona, setPersona] = useState<'recruiter' | 'hiring_manager'>('recruiter');
   const [qaInput, setQaInput] = useState<string>('');
 
-  const fetchCopilotData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      const res = await api.getCopilotData(jobId);
-      if (res.ok && res.data) {
-        setArtifacts((prev) => ({
-          outreach: prev.outreach || res.data.outreach || null,
-          qa_history: prev.qa_history?.length ? prev.qa_history : (res.data.qa_history || []),
-          cover_letter: prev.cover_letter || res.data.cover_letter || null,
-        }));
+  const fetchCopilotData = useCallback(
+    async (replace = false) => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await api.getCopilotData(jobId);
+        if (res.ok && res.data) {
+          setArtifacts((prev) =>
+            replace
+              ? {
+                  outreach: res.data.outreach || null,
+                  qa_history: res.data.qa_history || [],
+                  cover_letter: res.data.cover_letter || null,
+                }
+              : {
+                  outreach: prev.outreach || res.data.outreach || null,
+                  qa_history: prev.qa_history?.length ? prev.qa_history : res.data.qa_history || [],
+                  cover_letter: prev.cover_letter || res.data.cover_letter || null,
+                }
+          );
+        }
+      } catch (err: any) {
+        setError(err.message || 'Failed to load Copilot data');
+      } finally {
+        setLoading(false);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load Copilot data');
-    } finally {
-      setLoading(false);
-    }
-  }, [jobId]);
+    },
+    [jobId]
+  );
 
   useEffect(() => {
     fetchCopilotData();
@@ -156,7 +164,8 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
       {/* Banner / Header */}
       <div
         style={{
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%)',
+          background:
+            'linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(139, 92, 246, 0.12) 100%)',
           border: '1px solid rgba(99, 102, 241, 0.25)',
           borderRadius: 'var(--radius-md)',
           padding: '1rem 1.25rem',
@@ -182,11 +191,14 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
             <Sparkles size={20} />
           </div>
           <div>
-            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            <h4
+              style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)' }}
+            >
               Application & Outreach Copilot
             </h4>
             <p style={{ margin: '0.2rem 0 0', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Grounded in your active Master Resume{jobTitle ? ` for ${jobTitle}` : ''}{company ? ` at ${company}` : ''}. Factual, anti-slop, and 1-click ready.
+              Grounded in your active Master Resume{jobTitle ? ` for ${jobTitle}` : ''}
+              {company ? ` at ${company}` : ''}. Factual, anti-slop, and 1-click ready.
             </p>
           </div>
         </div>
@@ -209,7 +221,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
             <ShieldCheck size={13} /> Strict Resume Grounding
           </span>
           <button
-            onClick={fetchCopilotData}
+            onClick={() => fetchCopilotData(true)}
             disabled={loading}
             title="Refresh Copilot artifacts"
             className="btn btn-sm btn-secondary"
@@ -302,7 +314,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
             }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Target Persona:</label>
+              <label style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                Target Persona:
+              </label>
               <div style={{ display: 'flex', gap: '0.4rem' }}>
                 <button
                   type="button"
@@ -356,9 +370,13 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                   gap: '0.75rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                    <span style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                    <span
+                      style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}
+                    >
                       LinkedIn Connection Note
                     </span>
                     {/* Tier badges */}
@@ -397,8 +415,8 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                           artifacts.outreach.connection_note_char_count <= 200
                             ? 'var(--color-green)'
                             : artifacts.outreach.connection_note_char_count <= 300
-                            ? 'var(--color-amber)'
-                            : 'var(--color-red)',
+                              ? 'var(--color-amber)'
+                              : 'var(--color-red)',
                         fontWeight: 600,
                       }}
                     >
@@ -453,8 +471,12 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                   gap: '0.75rem',
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                <div
+                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+                >
+                  <span
+                    style={{ fontWeight: 600, fontSize: '0.95rem', color: 'var(--text-primary)' }}
+                  >
                     InMail / Direct Message Draft
                   </span>
                   <button
@@ -493,17 +515,25 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                   }}
                 >
                   <div>
-                    <span style={{ color: 'var(--text-secondary)', marginRight: '0.5rem' }}>Subject:</span>
+                    <span style={{ color: 'var(--text-secondary)', marginRight: '0.5rem' }}>
+                      Subject:
+                    </span>
                     <strong style={{ color: 'var(--text-primary)' }}>
                       {artifacts.outreach.inmail_subject}
                     </strong>
                   </div>
                   <button
-                    onClick={() => copyToClipboard(artifacts.outreach!.inmail_subject, 'inmail_subj')}
+                    onClick={() =>
+                      copyToClipboard(artifacts.outreach!.inmail_subject, 'inmail_subj')
+                    }
                     className="btn btn-sm btn-secondary"
                     style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
                   >
-                    {copiedKey === 'inmail_subj' ? <Check size={12} color="var(--color-green)" /> : <Copy size={12} />}
+                    {copiedKey === 'inmail_subj' ? (
+                      <Check size={12} color="var(--color-green)" />
+                    ) : (
+                      <Copy size={12} />
+                    )}
                   </button>
                 </div>
 
@@ -525,7 +555,15 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
 
                 {/* Matched Projects Evidence */}
                 {artifacts.outreach.matched_projects?.length > 0 && (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginTop: '0.25rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      flexWrap: 'wrap',
+                      marginTop: '0.25rem',
+                    }}
+                  >
                     <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                       Resume Projects Referenced:
                     </span>
@@ -563,8 +601,11 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
               <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                 No outreach drafts generated yet.
               </p>
-              <p style={{ margin: '0.35rem 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Pick your target persona above and click "Generate Outreach Notes" for 1-click ready LinkedIn notes.
+              <p
+                style={{ margin: '0.35rem 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+              >
+                Pick your target persona above and click "Generate Outreach Notes" for 1-click ready
+                LinkedIn notes.
               </p>
             </div>
           )}
@@ -606,7 +647,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
 
             {/* Quick Suggestion Chips */}
             <div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}>
+              <div
+                style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.4rem' }}
+              >
                 Quick questions to test:
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
@@ -668,7 +711,13 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                     gap: '0.75rem',
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                    }}
+                  >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                       <span
                         style={{
@@ -740,8 +789,12 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                             fontSize: '0.78rem',
                           }}
                         >
-                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>Situation:</strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>{qaItem.star_structure.situation}</span>
+                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
+                            Situation:
+                          </strong>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {qaItem.star_structure.situation}
+                          </span>
                         </div>
                       )}
                       {qaItem.star_structure.task && (
@@ -754,8 +807,12 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                             fontSize: '0.78rem',
                           }}
                         >
-                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>Task:</strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>{qaItem.star_structure.task}</span>
+                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
+                            Task:
+                          </strong>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {qaItem.star_structure.task}
+                          </span>
                         </div>
                       )}
                       {qaItem.star_structure.action && (
@@ -768,8 +825,12 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                             fontSize: '0.78rem',
                           }}
                         >
-                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>Action:</strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>{qaItem.star_structure.action}</span>
+                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
+                            Action:
+                          </strong>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {qaItem.star_structure.action}
+                          </span>
                         </div>
                       )}
                       {qaItem.star_structure.result && (
@@ -782,8 +843,12 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                             fontSize: '0.78rem',
                           }}
                         >
-                          <strong style={{ color: 'var(--color-green)', display: 'block' }}>Result:</strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>{qaItem.star_structure.result}</span>
+                          <strong style={{ color: 'var(--color-green)', display: 'block' }}>
+                            Result:
+                          </strong>
+                          <span style={{ color: 'var(--text-secondary)' }}>
+                            {qaItem.star_structure.result}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -791,8 +856,17 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
 
                   {/* Matched Evidence */}
                   {qaItem.matched_evidence && qaItem.matched_evidence.length > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Resume Evidence:</span>
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        Resume Evidence:
+                      </span>
                       {qaItem.matched_evidence.map((ev, i) => (
                         <span
                           key={i}
@@ -828,8 +902,11 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
               <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                 No screening questions answered yet.
               </p>
-              <p style={{ margin: '0.35rem 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Paste questions from your job application to get articulate answers grounded in your real projects.
+              <p
+                style={{ margin: '0.35rem 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+              >
+                Paste questions from your job application to get articulate answers grounded in your
+                real projects.
               </p>
             </div>
           )}
@@ -907,7 +984,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                 gap: '1.25rem',
               }}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div
+                style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+              >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                   <span style={{ fontWeight: 600, fontSize: '1rem', color: 'var(--text-primary)' }}>
                     Tailored Cover Letter
@@ -963,10 +1042,18 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
               {/* Paragraph Breakdown */}
               {artifacts.cover_letter.paragraph_breakdown && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  <span
+                    style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)' }}
+                  >
                     Structural Breakdown:
                   </span>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem' }}>
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+                      gap: '0.75rem',
+                    }}
+                  >
                     <div
                       style={{
                         background: 'rgba(255, 255, 255, 0.02)',
@@ -975,10 +1062,24 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         padding: '0.75rem',
                       }}
                     >
-                      <strong style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', display: 'block', marginBottom: '0.25rem' }}>
+                      <strong
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--accent-primary)',
+                          display: 'block',
+                          marginBottom: '0.25rem',
+                        }}
+                      >
                         1. Hook & Alignment
                       </strong>
-                      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: '0.78rem',
+                          color: 'var(--text-secondary)',
+                          lineHeight: '1.4',
+                        }}
+                      >
                         {artifacts.cover_letter.paragraph_breakdown.hook}
                       </p>
                     </div>
@@ -991,10 +1092,24 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         padding: '0.75rem',
                       }}
                     >
-                      <strong style={{ fontSize: '0.75rem', color: 'var(--color-green)', display: 'block', marginBottom: '0.25rem' }}>
+                      <strong
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--color-green)',
+                          display: 'block',
+                          marginBottom: '0.25rem',
+                        }}
+                      >
                         2. Core Proof / Projects
                       </strong>
-                      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: '0.78rem',
+                          color: 'var(--text-secondary)',
+                          lineHeight: '1.4',
+                        }}
+                      >
                         {artifacts.cover_letter.paragraph_breakdown.evidence}
                       </p>
                     </div>
@@ -1007,10 +1122,24 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         padding: '0.75rem',
                       }}
                     >
-                      <strong style={{ fontSize: '0.75rem', color: 'var(--color-amber)', display: 'block', marginBottom: '0.25rem' }}>
+                      <strong
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--color-amber)',
+                          display: 'block',
+                          marginBottom: '0.25rem',
+                        }}
+                      >
                         3. Value & Closing
                       </strong>
-                      <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: '0.78rem',
+                          color: 'var(--text-secondary)',
+                          lineHeight: '1.4',
+                        }}
+                      >
                         {artifacts.cover_letter.paragraph_breakdown.alignment}
                       </p>
                     </div>
@@ -1020,8 +1149,12 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
 
               {/* Skills highlighted */}
               {artifacts.cover_letter.highlighted_skills?.length > 0 && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Skills Highlighted:</span>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}
+                >
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    Skills Highlighted:
+                  </span>
                   {artifacts.cover_letter.highlighted_skills.map((skill, i) => (
                     <span
                       key={i}
@@ -1055,8 +1188,11 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
               <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--text-primary)' }}>
                 No cover letter generated yet.
               </p>
-              <p style={{ margin: '0.35rem 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Click "Generate Cover Letter" to craft an articulate, clean 3-paragraph letter free of AI fluff.
+              <p
+                style={{ margin: '0.35rem 0 1rem', fontSize: '0.8rem', color: 'var(--text-muted)' }}
+              >
+                Click "Generate Cover Letter" to craft an articulate, clean 3-paragraph letter free
+                of AI fluff.
               </p>
             </div>
           )}

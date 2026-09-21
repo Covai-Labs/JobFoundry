@@ -57,15 +57,19 @@ test('copilot API endpoints in ingest', async (t) => {
   assert.ok(defaultsData.defaults.copilot_cover_letter_prompt_template);
 
   // 2. Insert a test job
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO jobs (id, title, company, url, source, description, created_at, updated_at)
     VALUES ('job-copilot-1', 'Staff Distributed Systems Engineer', 'CloudCorp', 'https://example.com/job/1', 'linkedin', 'Looking for an engineer with high scale backend experience.', 1000, 1000)
-  `).run();
+  `
+  ).run();
 
-  db.prepare(`
+  db.prepare(
+    `
     INSERT INTO user_jobs (user_id, job_id, status, created_at, updated_at)
     VALUES ('dev-user', 'job-copilot-1', 'discovered', 1000, 1000)
-  `).run();
+  `
+  ).run();
 
   // 3. GET copilot data for job before anything generated (should return empty structure)
   const getCopilotResp = await app.inject({

@@ -322,10 +322,13 @@ export class ApiClient {
     id: string,
     persona: 'recruiter' | 'hiring_manager' = 'recruiter'
   ): Promise<{ ok: boolean; outreach: CopilotOutreachData }> {
-    return this.request<{ ok: boolean; outreach: CopilotOutreachData }>(`/api/v1/jobs/${id}/copilot/outreach`, {
-      method: 'POST',
-      body: JSON.stringify({ persona }),
-    });
+    return this.request<{ ok: boolean; outreach: CopilotOutreachData }>(
+      `/api/v1/jobs/${id}/copilot/outreach`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ persona }),
+      }
+    );
   }
 
   async generateCopilotQA(
@@ -341,14 +344,19 @@ export class ApiClient {
   async generateCopilotCoverLetter(
     id: string
   ): Promise<{ ok: boolean; cover_letter: CopilotCoverLetterData }> {
-    return this.request<{ ok: boolean; cover_letter: CopilotCoverLetterData }>(`/api/v1/jobs/${id}/copilot/cover-letter`, {
-      method: 'POST',
-      body: JSON.stringify({}),
-    });
+    return this.request<{ ok: boolean; cover_letter: CopilotCoverLetterData }>(
+      `/api/v1/jobs/${id}/copilot/cover-letter`,
+      {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }
+    );
   }
 
   async getPromptTemplateDefaults(): Promise<{ ok: boolean; defaults: PromptTemplateDefaults }> {
-    return this.request<{ ok: boolean; defaults: PromptTemplateDefaults }>('/api/v1/settings/prompt-templates/defaults');
+    return this.request<{ ok: boolean; defaults: PromptTemplateDefaults }>(
+      '/api/v1/settings/prompt-templates/defaults'
+    );
   }
 
   getArtifactUrl(id: string, filename: string): string {

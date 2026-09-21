@@ -111,6 +111,36 @@ class StubLLM:
         return self.default_result
 
 
+def _is_transient_error(e: Exception) -> bool:
+    """Classify whether an exception from LiteLLM / Instructor is transient and retryable."""
+    exceptions_to_check: list[Any] = [e]
+    if hasattr(e, "failed_attempts") and getattr(e, "failed_attempts"):
+        for fa in getattr(e, "failed_attempts"):
+            if hasattr(fa, "exception") and fa.exception:
+                exceptions_to_check.append(fa.exception)
+    if getattr(e, "__cause__", None):
+        exceptions_to_check.append(e.__cause__)
+
+    for exc in exceptions_to_check:
+        status_code = getattr(exc, "status_code", None)
+        if status_code in (429, 500, 502, 503, 504, 529):
+            return True
+        exc_type = type(exc).__name__
+        if exc_type in (
+            "RateLimitError",
+            "APIConnectionError",
+            "Timeout",
+            "APITimeoutError",
+            "InternalServerError",
+            "ServiceUnavailableError",
+        ):
+            return True
+        msg = str(exc).lower()
+        if any(term in msg for term in ("429", "rate limit", "timeout", "connection", "500", "502", "503", "504", "overloaded")):
+            return True
+    return False
+
+
 class LiteLLMClient:
     def __init__(self, model: str = "gpt-4o-mini", api_key: str | None = None, api_base: str | None = None):
         self.model = model
@@ -184,8 +214,7 @@ class LiteLLMClient:
                 )
                 return result
             except Exception as e:
-                err_msg = str(e).lower()
-                is_transient = "429" in err_msg or "rate limit" in err_msg or "timeout" in err_msg or "connection" in err_msg
+                is_transient = _is_transient_error(e)
                 if is_transient and attempt < max_attempts:
                     backoff = 2.0 ** attempt
                     logger.warning(
