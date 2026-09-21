@@ -455,6 +455,7 @@ export class ApiClient {
     apiKey?: string;
     apiBase?: string;
     provider?: string;
+    feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot' | string;
   }): Promise<TestLlmResponse> {
     return this.request<TestLlmResponse>('/api/v1/settings/test-llm', {
       method: 'POST',
@@ -519,6 +520,13 @@ export interface SettingMeta {
 }
 
 export interface SystemSettings {
+  default_llm_model?: string;
+  default_llm_provider?: string;
+  default_llm_api_key?: string;
+  default_llm_api_base?: string;
+  scorer_inherit_default?: boolean;
+  tailor_inherit_default?: boolean;
+  copilot_inherit_default?: boolean;
   scorer_model: string;
   scorer_provider: string;
   scorer_api_key: string;

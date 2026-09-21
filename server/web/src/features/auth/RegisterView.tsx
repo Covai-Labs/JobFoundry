@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 
@@ -7,6 +8,7 @@ interface RegisterViewProps {
 }
 
 export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) => {
+  const navigate = useNavigate();
   const { register } = useAuth();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -40,6 +42,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
     setSubmitting(true);
     try {
       await register(email.trim(), password, name.trim());
+      navigate('/settings?tab=gateway');
     } catch (err: any) {
       setError(err.message || 'Registration failed. Email may already be in use.');
     } finally {

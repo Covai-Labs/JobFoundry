@@ -611,11 +611,11 @@ export const JobFeed: React.FC<JobFeedProps> = ({
                   </div>
                 </div>
                 <a
-                  href="/settings?tab=scorer"
+                  href="/settings?tab=gateway"
                   className="btn btn-primary btn-sm"
                   style={{ textDecoration: 'none', textAlign: 'center' }}
                 >
-                  Configure AI Scorer →
+                  Configure AI Gateway →
                 </a>
               </div>
 
