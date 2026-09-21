@@ -97,10 +97,11 @@ class ResumeGraph:
     async def strategy_and_basics_node(self, state: ResumeGraphState) -> dict[str, Any]:
         active_sections = self._resolve_active_sections(state)
         tailor_basics = "basics" in active_sections
+        effective_style = state.get("style") or self.style
         system, user = prompts.strategy_and_basics_prompt(
             resume=state["original_resume"],
             job_description=state["job_description"],
-            style=self.style,
+            style=effective_style,
             tailor_basics=tailor_basics,
         )
         output = await self.llm_client.generate_structured(
@@ -136,11 +137,12 @@ class ResumeGraph:
         if not state["original_resume"].get("work"):
             return {"tailored_work": WorkTailoringOutput(work=[])}
         strategy_dict = state["strategy"].model_dump()
+        effective_style = state.get("style") or self.style
         system, user = prompts.work_prompt(
             resume=state["original_resume"],
             job_description=state["job_description"],
             strategy=strategy_dict,
-            style=self.style,
+            style=effective_style,
         )
         output = await self.llm_client.generate_structured(
             model=state.get("model") or self.work_model,
@@ -194,11 +196,12 @@ class ResumeGraph:
         if not state["original_resume"].get("projects"):
             return {"tailored_projects": ProjectsTailoringOutput(projects=[])}
         strategy_dict = state["strategy"].model_dump()
+        effective_style = state.get("style") or self.style
         system, user = prompts.projects_prompt(
             resume=state["original_resume"],
             job_description=state["job_description"],
             strategy=strategy_dict,
-            style=self.style,
+            style=effective_style,
         )
         output = await self.llm_client.generate_structured(
             model=state.get("model") or self.projects_model,

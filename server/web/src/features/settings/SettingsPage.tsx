@@ -6,6 +6,7 @@ import {
   SettingMeta,
   DiagnosticsInfo,
   ExtensionConfig,
+  PromptTemplateDefaults,
 } from '../../api/client';
 import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
@@ -36,6 +37,9 @@ import {
   Sparkles,
   ChevronRight,
   Check,
+  RotateCcw,
+  MessageSquare,
+  ShieldCheck,
 } from 'lucide-react';
 import { LLM_PROVIDERS, detectProviderFromModel, ALL_RECOMMENDED_MODELS } from './llmCatalog';
 
@@ -45,13 +49,22 @@ interface SettingsPageProps {
 }
 
 type SettingsTab =
-  'profile' | 'general' | 'scorer' | 'tailor' | 'observability' | 'scrapers' | 'sync' | 'system';
+  | 'profile'
+  | 'general'
+  | 'scorer'
+  | 'tailor'
+  | 'copilot'
+  | 'observability'
+  | 'scrapers'
+  | 'sync'
+  | 'system';
 
 const VALID_TABS: SettingsTab[] = [
   'profile',
   'general',
   'scorer',
   'tailor',
+  'copilot',
   'observability',
   'scrapers',
   'sync',
@@ -128,7 +141,19 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     tailor_api_key: '',
     tailor_api_base: '',
     tailor_theme: 'jsonresume-theme-folio',
+    tailor_style: 'executive',
     tailor_timeout_seconds: 900,
+    copilot_inherit_model: true,
+    copilot_model: 'openrouter/google/gemini-2.0-flash-exp:free',
+    copilot_provider: 'openrouter',
+    copilot_api_key: '',
+    copilot_api_base: '',
+    copilot_stop_slop_enabled: true,
+    copilot_constraints: '',
+    copilot_system_prompt_template: '',
+    copilot_outreach_prompt_template: '',
+    copilot_qa_prompt_template: '',
+    copilot_cover_letter_prompt_template: '',
     opik_enabled: false,
     opik_project_name: 'jobfoundry',
     opik_api_key: '',
@@ -171,6 +196,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   });
   const [showTailorEndpointOverride, setShowTailorEndpointOverride] = useState<boolean>(false);
 
+  // Copilot Settings State
+  const [editingCopilotKey, setEditingCopilotKey] = useState(false);
+  const [newCopilotKey, setNewCopilotKey] = useState('');
+  const [selectedCopilotProvider, setSelectedCopilotProvider] = useState<string>('openrouter');
+  const [showCopilotEndpointOverride, setShowCopilotEndpointOverride] = useState<boolean>(false);
+  const [testingCopilotLlm, setTestingCopilotLlm] = useState(false);
+  const [copilotTestResult, setCopilotTestResult] = useState<{
+    success: boolean;
+    message?: string;
+    error?: string;
+    latencyMs?: number;
+  } | null>(null);
+  const [defaultPromptTemplates, setDefaultPromptTemplates] = useState<Partial<PromptTemplateDefaults>>({});
+
   // LLM Test Connection State
   const [testingLlm, setTestingLlm] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -195,10 +234,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     async function loadData() {
       setLoading(true);
       try {
-        const [settingsRes, diagRes, extRes] = await Promise.allSettled([
+        const [settingsRes, diagRes, extRes, defaultsRes] = await Promise.allSettled([
           api.getSettings(),
           api.getDiagnostics(),
           api.getExtensionConfig(),
+          api.getPromptTemplateDefaults(),
         ]);
 
         if (settingsRes.status === 'fulfilled') {
@@ -232,6 +272,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           ) {
             setTailorSyncWithScorer(false);
           }
+          if (backendSettings.copilot_provider) {
+            setSelectedCopilotProvider(backendSettings.copilot_provider);
+          } else if (backendSettings.copilot_model) {
+            setSelectedCopilotProvider(detectProviderFromModel(backendSettings.copilot_model));
+          }
+          if (backendSettings.copilot_api_base) {
+            setShowCopilotEndpointOverride(true);
+          }
+        }
+
+        if (defaultsRes.status === 'fulfilled' && defaultsRes.value?.defaults) {
+          setDefaultPromptTemplates(defaultsRes.value.defaults);
         }
 
         if (diagRes.status === 'fulfilled') {
@@ -287,6 +339,25 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         formSettings.tailor_api_base?.includes('localhost:8000')
       ) {
         handleFieldChange('tailor_api_base', '');
+      }
+    }
+  };
+
+  const handleSelectCopilotProvider = (providerId: string) => {
+    setSelectedCopilotProvider(providerId);
+    handleFieldChange('copilot_provider', providerId);
+    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
+    if (providerMeta?.isLocal || providerMeta?.isCustom) {
+      setShowCopilotEndpointOverride(true);
+      if (!formSettings.copilot_api_base && providerMeta.defaultBase) {
+        handleFieldChange('copilot_api_base', providerMeta.defaultBase);
+      }
+    } else {
+      if (
+        formSettings.copilot_api_base?.includes('11434') ||
+        formSettings.copilot_api_base?.includes('localhost:8000')
+      ) {
+        handleFieldChange('copilot_api_base', '');
       }
     }
   };
@@ -371,6 +442,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       if (editingTailorKey && newTailorKey.trim()) {
         payload.tailor_api_key = newTailorKey.trim();
       }
+      if (editingCopilotKey && newCopilotKey.trim()) {
+        payload.copilot_api_key = newCopilotKey.trim();
+      }
       if (editingOpikKey && newOpikKey.trim()) {
         payload.opik_api_key = newOpikKey.trim();
       }
@@ -402,6 +476,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       setNewScorerKey('');
       setEditingTailorKey(false);
       setNewTailorKey('');
+      setEditingCopilotKey(false);
+      setNewCopilotKey('');
       setEditingOpikKey(false);
       setNewOpikKey('');
 
@@ -445,7 +521,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     toast.info('Settings form reset. Click "Save Changes" to apply.');
   };
 
-  const handleTestLlm = async (service: 'scorer' | 'tailor' = 'scorer') => {
+  const handleTestLlm = async (service: 'scorer' | 'tailor' | 'copilot' = 'scorer') => {
     if (service === 'scorer') {
       setTestingLlm(true);
       setTestResult(null);
@@ -468,7 +544,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       } finally {
         setTestingLlm(false);
       }
-    } else {
+    } else if (service === 'tailor') {
       setTestingTailorLlm(true);
       setTailorTestResult(null);
       try {
@@ -497,6 +573,37 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         toast.error(msg);
       } finally {
         setTestingTailorLlm(false);
+      }
+    } else if (service === 'copilot') {
+      setTestingCopilotLlm(true);
+      setCopilotTestResult(null);
+      try {
+        const isInherited = formSettings.copilot_inherit_model !== false;
+        const model = isInherited ? formSettings.tailor_model : formSettings.copilot_model;
+        const apiBase = isInherited
+          ? (tailorSyncWithScorer ? formSettings.scorer_api_base : formSettings.tailor_api_base)
+          : formSettings.copilot_api_base;
+        const apiKey = isInherited
+          ? (tailorSyncWithScorer
+              ? (editingScorerKey ? newScorerKey : formSettings.scorer_api_key)
+              : (editingTailorKey ? newTailorKey : formSettings.tailor_api_key))
+          : (editingCopilotKey ? newCopilotKey : formSettings.copilot_api_key);
+        const provider = isInherited
+          ? (tailorSyncWithScorer ? selectedScorerProvider : selectedTailorProvider)
+          : selectedCopilotProvider;
+        const res = await api.testLlmConnection({ model, apiBase, apiKey, provider });
+        setCopilotTestResult(res);
+        if (res.success) {
+          toast.success(res.message || 'Copilot model connection successful');
+        } else {
+          toast.error(res.error || 'Copilot model connection failed');
+        }
+      } catch (err: any) {
+        const msg = err?.message || 'Connection test failed';
+        setCopilotTestResult({ success: false, error: msg });
+        toast.error(msg);
+      } finally {
+        setTestingCopilotLlm(false);
       }
     }
   };
@@ -641,6 +748,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               className={`settings-nav-item ${activeTab === 'tailor' ? 'active' : ''}`}
             >
               <Sliders size={16} /> AI Resume Tailor
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('copilot')}
+              className={`settings-nav-item ${activeTab === 'copilot' ? 'active' : ''}`}
+            >
+              <Sparkles size={16} /> Copilot & Prompts
             </button>
             <button
               type="button"
@@ -1818,6 +1932,33 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       </select>
                     </div>
 
+                    {/* Resume Tailoring Style */}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.35rem',
+                        }}
+                      >
+                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                          Resume Tailoring Style
+                        </label>
+                        {renderSourceBadge('tailor_style')}
+                      </div>
+                      <select
+                        value={formSettings.tailor_style || 'executive'}
+                        onChange={(e) => handleFieldChange('tailor_style', e.target.value)}
+                        className="input-text"
+                      >
+                        <option value="executive">Executive (High-impact leadership & scale metrics)</option>
+                        <option value="tech">Tech (Deep technical architecture & tooling focus)</option>
+                        <option value="concise">Concise (Dense, single-line action bullets)</option>
+                        <option value="academic">Academic (Methodologies & publications focus)</option>
+                      </select>
+                    </div>
+
                     {/* Tailor Timeout */}
                     <div style={{ marginBottom: '1.5rem' }}>
                       <div
@@ -1936,6 +2077,701 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           </span>
                         </div>
                       )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* TAB 4: COPILOT & PROMPTS */}
+              {activeTab === 'copilot' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  {/* CARD 1: Model & Provider Configuration */}
+                  <div className="settings-card" style={{ padding: '1.5rem' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.35rem',
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: '1.1rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <Sparkles size={18} style={{ color: 'var(--accent-primary)' }} />
+                        Application & Outreach Copilot Model
+                      </h3>
+                      {renderSourceBadge('copilot_model')}
+                    </div>
+                    <p
+                      style={{
+                        fontSize: '0.85rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '1.25rem',
+                      }}
+                    >
+                      Powers LinkedIn recruiter connection notes, custom screening question answers, and tailored cover letters.
+                    </p>
+
+                    {/* Inherit Toggle */}
+                    <div
+                      style={{
+                        marginBottom: '1.25rem',
+                        padding: '0.85rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        background:
+                          formSettings.copilot_inherit_model !== false
+                            ? 'rgba(99, 102, 241, 0.08)'
+                            : 'var(--bg-input)',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.65rem',
+                          cursor: 'pointer',
+                          fontSize: '0.88rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formSettings.copilot_inherit_model !== false}
+                          onChange={(e) => {
+                            handleFieldChange('copilot_inherit_model', e.target.checked);
+                            setIsDirty(true);
+                          }}
+                          style={{
+                            accentColor: 'var(--accent-primary)',
+                            width: '16px',
+                            height: '16px',
+                          }}
+                        />
+                        Inherit model & provider from Resume Tailoring Engine (Recommended)
+                      </label>
+                      <div
+                        style={{
+                          fontSize: '0.78rem',
+                          color: 'var(--text-muted)',
+                          marginTop: '0.35rem',
+                          marginLeft: '1.65rem',
+                        }}
+                      >
+                        {formSettings.copilot_inherit_model !== false
+                          ? `Currently using ${formSettings.tailor_model || 'Tailor Model'} with inherited provider credentials.`
+                          : 'Configure a dedicated, independent LLM provider and credentials specifically for Copilot drafts.'}
+                      </div>
+                    </div>
+
+                    {/* Dedicated Copilot Provider & Key if NOT inherited */}
+                    {formSettings.copilot_inherit_model === false && (
+                      <div
+                        style={{
+                          marginBottom: '1.25rem',
+                          padding: '1rem',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                        }}
+                      >
+                        <div style={{ marginBottom: '1rem' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 600,
+                              marginBottom: '0.5rem',
+                            }}
+                          >
+                            Copilot Dedicated Provider
+                          </label>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            {LLM_PROVIDERS.map((p) => {
+                              const isSelected = selectedCopilotProvider === p.id;
+                              return (
+                                <button
+                                  key={p.id}
+                                  type="button"
+                                  onClick={() => handleSelectCopilotProvider(p.id)}
+                                  style={{
+                                    padding: '0.35rem 0.65rem',
+                                    borderRadius: 'var(--radius-md)',
+                                    fontSize: '0.8rem',
+                                    fontWeight: isSelected ? 600 : 400,
+                                    border: isSelected
+                                      ? '1.5px solid var(--accent-primary)'
+                                      : '1px solid var(--border-subtle)',
+                                    background: isSelected
+                                      ? 'rgba(99, 102, 241, 0.12)'
+                                      : 'var(--bg-card)',
+                                    color: isSelected
+                                      ? 'var(--accent-primary)'
+                                      : 'var(--text-secondary)',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.35rem',
+                                  }}
+                                >
+                                  {p.name}
+                                  {isSelected && <Check size={12} />}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Dedicated Copilot Key */}
+                        <div style={{ marginBottom: '1rem' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                              Dedicated Copilot API Key
+                            </label>
+                            {renderSourceBadge('copilot_api_key')}
+                          </div>
+                          {!editingCopilotKey ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  padding: '0.55rem 0.75rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: 'var(--bg-input)',
+                                  border: '1px solid var(--border-subtle)',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.85rem',
+                                  color: formSettings.copilot_api_key
+                                    ? 'var(--text-primary)'
+                                    : 'var(--text-muted)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
+                                {formSettings.copilot_api_key || 'No dedicated key set'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingCopilotKey(true)}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                <Unlock size={14} /> Change Key
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <input
+                                type="password"
+                                value={newCopilotKey}
+                                onChange={(e) => {
+                                  setNewCopilotKey(e.target.value);
+                                  setIsDirty(true);
+                                }}
+                                className="input-text"
+                                placeholder="Enter custom key for Copilot"
+                                style={{ flex: 1 }}
+                                autoFocus
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingCopilotKey(false);
+                                  setNewCopilotKey('');
+                                }}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Copilot Model Identifier */}
+                        <div style={{ marginBottom: '1rem' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            Copilot Model Identifier
+                          </label>
+                          <input
+                            type="text"
+                            list="copilot-model-suggestions"
+                            value={formSettings.copilot_model || ''}
+                            onChange={(e) => handleFieldChange('copilot_model', e.target.value)}
+                            className="input-text"
+                            placeholder="openrouter/anthropic/claude-3.5-sonnet"
+                          />
+                          <datalist id="copilot-model-suggestions">
+                            {ALL_RECOMMENDED_MODELS.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} ({m.provider})
+                              </option>
+                            ))}
+                          </datalist>
+                        </div>
+
+                        {/* Copilot Base URL */}
+                        {(() => {
+                          const p = LLM_PROVIDERS.find((x) => x.id === selectedCopilotProvider);
+                          const requiresBase = Boolean(p?.isLocal || p?.isCustom);
+                          if (
+                            requiresBase ||
+                            showCopilotEndpointOverride ||
+                            Boolean(formSettings.copilot_api_base)
+                          ) {
+                            return (
+                              <div>
+                                <label
+                                  style={{
+                                    fontSize: '0.85rem',
+                                    fontWeight: 500,
+                                    display: 'block',
+                                    marginBottom: '0.35rem',
+                                  }}
+                                >
+                                  Copilot Endpoint Base URL
+                                </label>
+                                <input
+                                  type="text"
+                                  value={formSettings.copilot_api_base || ''}
+                                  onChange={(e) =>
+                                    handleFieldChange('copilot_api_base', e.target.value)
+                                  }
+                                  className="input-text"
+                                  placeholder={p?.defaultBase || 'https://api.openai.com/v1'}
+                                />
+                              </div>
+                            );
+                          }
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => setShowCopilotEndpointOverride(true)}
+                              style={{
+                                background: 'none',
+                                border: 'none',
+                                color: 'var(--accent-primary)',
+                                fontSize: '0.8rem',
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.35rem',
+                              }}
+                            >
+                              <ChevronRight size={14} /> Custom Endpoint Base URL (Optional)
+                            </button>
+                          );
+                        })()}
+                      </div>
+                    )}
+
+                    {/* Test Copilot Model Connectivity */}
+                    <div
+                      style={{
+                        paddingTop: '1rem',
+                        borderTop: '1px solid var(--border-subtle)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>
+                          Test Copilot Model Connectivity
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          Verify LLM token generation with configured Copilot provider credentials.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleTestLlm('copilot')}
+                        disabled={testingCopilotLlm}
+                        className="btn btn-secondary btn-sm"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      >
+                        {testingCopilotLlm ? (
+                          <>
+                            <RefreshCw size={14} className="spin" /> Testing...
+                          </>
+                        ) : (
+                          <>
+                            <Zap size={14} /> Test Model
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {copilotTestResult && (
+                      <div
+                        style={{
+                          marginTop: '0.75rem',
+                          padding: '0.75rem',
+                          borderRadius: 'var(--radius-sm)',
+                          fontSize: '0.85rem',
+                          background: copilotTestResult.success
+                            ? 'var(--color-green-bg)'
+                            : 'rgba(239, 68, 68, 0.1)',
+                          border: `1px solid ${
+                            copilotTestResult.success
+                              ? 'rgba(16, 185, 129, 0.3)'
+                              : 'rgba(239, 68, 68, 0.3)'
+                          }`,
+                          color: copilotTestResult.success
+                            ? 'var(--color-green)'
+                            : 'var(--color-red)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        {copilotTestResult.success ? (
+                          <CheckCircle2 size={16} />
+                        ) : (
+                          <AlertTriangle size={16} />
+                        )}
+                        <span>
+                          {copilotTestResult.message || copilotTestResult.error}
+                          {copilotTestResult.latencyMs !== undefined
+                            ? ` (${copilotTestResult.latencyMs}ms)`
+                            : ''}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* CARD 2: Grounding & Anti-Slop Constraints */}
+                  <div className="settings-card" style={{ padding: '1.5rem' }}>
+                    <h3
+                      style={{
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        marginBottom: '0.35rem',
+                      }}
+                    >
+                      <ShieldCheck size={18} style={{ color: 'var(--color-green)' }} />
+                      Ghostwriter Grounding & Anti-Slop Constraints
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: '0.85rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '1.25rem',
+                      }}
+                    >
+                      Enforce strict truthfulness invariants and eliminate AI buzzwords across all Copilot outputs.
+                    </p>
+
+                    {/* Anti-Slop Checkbox */}
+                    <div
+                      style={{
+                        marginBottom: '1.25rem',
+                        padding: '0.85rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-input)',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <label
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.65rem',
+                          cursor: 'pointer',
+                          fontSize: '0.88rem',
+                          fontWeight: 600,
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={formSettings.copilot_stop_slop_enabled !== false}
+                          onChange={(e) => {
+                            handleFieldChange('copilot_stop_slop_enabled', e.target.checked);
+                            setIsDirty(true);
+                          }}
+                          style={{
+                            accentColor: 'var(--accent-primary)',
+                            width: '16px',
+                            height: '16px',
+                          }}
+                        />
+                        Anti-Buzzword Clean Tone Filter (Stop-Slop)
+                      </label>
+                      <div
+                        style={{
+                          fontSize: '0.78rem',
+                          color: 'var(--text-muted)',
+                          marginTop: '0.35rem',
+                          marginLeft: '1.65rem',
+                        }}
+                      >
+                        Strictly forbids generic AI cliches ("testament to", "spearheaded", "delve into", "pivotal role", "in summary", "tapestry", "pleased to apply") and bans unsubstantiated metrics.
+                      </div>
+                    </div>
+
+                    {/* Custom Candidate Constraints */}
+                    <div>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.35rem',
+                        }}
+                      >
+                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                          Custom Candidate Constraints & Focus Instructions
+                        </label>
+                        {renderSourceBadge('copilot_constraints')}
+                      </div>
+                      <textarea
+                        rows={3}
+                        value={formSettings.copilot_constraints || ''}
+                        onChange={(e) => handleFieldChange('copilot_constraints', e.target.value)}
+                        placeholder="e.g. Do not mention willingness to relocate; emphasize distributed systems and Golang; highlight staff-level architecture experience."
+                        className="input-text"
+                        style={{ width: '100%', resize: 'vertical' }}
+                      />
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.3rem' }}>
+                        Injected as explicit negative and positive constraints into all Copilot prompt templates.
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* CARD 3: Customizable Prompt Templates */}
+                  <div className="settings-card" style={{ padding: '1.5rem' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '0.35rem',
+                      }}
+                    >
+                      <h3
+                        style={{
+                          fontSize: '1.1rem',
+                          fontWeight: 600,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.5rem',
+                        }}
+                      >
+                        <MessageSquare size={18} style={{ color: 'var(--accent-primary)' }} />
+                        Prompt Templates & Instructions
+                      </h3>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!confirm('Reset all Copilot prompt templates to system defaults?')) return;
+                          if (defaultPromptTemplates) {
+                            handleFieldChange('copilot_system_prompt_template', defaultPromptTemplates.copilot_system_prompt_template || '');
+                            handleFieldChange('copilot_outreach_prompt_template', defaultPromptTemplates.copilot_outreach_prompt_template || '');
+                            handleFieldChange('copilot_qa_prompt_template', defaultPromptTemplates.copilot_qa_prompt_template || '');
+                            handleFieldChange('copilot_cover_letter_prompt_template', defaultPromptTemplates.copilot_cover_letter_prompt_template || '');
+                            setIsDirty(true);
+                            toast.info('Prompt templates restored to system defaults');
+                          }
+                        }}
+                        className="btn btn-secondary btn-sm"
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.78rem' }}
+                      >
+                        <RotateCcw size={13} /> Restore All Defaults
+                      </button>
+                    </div>
+                    <p
+                      style={{
+                        fontSize: '0.85rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '1.5rem',
+                      }}
+                    >
+                      Customize the underlying LLM instructions. Leave empty to use system defaults. Templates accept standard variables like <code>{'{resume_toon}'}</code>, <code>{'{job_toon}'}</code>, <code>{'{persona}'}</code>, <code>{'{question}'}</code>.
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {/* System Prompt Template */}
+                      <div
+                        style={{
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '1rem',
+                          background: 'var(--bg-glass)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Base System Prompt Template
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (defaultPromptTemplates.copilot_system_prompt_template) {
+                                handleFieldChange(
+                                  'copilot_system_prompt_template',
+                                  defaultPromptTemplates.copilot_system_prompt_template
+                                );
+                                toast.info('System prompt restored to default');
+                              }
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                          >
+                            <RotateCcw size={12} style={{ marginRight: '0.25rem' }} /> Default
+                          </button>
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={formSettings.copilot_system_prompt_template || ''}
+                          onChange={(e) => handleFieldChange('copilot_system_prompt_template', e.target.value)}
+                          placeholder={defaultPromptTemplates.copilot_system_prompt_template || 'System prompt instructions...'}
+                          className="input-text"
+                          style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        />
+                      </div>
+
+                      {/* Recruiter Outreach Prompt Template */}
+                      <div
+                        style={{
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '1rem',
+                          background: 'var(--bg-glass)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Recruiter Outreach Prompt Template
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (defaultPromptTemplates.copilot_outreach_prompt_template) {
+                                handleFieldChange(
+                                  'copilot_outreach_prompt_template',
+                                  defaultPromptTemplates.copilot_outreach_prompt_template
+                                );
+                                toast.info('Outreach prompt restored to default');
+                              }
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                          >
+                            <RotateCcw size={12} style={{ marginRight: '0.25rem' }} /> Default
+                          </button>
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={formSettings.copilot_outreach_prompt_template || ''}
+                          onChange={(e) => handleFieldChange('copilot_outreach_prompt_template', e.target.value)}
+                          placeholder={defaultPromptTemplates.copilot_outreach_prompt_template || 'Recruiter outreach prompt...'}
+                          className="input-text"
+                          style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        />
+                      </div>
+
+                      {/* Screening Q&A Prompt Template */}
+                      <div
+                        style={{
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '1rem',
+                          background: 'var(--bg-glass)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Screening Q&A Prompt Template
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (defaultPromptTemplates.copilot_qa_prompt_template) {
+                                handleFieldChange(
+                                  'copilot_qa_prompt_template',
+                                  defaultPromptTemplates.copilot_qa_prompt_template
+                                );
+                                toast.info('Q&A prompt restored to default');
+                              }
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                          >
+                            <RotateCcw size={12} style={{ marginRight: '0.25rem' }} /> Default
+                          </button>
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={formSettings.copilot_qa_prompt_template || ''}
+                          onChange={(e) => handleFieldChange('copilot_qa_prompt_template', e.target.value)}
+                          placeholder={defaultPromptTemplates.copilot_qa_prompt_template || 'Q&A prompt...'}
+                          className="input-text"
+                          style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        />
+                      </div>
+
+                      {/* Cover Letter Prompt Template */}
+                      <div
+                        style={{
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '1rem',
+                          background: 'var(--bg-glass)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                            Cover Letter Prompt Template
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (defaultPromptTemplates.copilot_cover_letter_prompt_template) {
+                                handleFieldChange(
+                                  'copilot_cover_letter_prompt_template',
+                                  defaultPromptTemplates.copilot_cover_letter_prompt_template
+                                );
+                                toast.info('Cover letter prompt restored to default');
+                              }
+                            }}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem' }}
+                          >
+                            <RotateCcw size={12} style={{ marginRight: '0.25rem' }} /> Default
+                          </button>
+                        </div>
+                        <textarea
+                          rows={4}
+                          value={formSettings.copilot_cover_letter_prompt_template || ''}
+                          onChange={(e) => handleFieldChange('copilot_cover_letter_prompt_template', e.target.value)}
+                          placeholder={defaultPromptTemplates.copilot_cover_letter_prompt_template || 'Cover letter prompt...'}
+                          className="input-text"
+                          style={{ width: '100%', fontFamily: 'monospace', fontSize: '0.8rem' }}
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

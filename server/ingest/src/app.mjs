@@ -44,6 +44,7 @@ import {
 } from './resumes/resumes.mjs';
 import {
   DEFAULT_EXTENSION_CONFIG,
+  DEFAULT_PROMPT_TEMPLATES,
   getAllSettings,
   getEffectiveSetting,
   getEffectiveSettingWithSource,
@@ -408,6 +409,28 @@ export function buildApp({
       } catch (err) {
         return reply.code(400).send({ error: err.message });
       }
+    }
+  );
+
+  // GET /api/v1/settings/prompt-templates/defaults - Factory default prompt templates
+  app.get(
+    '/api/v1/settings/prompt-templates/defaults',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      if (!authenticate(request, reply)) return;
+      return { ok: true, defaults: DEFAULT_PROMPT_TEMPLATES };
     }
   );
 
@@ -1637,6 +1660,7 @@ export function buildApp({
         1000;
       const tailorModel = getEffectiveSetting(db, 'tailor_model', process.env, userId);
       const tailorBase = getEffectiveSetting(db, 'tailor_api_base', process.env, userId);
+      const tailorStyle = getEffectiveSetting(db, 'tailor_style', process.env, userId);
 
       if (resumeOpsUrl) {
         try {
@@ -1652,6 +1676,7 @@ export function buildApp({
               ...(tailorModel ? { model: tailorModel } : {}),
               ...(tailorKey ? { api_key: tailorKey } : {}),
               ...(tailorBase ? { api_base: tailorBase } : {}),
+              ...(tailorStyle ? { style: tailorStyle } : {}),
             }),
           });
 
@@ -1736,6 +1761,523 @@ export function buildApp({
       }
 
       return { ok: true, job, tailored_resume_id: tailoredId };
+    }
+  );
+
+  // --- COPILOT ROUTES ---
+
+  function resolveCopilotConfig(userId) {
+    const inherit = getEffectiveSetting(db, 'copilot_inherit_model', process.env, userId);
+    const stopSlop = getEffectiveSetting(db, 'copilot_stop_slop_enabled', process.env, userId) ?? true;
+    const constraints = getEffectiveSetting(db, 'copilot_constraints', process.env, userId) || '';
+    const systemPrompt = getEffectiveSetting(db, 'copilot_system_prompt_template', process.env, userId) || '';
+
+    let copilotModel = '';
+    let copilotKey = '';
+    let copilotBase = '';
+
+    if (!inherit) {
+      copilotModel = getEffectiveSetting(db, 'copilot_model', process.env, userId) || '';
+      const keySetting = getEffectiveSettingWithSource(db, 'copilot_api_key', { userId });
+      copilotKey = isRegisteredUser(db, userId)
+        ? keySetting.source === 'user' ? keySetting.value : ''
+        : keySetting.value;
+      copilotBase = getEffectiveSetting(db, 'copilot_api_base', process.env, userId) || '';
+    }
+
+    if (!copilotModel) {
+      copilotModel = getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
+        getEffectiveSetting(db, 'scorer_model', process.env, userId);
+    }
+    if (!copilotKey) {
+      const tailorKeySetting = getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
+      copilotKey = isRegisteredUser(db, userId)
+        ? tailorKeySetting.source === 'user' ? tailorKeySetting.value : ''
+        : tailorKeySetting.value;
+    }
+    if (!copilotKey) {
+      const scorerKeySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
+      copilotKey = isRegisteredUser(db, userId)
+        ? scorerKeySetting.source === 'user' ? scorerKeySetting.value : ''
+        : scorerKeySetting.value;
+    }
+    if (!copilotBase) {
+      copilotBase = getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
+        getEffectiveSetting(db, 'scorer_api_base', process.env, userId);
+    }
+
+    return {
+      model: copilotModel,
+      apiKey: copilotKey,
+      apiBase: copilotBase,
+      stopSlop: Boolean(stopSlop),
+      constraints,
+      systemPrompt,
+    };
+  }
+
+  function getCopilotArtifacts(userId, jobId) {
+    const safeUserId = String(userId);
+    const safeJobId = String(jobId);
+    const resolvedBase = resolve(artifactsDir);
+    const jobDir = resolve(resolvedBase, safeUserId, safeJobId);
+    if (!jobDir.startsWith(resolvedBase)) return null;
+
+    const copilotFile = resolve(jobDir, 'copilot.json');
+    if (!existsSync(copilotFile)) {
+      return { outreach: null, qa_history: [], cover_letter: null };
+    }
+    try {
+      return JSON.parse(readFileSync(copilotFile, 'utf-8'));
+    } catch {
+      return { outreach: null, qa_history: [], cover_letter: null };
+    }
+  }
+
+  function saveCopilotArtifacts(userId, jobId, data) {
+    const safeUserId = String(userId);
+    const safeJobId = String(jobId);
+    const resolvedBase = resolve(artifactsDir);
+    const jobDir = resolve(resolvedBase, safeUserId, safeJobId);
+    if (!jobDir.startsWith(resolvedBase)) return false;
+
+    mkdirSync(jobDir, { recursive: true });
+    writeFileSync(resolve(jobDir, 'copilot.json'), JSON.stringify(data, null, 2), 'utf-8');
+    return true;
+  }
+
+  // GET /api/v1/jobs/:id/copilot - Get saved copilot data for a job
+  app.get(
+    '/api/v1/jobs/:id/copilot',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      if (!authenticate(request, reply)) return;
+
+      const { id } = request.params;
+      const userId = String(request.user.id || 'dev-user');
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
+      const data = getCopilotArtifacts(userId, id);
+      return { ok: true, data };
+    }
+  );
+
+  // POST /api/v1/jobs/:id/copilot/outreach - Generate recruiter outreach
+  app.post(
+    '/api/v1/jobs/:id/copilot/outreach',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 20)) return;
+      if (!authenticate(request, reply)) return;
+
+      const { id } = request.params;
+      const userId = String(request.user.id || 'dev-user');
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
+      const jobRecord = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+      if (!jobRecord) return reply.code(404).send({ error: 'Job not found' });
+      if (!jobRecord.description || jobRecord.description.trim().length < 10) {
+        return reply.code(400).send({ error: 'Job description is missing or too short.' });
+      }
+
+      const activeResumeRecord = getActiveResume(db, userId);
+      const activeResume = activeResumeRecord?.resume;
+      if (!activeResume) {
+        return reply.code(400).send({
+          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+        });
+      }
+
+      const cfg = resolveCopilotConfig(userId);
+      if (isRegisteredUser(db, userId) && !cfg.apiKey) {
+        return reply.code(400).send({
+          error: 'No API key configured — go to Settings to add your LLM key.',
+        });
+      }
+
+      // Check for tailored resume artifact
+      let tailoredResume = null;
+      const safeJobDir = resolve(resolve(artifactsDir), userId, id);
+      const tailoredFile = resolve(safeJobDir, 'resume.json');
+      if (existsSync(tailoredFile)) {
+        try {
+          tailoredResume = JSON.parse(readFileSync(tailoredFile, 'utf-8'));
+        } catch {}
+      }
+
+      const persona = request.body?.persona || 'recruiter';
+      const tailorPort = process.env.TAILOR_PORT || 8081;
+      const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+
+      try {
+        const resp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/copilot/outreach`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+          redirect: 'error',
+          body: JSON.stringify({
+            resume: activeResume,
+            tailored_resume: tailoredResume,
+            job_description: jobRecord.description,
+            job_title: jobRecord.title,
+            company: jobRecord.company,
+            persona,
+            ...(cfg.model ? { model: cfg.model } : {}),
+            ...(cfg.apiKey ? { api_key: cfg.apiKey } : {}),
+            ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
+            ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
+            stop_slop: cfg.stopSlop,
+            ...(cfg.systemPrompt ? { system_prompt_template: cfg.systemPrompt } : {}),
+          }),
+        });
+
+        if (!resp.ok) {
+          const errBody = await resp.text().catch(() => '');
+          return reply.code(502).send({ error: `Copilot error (${resp.status}): ${errBody}` });
+        }
+
+        const data = await resp.json();
+        const current = getCopilotArtifacts(userId, id);
+        current.outreach = data;
+        saveCopilotArtifacts(userId, id, current);
+
+        return { ok: true, outreach: data };
+      } catch (err) {
+        request.log?.error?.(err);
+        return reply.code(502).send({ error: err.message || 'Copilot outreach generation failed' });
+      }
+    }
+  );
+
+  // POST /api/v1/jobs/:id/copilot/qa - Answer screening question
+  app.post(
+    '/api/v1/jobs/:id/copilot/qa',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 20)) return;
+      if (!authenticate(request, reply)) return;
+
+      const { id } = request.params;
+      const question = String(request.body?.question || '').trim();
+      if (!question) {
+        return reply.code(400).send({ error: 'Question is required' });
+      }
+
+      const userId = String(request.user.id || 'dev-user');
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
+      const jobRecord = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+      if (!jobRecord) return reply.code(404).send({ error: 'Job not found' });
+
+      const activeResumeRecord = getActiveResume(db, userId);
+      const activeResume = activeResumeRecord?.resume;
+      if (!activeResume) {
+        return reply.code(400).send({
+          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+        });
+      }
+
+      const cfg = resolveCopilotConfig(userId);
+      if (isRegisteredUser(db, userId) && !cfg.apiKey) {
+        return reply.code(400).send({
+          error: 'No API key configured — go to Settings to add your LLM key.',
+        });
+      }
+
+      let tailoredResume = null;
+      const safeJobDir = resolve(resolve(artifactsDir), userId, id);
+      const tailoredFile = resolve(safeJobDir, 'resume.json');
+      if (existsSync(tailoredFile)) {
+        try {
+          tailoredResume = JSON.parse(readFileSync(tailoredFile, 'utf-8'));
+        } catch {}
+      }
+
+      const qaPromptTemplate = getEffectiveSetting(db, 'copilot_qa_prompt_template', process.env, userId) || '';
+      const tailorPort = process.env.TAILOR_PORT || 8081;
+      const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+
+      try {
+        const resp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/copilot/qa`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+          redirect: 'error',
+          body: JSON.stringify({
+            question,
+            resume: activeResume,
+            tailored_resume: tailoredResume,
+            job_description: jobRecord.description || '',
+            job_title: jobRecord.title,
+            company: jobRecord.company,
+            ...(cfg.model ? { model: cfg.model } : {}),
+            ...(cfg.apiKey ? { api_key: cfg.apiKey } : {}),
+            ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
+            ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
+            stop_slop: cfg.stopSlop,
+            ...(qaPromptTemplate ? { system_prompt_template: qaPromptTemplate } : {}),
+          }),
+        });
+
+        if (!resp.ok) {
+          const errBody = await resp.text().catch(() => '');
+          return reply.code(502).send({ error: `Copilot error (${resp.status}): ${errBody}` });
+        }
+
+        const data = await resp.json();
+        const current = getCopilotArtifacts(userId, id);
+        if (!Array.isArray(current.qa_history)) current.qa_history = [];
+        const qaItem = {
+          id: randomUUID(),
+          question: data.question,
+          answer: data.answer,
+          situation: data.situation,
+          task: data.task,
+          action: data.action,
+          result: data.result,
+          knockout_warning: data.knockout_warning,
+          created_at: Date.now(),
+        };
+        current.qa_history.unshift(qaItem);
+        saveCopilotArtifacts(userId, id, current);
+
+        return { ok: true, qa: qaItem, qa_history: current.qa_history };
+      } catch (err) {
+        request.log?.error?.(err);
+        return reply.code(502).send({ error: err.message || 'Copilot QA generation failed' });
+      }
+    }
+  );
+
+  // POST /api/v1/jobs/:id/copilot/cover-letter - Generate cover letter
+  app.post(
+    '/api/v1/jobs/:id/copilot/cover-letter',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 20)) return;
+      if (!authenticate(request, reply)) return;
+
+      const { id } = request.params;
+      const userId = String(request.user.id || 'dev-user');
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
+      const jobRecord = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+      if (!jobRecord) return reply.code(404).send({ error: 'Job not found' });
+      if (!jobRecord.description || jobRecord.description.trim().length < 10) {
+        return reply.code(400).send({ error: 'Job description is missing or too short.' });
+      }
+
+      const activeResumeRecord = getActiveResume(db, userId);
+      const activeResume = activeResumeRecord?.resume;
+      if (!activeResume) {
+        return reply.code(400).send({
+          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+        });
+      }
+
+      const cfg = resolveCopilotConfig(userId);
+      if (isRegisteredUser(db, userId) && !cfg.apiKey) {
+        return reply.code(400).send({
+          error: 'No API key configured — go to Settings to add your LLM key.',
+        });
+      }
+
+      let tailoredResume = null;
+      const safeJobDir = resolve(resolve(artifactsDir), userId, id);
+      const tailoredFile = resolve(safeJobDir, 'resume.json');
+      if (existsSync(tailoredFile)) {
+        try {
+          tailoredResume = JSON.parse(readFileSync(tailoredFile, 'utf-8'));
+        } catch {}
+      }
+
+      const coverPromptTemplate = getEffectiveSetting(db, 'copilot_cover_letter_prompt_template', process.env, userId) || '';
+      const tailorPort = process.env.TAILOR_PORT || 8081;
+      const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+
+      try {
+        const resp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/copilot/cover-letter`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+          redirect: 'error',
+          body: JSON.stringify({
+            resume: activeResume,
+            tailored_resume: tailoredResume,
+            job_description: jobRecord.description,
+            job_title: jobRecord.title,
+            company: jobRecord.company,
+            ...(cfg.model ? { model: cfg.model } : {}),
+            ...(cfg.apiKey ? { api_key: cfg.apiKey } : {}),
+            ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
+            ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
+            stop_slop: cfg.stopSlop,
+            ...(coverPromptTemplate ? { system_prompt_template: coverPromptTemplate } : {}),
+          }),
+        });
+
+        if (!resp.ok) {
+          const errBody = await resp.text().catch(() => '');
+          return reply.code(502).send({ error: `Copilot error (${resp.status}): ${errBody}` });
+        }
+
+        const data = await resp.json();
+        const current = getCopilotArtifacts(userId, id);
+        current.cover_letter = data;
+        saveCopilotArtifacts(userId, id, current);
+
+        return { ok: true, cover_letter: data };
+      } catch (err) {
+        request.log?.error?.(err);
+        return reply.code(502).send({ error: err.message || 'Copilot cover letter generation failed' });
+      }
+    }
+  );
+
+  // POST /api/v1/copilot/adhoc - Ad-hoc copilot generation (used by extension or unsaved jobs)
+  app.post(
+    '/api/v1/copilot/adhoc',
+    {
+      config: {
+        rateLimit: {
+          max: 20,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 20,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 20)) return;
+      if (!authenticate(request, reply)) return;
+
+      const userId = String(request.user.id || 'dev-user');
+      const activeResumeRecord = getActiveResume(db, userId);
+      const activeResume = activeResumeRecord?.resume;
+      if (!activeResume) {
+        return reply.code(400).send({
+          error: 'No active master resume found. Please upload one in Profile & Resume before using Copilot.',
+        });
+      }
+
+      const cfg = resolveCopilotConfig(userId);
+      if (isRegisteredUser(db, userId) && !cfg.apiKey) {
+        return reply.code(400).send({
+          error: 'No API key configured — go to Settings to add your LLM key.',
+        });
+      }
+
+      const {
+        type = 'outreach',
+        job_description = '',
+        job_title = '',
+        company = '',
+        question = '',
+        persona = 'recruiter',
+      } = request.body || {};
+
+      if (!job_description && !question) {
+        return reply.code(400).send({ error: 'Job description or question is required' });
+      }
+
+      const tailorPort = process.env.TAILOR_PORT || 8081;
+      const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+
+      const endpoint =
+        type === 'qa'
+          ? '/api/v1/copilot/qa'
+          : type === 'cover-letter'
+            ? '/api/v1/copilot/cover-letter'
+            : '/api/v1/copilot/outreach';
+
+      try {
+        const resp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}${endpoint}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+          redirect: 'error',
+          body: JSON.stringify({
+            question,
+            resume: activeResume,
+            job_description,
+            job_title,
+            company,
+            persona,
+            ...(cfg.model ? { model: cfg.model } : {}),
+            ...(cfg.apiKey ? { api_key: cfg.apiKey } : {}),
+            ...(cfg.apiBase ? { api_base: cfg.apiBase } : {}),
+            ...(cfg.constraints ? { constraints: cfg.constraints } : {}),
+            stop_slop: cfg.stopSlop,
+            ...(cfg.systemPrompt ? { system_prompt_template: cfg.systemPrompt } : {}),
+          }),
+        });
+
+        if (!resp.ok) {
+          const errBody = await resp.text().catch(() => '');
+          return reply.code(502).send({ error: `Copilot error (${resp.status}): ${errBody}` });
+        }
+
+        const data = await resp.json();
+        return { ok: true, data };
+      } catch (err) {
+        request.log?.error?.(err);
+        return reply.code(502).send({ error: err.message || 'Ad-hoc copilot generation failed' });
+      }
     }
   );
 

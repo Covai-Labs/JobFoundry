@@ -7,6 +7,12 @@ from urllib.parse import urlparse
 from litellm import acompletion
 from resume_ops_api.api.deps import get_container
 from resume_ops_api.api.models import (
+    CopilotCoverLetterRequest,
+    CopilotCoverLetterResponse,
+    CopilotOutreachRequest,
+    CopilotOutreachResponse,
+    CopilotQARequest,
+    CopilotQAResponse,
     HealthResponse,
     MasterResumeStatus,
     QueuedTaskResponse,
@@ -99,8 +105,120 @@ async def tailor_resume(
         model=payload.model,
         api_key=payload.api_key,
         api_base=payload.api_base,
+        style=payload.style,
     )
     return TailorResponse(resume=result.resume, pdf_base64=result.pdf_base64, theme=result.theme, plain_text=result.plain_text)
+
+
+@router.post(
+    "/api/v1/copilot/outreach",
+    response_model=CopilotOutreachResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def copilot_outreach(
+    payload: CopilotOutreachRequest,
+    container: ServiceContainer = Depends(get_container),
+) -> CopilotOutreachResponse:
+    resume_data = payload.resume or container.master_resume
+    if not resume_data:
+        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+
+    result = await container.copilot_service.generate_outreach(
+        resume=resume_data,
+        tailored_resume=payload.tailored_resume,
+        job_description=payload.job_description,
+        job_title=payload.job_title,
+        company=payload.company,
+        persona=payload.persona,
+        model=payload.model,
+        api_key=payload.api_key,
+        api_base=payload.api_base,
+        constraints=payload.constraints,
+        stop_slop=payload.stop_slop,
+        system_prompt_template=payload.system_prompt_template,
+    )
+    return CopilotOutreachResponse(
+        linkedin_note_free=result.linkedin_note_free,
+        linkedin_note_premium=result.linkedin_note_premium,
+        inmail_subject=result.inmail_subject,
+        inmail_body=result.inmail_body,
+        key_match_points=result.key_match_points,
+    )
+
+
+@router.post(
+    "/api/v1/copilot/qa",
+    response_model=CopilotQAResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def copilot_qa(
+    payload: CopilotQARequest,
+    container: ServiceContainer = Depends(get_container),
+) -> CopilotQAResponse:
+    resume_data = payload.resume or container.master_resume
+    if not resume_data:
+        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+
+    result = await container.copilot_service.generate_qa(
+        question=payload.question,
+        resume=resume_data,
+        tailored_resume=payload.tailored_resume,
+        job_description=payload.job_description,
+        job_title=payload.job_title,
+        company=payload.company,
+        model=payload.model,
+        api_key=payload.api_key,
+        api_base=payload.api_base,
+        constraints=payload.constraints,
+        stop_slop=payload.stop_slop,
+        system_prompt_template=payload.system_prompt_template,
+    )
+    return CopilotQAResponse(
+        question=payload.question,
+        answer=result.answer,
+        situation=result.situation,
+        task=result.task,
+        action=result.action,
+        result=result.result,
+        knockout_warning=result.knockout_warning,
+    )
+
+
+@router.post(
+    "/api/v1/copilot/cover-letter",
+    response_model=CopilotCoverLetterResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def copilot_cover_letter(
+    payload: CopilotCoverLetterRequest,
+    container: ServiceContainer = Depends(get_container),
+) -> CopilotCoverLetterResponse:
+    resume_data = payload.resume or container.master_resume
+    if not resume_data:
+        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+
+    result = await container.copilot_service.generate_cover_letter(
+        resume=resume_data,
+        tailored_resume=payload.tailored_resume,
+        job_description=payload.job_description,
+        job_title=payload.job_title,
+        company=payload.company,
+        model=payload.model,
+        api_key=payload.api_key,
+        api_base=payload.api_base,
+        constraints=payload.constraints,
+        stop_slop=payload.stop_slop,
+        system_prompt_template=payload.system_prompt_template,
+    )
+    full_letter = f"{result.paragraph_1}\n\n{result.paragraph_2}\n\n{result.paragraph_3}"
+    word_count = len(full_letter.split())
+    return CopilotCoverLetterResponse(
+        cover_letter=full_letter,
+        paragraph_1=result.paragraph_1,
+        paragraph_2=result.paragraph_2,
+        paragraph_3=result.paragraph_3,
+        word_count=word_count,
+    )
 
 
 @router.get("/api/v1/tasks/{task_id}", response_model=TaskStatusResponse)

@@ -3,7 +3,26 @@
  * Provides SQLite persistence with .env fallback and secure secret masking.
  */
 
-export const SENSITIVE_KEYS = new Set(['scorer_api_key', 'tailor_api_key', 'opik_api_key']);
+export const SENSITIVE_KEYS = new Set(['scorer_api_key', 'tailor_api_key', 'copilot_api_key', 'opik_api_key']);
+
+export const DEFAULT_COPILOT_SYSTEM_PROMPT =
+  'You are an articulate candidate ghost writer and career strategist drafting job application content grounded strictly in the candidate master resume.';
+
+export const DEFAULT_OUTREACH_PROMPT =
+  'Generate high-converting recruiter outreach messages adhering to strict character budgets: Free Tier connection note (<200 chars), Premium Tier note (<300 chars), and a 150-220 word InMail referencing 1-2 real resume projects.';
+
+export const DEFAULT_QA_PROMPT =
+  'Answer the job application screening question directly and factually using candidate experience. Use STAR principles for situational questions.';
+
+export const DEFAULT_COVER_LETTER_PROMPT =
+  'Craft a clean 3-paragraph tailored cover letter: 1) Hook & functional alignment; 2) Core proof points from resume solving JD problems; 3) Forward-looking closing. Banning all generic AI cliches.';
+
+export const DEFAULT_PROMPT_TEMPLATES = {
+  copilot_system_prompt_template: DEFAULT_COPILOT_SYSTEM_PROMPT,
+  copilot_outreach_prompt_template: DEFAULT_OUTREACH_PROMPT,
+  copilot_qa_prompt_template: DEFAULT_QA_PROMPT,
+  copilot_cover_letter_prompt_template: DEFAULT_COVER_LETTER_PROMPT,
+};
 
 export const SETTINGS_METADATA = {
   scorer_model: {
@@ -72,6 +91,67 @@ export const SETTINGS_METADATA = {
     env: 'TAILOR_TIMEOUT_SECONDS',
     default: 900,
     type: 'number',
+  },
+  tailor_style: {
+    env: 'TAILOR_STYLE',
+    default: '',
+    type: 'string',
+  },
+  copilot_inherit_model: {
+    env: null,
+    default: true,
+    type: 'boolean',
+  },
+  copilot_model: {
+    env: 'COPILOT_MODEL',
+    default: '',
+    type: 'string',
+  },
+  copilot_provider: {
+    env: 'COPILOT_PROVIDER',
+    default: '',
+    type: 'string',
+  },
+  copilot_api_key: {
+    env: 'COPILOT_API_KEY',
+    default: '',
+    type: 'string',
+    secret: true,
+  },
+  copilot_api_base: {
+    env: 'COPILOT_API_BASE',
+    default: '',
+    type: 'string',
+  },
+  copilot_stop_slop_enabled: {
+    env: null,
+    default: true,
+    type: 'boolean',
+  },
+  copilot_constraints: {
+    env: null,
+    default: '',
+    type: 'string',
+  },
+  copilot_system_prompt_template: {
+    env: null,
+    default: DEFAULT_COPILOT_SYSTEM_PROMPT,
+    type: 'string',
+  },
+  copilot_outreach_prompt_template: {
+    env: null,
+    default: DEFAULT_OUTREACH_PROMPT,
+    type: 'string',
+  },
+  copilot_qa_prompt_template: {
+    env: null,
+    default: DEFAULT_QA_PROMPT,
+    type: 'string',
+  },
+  copilot_cover_letter_prompt_template: {
+    env: null,
+    default: DEFAULT_COVER_LETTER_PROMPT,
+    type: 'string',
   },
   opik_enabled: {
     env: null,
@@ -452,7 +532,7 @@ export function updateSettings(db, newValues = {}, userId = null) {
 
       // Validate API base URL shape (scheme + embedded credentials).
       // SSRF IP-range enforcement happens at connection time.
-      if (key === 'scorer_api_base' || key === 'tailor_api_base') {
+      if (key === 'scorer_api_base' || key === 'tailor_api_base' || key === 'copilot_api_base') {
         validateApiBase(val);
       }
 

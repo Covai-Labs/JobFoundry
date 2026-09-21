@@ -39,4 +39,5 @@ class ResumeGraphState(TypedDict, total=False):
     tailored_optional_sections: OptionalSectionsOutput
     final_resume: dict[str, Any]
     pdf_path: str
+    style: str
 

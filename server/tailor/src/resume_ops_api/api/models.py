@@ -15,6 +15,77 @@ class TailorRequest(BaseModel):
     model: str | None = None
     api_key: str | None = None
     api_base: str | None = None
+    style: str | None = None
+
+
+class CopilotOutreachRequest(BaseModel):
+    resume: dict[str, Any] | None = None
+    tailored_resume: dict[str, Any] | None = None
+    job_description: str = Field(min_length=1)
+    job_title: str | None = None
+    company: str | None = None
+    persona: str = "recruiter"
+    model: str | None = None
+    api_key: str | None = None
+    api_base: str | None = None
+    constraints: str | None = None
+    stop_slop: bool = True
+    system_prompt_template: str | None = None
+
+
+class CopilotOutreachResponse(BaseModel):
+    linkedin_note_free: str
+    linkedin_note_premium: str
+    inmail_subject: str
+    inmail_body: str
+    key_match_points: list[str] = Field(default_factory=list)
+
+
+class CopilotQARequest(BaseModel):
+    question: str = Field(min_length=1)
+    resume: dict[str, Any] | None = None
+    tailored_resume: dict[str, Any] | None = None
+    job_description: str = Field(min_length=1)
+    job_title: str | None = None
+    company: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    api_base: str | None = None
+    constraints: str | None = None
+    stop_slop: bool = True
+    system_prompt_template: str | None = None
+
+
+class CopilotQAResponse(BaseModel):
+    question: str
+    answer: str
+    situation: str = ""
+    task: str = ""
+    action: str = ""
+    result: str = ""
+    knockout_warning: str | None = None
+
+
+class CopilotCoverLetterRequest(BaseModel):
+    resume: dict[str, Any] | None = None
+    tailored_resume: dict[str, Any] | None = None
+    job_description: str = Field(min_length=1)
+    job_title: str | None = None
+    company: str | None = None
+    model: str | None = None
+    api_key: str | None = None
+    api_base: str | None = None
+    constraints: str | None = None
+    stop_slop: bool = True
+    system_prompt_template: str | None = None
+
+
+class CopilotCoverLetterResponse(BaseModel):
+    cover_letter: str
+    paragraph_1: str
+    paragraph_2: str
+    paragraph_3: str
+    word_count: int
 
 
 class TailorResponse(BaseModel):

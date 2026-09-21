@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import time
@@ -128,6 +129,7 @@ class LiteLLMClient:
         api_key = settings.get("api_key") or self.api_key
         api_base = settings.get("api_base") or self.api_base
         resume_str = format_resume_for_prompt(resume)
+        timeout = float(settings.get("timeout", 90.0))
         prompt = (
             f"You are an expert technical recruiter, resume screener, and job analyst.\n"
             f"Evaluate the candidate's master resume against the following job posting.\n"
@@ -136,7 +138,8 @@ class LiteLLMClient:
             f"3. Sanitize the job title into `clean_title` (e.g. fix '0 notifications' or bad scrapings) and `clean_company` if needed.\n"
             f"4. Sanitize the job description into clean, well-structured Markdown (Role Overview, Responsibilities, Requirements) "
             f"by stripping all corporate boilerplate, EEOC/diversity statements, and application links in `clean_description`.\n"
-            f"5. If the job description is visibly cut off, ends mid-sentence, or lacks actual requirements, set `is_truncated: true`.\n\n"
+            f"5. If the job description is visibly cut off, ends mid-sentence, or lacks actual requirements, set `is_truncated: true`.\n"
+            f"6. Reasoning must be crisp and evidence-backed: cite specific matched skills and gaps directly without generic corporate filler.\n\n"
             f"--- JOB POSTING ---\n"
             f"Title: {job.get('title', '')}\n"
             f"Company: {job.get('company', '')}\n"
@@ -154,6 +157,7 @@ class LiteLLMClient:
                 {"role": "user", "content": prompt},
             ],
             "max_retries": 2,
+            "timeout": timeout,
         }
         if api_key:
             kwargs["api_key"] = api_key
@@ -165,24 +169,41 @@ class LiteLLMClient:
         start_time = time.perf_counter()
         job_id = job.get("id", "unknown")
         logger.info("Evaluating job %s with model %s", job_id, model)
-        try:
-            result: ScoreResult = await self.client.chat.completions.create(**kwargs)
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            logger.info(
-                "Job %s evaluated in %.2fms: score=%d, matching=%d, missing=%d",
-                job_id,
-                duration_ms,
-                result.score,
-                len(result.matching_skills),
-                len(result.missing_skills),
-            )
-            return result
-        except Exception as e:
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            logger.error(
-                "LLM evaluation failed for job %s after %.2fms: %s",
-                job_id,
-                duration_ms,
-                e,
-            )
-            raise
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            try:
+                result: ScoreResult = await self.client.chat.completions.create(**kwargs)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.info(
+                    "Job %s evaluated in %.2fms: score=%d, matching=%d, missing=%d",
+                    job_id,
+                    duration_ms,
+                    result.score,
+                    len(result.matching_skills),
+                    len(result.missing_skills),
+                )
+                return result
+            except Exception as e:
+                err_msg = str(e).lower()
+                is_transient = "429" in err_msg or "rate limit" in err_msg or "timeout" in err_msg or "connection" in err_msg
+                if is_transient and attempt < max_attempts:
+                    backoff = 2.0 ** attempt
+                    logger.warning(
+                        "Job %s LLM call failed transiently (attempt %d/%d): %s. Backing off for %.1fs",
+                        job_id,
+                        attempt,
+                        max_attempts,
+                        e,
+                        backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.error(
+                    "LLM evaluation failed for job %s after %.2fms: %s",
+                    job_id,
+                    duration_ms,
+                    e,
+                )
+                raise

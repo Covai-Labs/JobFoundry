@@ -17,6 +17,7 @@ from resume_ops_api.services.renderer import ResumeRenderer
 from resume_ops_api.services.schema import ResumeSchemaValidator
 from resume_ops_api.services.store import JobStore
 from resume_ops_api.services.themes import ThemeService
+from resume_ops_api.services.copilot import CopilotService
 from resume_ops_api.services.tracing import setup_tracing
 
 
@@ -32,6 +33,7 @@ class ServiceContainer:
     job_store: JobStore
     orchestrator: TailorOrchestrator
     job_runner: AsyncJobRunner
+    copilot_service: CopilotService
     _master_resume: dict[str, Any] | None = None
 
     @property
@@ -106,6 +108,10 @@ def build_container(settings: Settings, **overrides: Any) -> ServiceContainer:
         callback_service=callback_service,
         max_concurrency=settings.max_concurrent_jobs,
     )
+    copilot_service = overrides.get("copilot_service") or CopilotService(
+        llm_client=llm_client,
+        default_model=settings.strategy_and_basics_model,
+    )
     return ServiceContainer(
         settings=settings,
         database=database,
@@ -117,5 +123,6 @@ def build_container(settings: Settings, **overrides: Any) -> ServiceContainer:
         job_store=job_store,
         orchestrator=orchestrator,
         job_runner=job_runner,
+        copilot_service=copilot_service,
     )
 
