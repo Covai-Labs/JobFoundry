@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import time
@@ -110,6 +111,36 @@ class StubLLM:
         return self.default_result
 
 
+def _is_transient_error(e: Exception) -> bool:
+    """Classify whether an exception from LiteLLM / Instructor is transient and retryable."""
+    exceptions_to_check: list[Any] = [e]
+    if hasattr(e, "failed_attempts") and getattr(e, "failed_attempts"):
+        for fa in getattr(e, "failed_attempts"):
+            if hasattr(fa, "exception") and fa.exception:
+                exceptions_to_check.append(fa.exception)
+    if getattr(e, "__cause__", None):
+        exceptions_to_check.append(e.__cause__)
+
+    for exc in exceptions_to_check:
+        status_code = getattr(exc, "status_code", None)
+        if status_code in (429, 500, 502, 503, 504, 529):
+            return True
+        exc_type = type(exc).__name__
+        if exc_type in (
+            "RateLimitError",
+            "APIConnectionError",
+            "Timeout",
+            "APITimeoutError",
+            "InternalServerError",
+            "ServiceUnavailableError",
+        ):
+            return True
+        msg = str(exc).lower()
+        if any(term in msg for term in ("429", "rate limit", "timeout", "connection", "500", "502", "503", "504", "overloaded")):
+            return True
+    return False
+
+
 class LiteLLMClient:
     def __init__(self, model: str = "gpt-4o-mini", api_key: str | None = None, api_base: str | None = None):
         self.model = model
@@ -128,6 +159,7 @@ class LiteLLMClient:
         api_key = settings.get("api_key") or self.api_key
         api_base = settings.get("api_base") or self.api_base
         resume_str = format_resume_for_prompt(resume)
+        timeout = float(settings.get("timeout", 90.0))
         prompt = (
             f"You are an expert technical recruiter, resume screener, and job analyst.\n"
             f"Evaluate the candidate's master resume against the following job posting.\n"
@@ -136,7 +168,8 @@ class LiteLLMClient:
             f"3. Sanitize the job title into `clean_title` (e.g. fix '0 notifications' or bad scrapings) and `clean_company` if needed.\n"
             f"4. Sanitize the job description into clean, well-structured Markdown (Role Overview, Responsibilities, Requirements) "
             f"by stripping all corporate boilerplate, EEOC/diversity statements, and application links in `clean_description`.\n"
-            f"5. If the job description is visibly cut off, ends mid-sentence, or lacks actual requirements, set `is_truncated: true`.\n\n"
+            f"5. If the job description is visibly cut off, ends mid-sentence, or lacks actual requirements, set `is_truncated: true`.\n"
+            f"6. Reasoning must be crisp and evidence-backed: cite specific matched skills and gaps directly without generic corporate filler.\n\n"
             f"--- JOB POSTING ---\n"
             f"Title: {job.get('title', '')}\n"
             f"Company: {job.get('company', '')}\n"
@@ -154,6 +187,7 @@ class LiteLLMClient:
                 {"role": "user", "content": prompt},
             ],
             "max_retries": 2,
+            "timeout": timeout,
         }
         if api_key:
             kwargs["api_key"] = api_key
@@ -165,24 +199,40 @@ class LiteLLMClient:
         start_time = time.perf_counter()
         job_id = job.get("id", "unknown")
         logger.info("Evaluating job %s with model %s", job_id, model)
-        try:
-            result: ScoreResult = await self.client.chat.completions.create(**kwargs)
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            logger.info(
-                "Job %s evaluated in %.2fms: score=%d, matching=%d, missing=%d",
-                job_id,
-                duration_ms,
-                result.score,
-                len(result.matching_skills),
-                len(result.missing_skills),
-            )
-            return result
-        except Exception as e:
-            duration_ms = (time.perf_counter() - start_time) * 1000
-            logger.error(
-                "LLM evaluation failed for job %s after %.2fms: %s",
-                job_id,
-                duration_ms,
-                e,
-            )
-            raise
+        max_attempts = 3
+        for attempt in range(1, max_attempts + 1):
+            try:
+                result: ScoreResult = await self.client.chat.completions.create(**kwargs)
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.info(
+                    "Job %s evaluated in %.2fms: score=%d, matching=%d, missing=%d",
+                    job_id,
+                    duration_ms,
+                    result.score,
+                    len(result.matching_skills),
+                    len(result.missing_skills),
+                )
+                return result
+            except Exception as e:
+                is_transient = _is_transient_error(e)
+                if is_transient and attempt < max_attempts:
+                    backoff = 2.0 ** attempt
+                    logger.warning(
+                        "Job %s LLM call failed transiently (attempt %d/%d): %s. Backing off for %.1fs",
+                        job_id,
+                        attempt,
+                        max_attempts,
+                        e,
+                        backoff,
+                    )
+                    await asyncio.sleep(backoff)
+                    continue
+
+                duration_ms = (time.perf_counter() - start_time) * 1000
+                logger.error(
+                    "LLM evaluation failed for job %s after %.2fms: %s",
+                    job_id,
+                    duration_ms,
+                    e,
+                )
+                raise

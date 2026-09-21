@@ -5,6 +5,7 @@ import { getScoreCategory, parseFitNotes } from '../filters/filterUtils';
 import { TailorButton } from '../tailor/TailorButton';
 import { ArtifactViewer } from '../artifacts/ArtifactViewer';
 import { ResumeDiffView } from '../diff/ResumeDiffView';
+import { CopilotView } from '../copilot/CopilotView';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
 import { KANBAN_COLUMNS } from '../tracker/trackerUtils';
 
@@ -41,7 +42,7 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   onJobUpdated,
   onDeleteJob,
 }) => {
-  const [activeTab, setActiveTab] = useState<'details' | 'diff'>('details');
+  const [activeTab, setActiveTab] = useState<'details' | 'diff' | 'copilot'>('details');
   const [deleting, setDeleting] = useState(false);
   const [originalResume, setOriginalResume] = useState<Record<string, any>>({});
   const [tailoredResume, setTailoredResume] = useState<Record<string, any>>({});
@@ -190,6 +191,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               >
                 Job & Fit Details
               </button>
+              <button
+                onClick={() => setActiveTab('copilot')}
+                className={`btn btn-sm ${activeTab === 'copilot' ? 'btn-primary' : 'btn-secondary'}`}
+              >
+                ⚡ Copilot
+              </button>
               {(job.status === 'tailored' || job.tailored_resume_id) && (
                 <button
                   onClick={() => setActiveTab('diff')}
@@ -230,6 +237,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
               ) : (
                 <ResumeDiffView originalResume={originalResume} tailoredResume={tailoredResume} />
               )
+            ) : activeTab === 'copilot' ? (
+              <CopilotView jobId={job.id} jobTitle={job.title} company={job.company} />
             ) : (
               <div>
                 {/* Fit Screener Evaluation Box */}

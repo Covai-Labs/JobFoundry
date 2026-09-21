@@ -314,6 +314,51 @@ export class ApiClient {
     });
   }
 
+  async getCopilotData(id: string): Promise<{ ok: boolean; data: CopilotArtifacts }> {
+    return this.request<{ ok: boolean; data: CopilotArtifacts }>(`/api/v1/jobs/${id}/copilot`);
+  }
+
+  async generateCopilotOutreach(
+    id: string,
+    persona: 'recruiter' | 'hiring_manager' = 'recruiter'
+  ): Promise<{ ok: boolean; outreach: CopilotOutreachData }> {
+    return this.request<{ ok: boolean; outreach: CopilotOutreachData }>(
+      `/api/v1/jobs/${id}/copilot/outreach`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ persona }),
+      }
+    );
+  }
+
+  async generateCopilotQA(
+    id: string,
+    question: string
+  ): Promise<{ ok: boolean; qa: CopilotQAItem }> {
+    return this.request<{ ok: boolean; qa: CopilotQAItem }>(`/api/v1/jobs/${id}/copilot/qa`, {
+      method: 'POST',
+      body: JSON.stringify({ question }),
+    });
+  }
+
+  async generateCopilotCoverLetter(
+    id: string
+  ): Promise<{ ok: boolean; cover_letter: CopilotCoverLetterData }> {
+    return this.request<{ ok: boolean; cover_letter: CopilotCoverLetterData }>(
+      `/api/v1/jobs/${id}/copilot/cover-letter`,
+      {
+        method: 'POST',
+        body: JSON.stringify({}),
+      }
+    );
+  }
+
+  async getPromptTemplateDefaults(): Promise<{ ok: boolean; defaults: PromptTemplateDefaults }> {
+    return this.request<{ ok: boolean; defaults: PromptTemplateDefaults }>(
+      '/api/v1/settings/prompt-templates/defaults'
+    );
+  }
+
   getArtifactUrl(id: string, filename: string): string {
     return `${this.baseUrl}/api/v1/jobs/${id}/artifacts/${filename}`;
   }
@@ -485,7 +530,19 @@ export interface SystemSettings {
   tailor_api_key: string;
   tailor_api_base: string;
   tailor_theme: string;
+  tailor_style?: string;
   tailor_timeout_seconds: number;
+  copilot_inherit_model?: boolean;
+  copilot_model?: string;
+  copilot_provider?: string;
+  copilot_api_key?: string;
+  copilot_api_base?: string;
+  copilot_stop_slop_enabled?: boolean;
+  copilot_constraints?: string;
+  copilot_system_prompt_template?: string;
+  copilot_outreach_prompt_template?: string;
+  copilot_qa_prompt_template?: string;
+  copilot_cover_letter_prompt_template?: string;
   opik_enabled: boolean;
   opik_project_name: string;
   opik_api_key: string;
@@ -494,6 +551,57 @@ export interface SystemSettings {
   theme_color_mode: string;
   theme_accent: string;
   [key: string]: any;
+}
+
+export interface CopilotOutreachData {
+  connection_note: string;
+  connection_note_char_count: number;
+  connection_note_tier_fits: {
+    free_200: boolean;
+    premium_300: boolean;
+  };
+  inmail_subject: string;
+  inmail_body: string;
+  persona_used: string;
+  matched_projects: string[];
+}
+
+export interface CopilotQAItem {
+  question: string;
+  answer: string;
+  star_structure?: {
+    situation: string;
+    task: string;
+    action: string;
+    result: string;
+  };
+  matched_evidence?: string[];
+  created_at?: number;
+}
+
+export interface CopilotCoverLetterData {
+  cover_letter: string;
+  word_count: number;
+  paragraph_breakdown: {
+    hook: string;
+    evidence: string;
+    alignment: string;
+  };
+  highlighted_skills: string[];
+}
+
+export interface CopilotArtifacts {
+  outreach: CopilotOutreachData | null;
+  qa_history: CopilotQAItem[];
+  cover_letter: CopilotCoverLetterData | null;
+  updated_at?: number;
+}
+
+export interface PromptTemplateDefaults {
+  copilot_system_prompt_template: string;
+  copilot_outreach_prompt_template: string;
+  copilot_qa_prompt_template: string;
+  copilot_cover_letter_prompt_template: string;
 }
 
 export interface SystemSettingsResponse {

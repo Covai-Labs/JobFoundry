@@ -28,6 +28,7 @@ class TailorOrchestrator:
         model: str | None = None,
         api_key: str | None = None,
         api_base: str | None = None,
+        style: str | None = None,
     ) -> TailorResult:
         self.validator.validate(resume, context="input resume")
         job_id = task_id or uuid.uuid4().hex
@@ -48,6 +49,8 @@ class TailorOrchestrator:
             state["api_key"] = api_key
         if api_base is not None:
             state["api_base"] = api_base
+        if style is not None:
+            state["style"] = style
         final_state = await self.graph.run(state)
         pdf_path = final_state["pdf_path"]
         pdf_base64 = await self.encode_pdf(pdf_path)
