@@ -208,7 +208,8 @@ export function buildApp({
       .prepare("SELECT value FROM system_settings WHERE key = 'registration_open'")
       .get();
     const registrationOpen = setting ? setting.value !== 'false' : true;
-    return { open: !environmentLocked && registrationOpen, environmentLocked };
+    const userCount = db.prepare('SELECT COUNT(*) as n FROM users').get().n;
+    return { open: !environmentLocked && registrationOpen, environmentLocked, userCount };
   }
 
   function requireAdmin(request, reply) {
@@ -452,28 +453,87 @@ export function buildApp({
     async (request, reply) => {
       if (!checkRateLimit(request, reply, 15)) return;
       if (!authenticate(request, reply)) return;
-      const { model, apiKey, apiBase, provider } = request.body || {};
-
       const userId = request.user.id;
       const registered = isRegisteredUser(db, userId);
+      const {
+        provider,
+        model,
+        apiKey,
+        apiBase,
+        feature: rawFeature = 'gateway',
+      } = request.body || {};
+      const ALLOWED_FEATURES = new Set(['gateway', 'scorer', 'tailor', 'copilot']);
+      if (!ALLOWED_FEATURES.has(rawFeature)) {
+        return reply.code(400).send({ success: false, error: 'invalid feature' });
+      }
+      const feature = rawFeature;
 
       // Per-user effective settings (BYOK): a registered user may only test with
       // their own key — the platform/shared key is never used as a fallback.
-      const base = getEffectiveSettingWithSource(db, 'scorer_api_base', { userId });
-      const modelSetting = getEffectiveSettingWithSource(db, 'scorer_model', { userId });
-      const keySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
+      let baseSetting;
+      let modelSetting;
+      let keySetting;
+
+      if (feature === 'gateway') {
+        keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+        if (!keySetting.value) {
+          keySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
+        }
+        modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
+        if (!modelSetting.value) {
+          modelSetting = getEffectiveSettingWithSource(db, 'scorer_model', { userId });
+        }
+        baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', { userId });
+        if (!baseSetting.value) {
+          baseSetting = getEffectiveSettingWithSource(db, 'scorer_api_base', { userId });
+        }
+      } else {
+        const inheritDefault =
+          getEffectiveSetting(db, `${feature}_inherit_default`, process.env, userId) ?? true;
+        if (inheritDefault) {
+          keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+          if (!keySetting.value) {
+            keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, { userId });
+          }
+          modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
+          if (!modelSetting.value) {
+            modelSetting = getEffectiveSettingWithSource(db, `${feature}_model`, { userId });
+          }
+          baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', { userId });
+          if (!baseSetting.value) {
+            baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, { userId });
+          }
+        } else {
+          keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, { userId });
+          if (!keySetting.value) {
+            keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+          }
+          modelSetting = getEffectiveSettingWithSource(db, `${feature}_model`, { userId });
+          if (!modelSetting.value) {
+            modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
+          }
+          baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, { userId });
+          if (!baseSetting.value) {
+            baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', { userId });
+          }
+        }
+      }
 
       const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
       const fallbackKeyAllowed = !registered || keySetting.source === 'user';
       const effectiveKey = hasExplicitKey ? apiKey : fallbackKeyAllowed ? keySetting.value : '';
-      const effectiveModel =
-        model || modelSetting.value || 'openrouter/google/gemini-2.0-flash-exp:free';
+      let effectiveModel = model || modelSetting.value || 'openrouter/openrouter/free';
+      if (effectiveModel === 'openrouter/free') {
+        effectiveModel = 'openrouter/openrouter/free';
+      } else if (effectiveModel === 'openrouter/auto') {
+        effectiveModel = 'openrouter/openrouter/auto';
+      }
 
       let explicitBase = null;
       if (typeof apiBase === 'string' && apiBase.trim()) {
         explicitBase = apiBase.trim().replace(/\/$/, '');
-      } else if (base.value && base.value.trim()) {
-        explicitBase = base.value.trim().replace(/\/$/, '');
+      } else if (baseSetting.value && baseSetting.value.trim()) {
+        explicitBase = baseSetting.value.trim().replace(/\/$/, '');
       }
 
       // Default base for direct /chat/completions fallback
@@ -516,7 +576,7 @@ export function buildApp({
         const tailorPayload = {
           model: effectiveModel,
           api_key: effectiveKey,
-          ...(explicitBase ? { api_base: explicitBase } : {}),
+          api_base: explicitBase || directBase,
         };
         const tailorResp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/test-llm`, {
           method: 'POST',
@@ -554,6 +614,15 @@ export function buildApp({
         // Fallback to direct fetch only if Tailor service failed to connect / unreachable
       }
 
+      // Direct provider call (no LiteLLM here): OpenRouter's native router IDs
+      // are `openrouter/free` / `openrouter/auto`, without the LiteLLM
+      // `openrouter/` provider prefix used everywhere else.
+      let directModel = effectiveModel;
+      if (directBase === 'https://openrouter.ai/api/v1') {
+        if (effectiveModel === 'openrouter/openrouter/free') directModel = 'openrouter/free';
+        else if (effectiveModel === 'openrouter/openrouter/auto') directModel = 'openrouter/auto';
+      }
+
       try {
         const resp = await safeFetch(`${directBase}/chat/completions`, {
           method: 'POST',
@@ -564,7 +633,7 @@ export function buildApp({
           signal: AbortSignal.timeout(15000),
           redirect: 'error',
           body: JSON.stringify({
-            model: effectiveModel,
+            model: directModel,
             messages: [{ role: 'user', content: 'Reply with the word OK.' }],
             max_tokens: 5,
           }),
@@ -575,8 +644,8 @@ export function buildApp({
           return {
             success: true,
             latencyMs,
-            model: effectiveModel,
-            message: `Connected successfully to ${effectiveModel} (${latencyMs}ms)`,
+            model: directModel,
+            message: `Connected successfully to ${directModel} (${latencyMs}ms)`,
           };
         } else {
           const errorText = await resp.text().catch(() => '');
@@ -896,15 +965,32 @@ export function buildApp({
     try {
       const userId = request.user.id;
       const registered = isRegisteredUser(db, userId);
-      const keySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
+      const inherit =
+        getEffectiveSetting(db, 'scorer_inherit_default', process.env, userId) ?? true;
+      let keySetting = inherit
+        ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
+        : getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
+      if (!keySetting.value) {
+        keySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId })?.value
+          ? getEffectiveSettingWithSource(db, 'scorer_api_key', { userId })
+          : getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+      }
       // BYOK: a registered user may only parse with their own key — never a shared one.
       const apiKey = registered
         ? keySetting.source === 'user'
           ? keySetting.value
           : ''
         : keySetting.value;
-      const model = getEffectiveSetting(db, 'scorer_model', process.env, userId);
-      const apiBase = getEffectiveSetting(db, 'scorer_api_base', process.env, userId);
+      const model =
+        (inherit ? getEffectiveSetting(db, 'default_llm_model', process.env, userId) : null) ||
+        getEffectiveSetting(db, 'scorer_model', process.env, userId) ||
+        getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
+        'openrouter/openrouter/free';
+      const apiBase =
+        (inherit ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) : null) ||
+        getEffectiveSetting(db, 'scorer_api_base', process.env, userId) ||
+        getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
+        '';
       const parsed = await parseJobDescription({
         text,
         markdown,
@@ -1522,6 +1608,118 @@ export function buildApp({
     }
   );
 
+  // POST /api/v1/jobs/:id/score & /api/v1/jobs/:id/rescore - Trigger fit re-scoring
+  const handleScoreJob = async (request, reply) => {
+    if (!checkRateLimit(request, reply, 30)) return;
+    if (!authenticate(request, reply)) return;
+
+    const { id } = request.params;
+    if (!/^[a-zA-Z0-9_-]+$/.test(id)) {
+      return reply.code(400).send({ error: 'Invalid job ID format' });
+    }
+    const userId = String(request.user.id || 'dev-user');
+    if (!/^[a-zA-Z0-9_-]+$/.test(userId)) {
+      return reply.code(400).send({ error: 'Invalid user ID format' });
+    }
+    if (!canAccessJob(userId, id)) {
+      return reply.code(404).send({ error: 'job not found' });
+    }
+
+    const jobRecord = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+    if (!jobRecord) {
+      return reply.code(404).send({ error: 'job not found' });
+    }
+    if (!jobRecord.description || jobRecord.description.trim().length < 10) {
+      return reply.code(400).send({
+        error:
+          'Job description is missing or too short. Cannot evaluate fit score without job content.',
+      });
+    }
+
+    // Reset scoring state
+    const now = Date.now();
+    if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
+      db.prepare(
+        "UPDATE user_jobs SET fit_score = NULL, fit_notes = NULL, status = 'new', attempt_count = 0, updated_at = ? WHERE job_id = ? AND user_id = ?"
+      ).run(now, id, userId);
+    } else {
+      db.prepare(
+        "UPDATE jobs SET fit_score = NULL, fit_notes = NULL, status = 'new', attempt_count = 0, updated_at = ? WHERE id = ?"
+      ).run(now, id);
+    }
+
+    // Trigger immediate worker tick on the scorer daemon
+    const scorerPort = process.env.SCORER_PORT || 8001;
+    const scorerUrl = `http://127.0.0.1:${scorerPort}/api/v1/worker/tick`;
+    try {
+      await safeFetch(scorerUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        signal: AbortSignal.timeout(10000),
+      });
+    } catch (e) {
+      request.log?.warn?.(`Scorer tick trigger failed: ${e.message}`);
+    }
+
+    // Query fresh job state
+    let job;
+    if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
+      job = db
+        .prepare(
+          `SELECT 
+            j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+            COALESCE(uj.fit_score, j.fit_score) as fit_score,
+            COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
+            COALESCE(uj.status, j.status) as status,
+            COALESCE(uj.tailored_resume_id, j.tailored_resume_id) as tailored_resume_id,
+            COALESCE(uj.created_at, j.created_at) as created_at,
+            COALESCE(uj.updated_at, j.updated_at) as updated_at
+          FROM user_jobs uj
+          JOIN jobs j ON uj.job_id = j.id
+          WHERE uj.user_id = ? AND j.id = ?`
+        )
+        .get(userId, id);
+    } else {
+      job = db.prepare('SELECT * FROM jobs WHERE id = ?').get(id);
+    }
+
+    return { ok: true, job };
+  };
+
+  app.post(
+    '/api/v1/jobs/:id/score',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    handleScoreJob
+  );
+
+  app.post(
+    '/api/v1/jobs/:id/rescore',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    handleScoreJob
+  );
+
   // POST /api/v1/jobs/:id/tailor - Trigger manual tailor execution
   app.post(
     '/api/v1/jobs/:id/tailor',
@@ -1587,7 +1785,16 @@ export function buildApp({
       }
 
       // BYOK: a registered user may only tailor with their own key — never a shared one.
-      const tailorKeySetting = getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
+      const tailorInherit =
+        getEffectiveSetting(db, 'tailor_inherit_default', process.env, userId) ?? true;
+      let tailorKeySetting = tailorInherit
+        ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
+        : getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
+      if (!tailorKeySetting.value) {
+        tailorKeySetting = getEffectiveSettingWithSource(db, 'tailor_api_key', { userId })?.value
+          ? getEffectiveSettingWithSource(db, 'tailor_api_key', { userId })
+          : getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+      }
       const tailorKey = isRegisteredUser(db, userId)
         ? tailorKeySetting.source === 'user'
           ? tailorKeySetting.value
@@ -1658,8 +1865,20 @@ export function buildApp({
       const tailorTimeoutMs =
         (Number(getEffectiveSetting(db, 'tailor_timeout_seconds', process.env, userId)) || 900) *
         1000;
-      const tailorModel = getEffectiveSetting(db, 'tailor_model', process.env, userId);
-      const tailorBase = getEffectiveSetting(db, 'tailor_api_base', process.env, userId);
+      const tailorModel =
+        (tailorInherit
+          ? getEffectiveSetting(db, 'default_llm_model', process.env, userId)
+          : null) ||
+        getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
+        getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
+        'openrouter/openrouter/free';
+      const tailorBase =
+        (tailorInherit
+          ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId)
+          : null) ||
+        getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
+        getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
+        '';
       const tailorStyle = getEffectiveSetting(db, 'tailor_style', process.env, userId);
 
       if (resumeOpsUrl) {
@@ -1782,11 +2001,24 @@ export function buildApp({
       getEffectiveSetting(db, 'copilot_cover_letter_prompt_template', process.env, userId) ||
       systemPrompt;
 
+    const inheritDefault =
+      getEffectiveSetting(db, 'copilot_inherit_default', process.env, userId) ?? true;
     let copilotModel = '';
     let copilotKey = '';
     let copilotBase = '';
 
-    if (!inherit) {
+    if (inheritDefault) {
+      copilotModel = getEffectiveSetting(db, 'default_llm_model', process.env, userId) || '';
+      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', {
+        userId,
+      });
+      copilotKey = isRegisteredUser(db, userId)
+        ? defaultKeySetting.source === 'user'
+          ? defaultKeySetting.value
+          : ''
+        : defaultKeySetting.value;
+      copilotBase = getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) || '';
+    } else if (!inherit) {
       copilotModel = getEffectiveSetting(db, 'copilot_model', process.env, userId) || '';
       const keySetting = getEffectiveSettingWithSource(db, 'copilot_api_key', { userId });
       copilotKey = isRegisteredUser(db, userId)
@@ -1799,8 +2031,20 @@ export function buildApp({
 
     if (!copilotModel) {
       copilotModel =
+        getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
         getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
-        getEffectiveSetting(db, 'scorer_model', process.env, userId);
+        getEffectiveSetting(db, 'scorer_model', process.env, userId) ||
+        'openrouter/openrouter/free';
+    }
+    if (!copilotKey) {
+      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', {
+        userId,
+      });
+      copilotKey = isRegisteredUser(db, userId)
+        ? defaultKeySetting.source === 'user'
+          ? defaultKeySetting.value
+          : ''
+        : defaultKeySetting.value;
     }
     if (!copilotKey) {
       const tailorKeySetting = getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
@@ -1820,6 +2064,7 @@ export function buildApp({
     }
     if (!copilotBase) {
       copilotBase =
+        getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
         getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
         getEffectiveSetting(db, 'scorer_api_base', process.env, userId);
     }

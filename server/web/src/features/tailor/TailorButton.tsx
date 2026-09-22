@@ -16,7 +16,7 @@ export const TailorButton: React.FC<TailorButtonProps> = ({ job, onTailored, cla
 
   const handleTailor = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (loading || isTailored) return;
+    if (loading) return;
 
     setLoading(true);
     setError(null);
@@ -35,9 +35,25 @@ export const TailorButton: React.FC<TailorButtonProps> = ({ job, onTailored, cla
 
   if (isTailored) {
     return (
-      <span className="badge badge-purple" title="Resume tailored">
-        Tailored
-      </span>
+      <div style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+        <span className="badge badge-purple" title="Resume tailored">
+          Tailored ✓
+        </span>
+        <button
+          onClick={handleTailor}
+          disabled={loading}
+          className={`btn btn-secondary btn-sm ${className}`}
+          title="Re-run tailoring against current master resume"
+          style={{ padding: '0.25rem 0.55rem', fontSize: '0.75rem' }}
+        >
+          {loading ? 'Tailoring...' : '🔄 Re-tailor'}
+        </button>
+        {error && (
+          <span style={{ fontSize: '0.7rem', color: 'var(--color-red)', marginLeft: '0.25rem' }}>
+            {error}
+          </span>
+        )}
+      </div>
     );
   }
 

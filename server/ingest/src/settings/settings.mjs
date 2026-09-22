@@ -4,6 +4,7 @@
  */
 
 export const SENSITIVE_KEYS = new Set([
+  'default_llm_api_key',
   'scorer_api_key',
   'tailor_api_key',
   'copilot_api_key',
@@ -30,6 +31,42 @@ export const DEFAULT_PROMPT_TEMPLATES = {
 };
 
 export const SETTINGS_METADATA = {
+  default_llm_provider: {
+    env: 'DEFAULT_LLM_PROVIDER',
+    default: 'openrouter',
+    type: 'string',
+  },
+  default_llm_model: {
+    env: ['DEFAULT_MODEL', 'DEFAULT_LLM_MODEL'],
+    default: 'openrouter/openrouter/free',
+    type: 'string',
+  },
+  default_llm_api_key: {
+    env: ['OPENROUTER_API_KEY', 'OPENAI_API_KEY'],
+    default: '',
+    type: 'string',
+    secret: true,
+  },
+  default_llm_api_base: {
+    env: ['OPENROUTER_API_BASE', 'OPENAI_BASE_URL'],
+    default: '',
+    type: 'string',
+  },
+  scorer_inherit_default: {
+    env: null,
+    default: true,
+    type: 'boolean',
+  },
+  tailor_inherit_default: {
+    env: null,
+    default: true,
+    type: 'boolean',
+  },
+  copilot_inherit_default: {
+    env: null,
+    default: true,
+    type: 'boolean',
+  },
   scorer_model: {
     env: 'SCORER_MODEL',
     default: 'openrouter/google/gemini-2.0-flash-exp:free',
@@ -209,6 +246,7 @@ export const SETTINGS_METADATA = {
  */
 export function getTrustedApiBaseOrigins(env = process.env) {
   const tailorPort = env.TAILOR_PORT || 8081;
+  const scorerPort = env.SCORER_PORT || 8001;
   const defaults = [
     'http://127.0.0.1:11434',
     'http://localhost:11434',
@@ -216,6 +254,10 @@ export function getTrustedApiBaseOrigins(env = process.env) {
     'http://localhost:8081',
     `http://127.0.0.1:${tailorPort}`,
     `http://localhost:${tailorPort}`,
+    'http://127.0.0.1:8001',
+    'http://localhost:8001',
+    `http://127.0.0.1:${scorerPort}`,
+    `http://localhost:${scorerPort}`,
   ];
 
   const sources = (env.ALLOWED_LLM_BASES || '')
@@ -537,7 +579,12 @@ export function updateSettings(db, newValues = {}, userId = null) {
 
       // Validate API base URL shape (scheme + embedded credentials).
       // SSRF IP-range enforcement happens at connection time.
-      if (key === 'scorer_api_base' || key === 'tailor_api_base' || key === 'copilot_api_base') {
+      if (
+        key === 'scorer_api_base' ||
+        key === 'tailor_api_base' ||
+        key === 'copilot_api_base' ||
+        key === 'default_llm_api_base'
+      ) {
         validateApiBase(val);
       }
 

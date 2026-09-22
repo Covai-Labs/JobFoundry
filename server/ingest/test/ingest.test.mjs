@@ -308,6 +308,49 @@ test('POST /api/v1/jobs/:id/sanitize sanitizes title and description', async () 
   assert.equal(body.ok, true);
   assert.notEqual(body.job.title, '0 notifications');
   assert.equal(body.job.title, 'Senior Cloud Architect');
+  await app.close();
+});
+
+test('POST /api/v1/jobs/:id/score resets scoring status and triggers worker', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({ db, apiKeys: ['testkey'] });
+
+  const now = Date.now();
+  db.prepare(
+    'INSERT INTO jobs (id, title, company, url, source, description, fit_score, fit_notes, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(
+    'j-rescore',
+    'Senior Frontend Engineer',
+    'Acme Corp',
+    'https://example.com/posting',
+    'linkedin',
+    'Full JD requirements and responsibilities for frontend engineer.',
+    85,
+    JSON.stringify({ summary: 'Strong match' }),
+    'reviewed',
+    now,
+    now
+  );
+
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/v1/jobs/j-rescore/score',
+    headers: { authorization: 'Bearer testkey' },
+  });
+  assert.equal(res.statusCode, 200);
+  const body = res.json();
+  assert.equal(body.ok, true);
+  assert.equal(body.job.id, 'j-rescore');
+  assert.equal(body.job.fit_score, null);
+  assert.equal(body.job.status, 'new');
+
+  const resAlias = await app.inject({
+    method: 'POST',
+    url: '/api/v1/jobs/j-rescore/rescore',
+    headers: { authorization: 'Bearer testkey' },
+  });
+  assert.equal(resAlias.statusCode, 200);
+  assert.equal(resAlias.json().ok, true);
 
   await app.close();
 });

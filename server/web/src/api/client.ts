@@ -16,6 +16,7 @@ export interface AuthResponse {
 export interface RegistrationStatus {
   open: boolean;
   environmentLocked: boolean;
+  userCount?: number;
 }
 
 export interface UserResume {
@@ -314,6 +315,12 @@ export class ApiClient {
     });
   }
 
+  async rescoreJob(id: string): Promise<{ ok: boolean; job: Job }> {
+    return this.request<{ ok: boolean; job: Job }>(`/api/v1/jobs/${id}/score`, {
+      method: 'POST',
+    });
+  }
+
   async getCopilotData(id: string): Promise<{ ok: boolean; data: CopilotArtifacts }> {
     return this.request<{ ok: boolean; data: CopilotArtifacts }>(`/api/v1/jobs/${id}/copilot`);
   }
@@ -454,6 +461,7 @@ export class ApiClient {
     apiKey?: string;
     apiBase?: string;
     provider?: string;
+    feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot' | string;
   }): Promise<TestLlmResponse> {
     return this.request<TestLlmResponse>('/api/v1/settings/test-llm', {
       method: 'POST',
@@ -518,6 +526,13 @@ export interface SettingMeta {
 }
 
 export interface SystemSettings {
+  default_llm_model?: string;
+  default_llm_provider?: string;
+  default_llm_api_key?: string;
+  default_llm_api_base?: string;
+  scorer_inherit_default?: boolean;
+  tailor_inherit_default?: boolean;
+  copilot_inherit_default?: boolean;
   scorer_model: string;
   scorer_provider: string;
   scorer_api_key: string;

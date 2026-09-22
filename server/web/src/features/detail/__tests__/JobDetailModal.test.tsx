@@ -51,4 +51,28 @@ describe('JobDetailModal external job link', () => {
 
     expect(screen.getByRole('link', { name: /View Original/ })).toHaveAttribute('href', expected);
   });
+
+  it('renders re-score buttons and triggers rescoreJob on click', async () => {
+    const { api } = await import('../../../api/client');
+    const spy = vi.spyOn(api, 'rescoreJob').mockResolvedValue({
+      ok: true,
+      job: { ...baseJob, fit_score: 92 },
+    });
+
+    const onJobUpdated = vi.fn();
+    render(
+      <JobDetailModal
+        job={baseJob}
+        onClose={vi.fn()}
+        onStatusChange={vi.fn()}
+        onJobUpdated={onJobUpdated}
+      />
+    );
+
+    const rescoreBtn = screen.getByRole('button', { name: /^Re-score$/ });
+    expect(rescoreBtn).toBeInTheDocument();
+    rescoreBtn.click();
+
+    expect(spy).toHaveBeenCalledWith('job-1');
+  });
 });

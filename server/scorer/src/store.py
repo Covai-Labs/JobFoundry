@@ -137,15 +137,45 @@ class JobStore:
         user_settings = self.get_user_settings(user_id)
         system = self.get_system_settings()
 
-        def pick(key: str, fallback: Any = None) -> Any:
-            value = user_settings.get(key) or system.get(key) or fallback
-            return value
+        inherit_val = user_settings.get("scorer_inherit_default")
+        inherit = True if inherit_val is None else str(inherit_val).lower() in ("true", "1")
+
+        def pick(primary_key: str, fallback_key: str | None = None, default: Any = None) -> Any:
+            if inherit and fallback_key:
+                val = user_settings.get(fallback_key) or user_settings.get(primary_key)
+                if val:
+                    return val
+            else:
+                val = user_settings.get(primary_key)
+                if val:
+                    return val
+                if fallback_key:
+                    val = user_settings.get(fallback_key)
+                    if val:
+                        return val
+            if inherit and fallback_key:
+                return system.get(fallback_key) or system.get(primary_key) or default
+            return system.get(primary_key) or (system.get(fallback_key) if fallback_key else None) or default
+
+        model = pick("scorer_model", "default_llm_model", defaults.get("model"))
+        if model == "openrouter/free":
+            model = "openrouter/openrouter/free"
+        elif model == "openrouter/auto":
+            model = "openrouter/openrouter/auto"
+
+        api_base = pick("scorer_api_base", "default_llm_api_base", defaults.get("api_base"))
+
+        api_key = ""
+        if inherit:
+            api_key = user_settings.get("default_llm_api_key") or user_settings.get("scorer_api_key", "")
+        else:
+            api_key = user_settings.get("scorer_api_key") or user_settings.get("default_llm_api_key", "")
 
         return {
-            "model": pick("scorer_model", defaults.get("model")),
-            "api_base": pick("scorer_api_base", defaults.get("api_base")),
-            "api_key": user_settings.get("scorer_api_key", ""),
-            "has_user_key": bool(user_settings.get("scorer_api_key")),
+            "model": model,
+            "api_base": api_base,
+            "api_key": api_key,
+            "has_user_key": bool(api_key),
         }
 
     def get_user_effective_tailor(
@@ -172,21 +202,42 @@ class JobStore:
         user_settings = self.get_user_settings(user_id)
         system = self.get_system_settings()
 
-        def pick(key: str) -> Any:
-            return user_settings.get(key) or system.get(key) or ""
+        inherit_val = user_settings.get("tailor_inherit_default")
+        inherit = True if inherit_val is None else str(inherit_val).lower() in ("true", "1")
 
         tailor_provider_override = any(
             user_settings.get(k) for k in ("tailor_model", "tailor_api_base")
         )
         tailor_key = user_settings.get("tailor_api_key")
+        default_key = user_settings.get("default_llm_api_key")
         scorer_key = user_settings.get("scorer_api_key")
 
+        resolved_key = ""
+        if tailor_provider_override:
+            resolved_key = tailor_key or ""
+        elif inherit:
+            resolved_key = default_key or tailor_key or scorer_key or fallback.get("api_key", "")
+        else:
+            resolved_key = tailor_key or default_key or scorer_key or fallback.get("api_key", "")
+
+        def pick(primary_key: str, fallback_key: str | None = None) -> Any:
+            if tailor_provider_override:
+                return user_settings.get(primary_key) or system.get(primary_key) or ""
+            if inherit and fallback_key:
+                return user_settings.get(fallback_key) or user_settings.get(primary_key) or system.get(fallback_key) or system.get(primary_key) or ""
+            return user_settings.get(primary_key) or (user_settings.get(fallback_key) if fallback_key else "") or system.get(primary_key) or ""
+
+        tailor_model = pick("tailor_model", "default_llm_model") or fallback.get("model")
+        if tailor_model == "openrouter/free":
+            tailor_model = "openrouter/openrouter/free"
+        elif tailor_model == "openrouter/auto":
+            tailor_model = "openrouter/openrouter/auto"
+
         return {
-            "model": pick("tailor_model") or fallback.get("model"),
-            "api_base": pick("tailor_api_base") or fallback.get("api_base"),
-            "api_key": tailor_key
-            or ("" if tailor_provider_override else (scorer_key or fallback.get("api_key"))),
-            "has_user_tailor_key": bool(tailor_key),
+            "model": tailor_model,
+            "api_base": pick("tailor_api_base", "default_llm_api_base") or fallback.get("api_base"),
+            "api_key": resolved_key,
+            "has_user_tailor_key": bool(tailor_key or (not tailor_provider_override and (default_key or scorer_key))),
         }
 
 

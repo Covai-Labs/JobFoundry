@@ -445,6 +445,20 @@ const DashboardRoot: React.FC = () => {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+  const [userCount, setUserCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!user) {
+      api
+        .getRegistrationStatus()
+        .then((status) => {
+          if (typeof status.userCount === 'number') {
+            setUserCount(status.userCount);
+          }
+        })
+        .catch(() => {});
+    }
+  }, [user]);
 
   // Sync API client with current settings & token
   useEffect(() => {
@@ -523,10 +537,23 @@ const DashboardRoot: React.FC = () => {
     return (
       <Routes>
         <Route
+          path="/login"
+          element={<LoginView onSwitchToRegister={() => navigate('/register')} />}
+        />
+        <Route
           path="/register"
           element={<RegisterView onSwitchToLogin={() => navigate('/login')} />}
         />
-        <Route path="*" element={<LoginView onSwitchToRegister={() => navigate('/register')} />} />
+        <Route
+          path="*"
+          element={
+            userCount === 0 ? (
+              <RegisterView onSwitchToLogin={() => navigate('/login')} />
+            ) : (
+              <LoginView onSwitchToRegister={() => navigate('/register')} />
+            )
+          }
+        />
       </Routes>
     );
   }

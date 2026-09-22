@@ -19,6 +19,11 @@ describe('SettingsPage', () => {
 
     vi.spyOn(api, 'getSettings').mockResolvedValue({
       settings: {
+        default_llm_provider: 'openrouter',
+        default_llm_model: 'openrouter/google/gemini-2.0-flash-exp:free',
+        default_llm_api_key: 'sk-or-••••••••0d60',
+        default_llm_api_base: '',
+        scorer_inherit_default: false,
         scorer_model: 'openrouter/google/gemini-2.0-flash-exp:free',
         scorer_provider: 'openrouter',
         scorer_api_key: 'sk-or-••••••••0d60',
@@ -26,6 +31,7 @@ describe('SettingsPage', () => {
         scorer_threshold: 75,
         worker_enabled: true,
         worker_poll_interval_seconds: 10,
+        tailor_inherit_default: true,
         tailor_model: 'openrouter/google/gemini-2.0-flash-exp:free',
         tailor_api_key: '',
         tailor_api_base: '',
@@ -40,6 +46,20 @@ describe('SettingsPage', () => {
         theme_accent: 'indigo',
       },
       meta: {
+        default_llm_model: {
+          source: 'default',
+          hasCustomKey: true,
+          updatedAt: null,
+          type: 'string',
+          secret: false,
+        },
+        default_llm_api_key: {
+          source: 'system',
+          hasCustomKey: true,
+          updatedAt: 12345,
+          type: 'string',
+          secret: true,
+        },
         scorer_model: {
           source: 'default',
           hasCustomKey: true,
@@ -117,6 +137,7 @@ describe('SettingsPage', () => {
 
     expect(screen.getByRole('button', { name: /Master Profile/i })).toBeInTheDocument();
     expect(screen.getByText(/Appearance & UI/i)).toBeInTheDocument();
+    expect(screen.getByText(/Default AI Gateway/i)).toBeInTheDocument();
     expect(screen.getByText(/AI Fit Scorer/i)).toBeInTheDocument();
     expect(screen.getByText(/AI Resume Tailor/i)).toBeInTheDocument();
     expect(screen.getByText(/Observability/i)).toBeInTheDocument();
@@ -241,7 +262,7 @@ describe('SettingsPage', () => {
     });
 
     expect(
-      screen.getByLabelText(/Use same provider & API key as AI Fit Scorer/i)
+      screen.getByLabelText(/Inherit model & provider from Default AI Gateway/i)
     ).toBeInTheDocument();
 
     const tailorTestBtn = screen.getByTestId('test-tailor-llm-btn');
@@ -297,5 +318,115 @@ describe('SettingsPage', () => {
     expect(
       screen.getByRole('button', { name: /Custom \/ Self-Hosted Gateway/i })
     ).toBeInTheDocument();
+  });
+
+  it('allows editing API key with inline Save and Cancel options', async () => {
+    const updateSpy = vi.spyOn(api, 'updateSettings').mockResolvedValue({
+      ok: true,
+      settings: {
+        scorer_api_key: 'sk-or-••••••••9999',
+      } as any,
+      meta: {} as any,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByText(/AI Fit Scorer/i));
+
+    // Initially displays masked key and Change Key button
+    const changeKeyBtn = screen.getByRole('button', { name: /Change Key/i });
+    expect(changeKeyBtn).toBeInTheDocument();
+
+    // Click Change Key
+    fireEvent.click(changeKeyBtn);
+
+    // Save and Cancel buttons should both be present
+    const saveKeyBtn = screen.getByRole('button', { name: /^Save$/i });
+    const cancelKeyBtn = screen.getByRole('button', { name: /^Cancel$/i });
+    expect(saveKeyBtn).toBeInTheDocument();
+    expect(cancelKeyBtn).toBeInTheDocument();
+
+    // Save button disabled when input is empty
+    expect(saveKeyBtn).toBeDisabled();
+
+    // Enter a new key
+    const keyInput = screen.getByPlaceholderText(/sk-or-v1/i);
+    fireEvent.change(keyInput, { target: { value: 'sk-or-v1-new-secret-key-12345' } });
+    expect(saveKeyBtn).not.toBeDisabled();
+
+    // Click Save
+    fireEvent.click(saveKeyBtn);
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          scorer_api_key: 'sk-or-v1-new-secret-key-12345',
+        })
+      );
+    });
+  });
+
+  it('navigates to Default AI Gateway tab, displays engine inheritance and tests connection', async () => {
+    const testLlmSpy = vi.spyOn(api, 'testLlmConnection').mockResolvedValue({
+      success: true,
+      latencyMs: 120,
+      message: 'Default Gateway connected (120ms)',
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Default AI Gateway/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Default AI Gateway \(Primary Model & Credentials\)/i)
+      ).toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Engine Inheritance Overview')).toBeInTheDocument();
+    expect(screen.getByTestId('test-gateway-llm-btn')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId('test-gateway-llm-btn'));
+
+    await waitFor(() => {
+      expect(testLlmSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          feature: 'gateway',
+        })
+      );
+    });
+  });
+
+  it('redirects to tab=gateway when LLM key is not configured and visiting scorer tab', async () => {
+    vi.spyOn(api, 'getSettings').mockResolvedValue({
+      settings: {
+        default_llm_api_key: '',
+        scorer_api_key: '',
+        default_llm_model: 'openrouter/openrouter/free',
+      } as any,
+      meta: {
+        default_llm_api_key: { hasCustomKey: false },
+        scorer_api_key: { hasCustomKey: false },
+      } as any,
+    });
+
+    window.history.pushState({}, '', '/settings?tab=scorer');
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Default AI Gateway \(Primary Model & Credentials\)/i)
+      ).toBeInTheDocument();
+    });
   });
 });
