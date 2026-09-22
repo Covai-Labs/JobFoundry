@@ -614,6 +614,15 @@ export function buildApp({
         // Fallback to direct fetch only if Tailor service failed to connect / unreachable
       }
 
+      // Direct provider call (no LiteLLM here): OpenRouter's native router IDs
+      // are `openrouter/free` / `openrouter/auto`, without the LiteLLM
+      // `openrouter/` provider prefix used everywhere else.
+      let directModel = effectiveModel;
+      if (directBase === 'https://openrouter.ai/api/v1') {
+        if (effectiveModel === 'openrouter/openrouter/free') directModel = 'openrouter/free';
+        else if (effectiveModel === 'openrouter/openrouter/auto') directModel = 'openrouter/auto';
+      }
+
       try {
         const resp = await safeFetch(`${directBase}/chat/completions`, {
           method: 'POST',
@@ -624,7 +633,7 @@ export function buildApp({
           signal: AbortSignal.timeout(15000),
           redirect: 'error',
           body: JSON.stringify({
-            model: effectiveModel,
+            model: directModel,
             messages: [{ role: 'user', content: 'Reply with the word OK.' }],
             max_tokens: 5,
           }),
@@ -635,8 +644,8 @@ export function buildApp({
           return {
             success: true,
             latencyMs,
-            model: effectiveModel,
-            message: `Connected successfully to ${effectiveModel} (${latencyMs}ms)`,
+            model: directModel,
+            message: `Connected successfully to ${directModel} (${latencyMs}ms)`,
           };
         } else {
           const errorText = await resp.text().catch(() => '');
