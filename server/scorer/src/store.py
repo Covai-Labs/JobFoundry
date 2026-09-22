@@ -153,6 +153,8 @@ class JobStore:
                     val = user_settings.get(fallback_key)
                     if val:
                         return val
+            if inherit and fallback_key:
+                return system.get(fallback_key) or system.get(primary_key) or default
             return system.get(primary_key) or (system.get(fallback_key) if fallback_key else None) or default
 
         model = pick("scorer_model", "default_llm_model", defaults.get("model"))

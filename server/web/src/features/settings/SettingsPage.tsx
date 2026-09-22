@@ -545,6 +545,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         setNewOpikKey('');
       }
 
+      // Also persist extension/scraper config if it was modified
+      if (_isExtensionDirty && _extensionLoaded) {
+        const extRes = await api.updateExtensionConfig(extensionConfig);
+        if (extRes?.config) setExtensionConfig(extRes.config);
+        setIsExtensionDirty(false);
+      }
+
       if (tempColorMode !== colorMode) {
         setColorMode(tempColorMode);
       }
@@ -1394,7 +1401,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               fontFamily: 'monospace',
                               fontSize: '0.85rem',
                               color:
-                                formSettings.default_llm_api_key || formSettings.scorer_api_key
+                                formSettings.default_llm_api_key
                                   ? 'var(--text-primary)'
                                   : 'var(--text-muted)',
                               display: 'flex',
@@ -1403,9 +1410,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }}
                           >
                             <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                            {formSettings.default_llm_api_key ||
-                              formSettings.scorer_api_key ||
-                              'No API key configured'}
+                            {formSettings.default_llm_api_key || 'No gateway API key configured'}
                           </div>
                           <button
                             type="button"

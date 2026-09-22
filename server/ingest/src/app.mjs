@@ -455,7 +455,12 @@ export function buildApp({
       if (!authenticate(request, reply)) return;
       const userId = request.user.id;
       const registered = isRegisteredUser(db, userId);
-      const { provider, model, apiKey, apiBase, feature = 'gateway' } = request.body || {};
+      const { provider, model, apiKey, apiBase, feature: rawFeature = 'gateway' } = request.body || {};
+      const ALLOWED_FEATURES = new Set(['gateway', 'scorer', 'tailor', 'copilot']);
+      if (!ALLOWED_FEATURES.has(rawFeature)) {
+        return reply.code(400).send({ success: false, error: 'invalid feature' });
+      }
+      const feature = rawFeature;
 
       // Per-user effective settings (BYOK): a registered user may only test with
       // their own key — the platform/shared key is never used as a fallback.
