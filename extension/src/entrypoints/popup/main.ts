@@ -16,6 +16,7 @@ export const DOM = {
   activeMode: '#active-mode',
   status: '#status',
   openOptions: '#open-options',
+  openExtOptions: '#open-ext-options',
   openSidebar: '#open-sidebar',
   openDashboard: '#open-dashboard',
   reconnectBtn: '#reconnect-btn',
@@ -398,6 +399,21 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
       }
     } catch {
       openLocalOptions();
+    }
+  });
+
+  $<HTMLButtonElement>(doc, DOM.openExtOptions)?.addEventListener('click', () => {
+    // Always opens the *extension's own* options (server URL, API key,
+    // boards) — unlike Filters & Scrapers, which opens the web dashboard.
+    const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+    if (api?.runtime?.openOptionsPage) {
+      api.runtime.openOptionsPage();
+    } else if (api?.tabs?.create && api?.runtime?.getURL) {
+      api.tabs.create({ url: api.runtime.getURL('options.html') });
+    } else if (api?.tabs?.create) {
+      api.tabs.create({ url: 'options.html' });
+    } else {
+      window.open('options.html', '_blank');
     }
   });
 

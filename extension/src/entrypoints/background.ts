@@ -214,7 +214,7 @@ export default defineBackground(() => {
           ok: false,
           code: 'NO_DASHBOARD_TAB',
           error:
-            'No open JobFoundry dashboard tab found. Please open your dashboard (e.g. http://localhost:5173) in a tab first, or configure your Server URL and API Key manually.',
+            'No open JobFoundry dashboard tab found. Please open your dashboard (e.g. http://localhost:8080) in a tab first, or configure your Server URL and API Key manually.',
         };
       }
 
@@ -223,9 +223,19 @@ export default defineBackground(() => {
 
       for (const targetTab of candidates) {
         try {
+          // The settings UI and API live wherever the dashboard itself is
+          // served (vite :5173 in dev, :8080 in docker/desktop builds, or a
+          // custom domain) — derive it from the tab instead of assuming 8080.
+          let tabOrigin = '';
+          try {
+            tabOrigin = new URL(targetTab.url).origin;
+          } catch {
+            tabOrigin = '';
+          }
           const results = await api.scripting.executeScript({
             target: { tabId: targetTab.id },
-            func: () => {
+            args: [tabOrigin],
+            func: (dashboardOrigin: string) => {
               // SECURITY GUARANTEE:
               // Strictly verify this page is genuinely a JobFoundry web application instance
               // before reading any session or credentials from localStorage.
@@ -255,11 +265,12 @@ export default defineBackground(() => {
                 const settings = settingsRaw ? JSON.parse(settingsRaw) : null;
 
                 const apiKey = user?.apiKey || (token ? token : null);
-                let serverUrl = settings?.apiUrl;
-
-                if (!serverUrl || serverUrl === 'http://localhost:8080') {
-                  serverUrl = 'http://localhost:8080';
-                }
+                // Prefer the dashboard tab's own origin (passed in from the
+                // background script). Fall back to the dashboard's stored
+                // apiUrl, then the packaged default — never force 8080 over
+                // an explicitly connected origin.
+                const serverUrl =
+                  dashboardOrigin || settings?.apiUrl || 'http://localhost:8080';
 
                 if (!apiKey) {
                   return {
