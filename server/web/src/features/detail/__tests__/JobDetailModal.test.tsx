@@ -69,7 +69,7 @@ describe('JobDetailModal external job link', () => {
       />
     );
 
-    const rescoreBtn = screen.getByRole('button', { name: /⚡ Re-score/ });
+    const rescoreBtn = screen.getByRole('button', { name: /^Re-score$/ });
     expect(rescoreBtn).toBeInTheDocument();
     rescoreBtn.click();
 
