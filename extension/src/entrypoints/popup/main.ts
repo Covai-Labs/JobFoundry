@@ -26,6 +26,12 @@ function $<T extends HTMLElement>(doc: Document, selector: string): T {
   return doc.querySelector(selector) as T;
 }
 
+/** Base URL for opening dashboard UI routes (settings, dashboard). Prefers
+ *  the connected tab's origin; API traffic always uses config.serverUrl. */
+export function uiBase(config: Config): string {
+  return (config.dashboardUrl || config.serverUrl || 'http://localhost:8080').replace(/\/+$/, '');
+}
+
 export async function hydrate({
   doc = document,
   getConfig: gc = getConfig,
@@ -389,8 +395,7 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
       return;
     }
     try {
-      const serverUrl = config.serverUrl;
-      const url = `${serverUrl.replace(/\/+$/, '')}/settings?tab=scrapers`;
+      const url = `${uiBase(config)}/settings?tab=scrapers`;
       new URL(url);
       if (api?.tabs?.create) {
         api.tabs.create({ url });
@@ -437,7 +442,7 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
 
   $<HTMLButtonElement>(doc, DOM.openDashboard)?.addEventListener('click', async () => {
     const config = await getConfig();
-    const url = config.serverUrl || 'http://localhost:8080';
+    const url = uiBase(config);
     const api = (globalThis as any).browser ?? (globalThis as any).chrome;
     if (api?.tabs?.create) {
       api.tabs.create({ url });

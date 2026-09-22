@@ -28,6 +28,9 @@ export interface Config {
   serverUrl: string | null;
   apiKey: string | null;
   userEmail?: string | null;
+  /** Origin of the connected dashboard UI tab (for opening UI routes).
+   *  May differ from serverUrl in split frontend/API deployments. */
+  dashboardUrl?: string | null;
   scanIntervalHours: number;
   passiveMode: boolean;
   activeMode: boolean;

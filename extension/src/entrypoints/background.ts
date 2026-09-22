@@ -7,7 +7,7 @@ import {
   enqueueOfflineJobs,
   flushOfflineJobs,
 } from '../shared/config.ts';
-import type { Config } from '../shared/config.ts';
+import type { Config, TitleFilterConfig } from '../shared/config.ts';
 import { runScanPipeline } from '../background/scan.js';
 import { runSearchPipeline } from '../background/search/index.ts';
 import { sendJobs } from '../shared/ingest-client.js';
@@ -219,6 +219,7 @@ export default defineBackground(() => {
       }
 
       let extracted: any = null;
+      let extractedTabOrigin = '';
       let lastError: string = '';
 
       for (const targetTab of candidates) {
@@ -259,18 +260,25 @@ export default defineBackground(() => {
               try {
                 const userRaw = localStorage.getItem('jf_auth_user');
                 const token = localStorage.getItem('jf_auth_token');
-                const settingsRaw = localStorage.getItem('jf_settings');
+                // NOTE: the dashboard persists under 'jobfoundry_settings'
+                // (see server/web/src/lib/auth.ts). 'jf_settings' was never
+                // written by the app and is intentionally not read.
+                const settingsRaw = localStorage.getItem('jobfoundry_settings');
 
                 const user = userRaw ? JSON.parse(userRaw) : null;
                 const settings = settingsRaw ? JSON.parse(settingsRaw) : null;
 
                 const apiKey = user?.apiKey || (token ? token : null);
-                // Prefer the dashboard tab's own origin (passed in from the
-                // background script). Fall back to the dashboard's stored
-                // apiUrl, then the packaged default — never force 8080 over
-                // an explicitly connected origin.
-                const serverUrl =
-                  dashboardOrigin || settings?.apiUrl || 'http://localhost:8080';
+                // An explicitly configured apiUrl wins for API traffic
+                // (split frontend/API deployments). Anything not http(s)
+                // is ignored; otherwise the dashboard tab's own origin
+                // (same-origin default), then the packaged default.
+                const explicitApiUrl =
+                  typeof settings?.apiUrl === 'string' &&
+                  /^https?:\/\//i.test(settings.apiUrl.trim())
+                    ? settings.apiUrl.trim()
+                    : '';
+                const serverUrl = explicitApiUrl || dashboardOrigin || 'http://localhost:8080';
 
                 if (!apiKey) {
                   return {
@@ -301,6 +309,7 @@ export default defineBackground(() => {
           const res = results?.[0]?.result;
           if (res?.ok) {
             extracted = res;
+            extractedTabOrigin = tabOrigin;
             break;
           } else if (res?.error && res.code !== 'NOT_JOBFOUNDRY') {
             lastError = res.error;
@@ -319,11 +328,48 @@ export default defineBackground(() => {
         };
       }
 
+      // Authenticate the origin BEFORE persisting anything: page content
+      // (including the dashboard checks above) is attacker-controlled, so a
+      // spoofed tab must never receive stored credentials or queued jobs.
+      // Only an origin that accepts the extracted API key is trusted.
+      try {
+        const cleanVerifyUrl = String(extracted.serverUrl).replace(/\/+$/, '');
+        const meRes = await fetch(`${cleanVerifyUrl}/api/v1/auth/me`, {
+          headers: {
+            Authorization: `Bearer ${extracted.apiKey}`,
+            Accept: 'application/json',
+          },
+          signal: AbortSignal.timeout(8000),
+        });
+        if (!meRes.ok) {
+          return {
+            ok: false,
+            code: 'VERIFY_FAILED',
+            error: `Dashboard at ${extracted.serverUrl} rejected the extracted credentials (HTTP ${meRes.status}).`,
+          };
+        }
+      } catch (err: any) {
+        return {
+          ok: false,
+          code: 'VERIFY_FAILED',
+          error: `Could not verify dashboard at ${extracted.serverUrl}: ${err?.message ?? err}`,
+        };
+      }
+
       // Persist to extension sync config
-      const patch = {
+      const patch: {
+        serverUrl: string;
+        apiKey: string;
+        userEmail: string | null;
+        dashboardUrl: string | null;
+        titleFilter?: TitleFilterConfig;
+      } = {
         serverUrl: extracted.serverUrl,
         apiKey: extracted.apiKey,
         userEmail: extracted.email || null,
+        // UI routes (settings, dashboard links) open here; API traffic
+        // uses serverUrl. Falls back to serverUrl wherever unread.
+        dashboardUrl: extractedTabOrigin || null,
       };
 
       // Fetch active resume to populate positive keywords if user hasn't set any yet
