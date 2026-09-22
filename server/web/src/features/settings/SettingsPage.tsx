@@ -1400,10 +1400,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               border: '1px solid var(--border-subtle)',
                               fontFamily: 'monospace',
                               fontSize: '0.85rem',
-                              color:
-                                formSettings.default_llm_api_key
-                                  ? 'var(--text-primary)'
-                                  : 'var(--text-muted)',
+                              color: formSettings.default_llm_api_key
+                                ? 'var(--text-primary)'
+                                : 'var(--text-muted)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.5rem',

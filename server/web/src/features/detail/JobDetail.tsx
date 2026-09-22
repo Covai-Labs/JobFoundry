@@ -230,7 +230,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({
       if (currentJobIdRef.current === targetJobId) {
         if (res.ok && res.job) {
           onJobUpdated(res.job);
-          setRescoreSuccess('Fit score evaluation refreshed!');
+          setRescoreSuccess('Re-scoring queued — the fit score updates shortly.');
           setTimeout(() => {
             if (currentJobIdRef.current === targetJobId) {
               setRescoreSuccess(null);
