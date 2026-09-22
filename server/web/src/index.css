@@ -9,6 +9,7 @@
   --bg-card: rgba(17, 24, 39, 0.85);
   --bg-card-hover: rgba(31, 41, 55, 0.95);
   --bg-glass: rgba(17, 24, 39, 0.7);
+  --bg-kanban: rgba(17, 24, 39, 0.6);
 
   --border-subtle: rgba(255, 255, 255, 0.08);
   --border-focus: rgba(99, 102, 241, 0.6);
@@ -60,6 +61,7 @@ html.light {
   --bg-card: #ffffff;
   --bg-card-hover: #f1f5f9;
   --bg-glass: rgba(255, 255, 255, 0.88);
+  --bg-kanban: #e9eef4;
   --bg-input: #ffffff;
   --kbd-bg: rgba(0, 0, 0, 0.06);
   --kbd-border: rgba(0, 0, 0, 0.12);
@@ -809,7 +811,7 @@ h6 {
 }
 
 .kanban-column {
-  background: rgba(17, 24, 39, 0.6);
+  background: var(--bg-kanban);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 1rem;
