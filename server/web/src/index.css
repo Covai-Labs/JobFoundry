@@ -797,11 +797,15 @@ h6 {
 
 /* Kanban Board */
 .kanban-board {
+  padding-bottom: 1rem;
+}
+
+.kanban-columns {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(var(--kanban-column-count), minmax(220px, 1fr));
   gap: 1rem;
   overflow-x: auto;
-  padding-bottom: 1rem;
+  padding-bottom: 0.25rem;
 }
 
 .kanban-column {
@@ -852,6 +856,119 @@ h6 {
 .kanban-card:hover {
   transform: translateY(-2px);
   border-color: rgba(99, 102, 241, 0.4);
+}
+
+/* Per-column visibility + accent-color prefs row (above the board) */
+.kanban-prefs {
+  display: flex;
+  overflow-x: auto;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 1rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  scrollbar-width: thin;
+}
+
+.kanban-prefs-item {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.2rem 0.45rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.kanban-prefs-item.is-hidden {
+  opacity: 0.45;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.kanban-prefs-item.is-hidden .kanban-prefs-label,
+.kanban-prefs-item.is-hidden .kanban-prefs-toggle {
+  text-decoration: line-through;
+}
+
+.kanban-prefs-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.kanban-prefs-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: capitalize;
+}
+
+.kanban-prefs-toggle {
+  font-size: 0.7rem;
+  font-weight: 600;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-xs);
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-input);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.kanban-prefs-toggle:hover {
+  color: var(--text-primary);
+  border-color: var(--border-focus);
+}
+
+.kanban-prefs-swatch-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.kanban-prefs-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid var(--border-subtle);
+  padding: 0;
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.kanban-prefs-swatch:hover {
+  transform: scale(1.15);
+}
+
+.kanban-prefs-swatch.is-active {
+  border-color: var(--text-primary);
+  box-shadow: 0 0 0 1px var(--bg-primary);
+}
+
+.kanban-prefs-reset {
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px dashed var(--border-subtle);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.kanban-prefs-reset:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 /* Diff View */

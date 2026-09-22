@@ -375,6 +375,11 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                   threshold={settings.threshold}
                   onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                   onStatusChange={onStatusChange}
+                  selectedJobId={
+                    location.pathname.startsWith('/jobs/')
+                      ? location.pathname.split('/')[2]
+                      : undefined
+                  }
                 />
               }
             />
