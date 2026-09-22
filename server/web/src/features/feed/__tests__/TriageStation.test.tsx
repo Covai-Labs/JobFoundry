@@ -115,6 +115,9 @@ describe('TriageStation & Split View', () => {
       screen.getByText('No API key configured — go to Settings to add your LLM key.')
     ).toBeInTheDocument();
     expect(screen.getByText('Unscored')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Retry Scoring/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Re-score/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Re-calculate/i })).toBeInTheDocument();
   });
 
   it('renders JobFeed in Split View by default and allows toggling to Cards view', () => {

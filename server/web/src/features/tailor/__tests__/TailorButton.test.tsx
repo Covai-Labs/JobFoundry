@@ -11,6 +11,7 @@ const mockJob: Job = {
   location: 'Remote',
   url: 'https://example.com/job',
   source: 'web',
+  liveness: 'active',
   status: 'new',
   description: 'Design distributed storage systems.',
   created_at: 1700000000000,
@@ -20,7 +21,7 @@ const mockJob: Job = {
 describe('TailorButton', () => {
   it('renders Tailor CV button when job is not tailored', async () => {
     const spy = vi.spyOn(api, 'tailor').mockResolvedValue({
-      ok: true,
+      tailored_resume_id: 'resume-tailored-1',
       job: { ...mockJob, status: 'tailored' },
     });
     const onTailored = vi.fn();
@@ -41,7 +42,7 @@ describe('TailorButton', () => {
       tailored_resume_id: 'resume-tailored-1',
     };
     const spy = vi.spyOn(api, 'tailor').mockResolvedValue({
-      ok: true,
+      tailored_resume_id: 'resume-tailored-1',
       job: tailoredJob,
     });
     const onTailored = vi.fn();

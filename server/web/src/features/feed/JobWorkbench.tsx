@@ -48,6 +48,9 @@ export const JobWorkbench: React.FC<JobWorkbenchProps> = ({
   const [sanitizeSuccess, setSanitizeSuccess] = useState<string | null>(null);
   const [descError, setDescError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [rescoring, setRescoring] = useState(false);
+  const [rescoreSuccess, setRescoreSuccess] = useState<string | null>(null);
+  const [rescoreError, setRescoreError] = useState<string | null>(null);
 
   // Resume diff states
   const [originalResume, setOriginalResume] = useState<Record<string, any>>({});
@@ -63,6 +66,8 @@ export const JobWorkbench: React.FC<JobWorkbenchProps> = ({
       setEditingDesc(false);
       setDescError(null);
       setSanitizeSuccess(null);
+      setRescoreError(null);
+      setRescoreSuccess(null);
       const savedNotes = localStorage.getItem(`jf_notes_${job.id}`) || '';
       setUserNotes(savedNotes);
     }
@@ -187,6 +192,36 @@ export const JobWorkbench: React.FC<JobWorkbenchProps> = ({
     }
   };
 
+  const handleRescore = async () => {
+    if (!job || rescoring) return;
+    const targetJobId = job.id;
+    setRescoring(true);
+    setRescoreError(null);
+    setRescoreSuccess(null);
+    try {
+      const res = await api.rescoreJob(targetJobId);
+      if (currentJobIdRef.current === targetJobId) {
+        if (res.ok && res.job) {
+          onJobUpdated(res.job);
+          setRescoreSuccess('Fit score evaluation refreshed!');
+          setTimeout(() => {
+            if (currentJobIdRef.current === targetJobId) {
+              setRescoreSuccess(null);
+            }
+          }, 4000);
+        }
+      } else if (res.ok && res.job) {
+        onJobUpdated(res.job);
+      }
+    } catch (err: any) {
+      if (currentJobIdRef.current === targetJobId) {
+        setRescoreError(err.message || 'Fit re-scoring failed');
+      }
+    } finally {
+      setRescoring(false);
+    }
+  };
+
   const handleDelete = async () => {
     if (!job || !onDeleteJob) return;
     if (window.confirm(`Permanently remove "${job.title}" at ${job.company}?`)) {
@@ -291,6 +326,17 @@ export const JobWorkbench: React.FC<JobWorkbenchProps> = ({
             </a>
           )}
 
+          <button
+            onClick={handleRescore}
+            disabled={rescoring}
+            className="btn btn-secondary btn-sm"
+            title="Re-run AI fit scoring against current master resume"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <RefreshCw size={13} className={rescoring ? 'animate-spin' : ''} />
+            {rescoring ? 'Scoring...' : 'Re-score'}
+          </button>
+
           <TailorButton job={job} onTailored={onJobUpdated} />
 
           {onDeleteJob && (
@@ -385,9 +431,27 @@ export const JobWorkbench: React.FC<JobWorkbenchProps> = ({
                   marginBottom: '0.75rem',
                 }}
               >
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                  Fit Screener Evaluation
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}>
+                    Fit Screener Evaluation
+                  </h3>
+                  <button
+                    onClick={handleRescore}
+                    disabled={rescoring}
+                    className="btn btn-secondary btn-sm"
+                    style={{
+                      padding: '0.2rem 0.5rem',
+                      fontSize: '0.75rem',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                    title="Re-calculate AI fit score"
+                  >
+                    <RefreshCw size={11} className={rescoring ? 'animate-spin' : ''} />
+                    {rescoring ? 'Scoring...' : 'Re-calculate'}
+                  </button>
+                </div>
                 {job.fit_score !== null && job.fit_score !== undefined ? (
                   <span
                     className={`score-badge score-${scoreCat}`}
@@ -400,13 +464,45 @@ export const JobWorkbench: React.FC<JobWorkbenchProps> = ({
                 )}
               </div>
 
+              {rescoreSuccess && (
+                <div
+                  style={{
+                    padding: '0.5rem 0.8rem',
+                    marginBottom: '0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--color-green-bg)',
+                    color: 'var(--color-green)',
+                    border: '1px solid var(--color-green)',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  ✓ {rescoreSuccess}
+                </div>
+              )}
+
+              {rescoreError && (
+                <div
+                  style={{
+                    padding: '0.5rem 0.8rem',
+                    marginBottom: '0.75rem',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'var(--color-red-bg)',
+                    color: 'var(--color-red)',
+                    border: '1px solid var(--color-red)',
+                    fontSize: '0.8rem',
+                  }}
+                >
+                  ⚠️ {rescoreError}
+                </div>
+              )}
+
               {fitNotes.error || job.status === 'score_failed' ? (
                 <div
                   className="error-banner"
                   style={{
                     display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.5rem',
+                    flexDirection: 'column',
+                    gap: '0.6rem',
                     padding: '0.65rem 0.8rem',
                     borderRadius: '8px',
                     border: '1px solid var(--danger-border, rgba(229,72,77,0.35))',
@@ -416,11 +512,31 @@ export const JobWorkbench: React.FC<JobWorkbenchProps> = ({
                     marginTop: '0.35rem',
                   }}
                 >
-                  <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
-                  <span>
-                    {fitNotes.error ||
-                      'No API key configured — go to Settings to add your LLM key.'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                    <AlertTriangle size={16} style={{ flexShrink: 0, marginTop: '1px' }} />
+                    <span style={{ wordBreak: 'break-word', flex: 1 }}>
+                      {fitNotes.error ||
+                        'No API key configured — go to Settings to add your LLM key.'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={handleRescore}
+                      disabled={rescoring}
+                      className="btn btn-secondary btn-sm"
+                      style={{
+                        padding: '0.25rem 0.6rem',
+                        fontSize: '0.75rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                      }}
+                      title="Retry fit scoring"
+                    >
+                      <RefreshCw size={12} className={rescoring ? 'animate-spin' : ''} />
+                      {rescoring ? 'Retrying...' : 'Retry Scoring'}
+                    </button>
+                  </div>
                 </div>
               ) : null}
 
