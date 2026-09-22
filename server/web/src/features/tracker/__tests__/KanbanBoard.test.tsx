@@ -22,6 +22,15 @@ const getColumn = (title: string) =>
     (column) => column.querySelector('.kanban-column-title .badge')?.textContent?.trim() === title
   ) as HTMLElement;
 
+const openColumnMenu = (title: string) => {
+  fireEvent.click(screen.getByRole('button', { name: `Column options for ${title}` }));
+};
+
+const hideColumn = (title: string) => {
+  openColumnMenu(title);
+  fireEvent.click(screen.getByRole('menuitem', { name: 'Hide column' }));
+};
+
 const getDropTarget = (title: string) => getColumn(title);
 
 const dropJob = (target: HTMLElement, jobId: string) => {
@@ -57,9 +66,9 @@ describe('KanbanBoard column visibility + accent prefs', () => {
     expect(getColumn('Archived')).toBeInTheDocument();
   });
 
-  it('hides a column when its toggle is clicked and persists to localStorage', () => {
+  it('hides a column from its header menu and persists to localStorage', () => {
     renderBoard([baseJob('new')]);
-    fireEvent.click(screen.getByRole('button', { name: /Hide Offer column/ }));
+    hideColumn('Offer');
 
     expect(getColumn('Offer')).toBeUndefined();
     expect(getColumn('New')).toBeInTheDocument();
@@ -68,33 +77,38 @@ describe('KanbanBoard column visibility + accent prefs', () => {
     expect(prefs.hiddenColumns).toContain('offer');
   });
 
-  it('shows a hidden column toggle as struck/dimmed (not invisible)', () => {
+  it('shows a hidden column as a restore chip that brings it back', () => {
     renderBoard([baseJob('new')]);
-    fireEvent.click(screen.getByRole('button', { name: /Hide Offer column/ }));
-    const showBtn = screen.getByRole('button', { name: /Show Offer column/ });
-    expect(showBtn).toBeInTheDocument();
-    expect(showBtn).not.toBeDisabled();
+    hideColumn('Offer');
+
+    const chip = screen.getByRole('button', { name: /Show Offer column/ });
+    expect(chip).toBeInTheDocument();
+
+    fireEvent.click(chip);
+    expect(getColumn('Offer')).toBeInTheDocument();
   });
 
-  it('applies a custom accent color to the column header badge', () => {
+  it('paints the column chrome with the chosen accent color', () => {
     renderBoard([baseJob('new')]);
+    openColumnMenu('New');
     fireEvent.click(screen.getByRole('button', { name: /Set New accent to Cyan/ }));
 
-    const badge = screen.getByText('New', { selector: '.kanban-column .badge' });
-    expect(badge.getAttribute('style')).toContain('var(--color-cyan)');
+    const column = getColumn('New');
+    expect(column?.style.borderTopColor).toContain('--color-cyan');
 
     const prefs = JSON.parse(localStorage.getItem('jf_kanban_prefs')!);
     expect(prefs.columnColors.new).toBe('--color-cyan');
   });
 
-  it('resets a custom accent back to the default badge class', () => {
+  it('resets a custom accent back to the default column chrome', () => {
     renderBoard([baseJob('new')]);
+    openColumnMenu('New');
     fireEvent.click(screen.getByRole('button', { name: /Set New accent to Cyan/ }));
+    openColumnMenu('New');
     fireEvent.click(screen.getByRole('button', { name: /Reset New accent to default/ }));
 
-    const badge = getColumn('New')?.querySelector('.badge') as HTMLElement;
-    expect(badge.style.backgroundColor).toBe('');
-    expect(badge.className).toContain('badge-blue');
+    const column = getColumn('New') as HTMLElement;
+    expect(column.style.borderTopColor).toBe('');
   });
 
   it('falls back to defaults when localStorage contains corrupt prefs', () => {
@@ -124,7 +138,7 @@ describe('KanbanBoard column visibility + accent prefs', () => {
     const jobs = [baseJob('new', 'a'), baseJob('new', 'b'), baseJob('offer', 'c')];
     renderBoard(jobs);
     expect(getColumn('New')?.textContent).toContain('2');
-    fireEvent.click(screen.getByRole('button', { name: /Hide New column/ }));
+    hideColumn('New');
     expect(getColumn('New')).toBeUndefined();
   });
 
@@ -150,9 +164,10 @@ describe('KanbanBoard column visibility + accent prefs', () => {
 
   it('does not allow hiding the column containing the selected job', () => {
     renderBoard([baseJob('new', 'job-1')], vi.fn(), vi.fn(), 'job-1');
-    const hideButton = screen.getByRole('button', { name: /Hide New column/ });
-    expect(hideButton).toBeDisabled();
-    fireEvent.click(hideButton);
+    openColumnMenu('New');
+    const hideItem = screen.getByRole('menuitem', { name: 'Hide column' });
+    expect(hideItem).toBeDisabled();
+    fireEvent.click(hideItem);
     expect(getColumn('New')).toBeInTheDocument();
   });
 });

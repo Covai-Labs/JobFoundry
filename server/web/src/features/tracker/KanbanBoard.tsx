@@ -26,6 +26,7 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   onStatusChange,
 }) => {
   const [prefs, setPrefs] = useState<KanbanPrefs>(loadKanbanPrefs);
+  const [openMenu, setOpenMenu] = useState<JobStatus | null>(null);
   const selectedJob = selectedJobId ? jobs.find((job) => job.id === selectedJobId) : undefined;
   const selectedColumnId =
     selectedJob?.status === 'rejected_by_score' ? 'rejected' : selectedJob?.status;
@@ -36,6 +37,15 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
   useEffect(() => {
     saveKanbanPrefs(prefs);
   }, [prefs]);
+
+  useEffect(() => {
+    if (openMenu === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpenMenu(null);
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [openMenu]);
 
   const toggleHidden = useCallback(
     (status: JobStatus) => {
@@ -62,6 +72,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
     });
   }, []);
 
+  const restoreColumn = useCallback((status: JobStatus) => {
+    setPrefs((prev) => ({
+      ...prev,
+      hiddenColumns: prev.hiddenColumns.filter((s) => s !== status),
+    }));
+  }, []);
+
   const handleDragStart = (e: React.DragEvent, jobId: string) => {
     e.dataTransfer.setData('text/plain', jobId);
   };
@@ -85,66 +102,27 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 
   return (
     <div className="kanban-board">
-      <div className="kanban-prefs" role="toolbar" aria-label="Kanban column preferences">
-        {KANBAN_COLUMNS.map((column) => {
-          const hidden = prefs.hiddenColumns.includes(column.id);
-          const accentVar = prefs.columnColors[column.id];
-          return (
-            <div
-              key={column.id}
-              className={`kanban-prefs-item ${hidden ? 'is-hidden' : ''}`}
-              data-column-id={column.id}
-            >
-              <span
-                className="kanban-prefs-dot"
-                style={{ backgroundColor: accentVar ? `var(${accentVar})` : undefined }}
-                aria-hidden
-              />
-              <span className="kanban-prefs-label">{column.title}</span>
+      {prefs.hiddenColumns.length > 0 && (
+        <div className="kanban-hiddenbar" aria-label="Hidden columns">
+          <span className="kanban-hiddenbar-label">Hidden:</span>
+          {prefs.hiddenColumns.map((id) => {
+            const col = KANBAN_COLUMNS.find((c) => c.id === id);
+            return (
               <button
+                key={id}
                 type="button"
-                className="kanban-prefs-toggle"
-                aria-pressed={!hidden}
-                aria-label={`${hidden ? 'Show' : 'Hide'} ${column.title} column`}
-                disabled={column.id === selectedColumnId}
-                title={
-                  column.id === selectedColumnId ? 'Cannot hide the selected job column' : undefined
-                }
-                onClick={() => toggleHidden(column.id)}
+                className="kanban-hiddenbar-chip"
+                onClick={() => restoreColumn(id)}
+                aria-label={`Show ${col?.title ?? id} column`}
+                title={`Show ${col?.title ?? id} column`}
               >
-                {hidden ? 'Show' : 'Hide'}
+                {col?.title ?? id}
+                <span aria-hidden="true">＋</span>
               </button>
-              <span
-                className="kanban-prefs-swatch-group"
-                role="group"
-                aria-label={`${column.title} accent color`}
-              >
-                {KANBAN_SWATCHES.map((swatch) => (
-                  <button
-                    key={swatch.name}
-                    type="button"
-                    className={`kanban-prefs-swatch ${accentVar === swatch.cssVar ? 'is-active' : ''}`}
-                    style={{ backgroundColor: `var(${swatch.cssVar})` }}
-                    title={swatch.name}
-                    aria-label={`Set ${column.title} accent to ${swatch.name}`}
-                    onClick={() => setAccent(column.id, swatch.cssVar)}
-                  />
-                ))}
-                <button
-                  type="button"
-                  className="kanban-prefs-swatch kanban-prefs-reset"
-                  title="Reset to default accent"
-                  aria-label={`Reset ${column.title} accent to default`}
-                  disabled={!accentVar}
-                  onClick={() => setAccent(column.id, '')}
-                >
-                  ↺
-                </button>
-              </span>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <div
         className="kanban-columns"
@@ -169,26 +147,110 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
           });
 
           const accentVar = prefs.columnColors[column.id];
-          const badgeStyle: React.CSSProperties = accentVar
-            ? { backgroundColor: `var(${accentVar})` }
+          const columnStyle: React.CSSProperties = accentVar
+            ? {
+                borderTopWidth: '3px',
+                borderTopStyle: 'solid',
+                borderTopColor: `var(${accentVar})`,
+              }
             : {};
+          const headerStyle: React.CSSProperties = accentVar
+            ? { background: `color-mix(in srgb, var(${accentVar}) 14%, transparent)` }
+            : {};
+          const menuOpen = openMenu === column.id;
 
           return (
             <div
               key={column.id}
               className="kanban-column"
+              style={columnStyle}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, column.id)}
             >
-              <div className="kanban-column-header">
+              <div className="kanban-column-header" style={headerStyle}>
                 <div className="kanban-column-title">
-                  <span className={`badge ${column.badgeClass}`} style={badgeStyle}>
-                    {column.title}
-                  </span>
+                  <span className={`badge ${column.badgeClass}`}>{column.title}</span>
                 </div>
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
-                  {columnJobs.length}
-                </span>
+                <div className="kanban-column-actions">
+                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {columnJobs.length}
+                  </span>
+                  <button
+                    type="button"
+                    className="kanban-kebab"
+                    aria-label={`Column options for ${column.title}`}
+                    aria-expanded={menuOpen}
+                    aria-haspopup="menu"
+                    onClick={() => setOpenMenu(menuOpen ? null : column.id)}
+                  >
+                    ⋯
+                  </button>
+                </div>
+                {menuOpen && (
+                  <>
+                    <div
+                      className="kanban-colmenu-backdrop"
+                      onClick={() => setOpenMenu(null)}
+                      aria-hidden="true"
+                    />
+                    <div
+                      className="kanban-colmenu"
+                      role="menu"
+                      aria-label={`${column.title} column options`}
+                    >
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className="kanban-colmenu-item"
+                        disabled={column.id === selectedColumnId}
+                        title={
+                          column.id === selectedColumnId
+                            ? 'Cannot hide the selected job column'
+                            : undefined
+                        }
+                        onClick={() => {
+                          toggleHidden(column.id);
+                          setOpenMenu(null);
+                        }}
+                      >
+                        Hide column
+                      </button>
+                      <div
+                        className="kanban-colmenu-swatches"
+                        role="group"
+                        aria-label={`${column.title} accent color`}
+                      >
+                        {KANBAN_SWATCHES.map((swatch) => (
+                          <button
+                            key={swatch.name}
+                            type="button"
+                            className={`kanban-colmenu-swatch ${accentVar === swatch.cssVar ? 'is-active' : ''}`}
+                            style={{ backgroundColor: `var(${swatch.cssVar})` }}
+                            title={swatch.name}
+                            aria-label={`Set ${column.title} accent to ${swatch.name}`}
+                            onClick={() => {
+                              setAccent(column.id, swatch.cssVar);
+                              setOpenMenu(null);
+                            }}
+                          />
+                        ))}
+                        <button
+                          type="button"
+                          className="kanban-colmenu-swatch kanban-colmenu-reset"
+                          title="Reset to default accent"
+                          aria-label={`Reset ${column.title} accent to default`}
+                          disabled={!accentVar}
+                          onClick={() => {
+                            setAccent(column.id, '');
+                            setOpenMenu(null);
+                          }}
+                        >
+                          ↺
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               <div className="kanban-cards-list">
