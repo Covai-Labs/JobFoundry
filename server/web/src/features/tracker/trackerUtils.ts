@@ -68,12 +68,13 @@ function isJobStatus(value: unknown): value is JobStatus {
 const KNOWN_SWATCH_VARS: ReadonlySet<string> = new Set(KANBAN_SWATCHES.map((s) => s.cssVar));
 
 export function loadKanbanPrefs(): KanbanPrefs {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return DEFAULT_KANBAN_PREFS;
-  }
-
   try {
-    const raw = window.localStorage.getItem(KANBAN_PREFS_STORAGE_KEY);
+    const storage = typeof window === 'undefined' ? undefined : window.localStorage;
+    if (!storage) {
+      return DEFAULT_KANBAN_PREFS;
+    }
+
+    const raw = storage.getItem(KANBAN_PREFS_STORAGE_KEY);
     if (!raw) {
       return DEFAULT_KANBAN_PREFS;
     }
@@ -104,12 +105,13 @@ export function loadKanbanPrefs(): KanbanPrefs {
 }
 
 export function saveKanbanPrefs(prefs: KanbanPrefs): void {
-  if (typeof window === 'undefined' || !window.localStorage) {
-    return;
-  }
-
   try {
-    window.localStorage.setItem(KANBAN_PREFS_STORAGE_KEY, JSON.stringify(prefs));
+    const storage = typeof window === 'undefined' ? undefined : window.localStorage;
+    if (!storage) {
+      return;
+    }
+
+    storage.setItem(KANBAN_PREFS_STORAGE_KEY, JSON.stringify(prefs));
   } catch {
     /* Persistence is best-effort only. */
   }

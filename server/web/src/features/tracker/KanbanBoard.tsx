@@ -27,7 +27,11 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
 }) => {
   const [prefs, setPrefs] = useState<KanbanPrefs>(loadKanbanPrefs);
   const selectedJob = selectedJobId ? jobs.find((job) => job.id === selectedJobId) : undefined;
-  const selectedColumnId = selectedJob?.status;
+  const selectedColumnId =
+    selectedJob?.status === 'rejected_by_score' ? 'rejected' : selectedJob?.status;
+  const effectiveHiddenColumns = prefs.hiddenColumns.filter(
+    (columnId) => columnId !== selectedColumnId
+  );
 
   useEffect(() => {
     saveKanbanPrefs(prefs);
@@ -147,13 +151,13 @@ export const KanbanBoard: React.FC<KanbanBoardProps> = ({
         style={
           {
             '--kanban-column-count': KANBAN_COLUMNS.filter(
-              (c) => !prefs.hiddenColumns.includes(c.id)
+              (c) => !effectiveHiddenColumns.includes(c.id)
             ).length,
           } as React.CSSProperties
         }
       >
         {KANBAN_COLUMNS.map((column) => {
-          if (prefs.hiddenColumns.includes(column.id)) {
+          if (effectiveHiddenColumns.includes(column.id)) {
             return null;
           }
 
