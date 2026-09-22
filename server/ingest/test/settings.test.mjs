@@ -108,10 +108,16 @@ test('updateSettings rejects non-string scorer_api_base and tailor_api_base valu
     /must be a string/
   );
   assert.throws(() => updateSettings(db, { scorer_api_base: 12345 }), /must be a string/);
+  assert.throws(
+    () => updateSettings(db, { default_llm_api_base: ['https://attacker.com'] }),
+    /must be a string/
+  );
+  assert.throws(() => updateSettings(db, { default_llm_api_base: 'ftp://evil.example' }), /scheme/);
 
   // Verify nothing was stored
   const { settings } = getAllSettings(db, { env: {} });
   assert.equal(settings.scorer_api_base, ''); // default unchanged
+  assert.equal(settings.default_llm_api_base, ''); // default unchanged
 });
 
 test('isRegisteredUser distinguishes real users from operator identities', () => {

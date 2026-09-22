@@ -579,7 +579,12 @@ export function updateSettings(db, newValues = {}, userId = null) {
 
       // Validate API base URL shape (scheme + embedded credentials).
       // SSRF IP-range enforcement happens at connection time.
-      if (key === 'scorer_api_base' || key === 'tailor_api_base' || key === 'copilot_api_base') {
+      if (
+        key === 'scorer_api_base' ||
+        key === 'tailor_api_base' ||
+        key === 'copilot_api_base' ||
+        key === 'default_llm_api_base'
+      ) {
         validateApiBase(val);
       }
 
