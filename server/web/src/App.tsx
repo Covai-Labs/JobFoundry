@@ -105,6 +105,37 @@ const JobDetailWrapper: React.FC<{
   );
 };
 
+const TrackerRoute: React.FC<{
+  jobs: Job[];
+  threshold: number;
+  onStatusChange: (jobId: string, status: JobStatus) => Promise<void>;
+  onJobUpdated: (job: Job) => void;
+  onJobDeleted: (jobId: string) => void;
+}> = ({ jobs, threshold, onStatusChange, onJobUpdated, onJobDeleted }) => {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  return (
+    <>
+      <KanbanBoard
+        jobs={jobs}
+        threshold={threshold}
+        selectedJobId={id}
+        onSelectJob={(job) => navigate(`/tracker/${job.id}`)}
+        onStatusChange={onStatusChange}
+      />
+      {id && (
+        <JobDetailWrapper
+          jobs={jobs}
+          threshold={threshold}
+          onStatusChange={onStatusChange}
+          onJobUpdated={onJobUpdated}
+          onJobDeleted={onJobDeleted}
+        />
+      )}
+    </>
+  );
+};
+
 const DashboardLayout: React.FC<DashboardContentProps> = ({
   settings,
   onSaveSettings,
@@ -370,11 +401,24 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             <Route
               path="/tracker"
               element={
-                <KanbanBoard
+                <TrackerRoute
                   jobs={jobs}
                   threshold={settings.threshold}
-                  onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                   onStatusChange={onStatusChange}
+                  onJobUpdated={onJobUpdated}
+                  onJobDeleted={onJobDeleted}
+                />
+              }
+            />
+            <Route
+              path="/tracker/:id"
+              element={
+                <TrackerRoute
+                  jobs={jobs}
+                  threshold={settings.threshold}
+                  onStatusChange={onStatusChange}
+                  onJobUpdated={onJobUpdated}
+                  onJobDeleted={onJobDeleted}
                 />
               }
             />
