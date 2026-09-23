@@ -24,7 +24,9 @@ test('sidepanel exposes all required controls matching popup', () => {
     '#active-mode',
     '#status',
     '#open-options',
+    '#open-ext-options',
     '#open-dashboard',
+    '#close-sidebar-btn',
   ]) {
     assert.ok(doc.querySelector(selector), `missing control in sidepanel: ${selector}`);
   }
