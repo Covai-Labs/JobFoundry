@@ -282,9 +282,10 @@ export function init() {
       }
       if (status) {
         status.textContent = `Search settings saved${syncNote}`;
-        status.style.color = syncNote.includes('failed') || syncNote.includes('not synced')
-          ? 'var(--amber, #f59e0b)'
-          : 'var(--green)';
+        status.style.color =
+          syncNote.includes('failed') || syncNote.includes('not synced')
+            ? 'var(--amber, #f59e0b)'
+            : 'var(--green)';
         setTimeout(() => {
           if (status) status.textContent = '';
         }, 5000);

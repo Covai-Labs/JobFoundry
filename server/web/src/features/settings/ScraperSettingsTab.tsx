@@ -1207,13 +1207,15 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
 
       {/* 6. Multi-Board Aggregator Search (single source of truth, syncs to extension) */}
       <div className="settings-card" style={{ padding: '1.5rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}
+        >
           <Search size={18} style={{ color: 'var(--color-indigo)' }} />
           <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Multi-Board Search Providers</h3>
         </div>
         <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
-          Queried by the extension&apos;s “Search Job Boards” action using your target role
-          keywords above. Saved here, synced automatically to the extension.
+          Queried by the extension&apos;s “Search Job Boards” action using your target role keywords
+          above. Saved here, synced automatically to the extension.
         </p>
         <div
           style={{
@@ -1270,7 +1272,9 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
             marginTop: '1rem',
           }}
         >
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
             Max results / term (1–200)
             <input
               type="number"
@@ -1286,7 +1290,9 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
               className="input-text"
             />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
             Adzuna App ID
             <input
               type="text"
@@ -1296,7 +1302,9 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
               className="input-text"
             />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
             Adzuna App Key
             <input
               type="password"
@@ -1306,7 +1314,9 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
               className="input-text"
             />
           </label>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
             Country
             <input
               type="text"

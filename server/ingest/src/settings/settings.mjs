@@ -767,7 +767,11 @@ export function validateExtensionConfig(patch) {
   }
 
   if (patch.searchBoards !== undefined) {
-    if (!patch.searchBoards || typeof patch.searchBoards !== 'object' || Array.isArray(patch.searchBoards)) {
+    if (
+      !patch.searchBoards ||
+      typeof patch.searchBoards !== 'object' ||
+      Array.isArray(patch.searchBoards)
+    ) {
       throw new Error('searchBoards must be a key-value object of board identifiers');
     }
     for (const [key, value] of Object.entries(patch.searchBoards)) {
@@ -791,15 +795,27 @@ export function validateExtensionConfig(patch) {
     }
   }
 
-  if (patch.adzunaAppId !== undefined && patch.adzunaAppId !== null && typeof patch.adzunaAppId !== 'string') {
+  if (
+    patch.adzunaAppId !== undefined &&
+    patch.adzunaAppId !== null &&
+    typeof patch.adzunaAppId !== 'string'
+  ) {
     throw new Error('adzunaAppId must be a string or null');
   }
 
-  if (patch.adzunaAppKey !== undefined && patch.adzunaAppKey !== null && typeof patch.adzunaAppKey !== 'string') {
+  if (
+    patch.adzunaAppKey !== undefined &&
+    patch.adzunaAppKey !== null &&
+    typeof patch.adzunaAppKey !== 'string'
+  ) {
     throw new Error('adzunaAppKey must be a string or null');
   }
 
-  if (patch.adzunaCountry !== undefined && patch.adzunaCountry !== null && typeof patch.adzunaCountry !== 'string') {
+  if (
+    patch.adzunaCountry !== undefined &&
+    patch.adzunaCountry !== null &&
+    typeof patch.adzunaCountry !== 'string'
+  ) {
     throw new Error('adzunaCountry must be a string or null');
   }
 }
@@ -928,8 +944,7 @@ export function updateExtensionConfig(db, userId, patch = {}) {
         : current.searchMaxResultsPerTerm,
     adzunaAppId: patch.adzunaAppId !== undefined ? patch.adzunaAppId : current.adzunaAppId,
     adzunaAppKey: patch.adzunaAppKey !== undefined ? patch.adzunaAppKey : current.adzunaAppKey,
-    adzunaCountry:
-      patch.adzunaCountry !== undefined ? patch.adzunaCountry : current.adzunaCountry,
+    adzunaCountry: patch.adzunaCountry !== undefined ? patch.adzunaCountry : current.adzunaCountry,
   };
 
   const now = Date.now();
