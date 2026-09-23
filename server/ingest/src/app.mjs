@@ -935,9 +935,23 @@ export function buildApp({
   });
 
   // POST /api/v1/resumes/parse-raw - AI-assisted raw text/markdown to JSON Resume v1.0.0
-  app.post('/api/v1/resumes/parse-raw', async (request, reply) => {
-    if (!checkRateLimit(request, reply, 30)) return;
-    if (!authenticate(request, reply)) return;
+  app.post(
+    '/api/v1/resumes/parse-raw',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
 
     const body = request.body || {};
     const text = typeof body.text === 'string' ? body.text : '';
