@@ -118,7 +118,10 @@ export async function runSearchPipeline({
     };
   }
 
-  const resultsCap = resultsWantedPerTerm || config?.searchMaxResultsPerTerm || 25;
+  const rawCap = resultsWantedPerTerm || config?.searchMaxResultsPerTerm || 25;
+  // Defense in depth: server validates 1–200, but clamp legacy/foreign values here
+  // so a stale config can't fan out into unbounded provider pagination.
+  const resultsCap = Math.min(200, Math.max(1, Math.floor(rawCap) || 25));
   const targetLocation =
     location || (config?.locationFilter?.allow?.includes('remote') ? 'remote' : undefined);
   const isRemote = location

@@ -43,9 +43,9 @@ export interface Config {
   trackedCompanies: TrackedCompany[];
   searchBoards?: Record<string, boolean>;
   searchMaxResultsPerTerm?: number;
-  adzunaAppId?: string;
-  adzunaAppKey?: string;
-  adzunaCountry?: string;
+  adzunaAppId?: string | null;
+  adzunaAppKey?: string | null;
+  adzunaCountry?: string | null;
 }
 
 export const DEFAULT_SEARCH_BOARDS: Record<string, boolean> = {
@@ -290,6 +290,13 @@ export async function syncConfigFromServer(
           patch.scanIntervalHours = serverConfig.scanIntervalHours;
         if (Array.isArray(serverConfig.trackedCompanies))
           patch.trackedCompanies = serverConfig.trackedCompanies;
+        if (serverConfig.searchBoards) patch.searchBoards = serverConfig.searchBoards;
+        if (serverConfig.searchMaxResultsPerTerm !== undefined)
+          patch.searchMaxResultsPerTerm = serverConfig.searchMaxResultsPerTerm;
+        if (serverConfig.adzunaAppId !== undefined) patch.adzunaAppId = serverConfig.adzunaAppId;
+        if (serverConfig.adzunaAppKey !== undefined) patch.adzunaAppKey = serverConfig.adzunaAppKey;
+        if (serverConfig.adzunaCountry !== undefined)
+          patch.adzunaCountry = serverConfig.adzunaCountry;
         const saved = await setConfig(patch, opts);
         return { ...saved, synced: true };
       }

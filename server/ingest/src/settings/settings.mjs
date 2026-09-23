@@ -662,6 +662,20 @@ export const DEFAULT_EXTENSION_CONFIG = {
     'a16z-speedrun-talent': true,
   },
   trackedCompanies: [],
+  searchBoards: {
+    linkedin: true,
+    indeed: true,
+    glassdoor: true,
+    hiringcafe: true,
+    adzuna: false,
+    ziprecruiter: false,
+    google: false,
+    naukri: false,
+  },
+  searchMaxResultsPerTerm: 25,
+  adzunaAppId: null,
+  adzunaAppKey: null,
+  adzunaCountry: 'us',
 };
 
 /**
@@ -751,6 +765,59 @@ export function validateExtensionConfig(patch) {
   if (patch.trackedCompanies !== undefined && !Array.isArray(patch.trackedCompanies)) {
     throw new Error('trackedCompanies must be an array');
   }
+
+  if (patch.searchBoards !== undefined) {
+    if (
+      !patch.searchBoards ||
+      typeof patch.searchBoards !== 'object' ||
+      Array.isArray(patch.searchBoards)
+    ) {
+      throw new Error('searchBoards must be a key-value object of board identifiers');
+    }
+    for (const [key, value] of Object.entries(patch.searchBoards)) {
+      if (!Object.hasOwn(DEFAULT_EXTENSION_CONFIG.searchBoards, key)) {
+        throw new Error(`searchBoards contains unknown board: ${key}`);
+      }
+      if (typeof value !== 'boolean') {
+        throw new Error(`searchBoards["${key}"] must be a boolean`);
+      }
+    }
+  }
+
+  if (patch.searchMaxResultsPerTerm !== undefined) {
+    if (
+      typeof patch.searchMaxResultsPerTerm !== 'number' ||
+      !Number.isInteger(patch.searchMaxResultsPerTerm) ||
+      patch.searchMaxResultsPerTerm < 1 ||
+      patch.searchMaxResultsPerTerm > 200
+    ) {
+      throw new Error('searchMaxResultsPerTerm must be an integer between 1 and 200');
+    }
+  }
+
+  if (
+    patch.adzunaAppId !== undefined &&
+    patch.adzunaAppId !== null &&
+    typeof patch.adzunaAppId !== 'string'
+  ) {
+    throw new Error('adzunaAppId must be a string or null');
+  }
+
+  if (
+    patch.adzunaAppKey !== undefined &&
+    patch.adzunaAppKey !== null &&
+    typeof patch.adzunaAppKey !== 'string'
+  ) {
+    throw new Error('adzunaAppKey must be a string or null');
+  }
+
+  if (
+    patch.adzunaCountry !== undefined &&
+    patch.adzunaCountry !== null &&
+    typeof patch.adzunaCountry !== 'string'
+  ) {
+    throw new Error('adzunaCountry must be a string or null');
+  }
 }
 
 /**
@@ -760,12 +827,16 @@ export function getExtensionConfig(db, userId = null) {
   const registered = isRegisteredUser(db, userId);
 
   let raw = null;
+  let userRowFound = false;
   if (registered) {
     try {
       const row = db
         .prepare("SELECT value FROM user_settings WHERE user_id = ? AND key = 'extension_config'")
         .get(userId);
-      if (row?.value) raw = row.value;
+      if (row?.value) {
+        raw = row.value;
+        userRowFound = true;
+      }
     } catch {
       // user_settings table missing or query error
     }
@@ -807,6 +878,23 @@ export function getExtensionConfig(db, userId = null) {
       ...(stored.portals || {}),
     },
     trackedCompanies: stored.trackedCompanies || DEFAULT_EXTENSION_CONFIG.trackedCompanies,
+    searchBoards: {
+      ...DEFAULT_EXTENSION_CONFIG.searchBoards,
+      ...(stored.searchBoards || {}),
+    },
+    searchMaxResultsPerTerm:
+      stored.searchMaxResultsPerTerm ?? DEFAULT_EXTENSION_CONFIG.searchMaxResultsPerTerm,
+    // Never inherit operator-level Adzuna secrets via the system fallback:
+    // registered users without their own row start from safe defaults.
+    adzunaAppId:
+      registered && !userRowFound
+        ? DEFAULT_EXTENSION_CONFIG.adzunaAppId
+        : (stored.adzunaAppId ?? DEFAULT_EXTENSION_CONFIG.adzunaAppId),
+    adzunaAppKey:
+      registered && !userRowFound
+        ? DEFAULT_EXTENSION_CONFIG.adzunaAppKey
+        : (stored.adzunaAppKey ?? DEFAULT_EXTENSION_CONFIG.adzunaAppKey),
+    adzunaCountry: stored.adzunaCountry ?? DEFAULT_EXTENSION_CONFIG.adzunaCountry,
   };
 }
 
@@ -847,6 +935,16 @@ export function updateExtensionConfig(db, userId, patch = {}) {
         ? Number(patch.scanIntervalHours)
         : current.scanIntervalHours,
     trackedCompanies: patch.trackedCompanies ?? current.trackedCompanies,
+    searchBoards: patch.searchBoards
+      ? { ...current.searchBoards, ...patch.searchBoards }
+      : current.searchBoards,
+    searchMaxResultsPerTerm:
+      patch.searchMaxResultsPerTerm !== undefined
+        ? Number(patch.searchMaxResultsPerTerm)
+        : current.searchMaxResultsPerTerm,
+    adzunaAppId: patch.adzunaAppId !== undefined ? patch.adzunaAppId : current.adzunaAppId,
+    adzunaAppKey: patch.adzunaAppKey !== undefined ? patch.adzunaAppKey : current.adzunaAppKey,
+    adzunaCountry: patch.adzunaCountry !== undefined ? patch.adzunaCountry : current.adzunaCountry,
   };
 
   const now = Date.now();

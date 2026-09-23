@@ -323,6 +323,23 @@ export const PORTAL_CATALOG: PortalMetadata[] = [
   },
 ];
 
+export interface SearchBoardMetadata {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export const SEARCH_BOARDS_CATALOG: SearchBoardMetadata[] = [
+  { id: 'linkedin', name: 'LinkedIn', description: 'Guest search API' },
+  { id: 'indeed', name: 'Indeed', description: 'GraphQL search' },
+  { id: 'glassdoor', name: 'Glassdoor', description: 'GraphQL search' },
+  { id: 'hiringcafe', name: 'HiringCafe', description: 'Direct ATS apply links' },
+  { id: 'adzuna', name: 'Adzuna', description: 'Official REST API (needs credentials)' },
+  { id: 'ziprecruiter', name: 'ZipRecruiter', description: 'Mobile API search' },
+  { id: 'google', name: 'Google Jobs', description: 'JobPosting JSON-LD search' },
+  { id: 'naukri', name: 'Naukri', description: 'Indian job board search' },
+];
+
 function splitList(val: string): string[] {
   return val
     .split(',')
@@ -466,6 +483,15 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
       updated[p.id] = p.recommended;
     }
     onChange({ ...config, portals: updated });
+  };
+
+  const searchBoards = config.searchBoards || {};
+  const handleToggleSearchBoard = (id: string) => {
+    const currentVal = searchBoards[id] ?? false;
+    onChange({
+      ...config,
+      searchBoards: { ...searchBoards, [id]: !currentVal },
+    });
   };
 
   const filteredPortals = useMemo(() => {
@@ -1177,6 +1203,130 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
             No scraper portals matching "{portalSearch}".
           </div>
         )}
+      </div>
+
+      {/* 6. Multi-Board Aggregator Search (single source of truth, syncs to extension) */}
+      <div className="settings-card" style={{ padding: '1.5rem' }}>
+        <div
+          style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}
+        >
+          <Search size={18} style={{ color: 'var(--color-indigo)' }} />
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 600 }}>Multi-Board Search Providers</h3>
+        </div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          Queried by the extension&apos;s “Search Job Boards” action using your target role keywords
+          above. Saved here, synced automatically to the extension.
+        </p>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))',
+            gap: '0.75rem',
+          }}
+        >
+          {SEARCH_BOARDS_CATALOG.map((board) => {
+            const isEnabled = Boolean(searchBoards[board.id]);
+            return (
+              <label
+                key={board.id}
+                style={{
+                  display: 'flex',
+                  alignItems: 'flex-start',
+                  gap: '0.6rem',
+                  padding: '0.75rem',
+                  background: isEnabled ? 'rgba(99, 102, 241, 0.05)' : 'var(--bg-primary)',
+                  border: isEnabled
+                    ? '1px solid rgba(99, 102, 241, 0.3)'
+                    : '1px solid var(--border-subtle)',
+                  borderRadius: 'var(--radius-md)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={isEnabled}
+                  onChange={() => handleToggleSearchBoard(board.id)}
+                  style={{
+                    marginTop: '0.15rem',
+                    width: '1.1rem',
+                    height: '1.1rem',
+                    accentColor: 'var(--color-indigo)',
+                    cursor: 'pointer',
+                  }}
+                />
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{board.name}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                    {board.description}
+                  </div>
+                </div>
+              </label>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr 140px 120px',
+            gap: '0.75rem',
+            marginTop: '1rem',
+          }}
+        >
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
+            Max results / term (1–200)
+            <input
+              type="number"
+              min={1}
+              max={200}
+              step={1}
+              value={config.searchMaxResultsPerTerm ?? 25}
+              onChange={(e) => {
+                const parsed = Number.parseInt(e.target.value, 10);
+                if (!Number.isInteger(parsed) || parsed < 1 || parsed > 200) return;
+                onChange({ ...config, searchMaxResultsPerTerm: parsed });
+              }}
+              className="input-text"
+            />
+          </label>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
+            Adzuna App ID
+            <input
+              type="text"
+              value={config.adzunaAppId || ''}
+              onChange={(e) => onChange({ ...config, adzunaAppId: e.target.value || null })}
+              placeholder="e.g. 12345678"
+              className="input-text"
+            />
+          </label>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
+            Adzuna App Key
+            <input
+              type="password"
+              value={config.adzunaAppKey || ''}
+              onChange={(e) => onChange({ ...config, adzunaAppKey: e.target.value || null })}
+              placeholder="32-char key"
+              className="input-text"
+            />
+          </label>
+          <label
+            style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}
+          >
+            Country
+            <input
+              type="text"
+              value={config.adzunaCountry || 'us'}
+              onChange={(e) => onChange({ ...config, adzunaCountry: e.target.value || 'us' })}
+              placeholder="us"
+              className="input-text"
+            />
+          </label>
+        </div>
       </div>
 
       {/* Save Button Footer */}

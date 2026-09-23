@@ -251,18 +251,44 @@ export function init() {
 
       const patch: Partial<Config> = {
         searchBoards,
-        adzunaAppId: $('#adzuna-app-id')?.value.trim() || undefined,
-        adzunaAppKey: $('#adzuna-app-key')?.value.trim() || undefined,
+        adzunaAppId: $('#adzuna-app-id')?.value.trim() || null,
+        adzunaAppKey: $('#adzuna-app-key')?.value.trim() || null,
         adzunaCountry: $('#adzuna-country')?.value.trim().toLowerCase() || 'us',
       };
 
       await setConfig(patch);
+      // Push to dashboard so it stays single source of truth (best-effort).
+      let syncNote = '';
+      try {
+        const cfg = await getConfig();
+        if (cfg.serverUrl && cfg.apiKey) {
+          const res = await fetch(`${cfg.serverUrl.replace(/\/+$/, '')}/api/v1/extension/config`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${cfg.apiKey}`,
+              'x-api-key': cfg.apiKey,
+            },
+            body: JSON.stringify(patch),
+          });
+          syncNote = res.ok
+            ? ' & synced to dashboard!'
+            : ` but dashboard sync failed (HTTP ${res.status}) — saved locally.`;
+        } else {
+          syncNote = ' — saved locally (not synced: no server connection).';
+        }
+      } catch (err: any) {
+        syncNote = ` — saved locally (dashboard sync failed: ${err?.message || err}).`;
+      }
       if (status) {
-        status.textContent = 'Search settings saved!';
-        status.style.color = 'var(--green)';
+        status.textContent = `Search settings saved${syncNote}`;
+        status.style.color =
+          syncNote.includes('failed') || syncNote.includes('not synced')
+            ? 'var(--amber, #f59e0b)'
+            : 'var(--green)';
         setTimeout(() => {
           if (status) status.textContent = '';
-        }, 3000);
+        }, 5000);
       }
       await hydrate();
     } catch (err: any) {
