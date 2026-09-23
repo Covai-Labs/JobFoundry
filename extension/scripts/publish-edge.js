@@ -177,6 +177,10 @@ async function publish() {
     }
   }
 
+  if (publishStatus !== 'Succeeded') {
+    throw new Error(`Publishing finished with unexpected status: ${publishStatus}`);
+  }
+
   console.log(`Publishing workflow completed successfully with status: ${publishStatus}`);
 }
 
