@@ -129,6 +129,16 @@ img.brand-icon,
   color: var(--muted);
 }
 
+.onboarding-hint {
+  font-size: 0.7rem !important;
+  line-height: 1.5;
+}
+
+.onboarding-hint a {
+  color: var(--accent, #4f8cff);
+  text-decoration: underline;
+}
+
 .paired-box {
   background: var(--bg-card);
   border: 1px solid var(--border);
@@ -259,6 +269,8 @@ img.brand-icon,
 
 .popup-footer {
   display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.75rem;
   justify-content: space-between;
   padding-top: 0.5rem;
   border-top: 1px solid var(--border);

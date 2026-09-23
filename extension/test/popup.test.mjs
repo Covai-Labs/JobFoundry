@@ -24,6 +24,7 @@ test('popup exposes all required controls', () => {
     '#active-mode',
     '#status',
     '#open-options',
+    '#open-ext-options',
     '#open-sidebar',
     '#open-dashboard',
   ]) {

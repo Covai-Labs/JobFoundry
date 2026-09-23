@@ -16,6 +16,7 @@ export const DOM = {
   activeMode: '#active-mode',
   status: '#status',
   openOptions: '#open-options',
+  openExtOptions: '#open-ext-options',
   openSidebar: '#open-sidebar',
   openDashboard: '#open-dashboard',
   reconnectBtn: '#reconnect-btn',
@@ -23,6 +24,12 @@ export const DOM = {
 
 function $<T extends HTMLElement>(doc: Document, selector: string): T {
   return doc.querySelector(selector) as T;
+}
+
+/** Base URL for opening dashboard UI routes (settings, dashboard). Prefers
+ *  the connected tab's origin; API traffic always uses config.serverUrl. */
+export function uiBase(config: Config): string {
+  return (config.dashboardUrl || config.serverUrl || 'http://localhost:8080').replace(/\/+$/, '');
 }
 
 export async function hydrate({
@@ -388,8 +395,7 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
       return;
     }
     try {
-      const serverUrl = config.serverUrl;
-      const url = `${serverUrl.replace(/\/+$/, '')}/settings?tab=scrapers`;
+      const url = `${uiBase(config)}/settings?tab=scrapers`;
       new URL(url);
       if (api?.tabs?.create) {
         api.tabs.create({ url });
@@ -399,6 +405,32 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
     } catch {
       openLocalOptions();
     }
+  });
+
+  $<HTMLButtonElement>(doc, DOM.openExtOptions)?.addEventListener('click', async () => {
+    // Always opens the *extension's own* options (server URL, API key,
+    // boards) — unlike Filters & Scrapers, which opens the web dashboard.
+    const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+    const openFallback = () => {
+      if (api?.tabs?.create && api?.runtime?.getURL) {
+        api.tabs.create({ url: api.runtime.getURL('options.html') });
+      } else if (api?.tabs?.create) {
+        api.tabs.create({ url: 'options.html' });
+      } else {
+        window.open('options.html', '_blank');
+      }
+    };
+
+    if (api?.runtime?.openOptionsPage) {
+      try {
+        await api.runtime.openOptionsPage();
+        return;
+      } catch {
+        // Fall through to the manual fallback sequence below.
+      }
+    }
+
+    openFallback();
   });
 
   $<HTMLButtonElement>(doc, DOM.openSidebar)?.addEventListener('click', async () => {
@@ -421,7 +453,7 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
 
   $<HTMLButtonElement>(doc, DOM.openDashboard)?.addEventListener('click', async () => {
     const config = await getConfig();
-    const url = config.serverUrl || 'http://localhost:8080';
+    const url = uiBase(config);
     const api = (globalThis as any).browser ?? (globalThis as any).chrome;
     if (api?.tabs?.create) {
       api.tabs.create({ url });

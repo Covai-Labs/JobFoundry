@@ -12,8 +12,11 @@ function $$(selector: string): any[] {
 
 let currentConfig: Config = { ...DEFAULT_CONFIG };
 
-function getWebSettingsUrl(serverUrl?: string | null): string {
-  const base = (serverUrl || 'http://localhost:8080').replace(/\/+$/, '');
+function getWebSettingsUrl(config: Pick<Config, 'serverUrl' | 'dashboardUrl'>): string {
+  const base = (config.dashboardUrl || config.serverUrl || 'http://localhost:8080').replace(
+    /\/+$/,
+    ''
+  );
   return `${base}/settings?tab=scrapers`;
 }
 
@@ -29,8 +32,7 @@ function openWebSettings(url: string) {
 async function hydrate() {
   currentConfig = await getConfig();
 
-  const serverUrl = currentConfig.serverUrl || 'http://localhost:8080';
-  const targetUrl = getWebSettingsUrl(serverUrl);
+  const targetUrl = getWebSettingsUrl(currentConfig);
 
   const urlLink = $('#web-settings-url');
   if (urlLink) {
@@ -192,7 +194,7 @@ export function init() {
   hydrate().catch(console.error);
 
   $('#open-web-settings')?.addEventListener('click', () => {
-    const targetUrl = getWebSettingsUrl(currentConfig.serverUrl);
+    const targetUrl = getWebSettingsUrl(currentConfig);
     openWebSettings(targetUrl);
   });
 
@@ -290,6 +292,13 @@ export function init() {
         passiveMode: Boolean($('#passive-mode')?.checked),
         activeMode: Boolean($('#active-mode')?.checked),
       };
+
+      // A manually entered server replaces the auto-connected dashboard
+      // origin; keeping the old dashboardUrl would send UI links to the
+      // previous instance while API traffic uses the new one.
+      if (patch.serverUrl !== currentConfig.serverUrl) {
+        patch.dashboardUrl = null;
+      }
 
       await setConfig(patch);
       if (saveStatus) {
