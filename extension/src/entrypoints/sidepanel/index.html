@@ -4,23 +4,36 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>JobFoundry Sidebar</title>
-    <meta
-      name="manifest.default_icon"
-      content="{ '16': 'icons/icon-16.png', '32': 'icons/icon-32.png', '48': 'icons/icon-48.png' }"
-    />
-    <meta name="manifest.default_title" content="JobFoundry" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png" />
     <link rel="stylesheet" href="../popup/popup.css" />
   </head>
   <body>
-    <main class="popup sidepanel">
+    <main class="popup">
       <!-- Header -->
       <div class="popup-header">
         <div class="brand">
           <img src="/icons/logo.webp" alt="JobFoundry Logo" class="brand-icon brand-logo" />
           <span class="brand-title">JobFoundry</span>
         </div>
-        <span id="popup-conn-badge" class="badge badge-disconnected">Checking...</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem">
+          <span id="popup-conn-badge" class="badge badge-disconnected">Checking...</span>
+          <button
+            id="close-sidebar-btn"
+            type="button"
+            class="btn-icon close-sidebar-btn"
+            title="Close Sidebar"
+            style="
+              display: none;
+              background: none;
+              border: none;
+              font-size: 1.1rem;
+              color: var(--muted);
+              cursor: pointer;
+              padding: 0.1rem 0.3rem;
+            "
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <!-- Disconnected Notice (only shown if not paired) -->
@@ -29,6 +42,25 @@
         <button id="auto-connect" type="button" class="btn btn-connect">
           ⚡ 1-Click Auto-Connect
         </button>
+        <button
+          id="open-dashboard-sync"
+          type="button"
+          class="btn btn-secondary"
+          style="margin-top: 0.5rem; width: 100%"
+        >
+          ⚙️ Open Dashboard Settings
+        </button>
+        <p class="onboarding-hint">
+          New here? Install JobFoundry on your machine first, then open its dashboard tab and hit
+          Auto-Connect.<br />
+          <a
+            id="welcome-link"
+            href="https://jobfoundry.covai.org/welcome"
+            target="_blank"
+            rel="noopener noreferrer"
+            >📖 Setup guide: jobfoundry.covai.org/welcome</a
+          >
+        </p>
       </div>
 
       <!-- Connected Info -->
@@ -78,6 +110,15 @@
       <!-- Footer Navigation -->
       <footer class="popup-footer">
         <button id="open-options" type="button" class="footer-link">⚙️ Filters & Scrapers</button>
+        <button
+          id="open-ext-options"
+          type="button"
+          class="footer-link"
+          title="Open extension settings (server URL, API key, boards)"
+        >
+          🛠️ Extension Settings
+        </button>
+        <button id="open-sidebar" type="button" class="footer-link">◧ Open Sidebar</button>
         <button id="open-dashboard" type="button" class="footer-link">🌐 Dashboard</button>
       </footer>
     </main>

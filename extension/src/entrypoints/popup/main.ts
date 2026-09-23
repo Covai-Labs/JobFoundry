@@ -18,7 +18,9 @@ export const DOM = {
   openOptions: '#open-options',
   openExtOptions: '#open-ext-options',
   openSidebar: '#open-sidebar',
+  closeSidebarBtn: '#close-sidebar-btn',
   openDashboard: '#open-dashboard',
+  openDashboardSync: '#open-dashboard-sync',
   reconnectBtn: '#reconnect-btn',
 };
 
@@ -75,6 +77,18 @@ export async function hydrate({
 
   if (passiveMode) passiveMode.checked = Boolean(config.passiveMode);
   if (activeMode) activeMode.checked = Boolean(config.activeMode);
+
+  // Detect if running inside sidepanel (e.g. sidepanel.html or embedded sidebar)
+  const isSidepanel =
+    typeof window !== 'undefined' &&
+    (window.location?.pathname?.includes('sidepanel') ||
+      doc.title?.toLowerCase().includes('sidebar') ||
+      doc.body?.classList?.contains('sidepanel'));
+
+  const mainEl = doc.querySelector('main.popup');
+  if (isSidepanel && mainEl) {
+    mainEl.classList.add('sidepanel');
+  }
 
   return config;
 }
@@ -433,9 +447,31 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
     openFallback();
   });
 
+  $<HTMLButtonElement>(doc, DOM.closeSidebarBtn)?.addEventListener('click', () => {
+    try {
+      window.close();
+    } catch {
+      // ignore
+    }
+  });
+
   $<HTMLButtonElement>(doc, DOM.openSidebar)?.addEventListener('click', async () => {
     const api = (globalThis as any).browser ?? (globalThis as any).chrome;
     try {
+      // 1. Try closing sidepanel if open by broadcasting to sidepanel instances
+      let wasClosed = false;
+      try {
+        const pingRes = await api?.runtime?.sendMessage?.({ type: 'sidepanel:close' });
+        if (pingRes?.closed) {
+          wasClosed = true;
+        }
+      } catch {
+        // No listener active or sidepanel was not open
+      }
+
+      if (wasClosed) return;
+
+      // 2. Otherwise open sidepanel
       if (api?.sidePanel?.open) {
         const tabs = await api.tabs?.query({ active: true, currentWindow: true });
         const tabId = tabs?.[0]?.id;
@@ -461,6 +497,37 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
       window.open(url, '_blank');
     }
   });
+
+  $<HTMLButtonElement>(doc, DOM.openDashboardSync)?.addEventListener('click', async () => {
+    const config = await getConfig();
+    const url = `${uiBase(config)}/settings?tab=sync`;
+    const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+    if (api?.tabs?.create) {
+      api.tabs.create({ url });
+    } else {
+      window.open(url, '_blank');
+    }
+  });
+
+  // If this window is a sidepanel, listen for toggle close messages from popup
+  const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+  if (api?.runtime?.onMessage?.addListener) {
+    try {
+      api.runtime.onMessage.addListener((msg: any, _sender: any, sendResponse: any) => {
+        if (msg?.type === 'sidepanel:close') {
+          try {
+            sendResponse?.({ closed: true });
+            window.close();
+          } catch {
+            // ignore
+          }
+          return true;
+        }
+      });
+    } catch {
+      // ignore
+    }
+  }
 
   return hydrated;
 }

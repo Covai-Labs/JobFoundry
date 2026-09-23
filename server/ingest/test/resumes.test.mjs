@@ -159,4 +159,25 @@ test('resumes API: upload valid schema, reject invalid schema, switch active, de
     headers,
   });
   assert.equal(delRes.statusCode, 200);
+
+  // 7. POST /api/v1/resumes/parse-raw converts raw text into JSON resume
+  const rawResumeText = `
+  Jane Doe
+  Principal Distributed Systems Engineer
+  jane.doe@example.com
+  (555) 987-6543
+  Experienced backend engineer with 12 years of experience in distributed consensus, Kafka, and Rust.
+  `;
+  const parseRes = await app.inject({
+    method: 'POST',
+    url: '/api/v1/resumes/parse-raw',
+    headers,
+    payload: { text: rawResumeText },
+  });
+  assert.equal(parseRes.statusCode, 200);
+  const parsedBody = JSON.parse(parseRes.body);
+  assert.equal(parsedBody.ok, true);
+  assert.ok(parsedBody.resumeJson);
+  assert.equal(parsedBody.resumeJson.basics.name, 'Jane Doe');
+  assert.equal(parsedBody.resumeJson.basics.email, 'jane.doe@example.com');
 });

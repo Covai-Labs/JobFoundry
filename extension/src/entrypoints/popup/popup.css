@@ -62,7 +62,17 @@ body {
 }
 
 .popup.sidepanel #open-sidebar {
-  display: none;
+  display: none !important;
+}
+
+.popup.sidepanel #close-sidebar-btn {
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-sidebar-btn:hover {
+  color: var(--fg) !important;
 }
 
 .popup-header {

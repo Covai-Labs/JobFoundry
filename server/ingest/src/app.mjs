@@ -25,6 +25,7 @@ import { randomUUID } from 'node:crypto';
 import { normalizeJob } from './jobs/normalize.mjs';
 import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
 import { parseJobDescription } from './jobs/parse-jd.mjs';
+import { parseResumeText } from './resume/parse-resume.mjs';
 import { cleanBoilerplate } from './jobs/decant.mjs';
 import {
   enqueueTask,
@@ -932,6 +933,69 @@ export function buildApp({
     }
     return { ok: true };
   });
+
+  // POST /api/v1/resumes/parse-raw - AI-assisted raw text/markdown to JSON Resume v1.0.0
+  app.post(
+    '/api/v1/resumes/parse-raw',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+
+      const body = request.body || {};
+      const text = typeof body.text === 'string' ? body.text : '';
+      if (!text || text.trim().length < 20) {
+        return reply.code(400).send({
+          error: 'Resume text is too short or empty. Please provide resume text or markdown.',
+        });
+      }
+      if (text.length > 50000) {
+        return reply.code(400).send({
+          error: 'Resume text is too large (maximum 50,000 characters).',
+        });
+      }
+
+      try {
+        const userId = request.user.id;
+        const registered = isRegisteredUser(db, userId);
+        const keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
+        const apiKey = registered
+          ? keySetting.source === 'user'
+            ? keySetting.value
+            : ''
+          : keySetting.value;
+
+        const model =
+          getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
+          'openrouter/openrouter/free';
+        const apiBase = getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) || '';
+
+        const parsed = await parseResumeText({
+          text,
+          model,
+          apiKey,
+          apiBase,
+          suppressEnvKeyFallback: registered,
+        });
+
+        return { ok: true, resumeJson: parsed };
+      } catch (err) {
+        request.log.error(err, 'Failed to parse resume text');
+        return reply.code(500).send({ error: `Failed to parse resume: ${err.message}` });
+      }
+    }
+  );
 
   // --- JOB INGEST & QUERY ROUTES (MULTI-TENANT) ---
 

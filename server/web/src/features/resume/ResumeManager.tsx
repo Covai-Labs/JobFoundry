@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import Ajv from 'ajv';
 import addFormats from 'ajv-formats';
+import { Sparkles, AlertCircle, RefreshCw, Tag } from 'lucide-react';
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
+import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
 
 const AjvClass = (Ajv as any).default || Ajv;
 const addFormatsFn = (addFormats as any).default || addFormats;
@@ -11,7 +13,11 @@ const ajv = new AjvClass({ strict: false, allErrors: true, validateSchema: false
 addFormatsFn(ajv);
 const schemaValidator = ajv.compile(resumeSchema);
 
-export const ResumeManager: React.FC = () => {
+export interface ResumeManagerProps {
+  onActiveResumeChange?: (hasActive: boolean) => void;
+}
+
+export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChange }) => {
   const [resumes, setResumes] = useState<UserResume[]>([]);
   const [activeResume, setActiveResume] = useState<UserResume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -24,6 +30,12 @@ export const ResumeManager: React.FC = () => {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
 
+  // AI Raw Resume Converter states
+  const [showAiConvertModal, setShowAiConvertModal] = useState<boolean>(false);
+  const [rawResumeText, setRawResumeText] = useState<string>('');
+  const [convertingRaw, setConvertingRaw] = useState<boolean>(false);
+  const [convertError, setConvertError] = useState<string | null>(null);
+
   const fetchResumes = async () => {
     setLoading(true);
     setError(null);
@@ -32,6 +44,7 @@ export const ResumeManager: React.FC = () => {
       setResumes(list);
       const active = list.find((r) => r.isActive) || list[0] || null;
       setActiveResume(active);
+      onActiveResumeChange?.(Boolean(active));
       if (active) {
         setTitle(active.title);
         setJsonText(JSON.stringify(active.resume, null, 2));
@@ -118,6 +131,52 @@ export const ResumeManager: React.FC = () => {
     reader.readAsText(file);
   };
 
+  const handleRawFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const content = event.target?.result as string;
+      setRawResumeText(content);
+      setConvertError(null);
+    };
+    reader.readAsText(file);
+  };
+
+  const handleConvertRawResume = async () => {
+    if (!rawResumeText.trim() || rawResumeText.trim().length < 20) {
+      setConvertError('Please paste or upload at least a few lines of resume text.');
+      return;
+    }
+
+    setConvertingRaw(true);
+    setConvertError(null);
+    try {
+      const res = await api.parseResumeRaw({ text: rawResumeText.trim() });
+      if (res.ok && res.resumeJson) {
+        const formatted = JSON.stringify(res.resumeJson, null, 2);
+        handleJsonChange(formatted);
+        if (res.resumeJson.basics?.name) {
+          setTitle(`${res.resumeJson.basics.name} Resume`);
+        }
+        setShowAiConvertModal(false);
+        setRawResumeText('');
+        setSuccess(
+          'Resume successfully converted to JSON Resume v1.0.0 via AI! Review and save below.'
+        );
+      } else {
+        setConvertError('Failed to convert resume. Please check your AI Gateway configuration.');
+      }
+    } catch (err: any) {
+      setConvertError(
+        err.message || 'AI conversion failed. Please ensure your AI Gateway model is connected.'
+      );
+    } finally {
+      setConvertingRaw(false);
+    }
+  };
+
   const handleSave = async () => {
     const isValid = validateJson(jsonText);
     if (!isValid) return;
@@ -185,15 +244,29 @@ export const ResumeManager: React.FC = () => {
           </p>
         </div>
 
-        <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer' }}>
-          📁 Upload JSON Resume
-          <input
-            type="file"
-            accept=".json,application/json"
-            onChange={handleFileUpload}
-            style={{ display: 'none' }}
-          />
-        </label>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+          <button
+            type="button"
+            onClick={() => {
+              setShowAiConvertModal(true);
+              setConvertError(null);
+            }}
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <Sparkles size={15} /> AI Convert Raw Resume
+          </button>
+
+          <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0 }}>
+            📁 Upload JSON Resume
+            <input
+              type="file"
+              accept=".json,application/json"
+              onChange={handleFileUpload}
+              style={{ display: 'none' }}
+            />
+          </label>
+        </div>
       </div>
 
       {error && (
@@ -266,6 +339,62 @@ export const ResumeManager: React.FC = () => {
                   {parsedActive.basics.summary}
                 </div>
               )}
+
+              {/* Extracted Role Keywords */}
+              {(() => {
+                const keywords = extractKeywordsFromResume(parsedActive);
+                if (keywords.length === 0) return null;
+                return (
+                  <div
+                    style={{
+                      background: 'rgba(99, 102, 241, 0.08)',
+                      border: '1px solid rgba(99, 102, 241, 0.2)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '0.75rem 0.9rem',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        fontSize: '0.8rem',
+                        fontWeight: 600,
+                        color: 'var(--accent-primary)',
+                        marginBottom: '0.45rem',
+                      }}
+                    >
+                      <Tag size={13} /> Auto-Extracted Role Keywords ({keywords.length})
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                      {keywords.map((kw, idx) => (
+                        <span
+                          key={idx}
+                          className="badge"
+                          style={{
+                            fontSize: '0.72rem',
+                            background: 'rgba(99, 102, 241, 0.15)',
+                            color: '#e0e7ff',
+                            border: '1px solid rgba(99, 102, 241, 0.3)',
+                          }}
+                        >
+                          {kw}
+                        </span>
+                      ))}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.72rem',
+                        color: 'var(--text-muted)',
+                        marginTop: '0.45rem',
+                      }}
+                    >
+                      These terms can be imported into your{' '}
+                      <strong>Search Filters & Scrapers</strong> with 1-click.
+                    </div>
+                  </div>
+                );
+              })()}
 
               {/* Skills */}
               {Array.isArray(parsedActive.skills) && parsedActive.skills.length > 0 && (
@@ -515,6 +644,182 @@ export const ResumeManager: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* AI Convert Raw Resume Modal */}
+      {showAiConvertModal && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '1rem',
+          }}
+          onClick={(e) => {
+            if (e.target === e.currentTarget && !convertingRaw) {
+              setShowAiConvertModal(false);
+            }
+          }}
+        >
+          <div
+            className="settings-card"
+            style={{
+              width: '100%',
+              maxWidth: '680px',
+              maxHeight: '90vh',
+              overflowY: 'auto',
+              padding: '1.75rem',
+              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
+              border: '1px solid var(--border-subtle)',
+              position: 'relative',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '1rem',
+              }}
+            >
+              <div>
+                <h3
+                  style={{
+                    fontSize: '1.25rem',
+                    fontWeight: 700,
+                    margin: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  <Sparkles size={18} style={{ color: 'var(--accent-primary)' }} />
+                  AI Resume Converter
+                </h3>
+                <p
+                  style={{
+                    color: 'var(--text-muted)',
+                    fontSize: '0.85rem',
+                    marginTop: '0.25rem',
+                    marginBottom: 0,
+                  }}
+                >
+                  Paste your plain text or Markdown resume, or select a file. The AI engine will
+                  parse and structure it into standard JSON Resume v1.0.0.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAiConvertModal(false)}
+                disabled={convertingRaw}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {convertError && (
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  background: 'rgba(239, 68, 68, 0.15)',
+                  border: '1px solid rgba(239, 68, 68, 0.3)',
+                  borderRadius: 'var(--radius-sm)',
+                  color: '#fca5a5',
+                  fontSize: '0.85rem',
+                  marginBottom: '1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                }}
+              >
+                <AlertCircle size={16} />
+                <span>{convertError}</span>
+              </div>
+            )}
+
+            <div style={{ marginBottom: '1rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.4rem',
+                }}
+              >
+                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                  Resume Text or Markdown
+                </label>
+                <label
+                  className="btn btn-secondary btn-sm"
+                  style={{ cursor: 'pointer', fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+                >
+                  📁 Choose .txt or .md
+                  <input
+                    type="file"
+                    accept=".txt,.md,text/plain,text/markdown"
+                    onChange={handleRawFileUpload}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+              </div>
+              <textarea
+                value={rawResumeText}
+                onChange={(e) => setRawResumeText(e.target.value)}
+                placeholder="Paste your resume contents here (e.g. contact info, work history, skills, education)..."
+                className="input-text"
+                rows={12}
+                disabled={convertingRaw}
+                style={{
+                  fontFamily: 'var(--font-mono, monospace)',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.45,
+                  resize: 'vertical',
+                }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+              <button
+                type="button"
+                onClick={() => setShowAiConvertModal(false)}
+                disabled={convertingRaw}
+                className="btn btn-secondary btn-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleConvertRawResume}
+                disabled={convertingRaw || !rawResumeText.trim()}
+                className="btn btn-primary btn-sm"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  minWidth: '150px',
+                  justifyContent: 'center',
+                }}
+              >
+                {convertingRaw ? (
+                  <>
+                    <RefreshCw size={14} className="animate-spin" /> Converting via AI...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles size={14} /> Parse & Convert to JSON
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

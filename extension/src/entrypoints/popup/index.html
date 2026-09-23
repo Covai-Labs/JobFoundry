@@ -14,7 +14,26 @@
           <img src="/icons/logo.webp" alt="JobFoundry Logo" class="brand-icon brand-logo" />
           <span class="brand-title">JobFoundry</span>
         </div>
-        <span id="popup-conn-badge" class="badge badge-disconnected">Checking...</span>
+        <div style="display: flex; align-items: center; gap: 0.5rem">
+          <span id="popup-conn-badge" class="badge badge-disconnected">Checking...</span>
+          <button
+            id="close-sidebar-btn"
+            type="button"
+            class="btn-icon close-sidebar-btn"
+            title="Close Sidebar"
+            style="
+              display: none;
+              background: none;
+              border: none;
+              font-size: 1.1rem;
+              color: var(--muted);
+              cursor: pointer;
+              padding: 0.1rem 0.3rem;
+            "
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       <!-- Disconnected Notice (only shown if not paired) -->
@@ -22,6 +41,14 @@
         <p>Extension not connected to your dashboard.</p>
         <button id="auto-connect" type="button" class="btn btn-connect">
           ⚡ 1-Click Auto-Connect
+        </button>
+        <button
+          id="open-dashboard-sync"
+          type="button"
+          class="btn btn-secondary"
+          style="margin-top: 0.5rem; width: 100%"
+        >
+          ⚙️ Open Dashboard Settings
         </button>
         <p class="onboarding-hint">
           New here? Install JobFoundry on your machine first, then open its dashboard tab and hit

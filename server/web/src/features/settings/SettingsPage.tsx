@@ -36,6 +36,9 @@ import {
   Zap,
   Sparkles,
   ChevronRight,
+  ChevronDown,
+  ArrowRight,
+  ArrowLeft,
   Check,
   RotateCcw,
   MessageSquare,
@@ -84,7 +87,7 @@ function getInitialTab(): SettingsTab {
       if (hash && VALID_TABS.includes(hash)) return hash;
     } catch {}
   }
-  return 'general';
+  return 'gateway';
 }
 
 export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSettings }) => {
@@ -210,6 +213,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     latencyMs?: number;
   } | null>(null);
 
+  // Advanced AI Overrides Accordion State under Gateway
+  const [showAdvancedAiOverrides, setShowAdvancedAiOverrides] = useState<boolean>(false);
+
   // LLM Provider & Multi-Model Selection State
   const [selectedScorerProvider, setSelectedScorerProvider] = useState<string>(() => {
     return (
@@ -263,18 +269,24 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   } | null>(null);
 
   const [isDirty, setIsDirty] = useState(false);
+  const [hasActiveResume, setHasActiveResume] = useState(false);
 
   // Fetch backend settings & telemetry once on mount
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
-        const [settingsRes, diagRes, extRes, defaultsRes] = await Promise.allSettled([
+        const [settingsRes, diagRes, extRes, defaultsRes, resumeRes] = await Promise.allSettled([
           api.getSettings(),
           api.getDiagnostics(),
           api.getExtensionConfig(),
           api.getPromptTemplateDefaults(),
+          api.getActiveResume(),
         ]);
+
+        if (resumeRes.status === 'fulfilled' && resumeRes.value) {
+          setHasActiveResume(true);
+        }
 
         if (settingsRes.status === 'fulfilled') {
           const { settings: backendSettings, meta: backendMeta } = settingsRes.value;
@@ -855,38 +867,210 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         </div>
       </div>
 
+      {/* Onboarding & Setup Stepper Header */}
+      {(() => {
+        const isLlmConfigured = Boolean(
+          formSettings.default_llm_api_key ||
+          meta?.default_llm_api_key?.hasCustomKey ||
+          defaultTestResult?.success
+        );
+        const isResumeConfigured = Boolean(hasActiveResume);
+        const isScrapersConfigured = Boolean(
+          (extensionConfig.titleFilter?.positive?.length || 0) > 0 ||
+          Object.values(extensionConfig.portals || {}).some(Boolean) ||
+          Object.values(extensionConfig.searchBoards || {}).some(Boolean)
+        );
+
+        const steps: Array<{
+          id: SettingsTab;
+          number: number;
+          label: string;
+          sublabel: string;
+          complete: boolean;
+        }> = [
+          {
+            id: 'gateway',
+            number: 1,
+            label: 'AI Engine',
+            sublabel: isLlmConfigured ? 'Ready' : 'Choose Model',
+            complete: isLlmConfigured,
+          },
+          {
+            id: 'profile',
+            number: 2,
+            label: 'Master Resume',
+            sublabel: isResumeConfigured ? 'Loaded' : 'Upload or AI Convert',
+            complete: isResumeConfigured,
+          },
+          {
+            id: 'scrapers',
+            number: 3,
+            label: 'Search Filters',
+            sublabel: isScrapersConfigured ? 'Configured' : 'Titles & Boards',
+            complete: isScrapersConfigured,
+          },
+          {
+            id: 'sync',
+            number: 4,
+            label: 'Extension Sync',
+            sublabel: 'Pair & Hunt',
+            complete: false,
+          },
+        ];
+
+        return (
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-lg)',
+              padding: '1rem 1.25rem',
+              marginBottom: '1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '1rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+              <div
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: 'var(--radius-md)',
+                  background: 'rgba(99, 102, 241, 0.15)',
+                  color: 'var(--accent-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Sparkles size={16} />
+              </div>
+              <div>
+                <div style={{ fontSize: '0.88rem', fontWeight: 600 }}>Quick Setup Progression</div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  Complete these 4 steps to start automated hunting and AI qualification
+                </div>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {steps.map((step, idx) => {
+                const isActive = activeTab === step.id;
+                return (
+                  <React.Fragment key={step.id}>
+                    {idx > 0 && (
+                      <span
+                        style={{
+                          color: 'var(--border-subtle)',
+                          fontSize: '0.8rem',
+                          padding: '0 0.1rem',
+                        }}
+                      >
+                        →
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange(step.id)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.45rem',
+                        padding: '0.4rem 0.75rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: isActive
+                          ? 'var(--accent-primary)'
+                          : step.complete
+                            ? 'rgba(16, 185, 129, 0.1)'
+                            : 'var(--bg-input)',
+                        color: isActive
+                          ? '#ffffff'
+                          : step.complete
+                            ? 'var(--color-success, #10b981)'
+                            : 'var(--text-secondary)',
+                        border: `1px solid ${
+                          isActive
+                            ? 'var(--accent-primary)'
+                            : step.complete
+                              ? 'rgba(16, 185, 129, 0.25)'
+                              : 'var(--border-subtle)'
+                        }`,
+                        cursor: 'pointer',
+                        fontSize: '0.82rem',
+                        transition: 'all 0.15s ease',
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: '18px',
+                          height: '18px',
+                          borderRadius: '50%',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          background: isActive
+                            ? 'rgba(255, 255, 255, 0.25)'
+                            : step.complete
+                              ? 'rgba(16, 185, 129, 0.2)'
+                              : 'rgba(255, 255, 255, 0.08)',
+                        }}
+                      >
+                        {step.complete ? '✓' : step.number}
+                      </span>
+                      <span style={{ fontWeight: 600 }}>{step.label}</span>
+                    </button>
+                  </React.Fragment>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
       <div className="settings-layout">
         {/* Left Sidebar Navigation */}
         <aside className="settings-sidebar">
-          {/* GROUP 1: PREFERENCES */}
+          {/* GROUP 1: CORE SETUP & INTELLIGENCE */}
           <div className="settings-nav-group">
-            <div className="settings-nav-group-title">Preferences</div>
-            <button
-              type="button"
-              onClick={() => handleTabChange('profile')}
-              className={`settings-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
-            >
-              <FileText size={16} /> Master Profile
-            </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('general')}
-              className={`settings-nav-item ${activeTab === 'general' ? 'active' : ''}`}
-            >
-              <Palette size={16} /> Appearance & UI
-            </button>
-          </div>
-
-          {/* GROUP 2: AI ENGINES */}
-          <div className="settings-nav-group">
-            <div className="settings-nav-group-title">AI Engines</div>
+            <div className="settings-nav-group-title">Core Setup</div>
             <button
               type="button"
               onClick={() => handleTabChange('gateway')}
               className={`settings-nav-item ${activeTab === 'gateway' ? 'active' : ''}`}
             >
-              <Cpu size={16} /> Default AI Gateway
+              <Cpu size={16} /> AI Engine & Models
             </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('profile')}
+              className={`settings-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
+            >
+              <FileText size={16} /> Master Profile & Resume
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('scrapers')}
+              className={`settings-nav-item ${activeTab === 'scrapers' ? 'active' : ''}`}
+            >
+              <Compass size={16} /> Search Filters & Scrapers
+            </button>
+            <button
+              type="button"
+              onClick={() => handleTabChange('sync')}
+              className={`settings-nav-item ${activeTab === 'sync' ? 'active' : ''}`}
+            >
+              <Key size={16} /> Extension Pairing & Sync
+            </button>
+          </div>
+
+          {/* GROUP 2: ADVANCED AI MODELS */}
+          <div className="settings-nav-group">
+            <div className="settings-nav-group-title">Advanced AI Models</div>
             <button
               type="button"
               onClick={() => handleTabChange('scorer')}
@@ -917,28 +1101,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             </button>
           </div>
 
-          {/* GROUP 3: INGESTION & DATA */}
+          {/* GROUP 3: PREFERENCES & SYSTEM */}
           <div className="settings-nav-group">
-            <div className="settings-nav-group-title">Ingestion & Data</div>
+            <div className="settings-nav-group-title">System & UI</div>
             <button
               type="button"
-              onClick={() => handleTabChange('scrapers')}
-              className={`settings-nav-item ${activeTab === 'scrapers' ? 'active' : ''}`}
+              onClick={() => handleTabChange('general')}
+              className={`settings-nav-item ${activeTab === 'general' ? 'active' : ''}`}
             >
-              <Compass size={16} /> Scrapers & Search Filters
+              <Palette size={16} /> Appearance & UI
             </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('sync')}
-              className={`settings-nav-item ${activeTab === 'sync' ? 'active' : ''}`}
-            >
-              <Key size={16} /> Extension & Auth
-            </button>
-          </div>
-
-          {/* GROUP 4: SYSTEM */}
-          <div className="settings-nav-group">
-            <div className="settings-nav-group-title">System</div>
             <button
               type="button"
               onClick={() => handleTabChange('system')}
@@ -970,8 +1142,41 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             <form onSubmit={handleSaveAll}>
               {/* TAB 0: MASTER PROFILE */}
               {activeTab === 'profile' && (
-                <div className="settings-card" style={{ padding: '1.5rem' }}>
-                  <ResumeManager />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <div className="settings-card" style={{ padding: '1.5rem' }}>
+                    <ResumeManager onActiveResumeChange={setHasActiveResume} />
+                  </div>
+                  {/* Next / Previous Step Footer Navigation */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.5rem 0 1rem',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('gateway')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      <ArrowLeft size={15} /> Back to AI Engine
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('scrapers')}
+                      className="btn btn-primary"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.4rem',
+                      }}
+                    >
+                      Next: Search Filters & Scrapers <ArrowRight size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -1744,6 +1949,131 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Collapsible Advanced AI Model Overrides (Scorer, Tailor, Copilot, Opik) */}
+                  <div className="settings-card" style={{ padding: '1.25rem' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        cursor: 'pointer',
+                      }}
+                      onClick={() => setShowAdvancedAiOverrides((prev) => !prev)}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                        <Sliders size={18} style={{ color: 'var(--accent-primary)' }} />
+                        <div>
+                          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+                            Advanced AI Model Overrides
+                          </div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                            Customize per-feature models for Fit Scoring, Resume Tailoring, Copilot,
+                            or Opik
+                          </div>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: 'var(--text-muted)',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.3rem',
+                          fontSize: '0.82rem',
+                        }}
+                      >
+                        {showAdvancedAiOverrides ? (
+                          <>
+                            Hide <ChevronDown size={16} />
+                          </>
+                        ) : (
+                          <>
+                            Configure Overrides <ChevronRight size={16} />
+                          </>
+                        )}
+                      </button>
+                    </div>
+
+                    {showAdvancedAiOverrides && (
+                      <div
+                        style={{
+                          marginTop: '1.25rem',
+                          borderTop: '1px solid var(--border-subtle)',
+                          paddingTop: '1rem',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '0.5rem',
+                            marginBottom: '1rem',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <button
+                            type="button"
+                            onClick={() => handleTabChange('scorer')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Bot size={14} /> Open Fit Scorer Tab
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleTabChange('tailor')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Sliders size={14} /> Open Resume Tailor Tab
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleTabChange('copilot')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Sparkles size={14} /> Open Copilot & Prompts Tab
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleTabChange('observability')}
+                            className="btn btn-secondary btn-sm"
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                          >
+                            <Activity size={14} /> Open Opik Observability Tab
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Next Step Footer Navigation */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-end',
+                      alignItems: 'center',
+                      padding: '1rem 0',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('profile')}
+                      className="btn btn-primary"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.4rem',
+                      }}
+                    >
+                      Next: Master Resume & Profile <ArrowRight size={16} />
+                    </button>
                   </div>
                 </div>
               )}
@@ -2787,12 +3117,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onChange={(e) => handleFieldChange('tailor_theme', e.target.value)}
                         className="input-text"
                       >
-                        <option value="jsonresume-theme-folio">
-                          Folio (Modern 2-Column Professional)
-                        </option>
-                        <option value="jsonresume-theme-folio-concise">
-                          Folio Concise (Dense 1-Page Format)
-                        </option>
+                        <option value="jsonresume-theme-folio">Folio (One single page pdf)</option>
                         <option value="jsonresume-theme-stackoverflow">
                           StackOverflow (Clean Developer Theme)
                         </option>
@@ -4000,29 +4325,80 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                 </div>
               )}
 
-              {/* TAB 5: EXTENSION & AUTH */}
-              {activeTab === 'sync' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <RegistrationControls />
-                  <ExtensionSyncView />
+              {/* TAB: SCRAPERS & SEARCH FILTERS */}
+              {activeTab === 'scrapers' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                  <ScraperSettingsTab
+                    config={extensionConfig}
+                    onChange={handleExtensionChange}
+                    onSave={handleSaveExtensionConfig}
+                    saving={savingScrapers}
+                    onExtractFromResume={handleExtractFromResume}
+                    extractingResume={extractingResume}
+                  />
+                  {/* Next / Previous Step Footer Navigation */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.5rem 0 1rem',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('profile')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      <ArrowLeft size={15} /> Back to Master Resume
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('sync')}
+                      className="btn btn-primary"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.4rem',
+                      }}
+                    >
+                      Next: Extension Pairing & Sync <ArrowRight size={16} />
+                    </button>
+                  </div>
                 </div>
               )}
 
-              {/* TAB: SCRAPERS & SEARCH FILTERS */}
-              {activeTab === 'scrapers' && (
-                <ScraperSettingsTab
-                  config={extensionConfig}
-                  onChange={handleExtensionChange}
-                  onSave={handleSaveExtensionConfig}
-                  saving={savingScrapers}
-                  onExtractFromResume={handleExtractFromResume}
-                  extractingResume={extractingResume}
-                />
+              {/* TAB 5: EXTENSION & AUTH */}
+              {activeTab === 'sync' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <ExtensionSyncView />
+                  {/* Previous Step Footer Navigation */}
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'flex-start',
+                      alignItems: 'center',
+                      padding: '0.5rem 0 1rem',
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => handleTabChange('scrapers')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      <ArrowLeft size={15} /> Back to Search Filters & Scrapers
+                    </button>
+                  </div>
+                </div>
               )}
 
               {/* TAB 6: TELEMETRY & SYSTEM */}
               {activeTab === 'system' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <RegistrationControls />
                   <div className="settings-card" style={{ padding: '1.5rem' }}>
                     <h3
                       style={{
