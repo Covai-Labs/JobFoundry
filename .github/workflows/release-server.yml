@@ -1,4 +1,4 @@
-name: Release
+name: Release Server
 
 on:
   push:
@@ -9,57 +9,10 @@ permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-server-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  release-extension:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: 26
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run lint and extension tests
-        run: |
-          npm run lint
-          npm --workspace=extension test
-
-      - name: Build and Package Browser Extensions
-        run: |
-          npm --workspace=extension run zip
-          npm --workspace=extension run zip:firefox
-          mkdir -p dist-extension
-          cp -f extension/.output/*.zip dist-extension/ 2>/dev/null || true
-          cp -f .output/*.zip dist-extension/ 2>/dev/null || true
-          for f in dist-extension/*-[0-9]*.*.zip; do
-            [ -f "$f" ] || continue
-            mv -f "$f" "$(echo "$f" | sed -E 's/-[0-9]+\.[0-9]+(\.[0-9]+)?//')"
-          done
-          ls -lh dist-extension/
-
-      - name: Upload Extension Artifacts (CI)
-        uses: actions/upload-artifact@v7
-        with:
-          name: extension-bundles
-          path: dist-extension/*.zip
-
-      - name: Attach Extension Zips to Release
-        uses: softprops/action-gh-release@v3
-        if: startsWith(github.ref, 'refs/tags/')
-        with:
-          files: dist-extension/*.zip
-
   build-appimage:
     runs-on: ubuntu-latest
     container: almalinux:10
@@ -118,10 +71,6 @@ jobs:
     permissions:
       contents: write
     env:
-      # Optional: base64-encoded PFX that persists the signing identity across
-      # releases (so a .cer trusted once keeps trusting future releases).
-      # Without these secrets, the release falls back to a fresh self-signed
-      # certificate that users must trust again on every update.
       MSIX_SIGNING_PFX: ${{ secrets.MSIX_SIGNING_PFX }}
       MSIX_SIGNING_PFX_PASSWORD: ${{ secrets.MSIX_SIGNING_PFX_PASSWORD }}
     steps:
@@ -147,10 +96,6 @@ jobs:
           if (-not (Test-Path $makeappx)) { throw "makeappx not found: $makeappx" }
           if (-not (Test-Path $signtool)) { throw "signtool not found: $signtool" }
 
-          # The package Identity version is rendered into AppxManifest.xml by
-          # build-windows.sh (from the release tag when present). Read it from
-          # there so the artifact filename always matches the packaged identity
-          # instead of relying on package.json's value.
           [xml]$manifest = Get-Content .\payload\AppxManifest.xml
           $ver = $manifest.Package.Identity.Version
           $ver = $ver -replace '\.0$', ''

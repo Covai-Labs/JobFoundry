@@ -1,0 +1,217 @@
+name: Release Extension
+
+on:
+  push:
+    tags:
+      - 'ext-v*'
+      - 'extension-v*'
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Select store target to publish (or build only)'
+        required: true
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - none
+          - chrome
+          - edge
+          - firefox
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-extension-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-package:
+    name: Build and Package Extension
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp extension version from release tag
+        # Single source of truth for the extension release version is the git tag
+        # (e.g. ext-v0.4.1 or extension-v0.4.1). WXT inherits the manifest version
+        # from extension/package.json.
+        if: startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v')
+        run: |
+          RAW_TAG="${GITHUB_REF_NAME}"
+          TAG="${RAW_TAG#ext-v}"
+          TAG="${TAG#extension-v}"
+          export TAG
+          node -e "
+            const fs = require('node:fs');
+            const p = 'extension/package.json';
+            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            pkg.version = process.env.TAG;
+            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+          "
+          node -p "require('./extension/package.json').version"
+
+      - name: Run lint and extension tests
+        run: |
+          npm run lint
+          npm --workspace=extension test
+
+      - name: Build and Package Browser Extensions
+        run: |
+          npm --workspace=extension run zip
+          npm --workspace=extension run zip:edge
+          npm --workspace=extension run zip:firefox
+          mkdir -p dist-extension
+          cp -f extension/.output/*.zip dist-extension/ 2>/dev/null || true
+          cp -f .output/*.zip dist-extension/ 2>/dev/null || true
+          for f in dist-extension/*-[0-9]*.*.zip; do
+            [ -f "$f" ] || continue
+            mv -f "$f" "$(echo "$f" | sed -E 's/-[0-9]+\.[0-9]+(\.[0-9]+)?//')"
+          done
+          (cd dist-extension && sha256sum *.zip > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          ls -lh dist-extension/
+
+      - name: Upload Extension Artifacts (CI)
+        uses: actions/upload-artifact@v7
+        with:
+          name: extension-bundles
+          path: |
+            dist-extension/*.zip
+            dist-extension/SHA256SUMS.txt
+
+      - name: Attach Extension Zips to Release
+        uses: softprops/action-gh-release@v3
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            dist-extension/*.zip
+            dist-extension/SHA256SUMS.txt
+
+  # -- Browser store publishing -----------------------------------------------
+  # Firefox (AMO) is LIVE: every extension tag auto-submits to the listed channel
+  # when AMO credentials are present.
+  # Chrome Web Store + Edge Add-ons run when their IDs/credentials are configured,
+  # otherwise they skip gracefully so CI does not break.
+
+  publish-firefox:
+    name: Publish to Firefox Add-ons (AMO)
+    needs: build-and-package
+    runs-on: ubuntu-latest
+    if: |
+      (startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v') ||
+       (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'firefox')))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Stamp extension version from release tag
+        if: startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v')
+        run: |
+          RAW_TAG="${GITHUB_REF_NAME}"
+          TAG="${RAW_TAG#ext-v}"
+          TAG="${TAG#extension-v}"
+          export TAG
+          node -e "
+            const fs = require('node:fs');
+            const p = 'extension/package.json';
+            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
+            pkg.version = process.env.TAG;
+            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
+          "
+
+      - name: Build Firefox extension with WXT
+        run: npm --workspace=extension run build:firefox
+
+      - name: Check AMO credentials
+        id: check-creds
+        run: |
+          if [ -n "${{ secrets.AMO_JWT_ISSUER }}" ] && [ -n "${{ secrets.AMO_JWT_SECRET }}" ]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "AMO_JWT_ISSUER or AMO_JWT_SECRET secret is missing. Skipping AMO publishing."
+          fi
+
+      - name: Publish to Firefox Add-ons (AMO)
+        if: steps.check-creds.outputs.configured == 'true'
+        working-directory: extension
+        run: |
+          npx web-ext sign \
+            --api-key="${{ secrets.AMO_JWT_ISSUER }}" \
+            --api-secret="${{ secrets.AMO_JWT_SECRET }}" \
+            --channel="listed" \
+            --approval-timeout=0 \
+            --source-dir=".output/firefox-mv3"
+
+  publish-edge:
+    name: Publish to Microsoft Edge Add-ons
+    needs: build-and-package
+    runs-on: ubuntu-latest
+    if: |
+      (startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v') ||
+       (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'edge')))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download extension bundles
+        uses: actions/download-artifact@v8
+        with:
+          name: extension-bundles
+          path: dist-extension/
+
+      - name: Publish to Microsoft Edge Add-ons
+        run: node extension/scripts/publish-edge.js
+        env:
+          EDGE_PRODUCT_ID: ${{ secrets.EDGE_PRODUCT_ID }}
+          EDGE_CLIENT_ID: ${{ secrets.EDGE_CLIENT_ID }}
+          EDGE_API_KEY: ${{ secrets.EDGE_API_KEY }}
+          EDGE_ZIP_PATH: dist-extension/jobfoundry-extension-edge.zip
+
+  publish-chrome:
+    name: Publish to Chrome Web Store
+    needs: build-and-package
+    runs-on: ubuntu-latest
+    if: |
+      (startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v') ||
+       (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'chrome')))
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Download extension bundles
+        uses: actions/download-artifact@v8
+        with:
+          name: extension-bundles
+          path: dist-extension/
+
+      - name: Publish to Chrome Web Store
+        run: node extension/scripts/publish-chrome.js
+        env:
+          CHROME_EXTENSION_ID: ${{ secrets.CHROME_EXTENSION_ID }}
+          CHROME_CLIENT_ID: ${{ secrets.CHROME_CLIENT_ID }}
+          CHROME_CLIENT_SECRET: ${{ secrets.CHROME_CLIENT_SECRET }}
+          CHROME_REFRESH_TOKEN: ${{ secrets.CHROME_REFRESH_TOKEN }}
+          CHROME_ZIP_PATH: dist-extension/jobfoundry-extension-chrome.zip
