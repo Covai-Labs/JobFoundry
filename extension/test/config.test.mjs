@@ -143,6 +143,11 @@ test('syncConfigFromServer updates local config from server API', async () => {
           titleFilter: { positive: ['AI Engineer'], negative: ['junior'] },
           portals: { himalayas: true, remoteok: true },
           scanIntervalHours: 12,
+          searchBoards: { linkedin: true, indeed: false },
+          searchMaxResultsPerTerm: 50,
+          adzunaAppId: null,
+          adzunaAppKey: null,
+          adzunaCountry: 'in',
         },
       }),
     };
@@ -159,6 +164,12 @@ test('syncConfigFromServer updates local config from server API', async () => {
   assert.deepEqual(updated.titleFilter.positive, ['AI Engineer']);
   assert.equal(updated.portals.remoteok, true);
   assert.equal(updated.scanIntervalHours, 12);
+  assert.equal(updated.searchBoards.linkedin, true);
+  assert.equal(updated.searchBoards.indeed, false);
+  assert.equal(updated.searchMaxResultsPerTerm, 50);
+  assert.equal(updated.adzunaAppId, null);
+  assert.equal(updated.adzunaAppKey, null);
+  assert.equal(updated.adzunaCountry, 'in');
 });
 
 test('syncConfigFromServer preserves cached local config if server fetch fails', async () => {

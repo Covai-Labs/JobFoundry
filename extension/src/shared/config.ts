@@ -43,9 +43,9 @@ export interface Config {
   trackedCompanies: TrackedCompany[];
   searchBoards?: Record<string, boolean>;
   searchMaxResultsPerTerm?: number;
-  adzunaAppId?: string;
-  adzunaAppKey?: string;
-  adzunaCountry?: string;
+  adzunaAppId?: string | null;
+  adzunaAppKey?: string | null;
+  adzunaCountry?: string | null;
 }
 
 export const DEFAULT_SEARCH_BOARDS: Record<string, boolean> = {

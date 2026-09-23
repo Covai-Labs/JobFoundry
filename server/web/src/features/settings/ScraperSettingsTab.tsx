@@ -1271,15 +1271,18 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
           }}
         >
           <label style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', fontSize: '0.8rem' }}>
-            Max results / term
+            Max results / term (1–200)
             <input
               type="number"
               min={1}
-              max={100}
+              max={200}
+              step={1}
               value={config.searchMaxResultsPerTerm ?? 25}
-              onChange={(e) =>
-                onChange({ ...config, searchMaxResultsPerTerm: Number(e.target.value) || 25 })
-              }
+              onChange={(e) => {
+                const parsed = Number.parseInt(e.target.value, 10);
+                if (!Number.isInteger(parsed) || parsed < 1 || parsed > 200) return;
+                onChange({ ...config, searchMaxResultsPerTerm: parsed });
+              }}
               className="input-text"
             />
           </label>

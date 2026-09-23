@@ -770,15 +770,24 @@ export function validateExtensionConfig(patch) {
     if (!patch.searchBoards || typeof patch.searchBoards !== 'object' || Array.isArray(patch.searchBoards)) {
       throw new Error('searchBoards must be a key-value object of board identifiers');
     }
+    for (const [key, value] of Object.entries(patch.searchBoards)) {
+      if (!Object.hasOwn(DEFAULT_EXTENSION_CONFIG.searchBoards, key)) {
+        throw new Error(`searchBoards contains unknown board: ${key}`);
+      }
+      if (typeof value !== 'boolean') {
+        throw new Error(`searchBoards["${key}"] must be a boolean`);
+      }
+    }
   }
 
   if (patch.searchMaxResultsPerTerm !== undefined) {
     if (
       typeof patch.searchMaxResultsPerTerm !== 'number' ||
-      !Number.isFinite(patch.searchMaxResultsPerTerm) ||
-      patch.searchMaxResultsPerTerm < 1
+      !Number.isInteger(patch.searchMaxResultsPerTerm) ||
+      patch.searchMaxResultsPerTerm < 1 ||
+      patch.searchMaxResultsPerTerm > 200
     ) {
-      throw new Error('searchMaxResultsPerTerm must be a number >= 1');
+      throw new Error('searchMaxResultsPerTerm must be an integer between 1 and 200');
     }
   }
 
@@ -802,12 +811,16 @@ export function getExtensionConfig(db, userId = null) {
   const registered = isRegisteredUser(db, userId);
 
   let raw = null;
+  let userRowFound = false;
   if (registered) {
     try {
       const row = db
         .prepare("SELECT value FROM user_settings WHERE user_id = ? AND key = 'extension_config'")
         .get(userId);
-      if (row?.value) raw = row.value;
+      if (row?.value) {
+        raw = row.value;
+        userRowFound = true;
+      }
     } catch {
       // user_settings table missing or query error
     }
@@ -855,8 +868,16 @@ export function getExtensionConfig(db, userId = null) {
     },
     searchMaxResultsPerTerm:
       stored.searchMaxResultsPerTerm ?? DEFAULT_EXTENSION_CONFIG.searchMaxResultsPerTerm,
-    adzunaAppId: stored.adzunaAppId ?? DEFAULT_EXTENSION_CONFIG.adzunaAppId,
-    adzunaAppKey: stored.adzunaAppKey ?? DEFAULT_EXTENSION_CONFIG.adzunaAppKey,
+    // Never inherit operator-level Adzuna secrets via the system fallback:
+    // registered users without their own row start from safe defaults.
+    adzunaAppId:
+      registered && !userRowFound
+        ? DEFAULT_EXTENSION_CONFIG.adzunaAppId
+        : (stored.adzunaAppId ?? DEFAULT_EXTENSION_CONFIG.adzunaAppId),
+    adzunaAppKey:
+      registered && !userRowFound
+        ? DEFAULT_EXTENSION_CONFIG.adzunaAppKey
+        : (stored.adzunaAppKey ?? DEFAULT_EXTENSION_CONFIG.adzunaAppKey),
     adzunaCountry: stored.adzunaCountry ?? DEFAULT_EXTENSION_CONFIG.adzunaCountry,
   };
 }

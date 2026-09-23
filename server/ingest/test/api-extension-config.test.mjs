@@ -197,3 +197,83 @@ test('per-user extension configuration isolation', async () => {
     await app.close();
   }
 });
+
+test('registered users do not inherit operator Adzuna credentials', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({
+    db,
+    apiKeys: ['fallback-key'],
+    serverUrl: 'http://localhost:8080',
+    logger: false,
+  });
+
+  const now = Date.now();
+  db.prepare(
+    'INSERT INTO users (id, email, password_hash, api_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run('op-user', 'op@test.com', 'hash', 'op-key', now, now);
+  db.prepare(
+    'INSERT INTO users (id, email, password_hash, api_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run('user-9', 'new@test.com', 'hash', 'new-key', now, now);
+
+  try {
+    // Operator stores Adzuna credentials at system level (seed a user row first
+    // so updateExtensionConfig writes to user_settings, then copy to system).
+    db.prepare(
+      "INSERT INTO system_settings (key, value, updated_at) VALUES ('extension_config', ?, ?)"
+    ).run(
+      JSON.stringify({ adzunaAppId: 'sys-id', adzunaAppKey: 'sys-secret-sys-secret-sys-sec' }),
+      now
+    );
+
+    const freshGet = await app.inject({
+      method: 'GET',
+      url: '/api/v1/extension/config',
+      headers: { authorization: 'Bearer new-key' },
+    });
+    assert.equal(freshGet.statusCode, 200);
+    assert.equal(freshGet.json().adzunaAppId, null);
+    assert.equal(freshGet.json().adzunaAppKey, null);
+  } finally {
+    await app.close();
+  }
+});
+
+test('searchBoards and searchMaxResultsPerTerm validation', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({
+    db,
+    apiKeys: ['test-api-key'],
+    serverUrl: 'http://localhost:8080',
+    logger: false,
+  });
+
+  try {
+    for (const payload of [
+      { searchBoards: { nosuchboard: true } },
+      { searchBoards: { linkedin: 'true' } },
+      { searchMaxResultsPerTerm: 0 },
+      { searchMaxResultsPerTerm: 201 },
+      { searchMaxResultsPerTerm: 25.5 },
+    ]) {
+      const res = await app.inject({
+        method: 'PUT',
+        url: '/api/v1/extension/config',
+        headers: { authorization: 'Bearer test-api-key' },
+        payload,
+      });
+      assert.equal(res.statusCode, 400, `expected 400 for ${JSON.stringify(payload)}`);
+    }
+
+    const okRes = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/extension/config',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: { searchBoards: { linkedin: false }, searchMaxResultsPerTerm: 200 },
+    });
+    assert.equal(okRes.statusCode, 200);
+    assert.equal(okRes.json().config.searchBoards.linkedin, false);
+    assert.equal(okRes.json().config.searchMaxResultsPerTerm, 200);
+  } finally {
+    await app.close();
+  }
+});
