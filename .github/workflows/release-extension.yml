@@ -48,21 +48,10 @@ jobs:
       - name: Stamp extension version from release tag
         # Single source of truth for the extension release version is the git tag
         # (e.g. ext-v0.4.1 or extension-v0.4.1). WXT inherits the manifest version
-        # from extension/package.json.
+        # from extension/package.json. The script fails fast on prerelease tags
+        # (Chrome/Edge manifests reject non-integer versions).
         if: startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v')
-        run: |
-          RAW_TAG="${GITHUB_REF_NAME}"
-          TAG="${RAW_TAG#ext-v}"
-          TAG="${TAG#extension-v}"
-          export TAG
-          node -e "
-            const fs = require('node:fs');
-            const p = 'extension/package.json';
-            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
-            pkg.version = process.env.TAG;
-            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
-          "
-          node -p "require('./extension/package.json').version"
+        run: node extension/scripts/stamp-version-from-tag.mjs
 
       - name: Run lint and extension tests
         run: |
@@ -128,18 +117,7 @@ jobs:
 
       - name: Stamp extension version from release tag
         if: startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v')
-        run: |
-          RAW_TAG="${GITHUB_REF_NAME}"
-          TAG="${RAW_TAG#ext-v}"
-          TAG="${TAG#extension-v}"
-          export TAG
-          node -e "
-            const fs = require('node:fs');
-            const p = 'extension/package.json';
-            const pkg = JSON.parse(fs.readFileSync(p, 'utf8'));
-            pkg.version = process.env.TAG;
-            fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
-          "
+        run: node extension/scripts/stamp-version-from-tag.mjs
 
       - name: Build Firefox extension with WXT
         run: npm --workspace=extension run build:firefox
