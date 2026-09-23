@@ -4339,7 +4339,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {/* TAB 5: EXTENSION & AUTH */}
               {activeTab === 'sync' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <RegistrationControls />
                   <ExtensionSyncView />
                   {/* Previous Step Footer Navigation */}
                   <div
@@ -4365,6 +4364,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {/* TAB 6: TELEMETRY & SYSTEM */}
               {activeTab === 'system' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                  <RegistrationControls />
                   <div className="settings-card" style={{ padding: '1.5rem' }}>
                     <h3
                       style={{
