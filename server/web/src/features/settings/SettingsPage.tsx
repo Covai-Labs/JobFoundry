@@ -3087,10 +3087,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         className="input-text"
                       >
                         <option value="jsonresume-theme-folio">
-                          Folio (Modern 2-Column Professional)
-                        </option>
-                        <option value="jsonresume-theme-folio-concise">
-                          Folio Concise (Dense 1-Page Format)
+                          Folio (One single page pdf)
                         </option>
                         <option value="jsonresume-theme-stackoverflow">
                           StackOverflow (Clean Developer Theme)
