@@ -122,9 +122,7 @@ export function heuristicParseResume({ text }) {
       summary: lines.slice(2, 6).join(' '),
       location: { city: '', region: '' },
     },
-    skills: [
-      { name: 'Core Skills', keywords: [] },
-    ],
+    skills: [{ name: 'Core Skills', keywords: [] }],
     work: [],
     education: [],
   };
@@ -140,16 +138,20 @@ export async function parseResumeText({
   apiBase,
   suppressEnvKeyFallback = false,
 }) {
-  const content = (text || '').trim();
+  const content = cleanText(text);
   if (!content || content.length < 20) {
-    throw new Error('Resume content is too short or empty. Please provide resume text or markdown.');
+    throw new Error(
+      'Resume content is too short or empty. Please provide resume text or markdown.'
+    );
   }
 
   const effectiveKey =
     apiKey ||
     (suppressEnvKeyFallback
       ? ''
-      : process.env.DEFAULT_LLM_API_KEY || process.env.OPENROUTER_API_KEY || process.env.OPENAI_API_KEY);
+      : process.env.DEFAULT_LLM_API_KEY ||
+        process.env.OPENROUTER_API_KEY ||
+        process.env.OPENAI_API_KEY);
 
   if (effectiveKey) {
     try {

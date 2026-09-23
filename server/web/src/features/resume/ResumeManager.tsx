@@ -157,12 +157,16 @@ export const ResumeManager: React.FC = () => {
         }
         setShowAiConvertModal(false);
         setRawResumeText('');
-        setSuccess('Resume successfully converted to JSON Resume v1.0.0 via AI! Review and save below.');
+        setSuccess(
+          'Resume successfully converted to JSON Resume v1.0.0 via AI! Review and save below.'
+        );
       } else {
         setConvertError('Failed to convert resume. Please check your AI Gateway configuration.');
       }
     } catch (err: any) {
-      setConvertError(err.message || 'AI conversion failed. Please ensure your AI Gateway model is connected.');
+      setConvertError(
+        err.message || 'AI conversion failed. Please ensure your AI Gateway model is connected.'
+      );
     } finally {
       setConvertingRaw(false);
     }
@@ -380,7 +384,8 @@ export const ResumeManager: React.FC = () => {
                         marginTop: '0.45rem',
                       }}
                     >
-                      These terms are automatically synchronized to your <strong>Search Filters & Scrapers</strong>.
+                      These terms are automatically synchronized to your{' '}
+                      <strong>Search Filters & Scrapers</strong>.
                     </div>
                   </div>
                 );
@@ -668,7 +673,14 @@ export const ResumeManager: React.FC = () => {
               position: 'relative',
             }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                marginBottom: '1rem',
+              }}
+            >
               <div>
                 <h3
                   style={{
@@ -683,8 +695,16 @@ export const ResumeManager: React.FC = () => {
                   <Sparkles size={18} style={{ color: 'var(--accent-primary)' }} />
                   AI Resume Converter
                 </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.25rem', marginBottom: 0 }}>
-                  Paste your plain text or Markdown resume, or select a file. The AI engine will parse and structure it into standard JSON Resume v1.0.0.
+                <p
+                  style={{
+                    color: 'var(--text-muted)',
+                    fontSize: '0.85rem',
+                    marginTop: '0.25rem',
+                    marginBottom: 0,
+                  }}
+                >
+                  Paste your plain text or Markdown resume, or select a file. The AI engine will
+                  parse and structure it into standard JSON Resume v1.0.0.
                 </p>
               </div>
               <button
@@ -719,11 +739,21 @@ export const ResumeManager: React.FC = () => {
             )}
 
             <div style={{ marginBottom: '1rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.4rem',
+                }}
+              >
                 <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
                   Resume Text or Markdown
                 </label>
-                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}>
+                <label
+                  className="btn btn-secondary btn-sm"
+                  style={{ cursor: 'pointer', fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+                >
                   📁 Choose .txt or .md
                   <input
                     type="file"
@@ -763,7 +793,13 @@ export const ResumeManager: React.FC = () => {
                 onClick={handleConvertRawResume}
                 disabled={convertingRaw || !rawResumeText.trim()}
                 className="btn btn-primary btn-sm"
-                style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '150px', justifyContent: 'center' }}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  minWidth: '150px',
+                  justifyContent: 'center',
+                }}
               >
                 {convertingRaw ? (
                   <>

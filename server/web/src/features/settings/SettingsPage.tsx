@@ -961,7 +961,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                 return (
                   <React.Fragment key={step.id}>
                     {idx > 0 && (
-                      <span style={{ color: 'var(--border-subtle)', fontSize: '0.8rem', padding: '0 0.1rem' }}>
+                      <span
+                        style={{
+                          color: 'var(--border-subtle)',
+                          fontSize: '0.8rem',
+                          padding: '0 0.1rem',
+                        }}
+                      >
                         →
                       </span>
                     )}
@@ -1160,7 +1166,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       type="button"
                       onClick={() => handleTabChange('scrapers')}
                       className="btn btn-primary"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem' }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.4rem',
+                      }}
                     >
                       Next: Search Filters & Scrapers <ArrowRight size={16} />
                     </button>
@@ -1957,7 +1968,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             Advanced AI Model Overrides
                           </div>
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            Customize per-feature models for Fit Scoring, Resume Tailoring, Copilot, or Opik
+                            Customize per-feature models for Fit Scoring, Resume Tailoring, Copilot,
+                            or Opik
                           </div>
                         </div>
                       </div>
@@ -1987,8 +1999,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     </div>
 
                     {showAdvancedAiOverrides && (
-                      <div style={{ marginTop: '1.25rem', borderTop: '1px solid var(--border-subtle)', paddingTop: '1rem' }}>
-                        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          marginTop: '1.25rem',
+                          borderTop: '1px solid var(--border-subtle)',
+                          paddingTop: '1rem',
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: 'flex',
+                            gap: '0.5rem',
+                            marginBottom: '1rem',
+                            flexWrap: 'wrap',
+                          }}
+                        >
                           <button
                             type="button"
                             onClick={() => handleTabChange('scorer')}
@@ -2039,7 +2064,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       type="button"
                       onClick={() => handleTabChange('profile')}
                       className="btn btn-primary"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem' }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.4rem',
+                      }}
                     >
                       Next: Master Resume & Profile <ArrowRight size={16} />
                     </button>
@@ -3086,9 +3116,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onChange={(e) => handleFieldChange('tailor_theme', e.target.value)}
                         className="input-text"
                       >
-                        <option value="jsonresume-theme-folio">
-                          Folio (One single page pdf)
-                        </option>
+                        <option value="jsonresume-theme-folio">Folio (One single page pdf)</option>
                         <option value="jsonresume-theme-stackoverflow">
                           StackOverflow (Clean Developer Theme)
                         </option>
@@ -4328,7 +4356,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       type="button"
                       onClick={() => handleTabChange('sync')}
                       className="btn btn-primary"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.65rem 1.4rem' }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.65rem 1.4rem',
+                      }}
                     >
                       Next: Extension Pairing & Sync <ArrowRight size={16} />
                     </button>

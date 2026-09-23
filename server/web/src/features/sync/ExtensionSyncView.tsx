@@ -98,7 +98,8 @@ export const ExtensionSyncView: React.FC = () => {
               Don&apos;t have the Browser Extension yet?
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-              Install the companion extension in Chrome, Brave, Edge, or Firefox to capture jobs and run scrapers.
+              Install the companion extension in Chrome, Brave, Edge, or Firefox to capture jobs and
+              run scrapers.
             </p>
           </div>
         </div>

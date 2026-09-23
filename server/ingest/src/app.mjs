@@ -959,8 +959,7 @@ export function buildApp({
       const model =
         getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
         'openrouter/openrouter/free';
-      const apiBase =
-        getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) || '';
+      const apiBase = getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) || '';
 
       const parsed = await parseResumeText({
         text,
