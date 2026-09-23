@@ -13,7 +13,11 @@ const ajv = new AjvClass({ strict: false, allErrors: true, validateSchema: false
 addFormatsFn(ajv);
 const schemaValidator = ajv.compile(resumeSchema);
 
-export const ResumeManager: React.FC = () => {
+export interface ResumeManagerProps {
+  onActiveResumeChange?: (hasActive: boolean) => void;
+}
+
+export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChange }) => {
   const [resumes, setResumes] = useState<UserResume[]>([]);
   const [activeResume, setActiveResume] = useState<UserResume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -40,6 +44,7 @@ export const ResumeManager: React.FC = () => {
       setResumes(list);
       const active = list.find((r) => r.isActive) || list[0] || null;
       setActiveResume(active);
+      onActiveResumeChange?.(Boolean(active));
       if (active) {
         setTitle(active.title);
         setJsonText(JSON.stringify(active.resume, null, 2));
@@ -384,8 +389,8 @@ export const ResumeManager: React.FC = () => {
                         marginTop: '0.45rem',
                       }}
                     >
-                      These terms are automatically synchronized to your{' '}
-                      <strong>Search Filters & Scrapers</strong>.
+                      These terms can be imported into your{' '}
+                      <strong>Search Filters & Scrapers</strong> with 1-click.
                     </div>
                   </div>
                 );

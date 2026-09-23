@@ -115,7 +115,7 @@ export const ExtensionSyncView: React.FC = () => {
             <ExternalLink size={14} /> Extension Guide & Docs
           </a>
           <a
-            href="https://github.com/jobfoundry/jobfoundry/releases"
+            href="https://github.com/Covai-Labs/JobFoundry/releases"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-sm"

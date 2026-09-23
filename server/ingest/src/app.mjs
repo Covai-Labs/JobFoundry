@@ -936,6 +936,7 @@ export function buildApp({
 
   // POST /api/v1/resumes/parse-raw - AI-assisted raw text/markdown to JSON Resume v1.0.0
   app.post('/api/v1/resumes/parse-raw', async (request, reply) => {
+    if (!checkRateLimit(request, reply, 30)) return;
     if (!authenticate(request, reply)) return;
 
     const body = request.body || {};
@@ -943,6 +944,11 @@ export function buildApp({
     if (!text || text.trim().length < 20) {
       return reply.code(400).send({
         error: 'Resume text is too short or empty. Please provide resume text or markdown.',
+      });
+    }
+    if (text.length > 50000) {
+      return reply.code(400).send({
+        error: 'Resume text is too large (maximum 50,000 characters).',
       });
     }
 

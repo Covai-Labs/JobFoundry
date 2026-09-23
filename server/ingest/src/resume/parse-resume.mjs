@@ -5,6 +5,7 @@
  */
 
 import { safeFetch } from '../security/ssrf.mjs';
+import { validateResumeJson } from '../resumes/resumes.mjs';
 
 function cleanText(text) {
   if (!text || typeof text !== 'string') return '';
@@ -46,6 +47,7 @@ ${text.slice(0, 30000)}
 
   const res = await safeFetch(endpoint, {
     method: 'POST',
+    signal: AbortSignal.timeout(60000),
     headers: {
       'Content-Type': 'application/json',
       Authorization: `Bearer ${apiKey}`,
@@ -101,7 +103,7 @@ export function heuristicParseResume({ text }) {
   let phone = '';
   let label = '';
 
-  const emailMatch = text.match(/[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/);
+  const emailMatch = text.match(/[^\s@]+@[^\s@]+\.[a-zA-Z]{2,}/);
   if (emailMatch) email = emailMatch[0];
 
   const phoneMatch = text.match(/(?:\+?\d{1,3}[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/);
@@ -111,17 +113,18 @@ export function heuristicParseResume({ text }) {
     label = lines[1];
   }
 
+  const basics = {
+    name,
+    label: label || 'Professional',
+    email,
+    phone,
+    summary: lines.slice(2, 6).join(' '),
+    location: { city: '', region: '' },
+  };
+
   return {
     $schema: 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json',
-    basics: {
-      name,
-      label: label || 'Professional',
-      email,
-      phone,
-      url: '',
-      summary: lines.slice(2, 6).join(' '),
-      location: { city: '', region: '' },
-    },
+    basics,
     skills: [{ name: 'Core Skills', keywords: [] }],
     work: [],
     education: [],
@@ -167,11 +170,12 @@ export async function parseResumeText({
         llmResult.$schema =
           'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json';
       }
-      return llmResult;
+      return validateResumeJson(llmResult);
     } catch (err) {
       console.warn(`[Parse-Resume] LLM extraction failed (${err.message}); fallback to heuristic`);
     }
   }
 
-  return heuristicParseResume({ text: content });
+  const heuristic = heuristicParseResume({ text: content });
+  return validateResumeJson(heuristic);
 }

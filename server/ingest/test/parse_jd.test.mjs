@@ -61,7 +61,7 @@ test('POST /api/v1/jobs/parse-jd returns structured job object', async () => {
 });
 
 test('POST /api/v1/jobs/parse-jd rejects empty or tiny input', async () => {
-  const db = openDb(':memory:');
+  const db = openDb({ path: ':memory:' });
   const app = buildApp({ db, apiKeys: ['test-key'] });
 
   const response = await app.inject({

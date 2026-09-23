@@ -877,7 +877,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         const isResumeConfigured = Boolean(hasActiveResume);
         const isScrapersConfigured = Boolean(
           (extensionConfig.titleFilter?.positive?.length || 0) > 0 ||
-          Object.values(extensionConfig.portals || {}).some(Boolean)
+          Object.values(extensionConfig.portals || {}).some(Boolean) ||
+          Object.values(extensionConfig.searchBoards || {}).some(Boolean)
         );
 
         const steps: Array<{
@@ -1143,7 +1144,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {activeTab === 'profile' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div className="settings-card" style={{ padding: '1.5rem' }}>
-                    <ResumeManager />
+                    <ResumeManager onActiveResumeChange={setHasActiveResume} />
                   </div>
                   {/* Next / Previous Step Footer Navigation */}
                   <div
