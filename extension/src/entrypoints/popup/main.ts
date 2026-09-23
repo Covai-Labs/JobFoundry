@@ -407,19 +407,30 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
     }
   });
 
-  $<HTMLButtonElement>(doc, DOM.openExtOptions)?.addEventListener('click', () => {
+  $<HTMLButtonElement>(doc, DOM.openExtOptions)?.addEventListener('click', async () => {
     // Always opens the *extension's own* options (server URL, API key,
     // boards) — unlike Filters & Scrapers, which opens the web dashboard.
     const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+    const openFallback = () => {
+      if (api?.tabs?.create && api?.runtime?.getURL) {
+        api.tabs.create({ url: api.runtime.getURL('options.html') });
+      } else if (api?.tabs?.create) {
+        api.tabs.create({ url: 'options.html' });
+      } else {
+        window.open('options.html', '_blank');
+      }
+    };
+
     if (api?.runtime?.openOptionsPage) {
-      api.runtime.openOptionsPage();
-    } else if (api?.tabs?.create && api?.runtime?.getURL) {
-      api.tabs.create({ url: api.runtime.getURL('options.html') });
-    } else if (api?.tabs?.create) {
-      api.tabs.create({ url: 'options.html' });
-    } else {
-      window.open('options.html', '_blank');
+      try {
+        await api.runtime.openOptionsPage();
+        return;
+      } catch {
+        // Fall through to the manual fallback sequence below.
+      }
     }
+
+    openFallback();
   });
 
   $<HTMLButtonElement>(doc, DOM.openSidebar)?.addEventListener('click', async () => {
