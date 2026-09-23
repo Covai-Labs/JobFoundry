@@ -182,7 +182,9 @@ async function publishExtension(accessToken) {
     );
   }
 
-  console.log(`Extension successfully published / submitted for review (state: ${data.state || 'OK'}).`);
+  console.log(
+    `Extension successfully published / submitted for review (state: ${data.state || 'OK'}).`
+  );
 }
 
 async function run() {
