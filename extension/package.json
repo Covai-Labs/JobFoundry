@@ -1,6 +1,6 @@
 {
   "name": "jobfoundry-extension",
-  "version": "0.1.2",
+  "version": "0.4.1",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0-only",
@@ -8,9 +8,11 @@
     "dev": "wxt",
     "dev:firefox": "wxt -b firefox",
     "build": "wxt build",
+    "build:edge": "wxt build -b edge",
     "build:firefox": "wxt build -b firefox",
-    "build:all": "wxt build && wxt build -b firefox",
+    "build:all": "wxt build && wxt build -b edge && wxt build -b firefox",
     "zip": "wxt zip",
+    "zip:edge": "wxt zip -b edge",
     "zip:firefox": "wxt zip -b firefox",
     "gen:provider-index": "node scripts/gen-provider-index.mjs",
     "pretest": "node scripts/gen-provider-index.mjs",
@@ -25,6 +27,7 @@
     "jsdom": "^30.0.1",
     "typescript": "^7.0.2",
     "vitest": "^5.0.0",
+    "web-ext": "^8.4.0",
     "wxt": "^0.21.4"
   }
 }

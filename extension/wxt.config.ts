@@ -11,7 +11,10 @@ export default defineConfig({
   manifest: (env) => ({
     name: 'JobFoundry',
     description: 'Capture job postings in your browser and push them to your JobFoundry server.',
-    version: '0.1.2',
+    // NOTE: version is intentionally omitted so WXT inherits it dynamically
+    // from extension/package.json (same pattern as ai-chat-exporter). On
+    // extension release tags CI stamps package.json from the tag (ext-vX.Y.Z) before
+    // building, so AMO/Chrome/Edge always see a fresh monotonic version.
     icons: {
       16: 'icons/icon-16.png',
       32: 'icons/icon-32.png',
