@@ -167,13 +167,22 @@ async function publishExtension(accessToken) {
   }
 
   const data = await response.json();
-  console.log('Publish response:', data);
+  // In v2, publish response returns { name, itemId, state, warningInfo? }
+  // Valid success/submission states: PENDING_REVIEW, PUBLISHED, STAGED, PUBLISHED_TO_TESTERS
+  const ACCEPTED_PUBLISH_STATES = new Set([
+    'PENDING_REVIEW',
+    'PUBLISHED',
+    'STAGED',
+    'PUBLISHED_TO_TESTERS',
+  ]);
 
-  if (data.state && data.state.includes('FAIL')) {
-    throw new Error(`Chrome Web Store publish failed: ${JSON.stringify(data)}`);
+  if (data.state && !ACCEPTED_PUBLISH_STATES.has(data.state)) {
+    throw new Error(
+      `Chrome Web Store publish returned unsuccessful state ${JSON.stringify(data.state)}: ${JSON.stringify(data)}`
+    );
   }
 
-  console.log('Extension successfully published / submitted for review.');
+  console.log(`Extension successfully published / submitted for review (state: ${data.state || 'OK'}).`);
 }
 
 async function run() {
