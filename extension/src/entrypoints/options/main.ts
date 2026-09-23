@@ -293,6 +293,13 @@ export function init() {
         activeMode: Boolean($('#active-mode')?.checked),
       };
 
+      // A manually entered server replaces the auto-connected dashboard
+      // origin; keeping the old dashboardUrl would send UI links to the
+      // previous instance while API traffic uses the new one.
+      if (patch.serverUrl !== currentConfig.serverUrl) {
+        patch.dashboardUrl = null;
+      }
+
       await setConfig(patch);
       if (saveStatus) {
         saveStatus.textContent = 'Settings saved!';
