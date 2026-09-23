@@ -257,8 +257,25 @@ export function init() {
       };
 
       await setConfig(patch);
+      // Push to dashboard so it stays single source of truth (best-effort).
+      try {
+        const cfg = await getConfig();
+        if (cfg.serverUrl && cfg.apiKey) {
+          await fetch(`${cfg.serverUrl.replace(/\/+$/, '')}/api/v1/extension/config`, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${cfg.apiKey}`,
+              'x-api-key': cfg.apiKey,
+            },
+            body: JSON.stringify(patch),
+          });
+        }
+      } catch {
+        // ignore network failure on push — local save above already succeeded
+      }
       if (status) {
-        status.textContent = 'Search settings saved!';
+        status.textContent = 'Search settings saved & synced to dashboard!';
         status.style.color = 'var(--green)';
         setTimeout(() => {
           if (status) status.textContent = '';

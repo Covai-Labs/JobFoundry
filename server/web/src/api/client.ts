@@ -514,6 +514,11 @@ export interface ExtensionConfig {
   locationFilter: LocationFilterConfig;
   portals: Record<string, boolean | any>;
   trackedCompanies: TrackedCompany[];
+  searchBoards?: Record<string, boolean>;
+  searchMaxResultsPerTerm?: number;
+  adzunaAppId?: string | null;
+  adzunaAppKey?: string | null;
+  adzunaCountry?: string | null;
   updatedAt?: number | null;
 }
 

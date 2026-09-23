@@ -124,6 +124,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     },
     portals: {},
     trackedCompanies: [],
+    searchBoards: {},
+    searchMaxResultsPerTerm: 25,
+    adzunaAppId: null,
+    adzunaAppKey: null,
+    adzunaCountry: 'us',
   });
   const [_extensionLoaded, setExtensionLoaded] = useState(false);
   const [_isExtensionDirty, setIsExtensionDirty] = useState(false);

@@ -662,6 +662,20 @@ export const DEFAULT_EXTENSION_CONFIG = {
     'a16z-speedrun-talent': true,
   },
   trackedCompanies: [],
+  searchBoards: {
+    linkedin: true,
+    indeed: true,
+    glassdoor: true,
+    hiringcafe: true,
+    adzuna: false,
+    ziprecruiter: false,
+    google: false,
+    naukri: false,
+  },
+  searchMaxResultsPerTerm: 25,
+  adzunaAppId: null,
+  adzunaAppKey: null,
+  adzunaCountry: 'us',
 };
 
 /**
@@ -751,6 +765,34 @@ export function validateExtensionConfig(patch) {
   if (patch.trackedCompanies !== undefined && !Array.isArray(patch.trackedCompanies)) {
     throw new Error('trackedCompanies must be an array');
   }
+
+  if (patch.searchBoards !== undefined) {
+    if (!patch.searchBoards || typeof patch.searchBoards !== 'object' || Array.isArray(patch.searchBoards)) {
+      throw new Error('searchBoards must be a key-value object of board identifiers');
+    }
+  }
+
+  if (patch.searchMaxResultsPerTerm !== undefined) {
+    if (
+      typeof patch.searchMaxResultsPerTerm !== 'number' ||
+      !Number.isFinite(patch.searchMaxResultsPerTerm) ||
+      patch.searchMaxResultsPerTerm < 1
+    ) {
+      throw new Error('searchMaxResultsPerTerm must be a number >= 1');
+    }
+  }
+
+  if (patch.adzunaAppId !== undefined && patch.adzunaAppId !== null && typeof patch.adzunaAppId !== 'string') {
+    throw new Error('adzunaAppId must be a string or null');
+  }
+
+  if (patch.adzunaAppKey !== undefined && patch.adzunaAppKey !== null && typeof patch.adzunaAppKey !== 'string') {
+    throw new Error('adzunaAppKey must be a string or null');
+  }
+
+  if (patch.adzunaCountry !== undefined && patch.adzunaCountry !== null && typeof patch.adzunaCountry !== 'string') {
+    throw new Error('adzunaCountry must be a string or null');
+  }
 }
 
 /**
@@ -807,6 +849,15 @@ export function getExtensionConfig(db, userId = null) {
       ...(stored.portals || {}),
     },
     trackedCompanies: stored.trackedCompanies || DEFAULT_EXTENSION_CONFIG.trackedCompanies,
+    searchBoards: {
+      ...DEFAULT_EXTENSION_CONFIG.searchBoards,
+      ...(stored.searchBoards || {}),
+    },
+    searchMaxResultsPerTerm:
+      stored.searchMaxResultsPerTerm ?? DEFAULT_EXTENSION_CONFIG.searchMaxResultsPerTerm,
+    adzunaAppId: stored.adzunaAppId ?? DEFAULT_EXTENSION_CONFIG.adzunaAppId,
+    adzunaAppKey: stored.adzunaAppKey ?? DEFAULT_EXTENSION_CONFIG.adzunaAppKey,
+    adzunaCountry: stored.adzunaCountry ?? DEFAULT_EXTENSION_CONFIG.adzunaCountry,
   };
 }
 
@@ -847,6 +898,17 @@ export function updateExtensionConfig(db, userId, patch = {}) {
         ? Number(patch.scanIntervalHours)
         : current.scanIntervalHours,
     trackedCompanies: patch.trackedCompanies ?? current.trackedCompanies,
+    searchBoards: patch.searchBoards
+      ? { ...current.searchBoards, ...patch.searchBoards }
+      : current.searchBoards,
+    searchMaxResultsPerTerm:
+      patch.searchMaxResultsPerTerm !== undefined
+        ? Number(patch.searchMaxResultsPerTerm)
+        : current.searchMaxResultsPerTerm,
+    adzunaAppId: patch.adzunaAppId !== undefined ? patch.adzunaAppId : current.adzunaAppId,
+    adzunaAppKey: patch.adzunaAppKey !== undefined ? patch.adzunaAppKey : current.adzunaAppKey,
+    adzunaCountry:
+      patch.adzunaCountry !== undefined ? patch.adzunaCountry : current.adzunaCountry,
   };
 
   const now = Date.now();
