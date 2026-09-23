@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { Download, ExternalLink } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { loadSettings } from '../../lib/auth';
@@ -60,6 +61,69 @@ export const ExtensionSyncView: React.FC = () => {
           Connect the JobFoundry browser extension to enable 1-click job capture, passive board
           scraping, and automated portal scanning.
         </p>
+      </div>
+
+      {/* Extension Download & Installation Banner */}
+      <div
+        style={{
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '1.25rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem' }}>
+          <div
+            style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(99, 102, 241, 0.12)',
+              border: '1px solid rgba(99, 102, 241, 0.25)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'var(--accent-primary)',
+            }}
+          >
+            <Download size={20} />
+          </div>
+          <div>
+            <h3 style={{ fontSize: '1rem', fontWeight: 600, margin: 0, marginBottom: '0.2rem' }}>
+              Don&apos;t have the Browser Extension yet?
+            </h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
+              Install the companion extension in Chrome, Brave, Edge, or Firefox to capture jobs and run scrapers.
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
+          <a
+            href="https://jobfoundry.covai.org/welcome"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+          >
+            <ExternalLink size={14} /> Extension Guide & Docs
+          </a>
+          <a
+            href="https://github.com/jobfoundry/jobfoundry/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+          >
+            <Download size={14} /> Download Extension ZIP
+          </a>
+        </div>
       </div>
 
       {/* One-Click Quick Connect Banner */}

@@ -19,6 +19,7 @@ export const DOM = {
   openExtOptions: '#open-ext-options',
   openSidebar: '#open-sidebar',
   openDashboard: '#open-dashboard',
+  openDashboardSync: '#open-dashboard-sync',
   reconnectBtn: '#reconnect-btn',
 };
 
@@ -454,6 +455,17 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
   $<HTMLButtonElement>(doc, DOM.openDashboard)?.addEventListener('click', async () => {
     const config = await getConfig();
     const url = uiBase(config);
+    const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+    if (api?.tabs?.create) {
+      api.tabs.create({ url });
+    } else {
+      window.open(url, '_blank');
+    }
+  });
+
+  $<HTMLButtonElement>(doc, DOM.openDashboardSync)?.addEventListener('click', async () => {
+    const config = await getConfig();
+    const url = `${uiBase(config)}/settings?tab=sync`;
     const api = (globalThis as any).browser ?? (globalThis as any).chrome;
     if (api?.tabs?.create) {
       api.tabs.create({ url });

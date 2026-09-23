@@ -215,6 +215,19 @@ export class ApiClient {
     return res.ok;
   }
 
+  async parseResumeRaw(payload: { text: string }): Promise<{
+    ok: boolean;
+    resumeJson: Record<string, any>;
+  }> {
+    return this.request<{ ok: boolean; resumeJson: Record<string, any> }>(
+      '/api/v1/resumes/parse-raw',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+  }
+
   // --- Job Endpoints ---
   async parseJd(payload: { text?: string; markdown?: string; url?: string }): Promise<{
     ok: boolean;

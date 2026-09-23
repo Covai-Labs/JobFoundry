@@ -137,11 +137,11 @@ describe('SettingsPage', () => {
 
     expect(screen.getByRole('button', { name: /Master Profile/i })).toBeInTheDocument();
     expect(screen.getByText(/Appearance & UI/i)).toBeInTheDocument();
-    expect(screen.getByText(/Default AI Gateway/i)).toBeInTheDocument();
+    expect(screen.getByText(/AI Engine & Models/i)).toBeInTheDocument();
     expect(screen.getByText(/AI Fit Scorer/i)).toBeInTheDocument();
     expect(screen.getByText(/AI Resume Tailor/i)).toBeInTheDocument();
     expect(screen.getByText(/Observability/i)).toBeInTheDocument();
-    expect(screen.getByText(/Extension & Auth/i)).toBeInTheDocument();
+    expect(screen.getByText(/Extension Pairing & Sync/i)).toBeInTheDocument();
     expect(screen.getByText(/Telemetry & System/i)).toBeInTheDocument();
   });
 
@@ -157,7 +157,7 @@ describe('SettingsPage', () => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/AI Fit Scorer/i));
+    fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
     await waitFor(() => {
       expect(screen.getByText('LLM Fit Scorer Configuration')).toBeInTheDocument();
@@ -192,7 +192,7 @@ describe('SettingsPage', () => {
     });
 
     // Switch to Scorer tab and change model
-    fireEvent.click(screen.getByText(/AI Fit Scorer/i));
+    fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
     const modelInput = screen.getByPlaceholderText('openrouter/z-ai/glm-5.3-flash');
     fireEvent.change(modelInput, { target: { value: 'custom/new-model' } });
 
@@ -216,7 +216,7 @@ describe('SettingsPage', () => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/AI Fit Scorer/i));
+    fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
     // Verify provider pills exist
     expect(screen.getByRole('button', { name: /^Google Gemini$/ })).toBeInTheDocument();
@@ -255,7 +255,7 @@ describe('SettingsPage', () => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/AI Resume Tailor/i));
+    fireEvent.click(screen.getByRole('button', { name: /AI Resume Tailor/i }));
 
     await waitFor(() => {
       expect(screen.getByText('Resume Tailoring Engine (resume-ops)')).toBeInTheDocument();
@@ -286,7 +286,7 @@ describe('SettingsPage', () => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/Telemetry & System/i));
+    fireEvent.click(screen.getByRole('button', { name: /Telemetry & System/i }));
 
     expect(screen.getByText('System Diagnostics & Architecture')).toBeInTheDocument();
     expect(screen.getByText('Total Jobs in DB')).toBeInTheDocument();
@@ -300,7 +300,7 @@ describe('SettingsPage', () => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/AI Fit Scorer/i));
+    fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
     // Select Custom Gateway provider
     fireEvent.click(screen.getByRole('button', { name: /Custom \/ Self-Hosted Gateway/i }));
@@ -334,7 +334,7 @@ describe('SettingsPage', () => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText(/AI Fit Scorer/i));
+    fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
     // Initially displays masked key and Change Key button
     const changeKeyBtn = screen.getByRole('button', { name: /Change Key/i });
@@ -381,7 +381,7 @@ describe('SettingsPage', () => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByRole('button', { name: /Default AI Gateway/i }));
+    fireEvent.click(screen.getByRole('button', { name: /AI Engine & Models/i }));
 
     await waitFor(() => {
       expect(
