@@ -71,9 +71,14 @@ def _resolve_theme_spec(theme: str, search_paths: tuple[Path, ...] | None = None
 
 # Node export maps can nest condition names, e.g.
 # {".": {"import": {"types": "...", "default": "./esm/theme.js"}}}.
-# Prefer ESM ("import", then "default"); "require" is a last resort so CJS-only
-# themes still resolve instead of crashing the renderer.
-_EXPORT_CONDITION_ORDER = ("import", "default", "require")
+# Node matches conditions in manifest key order against the runtime's active
+# set, so do the same: iterate in definition order and select the first
+# condition active when `resumed` loads the theme through ESM `import()`.
+# "types" is never active at runtime (declarations only); "require" targets
+# CJS, which import() can still load via interop, so it is stashed as a
+# fallback rather than a match. Conditions we cannot evaluate (browser,
+# development, ...) are skipped instead of guessed at.
+_ACTIVE_CONDITIONS = frozenset({"node", "import", "default"})
 
 # Conditions that never point at loadable JS: "types" resolves to .d.ts
 # declarations, so it must not be selected as an entry point.
@@ -90,20 +95,20 @@ def _select_export_target(node: object) -> str | None:
                 return target
         return None
     if isinstance(node, dict):
-        for condition in _EXPORT_CONDITION_ORDER:
-            if condition in node:
-                target = _select_export_target(node[condition])
-                if target is not None:
-                    return target
-        # Custom conditions ("node", "browser", ...) nest the same way.
-        # Traverse them in definition order; subpath keys ("./...") are a
-        # different namespace and must not be mistaken for conditions.
+        require_fallback: str | None = None
         for key, value in node.items():
-            if key in _EXPORT_CONDITION_ORDER or key in _SKIP_CONDITIONS or key.startswith("."):
+            if key in _SKIP_CONDITIONS or key.startswith("."):
+                continue
+            if key == "require":
+                if require_fallback is None:
+                    require_fallback = _select_export_target(value)
+                continue
+            if key not in _ACTIVE_CONDITIONS:
                 continue
             target = _select_export_target(value)
             if target is not None:
                 return target
+        return require_fallback
     return None
 
 

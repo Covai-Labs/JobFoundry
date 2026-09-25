@@ -688,6 +688,59 @@ class TestResumeRenderer:
         # Must fall through to main, never select the .d.ts declaration file.
         assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "index.js").resolve().as_uri()
 
+    def test_resolve_theme_spec_follows_manifest_key_order(self, tmp_path: Path) -> None:
+        # Like Node: the first active condition in definition order wins, even
+        # when it is "default" ahead of a nested "node" branch.
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "exports": {".": {"default": "./dist/fallback.js", "node": {"import": "./dist/server.js"}}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "fallback.js").write_text("export function render() {}", encoding="utf-8")
+        (pkg / "dist" / "server.js").write_text("export function render() {}", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "fallback.js").resolve().as_uri()
+
+    def test_resolve_theme_spec_skips_inactive_browser_condition(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "exports": {".": {"browser": "./dist/browser.js", "default": "./dist/node.js"}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "browser.js").write_text("export function render() {}", encoding="utf-8")
+        (pkg / "dist" / "node.js").write_text("export function render() {}", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "node.js").resolve().as_uri()
+
+    def test_resolve_theme_spec_prefers_import_over_require_regardless_of_order(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "exports": {".": {"require": "./dist/index.cjs", "import": "./dist/index.js"}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+        (pkg / "dist" / "index.cjs").write_text("module.exports = {};", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "index.js").resolve().as_uri()
+
     def test_resolve_theme_spec_fails_fast_without_entry_point(self, tmp_path: Path) -> None:
         pkg = tmp_path / "my-theme"
         pkg.mkdir(parents=True)
