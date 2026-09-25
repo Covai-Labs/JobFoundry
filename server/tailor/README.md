@@ -36,7 +36,9 @@ It then:
 - keeps protected fields unchanged
 - tailors only allowed sections
 - validates the final output against the JSON Resume schema
-- renders a PDF using `folio-export` (from `jsonresume-theme-folio`)
+- renders a PDF using `folio-export` (from `jsonresume-theme-folio`) for the
+  bundled folio themes, or `resumed export --theme <name>` for any other
+  allowed theme (bundled or user-installed under `/data/themes`)
 
 ## Tailoring Rules
 
@@ -307,9 +309,9 @@ podman run --rm \
     --jd ./target-job.md \
     --output ./tailored-resume.pdf
 
-# Or natively (requires global npm install of jsonresume-theme-folio & puppeteer):
+# Or natively (requires global npm install of jsonresume-theme-folio, resumed & puppeteer):
 uv pip install -e .
-npm install -g jsonresume-theme-folio puppeteer
+npm install -g jsonresume-theme-folio resumed puppeteer
 resume-ops --resume master-resume.json --jd target-job.md --output ./tailored-resume.pdf
 ```
 
@@ -317,8 +319,9 @@ resume-ops --resume master-resume.json --jd target-job.md --output ./tailored-re
 
 - No authentication is built in
 - Background execution is single-process and intended for one API worker
-- Theme support is allowlist-based, not dynamic package installation at request time
-- The service relies on `folio-export` being installed in the runtime environment
+- Theme support is allowlist-based (`ALLOWED_THEMES`), not dynamic package installation at request time.
+  Install extra theme packages into `/data/themes` (on `NODE_PATH`) and add their names to the allowlist.
+- The service relies on `folio-export` and `resumed` being installed in the runtime environment
 
 ## License
 

@@ -548,6 +548,71 @@ class TestResumeRenderer:
         assert called_args[3] == "--multi-page"
 
     @pytest.mark.asyncio
+    async def test_render_non_folio_theme_uses_resumed(self, tmp_path: Path) -> None:
+        renderer = ResumeRenderer(binary="fake-folio-export", resumed_binary="fake-resumed")
+        output_dir = tmp_path / "output"
+
+        async def mock_communicate():
+            return b"", b""
+
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate = AsyncMock(side_effect=mock_communicate)
+
+        mock_exec = AsyncMock(return_value=mock_process)
+        with patch(
+            "resume_ops_api.services.renderer.shutil.which",
+            side_effect=lambda name: f"/usr/bin/{name}",
+        ):
+            with patch("resume_ops_api.services.renderer.asyncio.create_subprocess_exec", mock_exec):
+                output_dir.mkdir(parents=True, exist_ok=True)
+                (output_dir / "output.pdf").write_bytes(b"%PDF-1.4 fake")
+                await renderer.render(
+                    resume={"basics": {"name": "Test"}},
+                    theme="jsonresume-theme-even",
+                    output_dir=output_dir,
+                )
+
+        called_args = mock_exec.call_args[0]
+        assert called_args[0] == "/usr/bin/fake-resumed"
+        assert called_args[1] == "export"
+        assert called_args[2] == str(output_dir / "resume.json")
+        assert called_args[3] == "-o"
+        assert called_args[4] == str(output_dir / "output.pdf")
+        assert called_args[5] == "--theme"
+        assert called_args[6] == "jsonresume-theme-even"
+        assert "--puppeteer-arg=--no-sandbox" in called_args
+        assert "--puppeteer-arg=--disable-setuid-sandbox" in called_args
+
+    @pytest.mark.asyncio
+    async def test_render_concise_theme_stays_on_folio_exporter(
+        self, renderer: ResumeRenderer, tmp_path: Path
+    ) -> None:
+        output_dir = tmp_path / "output"
+
+        async def mock_communicate():
+            return b"", b""
+
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate = AsyncMock(side_effect=mock_communicate)
+
+        mock_exec = AsyncMock(return_value=mock_process)
+        with patch("resume_ops_api.services.renderer.shutil.which", return_value="/usr/bin/fake-folio-export"):
+            with patch("resume_ops_api.services.renderer.asyncio.create_subprocess_exec", mock_exec):
+                output_dir.mkdir(parents=True, exist_ok=True)
+                (output_dir / "output.pdf").write_bytes(b"%PDF-1.4 fake")
+                await renderer.render(
+                    resume={"basics": {"name": "Test"}},
+                    theme="jsonresume-theme-folio-concise",
+                    output_dir=output_dir,
+                )
+
+        called_args = mock_exec.call_args[0]
+        assert called_args[0] == "/usr/bin/fake-folio-export"
+        assert called_args[3] == "--single-page"
+
+    @pytest.mark.asyncio
     async def test_render_writes_resume_json(self, renderer: ResumeRenderer, tmp_path: Path) -> None:
         output_dir = tmp_path / "output"
         resume_data = {"basics": {"name": "Jane Doe", "email": "jane@example.com"}}
