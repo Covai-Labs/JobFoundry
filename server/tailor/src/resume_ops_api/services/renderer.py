@@ -113,18 +113,28 @@ def _select_export_target(node: object) -> str | None:
 
 
 def _package_entry_point(package_dir: Path, manifest: dict) -> Path | None:
+    # When `exports` is present it encapsulates the package: `main` is
+    # ignored and null targets block access. Only fall back to the legacy
+    # entry points when `exports` is absent entirely.
     exports = manifest.get("exports")
+    if exports is None:
+        if isinstance(manifest.get("main"), str):
+            candidate = manifest["main"]
+        else:
+            candidate = None
+        if candidate is None:
+            index_js = package_dir / "index.js"
+            return index_js if index_js.is_file() else None
+        entry = (package_dir / candidate).resolve()
+        return entry if entry.is_file() else None
     candidate: str | None = None
     if isinstance(exports, (str, list)):
         candidate = _select_export_target(exports)
     elif isinstance(exports, dict):
         dot = exports.get(".")
         candidate = _select_export_target(dot) if dot is not None else _select_export_target(exports)
-    if candidate is None and isinstance(manifest.get("main"), str):
-        candidate = manifest["main"]
     if candidate is None:
-        index_js = package_dir / "index.js"
-        return index_js if index_js.is_file() else None
+        return None
     entry = (package_dir / candidate).resolve()
     return entry if entry.is_file() else None
 

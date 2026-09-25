@@ -685,8 +685,10 @@ class TestResumeRenderer:
         (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
         (pkg / "dist" / "index.d.ts").write_text("export declare function render(): void;", encoding="utf-8")
 
-        # Must fall through to main, never select the .d.ts declaration file.
-        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "index.js").resolve().as_uri()
+        # A types-only root exposes no runtime entry, and `exports`
+        # encapsulates the package, so `main` must not be used as a fallback.
+        with pytest.raises(AppError, match="my-theme"):
+            _resolve_theme_spec("my-theme", (tmp_path,))
 
     def test_resolve_theme_spec_follows_manifest_key_order(self, tmp_path: Path) -> None:
         # Like Node: the first active condition in definition order wins, even
@@ -745,6 +747,39 @@ class TestResumeRenderer:
         pkg = tmp_path / "my-theme"
         pkg.mkdir(parents=True)
         (pkg / "package.json").write_text(json.dumps({"name": "my-theme"}), encoding="utf-8")
+
+        with pytest.raises(AppError, match="my-theme"):
+            _resolve_theme_spec("my-theme", (tmp_path,))
+
+    def test_resolve_theme_spec_rejects_blocked_root_despite_main(self, tmp_path: Path) -> None:
+        # `exports` encapsulates the package: a null root blocks access, so the
+        # legacy `main` must not be used as a fallback.
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps({"name": "my-theme", "main": "dist/index.js", "exports": {".": None}}),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+
+        with pytest.raises(AppError, match="my-theme"):
+            _resolve_theme_spec("my-theme", (tmp_path,))
+
+    def test_resolve_theme_spec_rejects_subpath_only_exports_despite_main(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "main": "dist/index.js",
+                    "exports": {"./feature": "./dist/feature.js"},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+        (pkg / "dist" / "feature.js").write_text("export function render() {}", encoding="utf-8")
 
         with pytest.raises(AppError, match="my-theme"):
             _resolve_theme_spec("my-theme", (tmp_path,))
