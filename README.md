@@ -87,10 +87,12 @@ Full walkthrough (no terminal required): **[Quickstart Guide](https://jobfoundry
 
 ```bash
 git clone https://github.com/deadrat-in/JobFoundry.git && cd JobFoundry
-cp .env.example .env   # add your LLM provider key
 docker compose up -d   # or: podman compose up -d
 ./scripts/healthcheck.sh
 ```
+
+JobFoundry starts with no `.env` file. To add an LLM key or override a default,
+copy `.env.example` to `.env` and edit the values you need.
 
 Bare-metal per-service commands, test suites, and repo layout: [DEVELOPMENT.md](DEVELOPMENT.md).
 
