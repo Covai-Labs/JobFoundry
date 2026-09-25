@@ -75,6 +75,10 @@ def _resolve_theme_spec(theme: str, search_paths: tuple[Path, ...] | None = None
 # themes still resolve instead of crashing the renderer.
 _EXPORT_CONDITION_ORDER = ("import", "default", "require")
 
+# Conditions that never point at loadable JS: "types" resolves to .d.ts
+# declarations, so it must not be selected as an entry point.
+_SKIP_CONDITIONS = frozenset({"types"})
+
 
 def _select_export_target(node: object) -> str | None:
     if isinstance(node, str):
@@ -91,6 +95,15 @@ def _select_export_target(node: object) -> str | None:
                 target = _select_export_target(node[condition])
                 if target is not None:
                     return target
+        # Custom conditions ("node", "browser", ...) nest the same way.
+        # Traverse them in definition order; subpath keys ("./...") are a
+        # different namespace and must not be mistaken for conditions.
+        for key, value in node.items():
+            if key in _EXPORT_CONDITION_ORDER or key in _SKIP_CONDITIONS or key.startswith("."):
+                continue
+            target = _select_export_target(value)
+            if target is not None:
+                return target
     return None
 
 

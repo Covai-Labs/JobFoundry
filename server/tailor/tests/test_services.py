@@ -653,6 +653,41 @@ class TestResumeRenderer:
 
         assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "esm" / "theme.js").resolve().as_uri()
 
+    def test_resolve_theme_spec_traverses_custom_conditions(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "exports": {".": {"node": {"import": "./dist/server.js"}}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "server.js").write_text("export function render() {}", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "server.js").resolve().as_uri()
+
+    def test_resolve_theme_spec_ignores_types_condition(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "main": "dist/index.js",
+                    "exports": {".": {"types": "./dist/index.d.ts"}},
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+        (pkg / "dist" / "index.d.ts").write_text("export declare function render(): void;", encoding="utf-8")
+
+        # Must fall through to main, never select the .d.ts declaration file.
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "index.js").resolve().as_uri()
+
     def test_resolve_theme_spec_fails_fast_without_entry_point(self, tmp_path: Path) -> None:
         pkg = tmp_path / "my-theme"
         pkg.mkdir(parents=True)
