@@ -19,11 +19,62 @@ FOLIO_EXPORTER_THEMES = frozenset(
     }
 )
 
+# `resumed` is pure ESM, and Node.js ignores NODE_PATH for `import()`, so a
+# theme installed only under these directories would fail to load by bare
+# name. Resolve such themes to an absolute file URL instead; anything else
+# is passed through for normal node_modules resolution (global install or
+# the packaged node-tools bundle).
+USER_THEME_PATHS = (
+    Path("/data/themes/node_modules"),
+    Path.home() / ".npm-global" / "lib" / "node_modules",
+)
+
+
+def _resolve_theme_spec(theme: str, search_paths: tuple[Path, ...] = USER_THEME_PATHS) -> str:
+    for base in search_paths:
+        package_json = base / theme / "package.json"
+        if not package_json.is_file():
+            continue
+        try:
+            manifest = json.loads(package_json.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        entry = _package_entry_point(base / theme, manifest)
+        if entry is not None:
+            return entry.as_uri()
+    return theme
+
+
+def _package_entry_point(package_dir: Path, manifest: dict) -> Path | None:
+    exports = manifest.get("exports")
+    candidate: str | None = None
+    if isinstance(exports, str):
+        candidate = exports
+    elif isinstance(exports, dict):
+        dot = exports.get(".")
+        if isinstance(dot, str):
+            candidate = dot
+        elif isinstance(dot, dict):
+            candidate = dot.get("import") or dot.get("default")
+    if candidate is None and isinstance(manifest.get("main"), str):
+        candidate = manifest["main"]
+    if candidate is None:
+        index_js = package_dir / "index.js"
+        return index_js if index_js.is_file() else None
+    entry = (package_dir / candidate).resolve()
+    return entry if entry.is_file() else None
+
 
 class ResumeRenderer:
-    def __init__(self, binary: str = "folio-export", resumed_binary: str = "resumed") -> None:
+    def __init__(
+        self,
+        binary: str = "folio-export",
+        resumed_binary: str = "resumed",
+        theme_search_paths: tuple[Path, ...] = USER_THEME_PATHS,
+    ) -> None:
         self.binary = binary
         self.resumed_binary = resumed_binary
+        self.theme_search_paths = theme_search_paths
 
     def _resolve_binary(self, name: str | None = None) -> str:
         # If binary is just a name, try to find it in PATH
@@ -70,6 +121,9 @@ class ResumeRenderer:
         else:
             # `resumed` has no single/multi-page flags; themes paginate from
             # the resume meta. Keep the puppeteer sandbox flags identical.
+            # The theme spec is resolved to a file URL when it lives in a
+            # user theme directory that ESM `import()` cannot see via NODE_PATH.
+            theme_spec = _resolve_theme_spec(theme, self.theme_search_paths)
             argv = [
                 binary,
                 "export",
@@ -77,7 +131,7 @@ class ResumeRenderer:
                 "-o",
                 str(pdf_path),
                 "--theme",
-                theme,
+                theme_spec,
                 "--puppeteer-arg=--no-sandbox",
                 "--puppeteer-arg=--disable-setuid-sandbox",
             ]

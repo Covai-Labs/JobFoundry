@@ -11,7 +11,7 @@ from pydantic import BaseModel
 from resume_ops_api.core.config import Settings
 from resume_ops_api.core.exceptions import AppError, ResumeValidationError
 from resume_ops_api.services.llm import StructuredLLMClient, _validate_api_base
-from resume_ops_api.services.renderer import ResumeRenderer
+from resume_ops_api.services.renderer import ResumeRenderer, _resolve_theme_spec
 from resume_ops_api.services.schema import ResumeSchemaValidator
 from resume_ops_api.services.themes import ThemeService
 
@@ -583,6 +583,77 @@ class TestResumeRenderer:
         assert called_args[6] == "jsonresume-theme-even"
         assert "--puppeteer-arg=--no-sandbox" in called_args
         assert "--puppeteer-arg=--disable-setuid-sandbox" in called_args
+
+    def test_resolve_theme_spec_returns_file_url_for_user_theme(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps({"name": "my-theme", "main": "dist/index.js"}), encoding="utf-8"
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "index.js").resolve().as_uri()
+
+    def test_resolve_theme_spec_prefers_exports_import(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "esm").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "exports": {".": {"import": "./esm/theme.js", "default": "./cjs/theme.cjs"}},
+                    "main": "ignored.js",
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "esm" / "theme.js").write_text("export function render() {}", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "esm" / "theme.js").resolve().as_uri()
+
+    def test_resolve_theme_spec_falls_back_to_bare_name(self, tmp_path: Path) -> None:
+        assert _resolve_theme_spec("jsonresume-theme-even", (tmp_path,)) == "jsonresume-theme-even"
+
+    @pytest.mark.asyncio
+    async def test_render_resolves_user_theme_to_file_url(self, tmp_path: Path) -> None:
+        search_dir = tmp_path / "themes"
+        pkg = search_dir / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps({"name": "my-theme", "main": "dist/index.js"}), encoding="utf-8"
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+        renderer = ResumeRenderer(
+            binary="fake-folio-export",
+            resumed_binary="fake-resumed",
+            theme_search_paths=(search_dir,),
+        )
+        output_dir = tmp_path / "output"
+
+        async def mock_communicate():
+            return b"", b""
+
+        mock_process = MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate = AsyncMock(side_effect=mock_communicate)
+
+        mock_exec = AsyncMock(return_value=mock_process)
+        with patch(
+            "resume_ops_api.services.renderer.shutil.which",
+            side_effect=lambda name: f"/usr/bin/{name}",
+        ):
+            with patch("resume_ops_api.services.renderer.asyncio.create_subprocess_exec", mock_exec):
+                output_dir.mkdir(parents=True, exist_ok=True)
+                (output_dir / "output.pdf").write_bytes(b"%PDF-1.4 fake")
+                await renderer.render(
+                    resume={"basics": {"name": "Test"}},
+                    theme="my-theme",
+                    output_dir=output_dir,
+                )
+
+        called_args = mock_exec.call_args[0]
+        assert called_args[0] == "/usr/bin/fake-resumed"
+        assert called_args[6] == (pkg / "dist" / "index.js").resolve().as_uri()
 
     @pytest.mark.asyncio
     async def test_render_concise_theme_stays_on_folio_exporter(
