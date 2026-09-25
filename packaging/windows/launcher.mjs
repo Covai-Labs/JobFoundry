@@ -77,6 +77,11 @@ fs.accessSync(NODE_BIN, fs.constants.X_OK);
 // ------------------------------------------------------------------------------
 const env = { ...process.env };
 
+// Forward the data dir so the tailor service resolves user-installed themes
+// ($DATA_DIR\themes\node_modules) to file URLs. The MSIX payload is read-only;
+// all user state lives here.
+env.DATA_DIR = DATA_DIR;
+
 env.NODE_PATH = [
   path.join(DATA_DIR, 'themes', 'node_modules'),
   path.join(APP_SRC, 'node_modules'),

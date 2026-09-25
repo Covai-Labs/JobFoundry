@@ -204,6 +204,7 @@ cat > "$STAGE/node-tools/package.json" <<'EOF'
   "dependencies": {
     "jsonresume-theme-folio": "^1.3.1",
     "jsonresume-theme-stackoverflow": "*",
+    "resumed": "^7.0.0",
     "puppeteer": "^24.0.0"
   }
 }
@@ -212,6 +213,8 @@ EOF
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install --omit=dev --no-audit --no-fund)
 [ -x "$STAGE/node-tools/node_modules/.bin/folio-export" ] \
   || { echo "[appimage] ERROR: folio-export binary missing after install" >&2; exit 1; }
+[ -x "$STAGE/node-tools/node_modules/.bin/resumed" ] \
+  || { echo "[appimage] ERROR: resumed binary missing after install" >&2; exit 1; }
 
 # ------------------------------------------------------------------------------
 # 7. Install Python services into the standalone Python

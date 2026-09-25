@@ -72,7 +72,7 @@ RUN apt-get update \
         fonts-liberation fonts-noto-color-emoji \
     && curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
     && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g puppeteer ${NPM_THEMES} \
+    && npm install -g puppeteer resumed@^7.0.0 ${NPM_THEMES} \
     && rm -rf /var/lib/apt/lists/*
 
 # 2. Install uv for fast Python dependency installation

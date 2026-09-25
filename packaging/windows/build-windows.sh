@@ -226,6 +226,7 @@ cat > "$STAGE/node-tools/package.json" <<'EOF'
   "dependencies": {
     "jsonresume-theme-folio": "^1.3.1",
     "jsonresume-theme-stackoverflow": "*",
+    "resumed": "^7.0.0",
     "puppeteer": "^24.0.0"
   }
 }
@@ -234,6 +235,8 @@ EOF
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install --omit=dev --no-audit --no-fund)
 [ -x "$STAGE/node-tools/node_modules/.bin/folio-export" ] \
   || { echo "[windows] ERROR: folio-export binary missing after install" >&2; exit 1; }
+[ -x "$STAGE/node-tools/node_modules/.bin/resumed" ] \
+  || { echo "[windows] ERROR: resumed binary missing after install" >&2; exit 1; }
 
 # ------------------------------------------------------------------------------
 # 6. Assemble runtime payload
