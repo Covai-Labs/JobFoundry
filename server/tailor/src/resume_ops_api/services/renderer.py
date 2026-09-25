@@ -24,13 +24,26 @@ FOLIO_EXPORTER_THEMES = frozenset(
 # name. Resolve such themes to an absolute file URL instead; anything else
 # is passed through for normal node_modules resolution (global install or
 # the packaged node-tools bundle).
-USER_THEME_PATHS = (
-    Path("/data/themes/node_modules"),
-    Path.home() / ".npm-global" / "lib" / "node_modules",
-)
+#
+# The first search path follows DATA_DIR, which every runtime defines:
+# Docker Compose sets DATA_DIR=/data, the AppImage launcher exports $DATA_DIR
+# (~/.local/share/jobfoundry), and the Windows launcher uses
+# %LOCALAPPDATA%\JobFoundry. An unset DATA_DIR keeps the historical /data
+# default so existing deployments behave exactly as before.
+def _default_theme_search_paths() -> tuple[Path, ...]:
+    data_dir = os.environ.get("DATA_DIR", "/data")
+    return (
+        Path(data_dir) / "themes" / "node_modules",
+        Path.home() / ".npm-global" / "lib" / "node_modules",
+    )
 
 
-def _resolve_theme_spec(theme: str, search_paths: tuple[Path, ...] = USER_THEME_PATHS) -> str:
+USER_THEME_PATHS = _default_theme_search_paths()
+
+
+def _resolve_theme_spec(theme: str, search_paths: tuple[Path, ...] | None = None) -> str:
+    if search_paths is None:
+        search_paths = _default_theme_search_paths()
     for base in search_paths:
         package_json = base / theme / "package.json"
         if not package_json.is_file():
@@ -39,23 +52,56 @@ def _resolve_theme_spec(theme: str, search_paths: tuple[Path, ...] = USER_THEME_
             manifest = json.loads(package_json.read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue
+        if not isinstance(manifest, dict):
+            continue
         entry = _package_entry_point(base / theme, manifest)
         if entry is not None:
             return entry.as_uri()
+        # The package is installed but exposes no loadable entry point.
+        # Fail here with the theme name and location instead of passing a
+        # bare name that `resumed` will reject with a cryptic error.
+        raise AppError(
+            f"Theme '{theme}' is installed at {base / theme} but has no loadable "
+            "entry point (no usable exports, main, or index.js).",
+            code="theme_unresolvable",
+            status_code=500,
+        )
     return theme
+
+
+# Node export maps can nest condition names, e.g.
+# {".": {"import": {"types": "...", "default": "./esm/theme.js"}}}.
+# Prefer ESM ("import", then "default"); "require" is a last resort so CJS-only
+# themes still resolve instead of crashing the renderer.
+_EXPORT_CONDITION_ORDER = ("import", "default", "require")
+
+
+def _select_export_target(node: object) -> str | None:
+    if isinstance(node, str):
+        return node if node.startswith(".") else None
+    if isinstance(node, (list, tuple)):
+        for item in node:
+            target = _select_export_target(item)
+            if target is not None:
+                return target
+        return None
+    if isinstance(node, dict):
+        for condition in _EXPORT_CONDITION_ORDER:
+            if condition in node:
+                target = _select_export_target(node[condition])
+                if target is not None:
+                    return target
+    return None
 
 
 def _package_entry_point(package_dir: Path, manifest: dict) -> Path | None:
     exports = manifest.get("exports")
     candidate: str | None = None
-    if isinstance(exports, str):
-        candidate = exports
+    if isinstance(exports, (str, list)):
+        candidate = _select_export_target(exports)
     elif isinstance(exports, dict):
         dot = exports.get(".")
-        if isinstance(dot, str):
-            candidate = dot
-        elif isinstance(dot, dict):
-            candidate = dot.get("import") or dot.get("default")
+        candidate = _select_export_target(dot) if dot is not None else _select_export_target(exports)
     if candidate is None and isinstance(manifest.get("main"), str):
         candidate = manifest["main"]
     if candidate is None:
@@ -70,11 +116,15 @@ class ResumeRenderer:
         self,
         binary: str = "folio-export",
         resumed_binary: str = "resumed",
-        theme_search_paths: tuple[Path, ...] = USER_THEME_PATHS,
+        theme_search_paths: tuple[Path, ...] | None = None,
     ) -> None:
         self.binary = binary
         self.resumed_binary = resumed_binary
-        self.theme_search_paths = theme_search_paths
+        # Resolved lazily so a DATA_DIR set after import (e.g. by the
+        # packaged launchers) is still honoured.
+        self.theme_search_paths = (
+            theme_search_paths if theme_search_paths is not None else _default_theme_search_paths()
+        )
 
     def _resolve_binary(self, name: str | None = None) -> str:
         # If binary is just a name, try to find it in PATH
@@ -100,7 +150,7 @@ class ResumeRenderer:
         input_path.write_text(json.dumps(resume, ensure_ascii=True, indent=2), encoding="utf-8")
 
         env = os.environ.copy()
-        extra_paths = ["/data/themes/node_modules", str(Path.home() / ".npm-global" / "lib" / "node_modules")]
+        extra_paths = [str(p) for p in _default_theme_search_paths()]
         existing_node_path = env.get("NODE_PATH", "")
         paths = [p for p in extra_paths + existing_node_path.split(":") if p]
         env["NODE_PATH"] = ":".join(dict.fromkeys(paths))

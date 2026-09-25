@@ -202,13 +202,24 @@ RestartSec=5
 
 ### Adding Third-Party Themes
 
-You can install and use any JSON Resume theme from npm **without rebuilding the container image**. `resume-ops` looks for installed themes in `./data/themes` via `NODE_PATH`.
+You can install and use any JSON Resume theme from npm. Theme installation is
+deliberately manual: the app never downloads packages itself. Install the theme
+into your runtime's data directory with your own `npm`, then allowlist it:
 
-1. Install your desired theme into the mounted data directory:
+1. Install your desired theme into the themes directory:
    ```bash
-   npm install --prefix ./data/themes jsonresume-theme-even
+   # Docker (inside the container, /data is the mounted volume):
+   npm install --prefix /data/themes jsonresume-theme-even
+
+   # AppImage / native Linux:
+   npm install --prefix ~/.local/share/jobfoundry/themes jsonresume-theme-even
    ```
-2. Add the theme to `ALLOWED_THEMES` in your `.env`:
+   ```powershell
+   # Windows (MSIX package):
+   npm install --prefix "$env:LOCALAPPDATA\JobFoundry\themes" jsonresume-theme-even
+   ```
+2. Add the theme to `ALLOWED_THEMES` in your `.env` (for packaged apps this is
+   `$DATA_DIR/.env`) and restart:
    ```ini
    ALLOWED_THEMES=jsonresume-theme-folio,jsonresume-theme-stackoverflow,jsonresume-theme-even
    ```

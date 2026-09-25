@@ -549,7 +549,13 @@ class TestResumeRenderer:
 
     @pytest.mark.asyncio
     async def test_render_non_folio_theme_uses_resumed(self, tmp_path: Path) -> None:
-        renderer = ResumeRenderer(binary="fake-folio-export", resumed_binary="fake-resumed")
+        # Explicit empty search dir: the test must not depend on themes that
+        # happen to be installed on the machine running it.
+        renderer = ResumeRenderer(
+            binary="fake-folio-export",
+            resumed_binary="fake-resumed",
+            theme_search_paths=(tmp_path / "empty-themes",),
+        )
         output_dir = tmp_path / "output"
 
         async def mock_communicate():
@@ -613,6 +619,59 @@ class TestResumeRenderer:
 
     def test_resolve_theme_spec_falls_back_to_bare_name(self, tmp_path: Path) -> None:
         assert _resolve_theme_spec("jsonresume-theme-even", (tmp_path,)) == "jsonresume-theme-even"
+
+    def test_resolve_theme_spec_unwraps_nested_export_conditions(self, tmp_path: Path) -> None:
+        # jsonresume-theme-even style: conditions nested under import/require.
+        pkg = tmp_path / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps(
+                {
+                    "name": "my-theme",
+                    "exports": {
+                        ".": {
+                            "import": {"types": "./dist/index.d.ts", "default": "./dist/index.js"},
+                            "require": {"types": "./dist/index.d.ts", "default": "./dist/index.cjs"},
+                        }
+                    },
+                }
+            ),
+            encoding="utf-8",
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "dist" / "index.js").resolve().as_uri()
+
+    def test_resolve_theme_spec_supports_top_level_conditions(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        (pkg / "esm").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps({"name": "my-theme", "exports": {"import": "./esm/theme.js"}}),
+            encoding="utf-8",
+        )
+        (pkg / "esm" / "theme.js").write_text("export function render() {}", encoding="utf-8")
+
+        assert _resolve_theme_spec("my-theme", (tmp_path,)) == (pkg / "esm" / "theme.js").resolve().as_uri()
+
+    def test_resolve_theme_spec_fails_fast_without_entry_point(self, tmp_path: Path) -> None:
+        pkg = tmp_path / "my-theme"
+        pkg.mkdir(parents=True)
+        (pkg / "package.json").write_text(json.dumps({"name": "my-theme"}), encoding="utf-8")
+
+        with pytest.raises(AppError, match="my-theme"):
+            _resolve_theme_spec("my-theme", (tmp_path,))
+
+    def test_resolve_theme_spec_follows_data_dir(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        themes_dir = tmp_path / "themes" / "node_modules"
+        pkg = themes_dir / "my-theme"
+        (pkg / "dist").mkdir(parents=True)
+        (pkg / "package.json").write_text(
+            json.dumps({"name": "my-theme", "main": "dist/index.js"}), encoding="utf-8"
+        )
+        (pkg / "dist" / "index.js").write_text("export function render() {}", encoding="utf-8")
+        monkeypatch.setenv("DATA_DIR", str(tmp_path))
+
+        assert _resolve_theme_spec("my-theme") == (pkg / "dist" / "index.js").resolve().as_uri()
 
     @pytest.mark.asyncio
     async def test_render_resolves_user_theme_to_file_url(self, tmp_path: Path) -> None:
