@@ -20,7 +20,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Install build prerequisites
         run: |
@@ -32,13 +32,13 @@ jobs:
         run: bash packaging/appimage/build-appimage.sh
 
       - name: Upload AppImage (CI)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: jobfoundry-appimage
           path: build/appimage/output/*.AppImage
 
       - name: Attach AppImage to Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: build/appimage/output/*.AppImage
@@ -49,13 +49,13 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Build Windows MSIX payload
         run: bash packaging/windows/build-windows.sh
 
       - name: Upload Windows payload (CI)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: jobfoundry-windows-payload
           path: build/windows/payload/
@@ -70,10 +70,10 @@ jobs:
       MSIX_SIGNING_PFX_PASSWORD: ${{ secrets.MSIX_SIGNING_PFX_PASSWORD }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Download Windows payload
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8
         with:
           name: jobfoundry-windows-payload
           path: payload
@@ -126,7 +126,7 @@ jobs:
           Get-ChildItem build | Format-Table Name, Length -AutoSize
 
       - name: Upload MSIX artifacts (CI)
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: jobfoundry-windows-msix
           path: |
@@ -134,7 +134,7 @@ jobs:
             build/*.cer
 
       - name: Attach MSIX to Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
