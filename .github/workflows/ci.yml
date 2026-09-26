@@ -63,3 +63,16 @@ jobs:
         env:
           UV_EXTRA_BUILD_DEPENDENCIES: hatchling
       - run: uv run pytest tests/test_api.py tests/test_merge.py tests/test_cli.py tests/test_config.py tests/test_db.py
+
+  docker:
+    name: Container image build (no push)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          platforms: linux/amd64
