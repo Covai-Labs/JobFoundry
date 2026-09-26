@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+# jobfoundry — dispatcher entry point for the macOS tarball / Homebrew install.
+# With no arguments: start all services in the foreground and open the browser.
+# With arguments: forward to the control CLI, e.g. `jobfoundry status`.
+set -euo pipefail
+
+# Resolve the bundle root: Homebrew installs the payload under libexec with
+# bin/jobfoundry symlinked into $HOMEBREW_PREFIX/bin; a manual tarball
+# extract keeps the same bin/../usr layout.
+#
+# Resolve the symlink chain first (BSD-compatible readlink loop + cd -P):
+# when invoked via a Homebrew prefix symlink, BASH_SOURCE[0] points at the
+# prefix, not the bundle.
+_SRC="${BASH_SOURCE[0]}"
+while [ -L "$_SRC" ]; do
+  _DIR="$(cd -P "$(dirname "$_SRC")" && pwd)"
+  _SRC="$(readlink "$_SRC")"
+  case "$_SRC" in
+    /*) ;;
+    *) _SRC="$_DIR/$_SRC" ;;
+  esac
+done
+SCRIPT_DIR="$(cd -P "$(dirname "$_SRC")" && pwd)"
+if [ -x "$SCRIPT_DIR/../usr/bin/jobfoundry-launcher" ]; then
+  BUNDLE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+else
+  # Fallback: script placed directly next to the launcher (dev checkout).
+  BUNDLE_ROOT="$SCRIPT_DIR"
+fi
+export JOBFOUNDRY_BUNDLE_ROOT="$BUNDLE_ROOT"
+
+# APPDIR is the indirection hook honoured by launcher.sh / jobfoundry-ctl.sh
+# (same role it plays inside the Linux AppImage): when set, both scripts
+# resolve the bundle from $APPDIR instead of their own directory.
+if [ -z "${APPDIR:-}" ]; then
+  export APPDIR="$BUNDLE_ROOT"
+fi
+
+LAUNCHER="$BUNDLE_ROOT/usr/bin/jobfoundry-launcher"
+CTL="$BUNDLE_ROOT/usr/bin/jobfoundry-ctl"
+
+if [ $# -eq 0 ]; then
+  exec "$LAUNCHER"
+else
+  exec "$CTL" "$@"
+fi
