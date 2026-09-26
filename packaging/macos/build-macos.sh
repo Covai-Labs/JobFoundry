@@ -34,11 +34,23 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 NODE_MAJOR="${NODE_MAJOR:-26}"
 PYTHON_SERIES="${PYTHON_SERIES:-3.14}"
-APP_VERSION="${APP_VERSION:-${GITHUB_REF_NAME:-}}"
+# GITHUB_REF_NAME is only a version for tag builds. On branch runs
+# (including workflow_dispatch) it holds a branch name — which may contain
+# slashes — so fall back to package.json there.
+if [ -z "${APP_VERSION:-}" ] && [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+  APP_VERSION="${GITHUB_REF_NAME:-}"
+fi
+APP_VERSION="${APP_VERSION:-}"
 APP_VERSION="${APP_VERSION#v}"
 if [ -z "$APP_VERSION" ]; then
   APP_VERSION="$(python3 -c "import json; print(json.load(open('$REPO_ROOT/package.json'))['version'])")"
 fi
+case "$APP_VERSION" in
+  *[^A-Za-z0-9._-]*)
+    echo "[macos] ERROR: APP_VERSION '$APP_VERSION' is not filename-safe" >&2
+    exit 1
+    ;;
+esac
 
 BUILD_DIR="${BUILD_DIR:-$REPO_ROOT/build/macos}"
 OUTPUT_DIR="${OUTPUT_DIR:-$BUILD_DIR/output}"
@@ -102,11 +114,16 @@ NODE_SHA="$(grep -F "  $NODE_TGZ" "$WORK/SHASUMS256.txt" | awk '{print $1}')"
 sha256_verify "$WORK/$NODE_TGZ" "$NODE_SHA"
 
 # --- uv (macOS arm64) for Python resolution (digest-verified via API) ---
-UV_RELEASE="$(curl -fsSL --retry 5 --retry-delay 5 https://api.github.com/repos/astral-sh/uv/releases/latest)"
-UV_VERSION="${UV_VERSION:-"$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"}"
-if [ "$UV_VERSION" = "latest" ] || [ -z "$UV_VERSION" ]; then
-  UV_VERSION="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
+# A pinned UV_VERSION is honoured: concrete versions resolve through the
+# release-by-tag endpoint so the downloaded binary matches the request.
+UV_VERSION="${UV_VERSION:-latest}"
+if [ "$UV_VERSION" = "latest" ]; then
+  UV_API="https://api.github.com/repos/astral-sh/uv/releases/latest"
+else
+  UV_API="https://api.github.com/repos/astral-sh/uv/releases/tags/$UV_VERSION"
 fi
+UV_RELEASE="$(curl -fsSL --retry 5 --retry-delay 5 "$UV_API")"
+UV_VERSION="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
 UV_TGZ_URL="$(echo "$UV_RELEASE" | pyjson "print([a['browser_download_url'] for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0])")"
 UV_SHA="$(echo "$UV_RELEASE" | pyjson "print((data.get('assets') and [a.get('digest','') for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0]) or '')")"
 UV_SHA="${UV_SHA##*:}"
@@ -129,28 +146,32 @@ echo "[macos] python: $(basename "$UV_PY_HOME")"
 # --- chrome-headless-shell (mac-arm64, URL from chrome-for-testing) ----------
 # The official chrome-for-testing metadata exposes no digest for
 # chrome-headless-shell (only 'platform' + 'url'), so the SHA-256 of the
-# pinned default version is reviewed and pinned here when known, then
-# verified at download time. Overridden versions without a checksum degrade
-# to a warning.
+# default version is pinned here (computed from the upstream zip) and
+# verified unconditionally. Overriding CHROME_VERSION requires also setting
+# CHROME_SHA256 — the build fails rather than packaging an unverified
+# browser binary.
 CHROME_VERSION="${CHROME_VERSION:-153.0.8010.36}"
+CHROME_SHA256_DEFAULT="3b133378fe44a5f9c849df9049763577fbed296ee4d02d1ffb31b9fcabf79850"
 echo "[macos] chrome-headless-shell: $CHROME_VERSION"
-CHROME_META="$(curl -fsSL --retry 5 --retry-delay 5 \
+CHROME_ZIP_URL="$(curl -fsSL --retry 5 --retry-delay 5 \
   "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
   | pyjson "
     vs=[v for v in data['versions'] if v['version']=='$CHROME_VERSION']
     if not vs:
         print('UNKNOWN_VERSION'); raise SystemExit(1)
     dl=[d for d in vs[0]['downloads']['chrome-headless-shell'] if d['platform']=='mac-arm64'][0]
-    print(dl.get('url', '')); print(dl.get('sha256', ''))")"
-CHROME_ZIP_URL="$(echo "$CHROME_META" | sed -n 1p)"
-CHROME_SHA256="$(echo "$CHROME_META" | sed -n 2p)"
+    print(dl.get('url', ''))")"
+[ -n "$CHROME_ZIP_URL" ] && [ "$CHROME_ZIP_URL" != "UNKNOWN_VERSION" ] \
+  || { echo "[macos] ERROR: chrome-headless-shell $CHROME_VERSION/mac-arm64 not in chrome-for-testing metadata" >&2; exit 1; }
+if [ "$CHROME_VERSION" = "153.0.8010.36" ] && [ -z "${CHROME_SHA256:-}" ]; then
+  CHROME_SHA256="$CHROME_SHA256_DEFAULT"
+fi
+CHROME_SHA256="${CHROME_SHA256:-}"
+[ -n "$CHROME_SHA256" ] \
+  || { echo "[macos] ERROR: no trusted SHA-256 for chrome-headless-shell $CHROME_VERSION; set CHROME_SHA256" >&2; exit 1; }
 CHROME_ZIP="$WORK/chrome-headless-shell-mac-arm64.zip"
 download "$CHROME_ZIP_URL" "$CHROME_ZIP"
-if [ -n "$CHROME_SHA256" ]; then
-  sha256_verify "$CHROME_ZIP" "$CHROME_SHA256"
-else
-  echo "[macos] WARNING: no checksum available for chrome-headless-shell ${CHROME_VERSION}; skipping verification"
-fi
+sha256_verify "$CHROME_ZIP" "$CHROME_SHA256"
 
 # ------------------------------------------------------------------------------
 # 2. Extract runtimes into the payload layout
@@ -175,8 +196,11 @@ PYTHON_BIN="$PAYLOAD/usr/lib/python/bin/python3"
 
 mkdir -p "$PAYLOAD/usr/lib/chrome-headless-shell"
 unzip -q -o "$CHROME_ZIP" -d "$WORK/chrome"
-mv "$WORK"/chrome/chrome-headless-shell-*/chrome-headless-shell \
+# Copy the full directory: the binary needs its sibling .pak/.dat files,
+# dylibs, and resources at runtime (Puppeteer PDF rendering).
+cp -R "$WORK"/chrome/chrome-headless-shell-*/. \
   "$PAYLOAD/usr/lib/chrome-headless-shell/"
+chmod +x "$PAYLOAD/usr/lib/chrome-headless-shell/chrome-headless-shell"
 "$PAYLOAD/usr/lib/chrome-headless-shell/chrome-headless-shell" --version
 
 export PATH="$PAYLOAD/usr/lib/node/bin:$PATH"

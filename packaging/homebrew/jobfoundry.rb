@@ -31,9 +31,12 @@ class Jobfoundry < Formula
 
   def install
     # The tarball layout is bin/jobfoundry (dispatcher) + usr/{bin,lib,share}.
-    # Keep everything under libexec and symlink only the entry point.
+    # Keep everything under libexec. write_env_script pins APPDIR to libexec
+    # so the dispatcher finds the bundle even when invoked via the prefix
+    # symlink (a plain install_symlink would resolve BUNDLE_ROOT under
+    # HOMEBREW_PREFIX/bin instead).
     libexec.install Dir["*"]
-    bin.install_symlink libexec/"bin/jobfoundry"
+    (bin/"jobfoundry").write_env_script libexec/"bin/jobfoundry", APPDIR: libexec
   end
 
   # `brew services start jobfoundry` runs the launcher in the foreground

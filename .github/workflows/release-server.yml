@@ -50,13 +50,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          # The build runs npm/uv installs with lifecycle scripts against
+          # third-party registries; don't leave the write-scoped token in
+          # .git/config where a compromised dependency could grab it.
+          # (Release upload uses the token via env, unaffected.)
+          persist-credentials: false
 
       - name: Build macOS tarball (darwin-arm64)
         run: bash packaging/macos/build-macos.sh
 
       - name: Smoke test macOS bundle on runner
         env:
-          JOBFOUNDRY_NO_BROWSER: "1"
+          JOBFOUNDRY_NO_BROWSER: '1'
         run: |
           set -euo pipefail
           SMOKE_DIR="$RUNNER_TEMP/jf-smoke"
