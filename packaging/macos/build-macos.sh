@@ -34,11 +34,18 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 NODE_MAJOR="${NODE_MAJOR:-26}"
 PYTHON_SERIES="${PYTHON_SERIES:-3.14}"
-APP_VERSION="${APP_VERSION:-${GITHUB_REF_NAME:-}}"
-APP_VERSION="${APP_VERSION#v}"
-if [ -z "$APP_VERSION" ]; then
-  APP_VERSION="$(python3 -c "import json; print(json.load(open('$REPO_ROOT/package.json'))['version'])")"
+if [ -z "${APP_VERSION:-}" ]; then
+  if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+    APP_VERSION="${GITHUB_REF_NAME:-}"
+  else
+    APP_VERSION="$(python3 -c "import json; print(json.load(open('$REPO_ROOT/package.json'))['version'])")"
+  fi
 fi
+APP_VERSION="${APP_VERSION#v}"
+[[ "$APP_VERSION" =~ ^[0-9A-Za-z._-]+$ ]] || {
+  echo "[macos] ERROR: unsafe app version: $APP_VERSION" >&2
+  exit 1
+}
 
 BUILD_DIR="${BUILD_DIR:-$REPO_ROOT/build/macos}"
 OUTPUT_DIR="${OUTPUT_DIR:-$BUILD_DIR/output}"
@@ -102,11 +109,15 @@ NODE_SHA="$(grep -F "  $NODE_TGZ" "$WORK/SHASUMS256.txt" | awk '{print $1}')"
 sha256_verify "$WORK/$NODE_TGZ" "$NODE_SHA"
 
 # --- uv (macOS arm64) for Python resolution (digest-verified via API) ---
-UV_RELEASE="$(curl -fsSL --retry 5 --retry-delay 5 https://api.github.com/repos/astral-sh/uv/releases/latest)"
-UV_VERSION="${UV_VERSION:-"$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"}"
-if [ "$UV_VERSION" = "latest" ] || [ -z "$UV_VERSION" ]; then
-  UV_VERSION="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
+UV_VERSION="${UV_VERSION:-latest}"
+if [ "$UV_VERSION" = "latest" ]; then
+  UV_RELEASE="$(curl -fsSL --retry 5 --retry-delay 5 https://api.github.com/repos/astral-sh/uv/releases/latest)"
+else
+  UV_RELEASE="$(curl -fsSL --retry 5 --retry-delay 5 "https://api.github.com/repos/astral-sh/uv/releases/tags/${UV_VERSION}")"
+  UV_RELEASE_TAG="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
+  [ "$UV_RELEASE_TAG" = "$UV_VERSION" ] || { echo "[macos] ERROR: uv release tag mismatch" >&2; exit 1; }
 fi
+UV_VERSION="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
 UV_TGZ_URL="$(echo "$UV_RELEASE" | pyjson "print([a['browser_download_url'] for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0])")"
 UV_SHA="$(echo "$UV_RELEASE" | pyjson "print((data.get('assets') and [a.get('digest','') for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0]) or '')")"
 UV_SHA="${UV_SHA##*:}"
@@ -122,7 +133,7 @@ tar -xzf "$UV_TGZ" -C "$WORK"
 UV_BIN="$WORK/uv-aarch64-apple-darwin/uv"
 export UV_PYTHON_INSTALL_DIR="$WORK/uvpython"
 "$UV_BIN" python install "$PYTHON_SERIES"
-UV_PY_HOME="$(find "$WORK/uvpython" -maxdepth 1 -type d -name "cpython-${PYTHON_SERIES}*-aarch64-apple-darwin" | sort -V | tail -1)"
+UV_PY_HOME="$(find "$WORK/uvpython" -maxdepth 1 -type d -name "cpython-${PYTHON_SERIES}*-aarch64-apple-darwin" -print | python3 -c 'import sys; paths=sys.stdin.read().splitlines(); print(max(paths, key=lambda p: tuple(int(x) for x in p.rsplit("/", 1)[-1].split("-")[1].split(".") )) if paths else "')"
 [ -d "$UV_PY_HOME" ] || { echo "[macos] ERROR: uv python install produced no interpreter" >&2; exit 1; }
 echo "[macos] python: $(basename "$UV_PY_HOME")"
 
@@ -143,14 +154,11 @@ CHROME_META="$(curl -fsSL --retry 5 --retry-delay 5 \
     dl=[d for d in vs[0]['downloads']['chrome-headless-shell'] if d['platform']=='mac-arm64'][0]
     print(dl.get('url', '')); print(dl.get('sha256', ''))")"
 CHROME_ZIP_URL="$(echo "$CHROME_META" | sed -n 1p)"
-CHROME_SHA256="$(echo "$CHROME_META" | sed -n 2p)"
+CHROME_SHA256="${CHROME_SHA256:-$(echo "$CHROME_META" | sed -n 2p)}"
+[ -n "$CHROME_SHA256" ] || { echo "[macos] ERROR: no trusted Chrome SHA-256; set CHROME_SHA256" >&2; exit 1; }
 CHROME_ZIP="$WORK/chrome-headless-shell-mac-arm64.zip"
 download "$CHROME_ZIP_URL" "$CHROME_ZIP"
-if [ -n "$CHROME_SHA256" ]; then
-  sha256_verify "$CHROME_ZIP" "$CHROME_SHA256"
-else
-  echo "[macos] WARNING: no checksum available for chrome-headless-shell ${CHROME_VERSION}; skipping verification"
-fi
+sha256_verify "$CHROME_ZIP" "$CHROME_SHA256"
 
 # ------------------------------------------------------------------------------
 # 2. Extract runtimes into the payload layout
@@ -165,7 +173,7 @@ mkdir -p "$PAYLOAD/usr/lib/python"
 cp -R "$UV_PY_HOME"/. "$PAYLOAD/usr/lib/python/"
 # uv installs bin/python3.<minor>; ensure bin/python3 is a working interpreter.
 if ! "$PAYLOAD/usr/lib/python/bin/python3" -c "import sys" >/dev/null 2>&1; then
-  PY_EXE="$(find "$PAYLOAD/usr/lib/python/bin" -maxdepth 1 -type f -name "python3.[0-9]*" ! -name "*-config" | sort -V | tail -1)"
+  PY_EXE="$(find "$PAYLOAD/usr/lib/python/bin" -maxdepth 1 -type f -name "python3.[0-9]*" ! -name "*-config" -print | python3 -c 'import sys; paths=sys.stdin.read().splitlines(); print(max(paths, key=lambda p: tuple(int(x) for x in p.rsplit("/", 1)[-1].replace("python", "").split("."))) if paths else "')"
   if [ -n "$PY_EXE" ]; then
     ln -sfn "$(basename "$PY_EXE")" "$PAYLOAD/usr/lib/python/bin/python3"
   fi
