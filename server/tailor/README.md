@@ -119,7 +119,7 @@ the dashboard is served on `:8080`).
     ```bash
     docker compose up -d
     ```
-    This pulls `ghcr.io/deadrat-in/jobfoundry:latest` from the registry and
+    This pulls `ghcr.io/covai-labs/jobfoundry:latest` from the registry and
     launches all services (ingest, scorer, tailor, web) immediately.
 
 Once running:
@@ -133,7 +133,7 @@ If you are developing the tailoring engine itself and want to build/recompile
 the image locally:
 
 ```bash
-git clone https://github.com/deadrat-in/JobFoundry.git
+git clone https://github.com/Covai-Labs/JobFoundry.git
 cd JobFoundry/server/tailor
 # Follow the configuration steps (environment and master resume setup) as in Option 1.
 docker compose up -d --build
@@ -152,7 +152,7 @@ root:
 docker compose pull && docker compose up -d
 ```
 
-This pulls the latest `ghcr.io/deadrat-in/jobfoundry:latest` image from GHCR and restarts the stack in place. Your data (SQLite databases, uploaded resumes, scraped jobs) is stored in the `./data/` host volume and is **never affected** by image updates.
+This pulls the latest `ghcr.io/covai-labs/jobfoundry:latest` image from GHCR and restarts the stack in place. Your data (SQLite databases, uploaded resumes, scraped jobs) is stored in the `./data/` host volume and is **never affected** by image updates.
 
 ### Podman Quadlets (systemd)
 
@@ -160,7 +160,7 @@ If you are running the containers as systemd services via [Podman Quadlets](http
 
 ```bash
 # Pull the latest image
-podman pull ghcr.io/deadrat-in/jobfoundry:latest
+podman pull ghcr.io/covai-labs/jobfoundry:latest
 
 # Restart the systemd unit (adjust service names to match your .container files)
 systemctl --user restart jobfoundry.service
@@ -171,7 +171,7 @@ systemctl --user restart jobfoundry.service
 ```ini
 # In your .container file:
 [Container]
-Image=ghcr.io/deadrat-in/jobfoundry:latest
+Image=ghcr.io/covai-labs/jobfoundry:latest
 AutoUpdate=registry
 ```
 

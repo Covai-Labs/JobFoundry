@@ -6,7 +6,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Check the [provider directory](https://deadrat-in.github.io/JobFoundry/docs/providers/) first. If your board is missing, tell us about it below. Developers: the [provider authoring guide](https://github.com/deadrat-in/JobFoundry/blob/main/extension/src/background/providers/ADDING_A_PROVIDER.md) walks through contributing it yourself.
+        Check the [provider directory](https://jobfoundry.covai.org/docs/providers/) first. If your board is missing, tell us about it below. Developers: the [provider authoring guide](https://github.com/Covai-Labs/JobFoundry/blob/main/extension/src/background/providers/ADDING_A_PROVIDER.md) walks through contributing it yourself.
   - type: input
     id: board
     attributes:

@@ -2,7 +2,7 @@
 # ==============================================================================
 # JobFoundry - One-Line Installer & Setup Script
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/deadrat-in/JobFoundry/main/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash
 #   OR run locally: ./install.sh
 # ==============================================================================
 
@@ -62,7 +62,7 @@ echo -e "  ${GREEN}✔ Found container orchestrator:${NC} $COMPOSE_CMD"
 # ------------------------------------------------------------------------------
 # 2. Determine Installation Directory
 # ------------------------------------------------------------------------------
-REPO_URL="https://github.com/deadrat-in/JobFoundry.git"
+REPO_URL="https://github.com/Covai-Labs/JobFoundry.git"
 
 if [ -f "compose.yaml" ] && [ -d "server" ]; then
   # Already in JobFoundry repository root
