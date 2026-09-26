@@ -115,14 +115,35 @@ import { resolvePath } from '../../utils/paths.js';
   <h2>Next: add the browser extension</h2>
   <p>
     The extension is what captures job postings as you browse — the server
-    cannot do this part (by design). Download the prebuilt
-    <code>.zip</code> for your browser from the
+    cannot do this part (by design). Easiest: install it from your browser's
+    official store:
+  </p>
+  <ul>
+    <li><strong>Chrome / Brave:</strong> <a href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm" target="_blank" rel="noopener noreferrer">JobFoundry on the Chrome Web Store</a></li>
+    <li><strong>Edge:</strong> <a href="https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe" target="_blank" rel="noopener noreferrer">JobFoundry on Edge Add-ons</a></li>
+    <li><strong>Firefox:</strong> <a href="https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/" target="_blank" rel="noopener noreferrer">JobFoundry on Firefox Add-ons</a></li>
+  </ul>
+  <div class="doc-callout">
+    <div class="callout-title">
+      <span>◈</span>
+      <span>Store listings may lag behind GitHub Releases</span>
+    </div>
+    <p>
+      Store reviews take time, so the store version can trail the latest
+      <a href="https://github.com/deadrat-in/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Release</a>.
+      If you hit an issue, compare your installed version against the latest GitHub Release — and fall back to the
+      manual <code>.zip</code> install below if you need the newest fix right away.
+    </p>
+  </div>
+  <p>
+    Manual fallback (latest build, no building required): download the prebuilt
+    <code>.zip</code> from the
     <a href="https://github.com/deadrat-in/JobFoundry/releases" target="_blank" rel="noopener noreferrer">Releases page</a>
-    (no building required) and load it:
+    and load it:
   </p>
   <ul>
     <li><strong>Chrome / Edge / Brave:</strong> open <code>chrome://extensions/</code>, enable <strong>Developer mode</strong>, click <strong>Load unpacked</strong>, and select the unzipped folder.</li>
-    <li><strong>Firefox:</strong> open <code>about:debugging#/runtime/this-firefox</code>, click <strong>Load Temporary Add-on…</strong>, and select the manifest file. Note: this install is temporary — Firefox removes it on restart, so repeat this step after relaunching (a signed persistent listing is planned).</li>
+    <li><strong>Firefox:</strong> open <code>about:debugging#/runtime/this-firefox</code>, click <strong>Load Temporary Add-on…</strong>, and select the manifest file. Note: this manual install is temporary — Firefox removes it on restart, so prefer the signed store listing above for persistent installs.</li>
   </ul>
 
   <h2>Then: upload your resume and browse</h2>

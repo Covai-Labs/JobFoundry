@@ -78,7 +78,7 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 - 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/deadrat-in/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below).
 - 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/deadrat-in/JobFoundry/releases), trust the cert once, install, launch from the Start menu.
 - 🐳 **Any OS with Docker:** `curl -fsSL https://raw.githubusercontent.com/deadrat-in/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
-- 🧩 **Extension:** grab the Chrome/Firefox `.zip` from [Releases](https://github.com/deadrat-in/JobFoundry/releases) and load unpacked — no build needed.
+- 🧩 **Extension (easiest):** install from the [Chrome Web Store](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm), [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/), or [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe). Prefer the latest build? For Chrome/Edge, download the `.zip` from [Releases](https://github.com/deadrat-in/JobFoundry/releases) and load unpacked — no build needed. For Firefox, extract the `.zip`, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on…**, and choose `manifest.json` (lasts until restart). Note: store listings may lag behind GitHub Releases due to store review, so check the latest Release if you hit an issue.
 
 Full walkthrough (no terminal required): **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**.
 

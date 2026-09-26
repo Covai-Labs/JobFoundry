@@ -18,15 +18,39 @@ import { resolvePath } from '../../utils/paths.js';
     <img src={resolvePath('/icons/icon-48.png')} alt="Extension icon" width="48" height="48" class="extension-icon-badge" />
     <div class="banner-content">
       <span class="site-badge emerald">STABLE RELEASE</span>
-      <h3 class="banner-title">Download Companion Extension</h3>
+      <h3 class="banner-title">Install Companion Extension</h3>
       <p class="banner-text">
-        Universal zip bundle compatible with Chromium (Chrome, Brave, Edge, Arc) and Firefox.
+        Easiest: install from your browser's official store. Prefer the latest build? Grab the universal zip from GitHub Releases instead.
       </p>
     </div>
     <div class="banner-actions">
       <a
-        href="https://github.com/deadrat-in/JobFoundry/releases/latest/download/jobfoundry-extension.zip"
+        href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm"
+        target="_blank"
+        rel="noopener noreferrer"
         class="btn btn-primary"
+      >
+        Chrome Web Store
+      </a>
+      <a
+        href="https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn btn-primary"
+      >
+        Firefox Add-ons
+      </a>
+      <a
+        href="https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn btn-primary"
+      >
+        Edge Add-ons
+      </a>
+      <a
+        href="https://github.com/deadrat-in/JobFoundry/releases/latest/download/jobfoundry-extension.zip"
+        class="btn btn-secondary"
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
@@ -46,7 +70,25 @@ import { resolvePath } from '../../utils/paths.js';
     </div>
   </div>
 
+  <div class="doc-callout">
+    <div class="callout-title">
+      <span>◈</span>
+      <span>Store listings may lag behind GitHub Releases</span>
+    </div>
+    <p>
+      Browser stores review every update, so the store version can trail the latest
+      <a href="https://github.com/deadrat-in/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Release</a>.
+      If you hit an issue, check your installed version against the latest GitHub Release — and install the
+      <a href="https://github.com/deadrat-in/JobFoundry/releases/latest/download/jobfoundry-extension.zip">release zip manually</a>
+      if you need the newest fix right away.
+    </p>
+  </div>
+
   <h2>Installation by Browser</h2>
+  <p>
+    Recommended: use the store links above for one-click installs and automatic updates.
+    Manual zip install steps are kept below as a fallback for the latest GitHub Release.
+  </p>
 
   <div class="browser-tabs" role="tablist">
     <button type="button" class="browser-tab active" data-target="chrome">Google Chrome</button>
@@ -59,19 +101,13 @@ import { resolvePath } from '../../utils/paths.js';
     <div class="browser-panel active" id="panel-chrome">
       <ol class="steps-list">
         <li>
-          <strong>Download & Extract:</strong> Download <code>jobfoundry-extension.zip</code> and extract the contents to a folder on your computer (e.g., <code>~/Extensions/jobfoundry</code>).
-        </li>
-        <li>
-          <strong>Open Extensions:</strong> Navigate to <code>chrome://extensions</code> in your Chrome address bar.
-        </li>
-        <li>
-          <strong>Enable Developer Mode:</strong> Toggle the <strong>Developer mode</strong> switch in the top-right corner.
-        </li>
-        <li>
-          <strong>Load Unpacked:</strong> Click the <strong>Load unpacked</strong> button in the top-left corner and select the extracted folder.
+          <strong>Recommended — Chrome Web Store:</strong> install <a href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm" target="_blank" rel="noopener noreferrer">JobFoundry from the Chrome Web Store</a> for one-click install and automatic updates.
         </li>
         <li>
           <strong>Pin Extension:</strong> Click the puzzle-piece icon in your browser toolbar and pin <strong>JobFoundry</strong> for 1-click job ingestion.
+        </li>
+        <li>
+          <strong>Manual fallback (latest release):</strong> Download <code>jobfoundry-extension.zip</code> from <a href="https://github.com/deadrat-in/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Releases</a> and extract it (e.g., <code>~/Extensions/jobfoundry</code>). Then open <code>chrome://extensions</code>, enable <strong>Developer mode</strong>, click <strong>Load unpacked</strong>, and select the extracted folder.
         </li>
       </ol>
     </div>
@@ -79,16 +115,10 @@ import { resolvePath } from '../../utils/paths.js';
     <div class="browser-panel" id="panel-brave">
       <ol class="steps-list">
         <li>
-          <strong>Download & Extract:</strong> Download and unzip <code>jobfoundry-extension.zip</code>.
+          <strong>Recommended — Chrome Web Store:</strong> Brave supports Chrome Web Store extensions — install <a href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm" target="_blank" rel="noopener noreferrer">JobFoundry from the Chrome Web Store</a> for automatic updates.
         </li>
         <li>
-          <strong>Open Extensions:</strong> Navigate to <code>brave://extensions</code>.
-        </li>
-        <li>
-          <strong>Enable Developer Mode:</strong> Turn on the <strong>Developer mode</strong> toggle in the top-right.
-        </li>
-        <li>
-          <strong>Load Unpacked:</strong> Click <strong>Load unpacked</strong> and select the directory containing <code>manifest.json</code>.
+          <strong>Manual fallback (latest release):</strong> Download and unzip <code>jobfoundry-extension.zip</code> from <a href="https://github.com/deadrat-in/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Releases</a>. Then open <code>brave://extensions</code>, turn on <strong>Developer mode</strong>, click <strong>Load unpacked</strong>, and select the directory containing <code>manifest.json</code>.
         </li>
         <li>
           <strong>Brave Shields Compatibility:</strong> JobFoundry communicates exclusively with your local daemon (<code>http://localhost:8080</code>). No special Shields exceptions are required.
@@ -99,16 +129,10 @@ import { resolvePath } from '../../utils/paths.js';
     <div class="browser-panel" id="panel-edge">
       <ol class="steps-list">
         <li>
-          <strong>Download & Extract:</strong> Extract <code>jobfoundry-extension.zip</code>.
+          <strong>Recommended — Edge Add-ons:</strong> install <a href="https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe" target="_blank" rel="noopener noreferrer">JobFoundry from the Edge Add-ons store</a> for one-click install and automatic updates.
         </li>
         <li>
-          <strong>Open Extensions:</strong> Navigate to <code>edge://extensions</code>.
-        </li>
-        <li>
-          <strong>Enable Developer Mode:</strong> In the left sidebar, switch on <strong>Developer mode</strong>.
-        </li>
-        <li>
-          <strong>Load Unpacked:</strong> Click <strong>Load unpacked</strong> and select the unzipped folder.
+          <strong>Manual fallback (latest release):</strong> Extract <code>jobfoundry-extension.zip</code> from <a href="https://github.com/deadrat-in/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Releases</a>. Then open <code>edge://extensions</code>, switch on <strong>Developer mode</strong> in the left sidebar, click <strong>Load unpacked</strong>, and select the unzipped folder.
         </li>
       </ol>
     </div>
@@ -116,16 +140,10 @@ import { resolvePath } from '../../utils/paths.js';
     <div class="browser-panel" id="panel-firefox">
       <ol class="steps-list">
         <li>
-          <strong>Download & Extract:</strong> Extract the extension package.
+          <strong>Recommended — Firefox Add-ons:</strong> install <a href="https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/" target="_blank" rel="noopener noreferrer">JobFoundry from Firefox Add-ons</a>. This is a signed listing, so it persists across restarts and updates automatically.
         </li>
         <li>
-          <strong>Open Debug Add-ons:</strong> Navigate to <code>about:debugging#/runtime/this-firefox</code> in your address bar.
-        </li>
-        <li>
-          <strong>Load Temporary Add-on:</strong> Click <strong>Load Temporary Add-on...</strong>.
-        </li>
-        <li>
-          <strong>Select Manifest:</strong> Select the <code>manifest.json</code> file in your extracted extension folder.
+          <strong>Manual fallback (latest release):</strong> Extract the <code>jobfoundry-extension.zip</code> package from <a href="https://github.com/deadrat-in/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Releases</a>, open <code>about:debugging#/runtime/this-firefox</code>, click <strong>Load Temporary Add-on...</strong>, and select the <code>manifest.json</code> file. Note: this manual install is temporary — Firefox removes it on restart.
         </li>
       </ol>
     </div>
