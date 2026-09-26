@@ -17,12 +17,12 @@ JobFoundry depending on what kind of help you need.
   [Getting Started](https://jobfoundry.covai.org/docs/getting-started/)
   and the [Extension guide](https://jobfoundry.covai.org/docs/extension/).
 - **Ask the community:** open a
-  [GitHub Discussion](https://github.com/deadrat-in/JobFoundry/discussions)
+  [GitHub Discussion](https://github.com/Covai-Labs/JobFoundry/discussions)
   (Q&A category) describing what you were trying to do, what you expected,
   and what happened instead. Screenshots of the dashboard or extension popup
   help far more than log pastes.
 - **Found a bug?** File it as a
-  [GitHub Issue](https://github.com/deadrat-in/JobFoundry/issues) using the
+  [GitHub Issue](https://github.com/Covai-Labs/JobFoundry/issues) using the
   bug report template. Please include: your install method (Docker, AppImage,
   MSIX), your OS and browser, and steps to reproduce.
 
@@ -59,7 +59,7 @@ Welcome — the tools are complementary, and migration is supported:
 Do **not** open a public issue. Follow
 [SECURITY.md](SECURITY.md): email
 [security@covai.org](mailto:security@covai.org) or open a
-[private security advisory](https://github.com/deadrat-in/JobFoundry/security/advisories/new).
+[private security advisory](https://github.com/Covai-Labs/JobFoundry/security/advisories/new).
 
 ## I want to contribute
 

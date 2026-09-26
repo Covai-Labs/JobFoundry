@@ -18,7 +18,7 @@ If you discover a potential security vulnerability in JobFoundry, please help us
 ### How to Report
 
 - **Email**: Send vulnerability details to [security@covai.org](mailto:security@covai.org).
-- **GitHub Advisory**: Alternatively, you may open a [Private Security Advisory](https://github.com/deadrat-in/JobFoundry/security/advisories/new) directly on GitHub.
+- **GitHub Advisory**: Alternatively, you may open a [Private Security Advisory](https://github.com/Covai-Labs/JobFoundry/security/advisories/new) directly on GitHub.
 
 Please include:
 

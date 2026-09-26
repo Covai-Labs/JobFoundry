@@ -6,8 +6,11 @@
 
 [![Website](https://img.shields.io/badge/Website-jobfoundry.covai.org-blueviolet)](https://jobfoundry.covai.org/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/deadrat-in/JobFoundry)](https://github.com/deadrat-in/JobFoundry/releases)
-[![CI](https://github.com/deadrat-in/JobFoundry/actions/workflows/ci.yml/badge.svg)](https://github.com/deadrat-in/JobFoundry/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Covai-Labs/JobFoundry)](https://github.com/Covai-Labs/JobFoundry/releases)
+[![CI](https://github.com/Covai-Labs/JobFoundry/actions/workflows/ci.yml/badge.svg)](https://github.com/Covai-Labs/JobFoundry/actions/workflows/ci.yml)
+[![Chrome Web Store](https://img.shields.io/chrome-web-store/v/kacfnebbiekbofdkgfpgmdcncgohhonm?label=Chrome%20Web%20Store)](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm)
+[![Firefox Add-ons](https://img.shields.io/amo/v/jobfoundry?label=Firefox%20Add-ons)](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/)
+[![Edge Add-ons](https://img.shields.io/badge/Edge_Add--ons-Install-0B7BE0?logo=microsoftedge&logoColor=white)](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe)
 
 [Quick Install](#quick-install) • [Why JobFoundry?](#why-jobfoundry) • [Features](#key-features) • [Providers](#supported-providers) • [How It Works](#how-it-works) • [Contributing](#contributing)
 
@@ -52,7 +55,7 @@ Job hunting is stressful enough without new barriers: no accounts, no subscripti
 | **Niche & Remote**   | Wellfound, YC Jobs, We Work Remotely, RemoteOK, Hacker News   |  15+  |
 | **Regional & Feeds** | 40+ regional boards, RSS feeds, and aggregators               |  40+  |
 
-Browse the full searchable index: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/deadrat-in/JobFoundry/issues/new?template=provider_request.md) or [add it yourself](extension/src/background/providers/ADDING_A_PROVIDER.md).
+Browse the full searchable index: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add it yourself](extension/src/background/providers/ADDING_A_PROVIDER.md).
 
 ---
 
@@ -75,10 +78,10 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 
 ## Quick Install
 
-- 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/deadrat-in/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below).
-- 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/deadrat-in/JobFoundry/releases), trust the cert once, install, launch from the Start menu.
-- 🐳 **Any OS with Docker:** `curl -fsSL https://raw.githubusercontent.com/deadrat-in/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
-- 🧩 **Extension (easiest):** install from the [Chrome Web Store](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm), [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/), or [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe). Prefer the latest build? For Chrome/Edge, download the `.zip` from [Releases](https://github.com/deadrat-in/JobFoundry/releases) and load unpacked — no build needed. For Firefox, extract the `.zip`, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on…**, and choose `manifest.json` (lasts until restart). Note: store listings may lag behind GitHub Releases due to store review, so check the latest Release if you hit an issue.
+- 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below).
+- 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), trust the cert once, install, launch from the Start menu.
+- 🐳 **Any OS with Docker:** `curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
+- 🧩 **Extension (easiest):** install from the [Chrome Web Store](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm), [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/), or [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe). Prefer the latest build? For Chrome/Edge, download the `.zip` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases) and load unpacked — no build needed. For Firefox, extract the `.zip`, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on…**, and choose `manifest.json` (lasts until restart). Note: store listings may lag behind GitHub Releases due to store review, so check the latest Release if you hit an issue.
 
 Full walkthrough (no terminal required): **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**.
 
@@ -86,7 +89,7 @@ Full walkthrough (no terminal required): **[Quickstart Guide](https://jobfoundry
 <summary><b>🛠️ Manual / Developer Setup</b></summary>
 
 ```bash
-git clone https://github.com/deadrat-in/JobFoundry.git && cd JobFoundry
+git clone https://github.com/Covai-Labs/JobFoundry.git && cd JobFoundry
 docker compose up -d   # or: podman compose up -d
 ./scripts/healthcheck.sh
 ```

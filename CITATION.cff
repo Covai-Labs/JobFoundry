@@ -6,8 +6,8 @@ type: software
 authors:
   - name: deadrat-in
     website: https://github.com/deadrat-in
-repository-code: https://github.com/deadrat-in/JobFoundry
-url: https://deadrat-in.github.io/JobFoundry/
+repository-code: https://github.com/Covai-Labs/JobFoundry
+url: https://jobfoundry.covai.org/
 abstract: >-
   Local-first, open-source platform for job discovery, fit assessment, and
   resume tailoring. Pairs a privacy-respecting browser extension (87 ATS/job

@@ -3,7 +3,7 @@ name: jobfoundry
 services:
   # JobFoundry All-in-One (Web Dashboard + Ingest API + Fit Scorer + Resume Tailor)
   jobfoundry:
-    image: ghcr.io/rat-s/jobfoundry:latest
+    image: ghcr.io/covai-labs/jobfoundry:latest
     build:
       context: .
       dockerfile: Dockerfile
