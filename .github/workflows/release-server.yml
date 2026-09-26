@@ -43,6 +43,33 @@ jobs:
         with:
           files: build/appimage/output/*.AppImage
 
+  build-macos-tarballs:
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+
+      - name: Build macOS tarball (darwin-arm64)
+        run: bash packaging/macos/build-macos.sh
+
+      - name: Upload macOS tarball (CI)
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: jobfoundry-macos-darwin-arm64
+          path: |
+            build/macos/output/*.tar.gz
+            build/macos/output/*.sha256
+
+      - name: Attach macOS tarball to Release
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          files: |
+            build/macos/output/*.tar.gz
+            build/macos/output/*.sha256
+
   build-windows-payload:
     runs-on: ubuntu-latest
     permissions:
