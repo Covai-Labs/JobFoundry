@@ -317,6 +317,13 @@ echo ""
 
 _open_url "http://localhost:$INGEST_PORT"
 
-# Wait for any child to exit (unexpected crash), then trigger cleanup.
-wait -n "${PIDS[@]}" 2>/dev/null || true
-echo "[jobfoundry] A service exited unexpectedly. Shutting down."
+# Bash 3.2-compatible supervision: poll children until one exits.
+while :; do
+  for pid in "${PIDS[@]}"; do
+    if ! kill -0 "$pid" 2>/dev/null; then
+      echo "[jobfoundry] A service exited unexpectedly. Shutting down."
+      exit 1
+    fi
+  done
+  sleep 1
+done
