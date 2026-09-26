@@ -7,7 +7,14 @@ set -euo pipefail
 # Resolve the bundle root: Homebrew installs the payload under libexec with
 # bin/jobfoundry symlinked into $HOMEBREW_PREFIX/bin; a manual tarball
 # extract keeps the same bin/../usr layout.
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Resolve Homebrew's symlink before deriving the bundle root.
+SOURCE="${BASH_SOURCE[0]}"
+while [ -L "$SOURCE" ]; do
+  SOURCE_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ "$SOURCE" != /* ]] && SOURCE="$SOURCE_DIR/$SOURCE"
+done
+SCRIPT_DIR="$(cd "$(dirname "$SOURCE")" && pwd)"
 if [ -x "$SCRIPT_DIR/../usr/bin/jobfoundry-launcher" ]; then
   BUNDLE_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 else
