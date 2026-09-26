@@ -55,7 +55,7 @@ Job hunting is stressful enough without new barriers: no accounts, no subscripti
 | **Niche & Remote**   | Wellfound, YC Jobs, We Work Remotely, RemoteOK, Hacker News   |  15+  |
 | **Regional & Feeds** | 40+ regional boards, RSS feeds, and aggregators               |  40+  |
 
-Browse the full searchable index: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.md) or [add it yourself](extension/src/background/providers/ADDING_A_PROVIDER.md).
+Browse the full searchable index: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add it yourself](extension/src/background/providers/ADDING_A_PROVIDER.md).
 
 ---
 
