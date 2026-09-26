@@ -40,8 +40,9 @@ brew update && brew upgrade jobfoundry
 
 ## Automating formula bumps (recommended, after the tap exists)
 
-1. Create a fine-grained PAT with contents:write on
-   `Covai-Labs/homebrew-tap` and store it as the
+1. Create a fine-grained PAT with `Contents: write` and
+   `Pull requests: write` on `Covai-Labs/homebrew-tap` (the bump action
+   opens a PR in the tap repo) and store it as the
    `HOMEBREW_TAP_GITHUB_TOKEN` secret on the `JobFoundry` repo.
 2. Add this job to `release-server.yml` (needs the tarball jobs above
    to have published the release first):
@@ -59,6 +60,7 @@ bump-homebrew-formula:
         tap: Covai-Labs/homebrew-tap
         formula: jobfoundry
         tag: ${{ github.ref_name }}
+        no_fork: true
 ```
 
 Until then, bump `Formula/jobfoundry.rb` by hand on each release.

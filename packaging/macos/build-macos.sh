@@ -122,7 +122,7 @@ tar -xzf "$UV_TGZ" -C "$WORK"
 UV_BIN="$WORK/uv-aarch64-apple-darwin/uv"
 export UV_PYTHON_INSTALL_DIR="$WORK/uvpython"
 "$UV_BIN" python install "$PYTHON_SERIES"
-UV_PY_HOME="$(find "$WORK/uvpython" -maxdepth 1 -type d -name "cpython-${PYTHON_SERIES}*-aarch64-apple-darwin" | sort -V | tail -1)"
+UV_PY_HOME="$(find "$WORK/uvpython" -maxdepth 1 -type d -name "cpython-${PYTHON_SERIES}*-aarch64-apple-darwin" | sort | tail -1)"
 [ -d "$UV_PY_HOME" ] || { echo "[macos] ERROR: uv python install produced no interpreter" >&2; exit 1; }
 echo "[macos] python: $(basename "$UV_PY_HOME")"
 
@@ -165,7 +165,7 @@ mkdir -p "$PAYLOAD/usr/lib/python"
 cp -R "$UV_PY_HOME"/. "$PAYLOAD/usr/lib/python/"
 # uv installs bin/python3.<minor>; ensure bin/python3 is a working interpreter.
 if ! "$PAYLOAD/usr/lib/python/bin/python3" -c "import sys" >/dev/null 2>&1; then
-  PY_EXE="$(find "$PAYLOAD/usr/lib/python/bin" -maxdepth 1 -type f -name "python3.[0-9]*" ! -name "*-config" | sort -V | tail -1)"
+  PY_EXE="$(find "$PAYLOAD/usr/lib/python/bin" -maxdepth 1 -type f -name "python3.[0-9]*" ! -name "*-config" | sort | tail -1)"
   if [ -n "$PY_EXE" ]; then
     ln -sfn "$(basename "$PY_EXE")" "$PAYLOAD/usr/lib/python/bin/python3"
   fi

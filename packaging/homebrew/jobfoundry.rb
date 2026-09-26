@@ -43,7 +43,7 @@ class Jobfoundry < Formula
     keep_alive true
     log_path var/"log/jobfoundry.log"
     error_log_path var/"log/jobfoundry.error.log"
-    environment_variables PORT: "8080"
+    environment_variables PORT: "8080", JOBFOUNDRY_NO_BROWSER: "1"
   end
 
   test do

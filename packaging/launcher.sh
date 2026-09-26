@@ -315,8 +315,21 @@ echo "[jobfoundry]   Dashboard: http://localhost:$INGEST_PORT"
 echo "[jobfoundry]   Logs:      $LOGS_DIR"
 echo ""
 
-_open_url "http://localhost:$INGEST_PORT"
+if [ "${JOBFOUNDRY_NO_BROWSER:-0}" = "1" ]; then
+  echo "[jobfoundry] Open your browser at: http://localhost:$INGEST_PORT"
+else
+  _open_url "http://localhost:$INGEST_PORT"
+fi
 
-# Wait for any child to exit (unexpected crash), then trigger cleanup.
-wait -n "${PIDS[@]}" 2>/dev/null || true
-echo "[jobfoundry] A service exited unexpectedly. Shutting down."
+# Wait for any child to exit (unexpected crash), then trigger cleanup via
+# the EXIT trap. A poll loop is used instead of `wait -n` because macOS
+# ships bash 3.2, which has no `wait -n`.
+while :; do
+  for _pid in "${PIDS[@]}"; do
+    if ! kill -0 "$_pid" 2>/dev/null; then
+      echo "[jobfoundry] A service exited unexpectedly. Shutting down."
+      exit 1
+    fi
+  done
+  sleep 5
+done
