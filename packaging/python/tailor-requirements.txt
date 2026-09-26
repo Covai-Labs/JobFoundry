@@ -61,7 +61,7 @@ fastapi==0.141.1
     # via resume-ops-api
 fastuuid==0.14.0
     # via litellm
-filelock==4.0.3
+filelock==4.0.4
     # via huggingface-hub
 frozenlist==1.8.0
     # via
