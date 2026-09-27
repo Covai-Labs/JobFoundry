@@ -36,11 +36,27 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 NODE_MAJOR="${NODE_MAJOR:-26}"
 PYTHON_SERIES="${PYTHON_SERIES:-3.14}"
-APP_VERSION="${APP_VERSION:-${GITHUB_REF_NAME:-}}"
+if [ "$PYTHON_SERIES" != "3.14" ]; then
+  echo "[appimage] ERROR: PYTHON_SERIES '$PYTHON_SERIES' not supported. Lockfiles in packaging/python/ require Python 3.14." >&2
+  exit 1
+fi
+# GITHUB_REF_NAME is only a version for tag builds. On branch runs
+# (including workflow_dispatch) it holds a branch name — which may contain
+# slashes — so fall back to package.json there.
+if [ -z "${APP_VERSION:-}" ] && [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+  APP_VERSION="${GITHUB_REF_NAME:-}"
+fi
+APP_VERSION="${APP_VERSION:-}"
 APP_VERSION="${APP_VERSION#v}"
 if [ -z "$APP_VERSION" ]; then
   APP_VERSION="$(python3 -c "import json; print(json.load(open('$REPO_ROOT/package.json'))['version'])")"
 fi
+case "$APP_VERSION" in
+  *[^A-Za-z0-9._-]*)
+    echo "[appimage] ERROR: APP_VERSION '$APP_VERSION' is not filename-safe" >&2
+    exit 1
+    ;;
+esac
 
 BUILD_DIR="${BUILD_DIR:-$REPO_ROOT/build/appimage}"
 OUTPUT_DIR="${OUTPUT_DIR:-$BUILD_DIR/output}"
@@ -229,7 +245,7 @@ echo "[appimage] installing Python dependencies..."
 echo "[appimage] installing resume-ops-api package..."
 "$UV_BIN" pip install --break-system-packages --python "$PYTHON_BIN" \
   --no-cache --no-deps "$STAGE/server/tailor"
-"$PYTHON_BIN" -c "import resume_ops_api, fastapi, litellm; print('[appimage] python imports OK')"
+"$PYTHON_BIN" -c "import resume_ops_api.main, fastapi, litellm; print('[appimage] python imports OK')"
 # Drop bytecode caches to keep the image lean.
 find "$APPDIR/usr/lib/python" -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
 

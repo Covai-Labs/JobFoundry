@@ -37,11 +37,27 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 NODE_MAJOR="${NODE_MAJOR:-26}"
 PYTHON_SERIES="${PYTHON_SERIES:-3.14}"
-APP_VERSION="${APP_VERSION:-${GITHUB_REF_NAME:-}}"
+if [ "$PYTHON_SERIES" != "3.14" ]; then
+  echo "[windows] ERROR: PYTHON_SERIES '$PYTHON_SERIES' not supported. Lockfiles in packaging/python/ require Python 3.14." >&2
+  exit 1
+fi
+# GITHUB_REF_NAME is only a version for tag builds. On branch runs
+# (including workflow_dispatch) it holds a branch name — which may contain
+# slashes — so fall back to package.json there.
+if [ -z "${APP_VERSION:-}" ] && [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+  APP_VERSION="${GITHUB_REF_NAME:-}"
+fi
+APP_VERSION="${APP_VERSION:-}"
 APP_VERSION="${APP_VERSION#v}"
 if [ -z "$APP_VERSION" ]; then
   APP_VERSION="$(python3 -c "import json; print(json.load(open('$REPO_ROOT/package.json'))['version'])")"
 fi
+case "$APP_VERSION" in
+  *[^A-Za-z0-9._-]*)
+    echo "[windows] ERROR: APP_VERSION '$APP_VERSION' is not filename-safe" >&2
+    exit 1
+    ;;
+esac
 
 BUILD_DIR="${BUILD_DIR:-$REPO_ROOT/build/windows}"
 OUTPUT_DIR="${OUTPUT_DIR:-$BUILD_DIR/output}"
