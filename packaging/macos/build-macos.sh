@@ -314,7 +314,7 @@ echo "[macos] installing Python dependencies..."
 echo "[macos] installing resume-ops-api package..."
 "$UV_BIN" pip install --break-system-packages --python "$PYTHON_BIN" \
   --no-cache --no-deps "$STAGE/server/tailor"
-"$PYTHON_BIN" -c "import resume_ops_api, fastapi, litellm; print('[macos] python imports OK')"
+"$PYTHON_BIN" -c "import resume_ops_api.main, fastapi, litellm; print('[macos] python imports OK')"
 # Drop bytecode caches to keep the bundle lean.
 find "$PAYLOAD/usr/lib/python" -name "__pycache__" -type d -prune -exec rm -rf {} + 2>/dev/null || true
 

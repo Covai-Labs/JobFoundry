@@ -69,6 +69,8 @@ frozenlist==1.8.0
     #   aiosignal
 fsspec==2026.9.0
     # via huggingface-hub
+greenlet==3.5.6
+    # via sqlalchemy
 h11==0.16.0
     # via
     #   httpcore
