@@ -63,6 +63,7 @@ jobs:
       - name: Smoke test macOS bundle on runner
         env:
           JOBFOUNDRY_NO_BROWSER: '1'
+          OPENROUTER_API_BASE: 'https://openrouter.ai/api/v1'
         run: |
           set -euo pipefail
           SMOKE_DIR="$RUNNER_TEMP/jf-smoke"
@@ -79,6 +80,16 @@ jobs:
           curl -fsS --max-time 30 http://localhost:8080/health
           "$SMOKE_DIR/bin/jobfoundry" stop
           trap - EXIT
+
+      - name: Dump smoke test logs on failure
+        if: failure()
+        run: |
+          for log in "$HOME/.local/share/jobfoundry/logs"/*.log; do
+            if [ -f "$log" ]; then
+              echo "=== $log ==="
+              cat "$log"
+            fi
+          done
 
       - name: Upload macOS tarball (CI)
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7

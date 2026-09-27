@@ -34,6 +34,10 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 NODE_MAJOR="${NODE_MAJOR:-26}"
 PYTHON_SERIES="${PYTHON_SERIES:-3.14}"
+if [ "$PYTHON_SERIES" != "3.14" ]; then
+  echo "[macos] ERROR: PYTHON_SERIES '$PYTHON_SERIES' not supported. Lockfiles in packaging/python/ require Python 3.14." >&2
+  exit 1
+fi
 # GITHUB_REF_NAME is only a version for tag builds. On branch runs
 # (including workflow_dispatch) it holds a branch name — which may contain
 # slashes — so fall back to package.json there.
