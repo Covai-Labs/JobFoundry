@@ -72,7 +72,11 @@ mkdir -p "$WORK" "$STAGE" "$OUTPUT_DIR" "$PAYLOAD/bin" "$PAYLOAD/usr/lib" "$PAYL
 download() {
   local url="$1" dest="$2"
   echo "[macos] fetching $(basename "$dest")..."
-  curl -fsSL --retry 3 --retry-delay 5 -o "$dest" "$url"
+  # nodejs.org intermittently 403s runner IPs; --retry-all-errors makes
+  # curl back off and retry those too (bounded by --retry-max-time so a
+  # genuinely missing file still fails fast enough).
+  curl -fsSL --retry-all-errors --retry 5 --retry-delay 10 \
+    --retry-max-time 180 -o "$dest" "$url"
 }
 
 pyjson() {
