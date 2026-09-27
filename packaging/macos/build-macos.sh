@@ -73,14 +73,41 @@ mkdir -p "$WORK" "$STAGE" "$OUTPUT_DIR" "$PAYLOAD/bin" "$PAYLOAD/usr/lib" "$PAYL
 # ------------------------------------------------------------------------------
 # Helpers
 # ------------------------------------------------------------------------------
+CURL_UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
+curl_fetch() {
+  local url="$1"
+  local attempt=0 max_attempts=5 delay=5
+  while [ "$attempt" -lt "$max_attempts" ]; do
+    attempt=$(( attempt + 1 ))
+    if curl -fsSL -H "User-Agent: $CURL_UA" \
+      --connect-timeout 30 --max-time 180 "$url"; then
+      return 0
+    fi
+    echo "[macos] fetch failed (attempt $attempt/$max_attempts), retrying in ${delay}s..." >&2
+    sleep "$delay"
+    delay=$(( delay * 2 ))
+  done
+  echo "[macos] ERROR: failed to fetch $url after $max_attempts attempts" >&2
+  return 1
+}
+
 download() {
   local url="$1" dest="$2"
   echo "[macos] fetching $(basename "$dest")..."
-  # nodejs.org intermittently 403s runner IPs; --retry-all-errors makes
-  # curl back off and retry those too (bounded by --retry-max-time so a
-  # genuinely missing file still fails fast enough).
-  curl -fsSL --retry-all-errors --retry 5 --retry-delay 10 \
-    --retry-max-time 180 -o "$dest" "$url"
+  local attempt=0 max_attempts=5 delay=5
+  while [ "$attempt" -lt "$max_attempts" ]; do
+    attempt=$(( attempt + 1 ))
+    if curl -fsSL -H "User-Agent: $CURL_UA" \
+      --connect-timeout 30 --max-time 300 -o "$dest" "$url"; then
+      return 0
+    fi
+    echo "[macos] download failed (attempt $attempt/$max_attempts), retrying in ${delay}s..." >&2
+    sleep "$delay"
+    delay=$(( delay * 2 ))
+  done
+  echo "[macos] ERROR: failed to download $url after $max_attempts attempts" >&2
+  return 1
 }
 
 pyjson() {
@@ -110,7 +137,7 @@ sha256_verify() {
 # ------------------------------------------------------------------------------
 
 # --- Node.js: latest NODE_MAJOR.x from nodejs.org (SHA-verified) ---
-NODE_VERSION="$(curl -fsSL --retry 5 --retry-delay 10 https://nodejs.org/dist/index.json \
+NODE_VERSION="$(curl_fetch https://nodejs.org/dist/index.json \
   | pyjson "print([r['version'] for r in data if r['version'].startswith('v$NODE_MAJOR.')][0])")"
 NODE_VERSION="${NODE_VERSION#v}"
 echo "[macos] node: $NODE_VERSION"
@@ -130,7 +157,7 @@ if [ "$UV_VERSION" = "latest" ]; then
 else
   UV_API="https://api.github.com/repos/astral-sh/uv/releases/tags/$UV_VERSION"
 fi
-UV_RELEASE="$(curl -fsSL --retry 5 --retry-delay 5 "$UV_API")"
+UV_RELEASE="$(curl_fetch "$UV_API")"
 UV_VERSION="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
 UV_TGZ_URL="$(echo "$UV_RELEASE" | pyjson "print([a['browser_download_url'] for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0])")"
 UV_SHA="$(echo "$UV_RELEASE" | pyjson "print((data.get('assets') and [a.get('digest','') for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0]) or '')")"
@@ -167,7 +194,7 @@ echo "[macos] python: $(basename "$UV_PY_HOME")"
 CHROME_VERSION="${CHROME_VERSION:-153.0.8010.36}"
 CHROME_SHA256_DEFAULT="3b133378fe44a5f9c849df9049763577fbed296ee4d02d1ffb31b9fcabf79850"
 echo "[macos] chrome-headless-shell: $CHROME_VERSION"
-CHROME_ZIP_URL="$(curl -fsSL --retry 5 --retry-delay 5 \
+CHROME_ZIP_URL="$(curl_fetch \
   "https://googlechromelabs.github.io/chrome-for-testing/known-good-versions-with-downloads.json" \
   | pyjson "
     vs=[v for v in data['versions'] if v['version']=='$CHROME_VERSION']
