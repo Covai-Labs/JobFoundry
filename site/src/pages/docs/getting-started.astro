@@ -24,10 +24,26 @@ import { resolvePath } from '../../utils/paths.js';
       <span>What you need</span>
     </div>
     <p>
-      A computer (Linux, Windows 11, or macOS), a browser (Chrome, Edge, Brave,
-      or Firefox), and — only if you want fit scores and tailored resumes — an
-      LLM API key (e.g. OpenRouter) <em>or</em> a free local model via Ollama.
-      Job capture alone needs nothing else.
+      If you can browse the web and run a program on your computer, you can use
+      JobFoundry. You need a computer (Linux, Windows 11, or macOS), a browser
+      (Chrome, Edge, Brave, or Firefox), and — only if you want fit scores and
+      tailored resumes — an LLM API key (e.g. OpenRouter) <em>or</em> a free
+      local model via Ollama. Job capture alone needs nothing else.
+    </p>
+  </div>
+
+  <div class="doc-callout">
+    <div class="callout-title">
+      <span>◈</span>
+      <span>Release maturity</span>
+    </div>
+    <p>
+      The container image (Docker) is the default tested release — it's what CI
+      builds and verifies on every change. AppImage, MSIX, and Homebrew/macOS
+      builds are provided to lower the barrier for people who just want to
+      double-click and run, no terminal needed. They work, but they get less
+      test coverage for now. As more people use them and report issues, they'll
+      be tested and polished to the same bar.
     </p>
   </div>
 
@@ -43,12 +59,17 @@ import { resolvePath } from '../../utils/paths.js';
       <code>chmod +x JobFoundry-*.AppImage</code> once), then double-click to
       launch. The dashboard opens at
       <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>.
-      <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 2 (Docker) below.</em>
+      <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 2 (Docker) below. Convenience build — please report issues.</em>
     </li>
     <li>
       <strong>Windows 11:</strong> download <code>JobFoundry-&lt;version&gt;-x64.msix</code>
       and <code>JobFoundry.cer</code>. Right-click the Start button → Terminal
-      (Admin) and trust the certificate once, then install the package:
+      (Admin) and trust the certificate once, then install the package.
+      <em>Convenience build — please report issues.</em>
+    </li>
+    <li>
+      <strong>macOS:</strong> Homebrew/tarball via the <code>*-darwin-arm64.tar.gz</code> Release asset (see <code>packaging/homebrew/README.md</code> in the repo).
+      <em>Convenience build — please report issues.</em>
     </li>
   </ul>
   <TerminalSnippet
@@ -65,7 +86,7 @@ import { resolvePath } from '../../utils/paths.js';
     the app package.
   </p>
 
-  <h2>Method 2: One-line install with Docker</h2>
+  <h2>Method 2: One-line install with Docker (tested default)</h2>
   <p>
     On Linux, macOS, or Windows (WSL2) with Docker installed, this single command
     sets up everything — container, configuration, and health check:

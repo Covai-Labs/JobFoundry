@@ -1,6 +1,25 @@
 # The JobFoundry Manifesto
 
-_Why this tool exists, and who it is for._
+_Who this is for: anyone who needs a job and knows how to run a computer. If you can browse the web, you can use JobFoundry._
+
+## Origin: built in a real job search
+
+JobFoundry started while looking for a job. Existing products either consumed
+too many tokens reading every posting with an LLM, or produced low-quality
+tailoring that hallucinated experience. So first came resume-ops / career-ops —
+a CLI-first experiment in truthful, low-token tailoring.
+
+Parsing needed to be better and the whole pipeline needed care: capture, dedup,
+scoring, tailoring, tracking. That became JobFoundry.
+
+Used in earnest, it was deliberately selective — most jobs were rejected at the
+scoring stage, and only the highest-fit roles got tailored resumes and
+applications. That focus led to several offers. None accepted yet; that time is
+going into making JobFoundry useful to many people instead.
+
+Mass-apply automation is flooding the market: it buries strong candidates and
+overwhelms hiring teams. JobFoundry bets the other way — fewer, better, honest
+applications bring sanity back for jobseekers _and_ employers.
 
 ## 1. Job hunting is hard enough. The tooling should not make it harder.
 
