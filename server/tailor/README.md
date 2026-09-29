@@ -104,7 +104,7 @@ This flag instructs the container runtime to automatically update host directory
 ### Option 1: Running as part of JobFoundry (Recommended)
 
 In normal use you never run this engine on its own — the JobFoundry stack
-(Docker Compose, AppImage, or MSIX) starts and supervises it automatically.
+(Docker Compose, AppImage, MSIX, or macOS/Homebrew) starts and supervises it automatically.
 See the [JobFoundry README](../../README.md) for the one-command install.
 Inside the stack the engine listens on `http://127.0.0.1:8081` (internal only;
 the dashboard is served on `:8080`).

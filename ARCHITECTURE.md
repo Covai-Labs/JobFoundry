@@ -169,7 +169,7 @@ site/             Astro docs site source (builds to docs/ for Pages)
 docs/             Built static site — do not edit by hand
 scripts/          healthcheck, metadata checks, career-ops import
 test/             Multi-service E2E + metadata assertions
-packaging/        AppImage (Linux), MSIX (Windows) builders
+packaging/        Docker container (tested default); AppImage (Linux), MSIX (Windows), macOS tarball/Homebrew convenience builders
 ```
 
 For AI-agent-specific constraints (port map, SSRF rules, PDF toolchain
