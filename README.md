@@ -80,7 +80,7 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 
 JobFoundry didn't start as a product idea — it started while looking for a job.
 
-Existing tools fell into two traps: some burned through tokens by feeding every job posting to an LLM, and some produced low-quality tailoring that hallucinated employers, skills, or metrics. So the first step was resume-ops / career-ops: a CLI-first experiment in truthful, low-token tailoring for AI coding assistants.
+Existing tools fell into two traps: some burned through tokens by feeding every job posting to an LLM, and some produced low-quality tailoring that hallucinated employers, skills, or metrics. So the first step was resume-ops: a CLI-first experiment in truthful, low-token tailoring for AI coding assistants.
 
 That worked, but parsing was still weak and only half the pipeline was covered. The full loop — capture, dedup, fit scoring, tailoring, tracking — became JobFoundry.
 

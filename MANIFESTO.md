@@ -6,7 +6,7 @@ _Who this is for: anyone who needs a job and knows how to run a computer. If you
 
 JobFoundry started while looking for a job. Existing products either consumed
 too many tokens reading every posting with an LLM, or produced low-quality
-tailoring that hallucinated experience. So first came resume-ops / career-ops —
+tailoring that hallucinated experience. So first came resume-ops —
 a CLI-first experiment in truthful, low-token tailoring.
 
 Parsing needed to be better and the whole pipeline needed care: capture, dedup,
