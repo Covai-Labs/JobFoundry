@@ -6,7 +6,7 @@ import { resolvePath } from '../../utils/paths.js';
 
 <DocsLayout
   title="Getting Started"
-  description="Install JobFoundry with Docker (tested default) or a ready-made AppImage / MSIX / Homebrew build (no terminal needed) — then add the browser extension and start capturing jobs."
+  description="Install JobFoundry with Docker (default) or a ready-made AppImage / MSIX / macOS tarball — then add the browser extension and start capturing jobs."
   currentPath={resolvePath('/docs/getting-started/')}
   category="Installation & Setup"
 >
@@ -38,16 +38,16 @@ import { resolvePath } from '../../utils/paths.js';
       <span>Release maturity</span>
     </div>
     <p>
-      The container image (Docker) is the default tested release — it's what CI
-      builds and verifies on every change. AppImage, MSIX, and Homebrew/macOS
-      builds are provided to lower the barrier for people who just want to
-      double-click and run, no terminal needed. They work, but they get less
-      test coverage for now. As more people use them and report issues, they'll
-      be tested and polished to the same bar.
+      The container image (Docker) is the default release — CI builds it for
+      applicable code changes. AppImage, MSIX, and macOS tarball builds are
+      provided to lower the barrier. The MSIX flow requires Terminal (Admin)
+      once. They work, but they get less test coverage for now. As more people
+      use them and report issues, they'll be tested and polished to the same
+      bar.
     </p>
   </div>
 
-  <h2>Method 1: Ready-made app (easiest, community-tested)</h2>
+  <h2>Method 1: Ready-made app (easiest)</h2>
   <p>
     Download the latest release from the
     <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer">Releases page</a>:
@@ -68,7 +68,7 @@ import { resolvePath } from '../../utils/paths.js';
       <em>Convenience build — please report issues.</em>
     </li>
     <li>
-      <strong>macOS:</strong> Homebrew/tarball via the <code>*-darwin-arm64.tar.gz</code> Release asset (see <code>packaging/homebrew/README.md</code> in the repo).
+      <strong>macOS:</strong> via the <code>*-darwin-arm64.tar.gz</code> Release asset when available (none in <code>v0.4.0</code> — check the latest Release). A Homebrew tap shell exists, but the formula is pending its first SHA, so <code>brew install</code> does not work yet.
       <em>Convenience build — please report issues.</em>
     </li>
   </ul>
@@ -86,7 +86,7 @@ import { resolvePath } from '../../utils/paths.js';
     the app package.
   </p>
 
-  <h2>Method 2: One-line install with Docker (tested default)</h2>
+  <h2>Method 2: One-line install with Docker (default)</h2>
   <p>
     On Linux, macOS, or Windows (WSL2) with Docker installed, this single command
     sets up everything — container, configuration, and health check:

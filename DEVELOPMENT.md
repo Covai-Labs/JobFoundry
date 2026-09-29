@@ -24,7 +24,7 @@ JobFoundry/
 │   ├── tailor/           # LangGraph resume engine + folio-export PDF bridge (:8081, loopback)
 │   └── web/              # Vite + React 19 SPA (Kanban, feed, resume manager)
 ├── site/                 # Astro docs site source (builds to site/dist/, deployed to Pages)
-├── packaging/            # Docker container (tested default); AppImage (Linux), MSIX (Windows), macOS/Homebrew convenience builders
+├── packaging/            # Docker container (default, CI-built); AppImage (Linux), MSIX (Windows), macOS tarball convenience builders (Homebrew tap shell live, formula pending)
 ├── scripts/              # healthcheck, metadata checks, career-ops import
 ├── test/                 # multi-service E2E + metadata assertions
 ├── compose.yaml          # local full-stack container orchestration

@@ -92,15 +92,15 @@ The larger bet: mass-apply automation and spray-and-pray flooding hurts both sid
 
 ## Quick Install
 
-> **Release maturity:** the container image (Docker) is the default tested release — it's what CI builds and verifies on every change. AppImage, MSIX, and Homebrew/macOS builds exist to lower the barrier for people who just want to double-click and run, no terminal needed. They work, but they get less test coverage for now. As more people use them and file issues, they'll be tested and polished to the same bar.
+> **Release maturity:** the container image (Docker) is the default release — CI builds it for applicable code changes. AppImage, MSIX, and macOS tarball builds exist to lower the barrier. Note: the Windows MSIX flow requires Terminal (Admin) once to trust/install. They work, but they get less test coverage for now. As more people use them and file issues, they'll be tested and polished to the same bar.
 
 - 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below). _Convenience build — please report issues so it can harden._
-- 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), trust the cert once, install, launch from the Start menu. _Convenience build — please report issues so it can harden._
-- 🍺 **macOS (Homebrew / tarball):** see `packaging/homebrew/README.md` and the `*-darwin-arm64.tar.gz` Release asset. _Convenience build — please report issues so it can harden._
-- 🐳 **Any OS with Docker (tested default):** `curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
+- 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), trust the cert once via Terminal (Admin), install, launch from the Start menu. _Convenience build — please report issues so it can harden._
+- 🍺 **macOS (tarball):** download the `*-darwin-arm64.tar.gz` Release asset when available (none in `v0.4.0` — check the latest Release). A Homebrew tap shell exists at `Covai-Labs/homebrew-tap`, but the formula is still pending its first SHA, so `brew install` does not work yet. _Convenience build — please report issues so it can harden._
+- 🐳 **Any OS with Docker (default):** `curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
 - 🧩 **Extension (easiest):** install from the [Chrome Web Store](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm), [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/), or [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe). Prefer the latest build? For Chrome/Edge, download the `.zip` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases) and load unpacked — no build needed. For Firefox, extract the `.zip`, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on…**, and choose `manifest.json` (lasts until restart). Note: store listings may lag behind GitHub Releases due to store review, so check the latest Release if you hit an issue.
 
-Full walkthrough (no terminal required): **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**.
+Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**. Note: the Windows MSIX path needs Terminal (Admin) once.
 
 <details>
 <summary><b>🛠️ Manual / Developer Setup</b></summary>
