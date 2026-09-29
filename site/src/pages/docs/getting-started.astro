@@ -6,7 +6,7 @@ import { resolvePath } from '../../utils/paths.js';
 
 <DocsLayout
   title="Getting Started"
-  description="Install JobFoundry with Docker (default) or a ready-made AppImage / MSIX / macOS tarball — then add the browser extension and start capturing jobs."
+  description="Install JobFoundry with Docker (default) or a ready-made AppImage / MSIX / macOS Homebrew build — then add the browser extension and start capturing jobs."
   currentPath={resolvePath('/docs/getting-started/')}
   category="Installation & Setup"
 >
@@ -39,11 +39,11 @@ import { resolvePath } from '../../utils/paths.js';
     </div>
     <p>
       The container image (Docker) is the default release — CI builds it for
-      applicable code changes. AppImage, MSIX, and macOS tarball builds are
+      applicable code changes. AppImage, MSIX, and macOS Homebrew/tarball builds are
       provided to lower the barrier. The MSIX flow requires Terminal (Admin)
-      once. They work, but they get less test coverage for now. As more people
-      use them and report issues, they'll be tested and polished to the same
-      bar.
+      when trusting a new release certificate. They work, but they get less test
+      coverage for now. As more people use them and report issues, they'll be tested
+      and polished to the same bar.
     </p>
   </div>
 
@@ -64,17 +64,20 @@ import { resolvePath } from '../../utils/paths.js';
     <li>
       <strong>Windows 11:</strong> download <code>JobFoundry-&lt;version&gt;-x64.msix</code>
       and <code>JobFoundry.cer</code>. Right-click the Start button → Terminal
-      (Admin) and trust the certificate once, then install the package.
+      (Admin) and trust the release certificate (repeat if a release uses a new certificate), then install the package.
       <em>Convenience build — please report issues.</em>
     </li>
     <li>
-      <strong>macOS:</strong> via the <code>*-darwin-arm64.tar.gz</code> Release asset when available (none in <code>v0.4.0</code> — check the latest Release). A Homebrew tap shell exists, but the formula is pending its first SHA, so <code>brew install</code> does not work yet.
+      <strong>macOS:</strong> install via Homebrew:
+      <code>brew tap covai-labs/tap &amp;&amp; brew install covai-labs/tap/jobfoundry</code>,
+      then launch with <code>jobfoundry start</code>. Or download the <code>*-darwin-arm64.tar.gz</code>
+      Release asset.
       <em>Convenience build — please report issues.</em>
     </li>
   </ul>
   <TerminalSnippet
     command="Import-Certificate -FilePath .\JobFoundry.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople"
-    title="TRUST CERTIFICATE ONCE (ADMIN POWERSHELL)"
+    title="TRUST CERTIFICATE (ADMIN POWERSHELL)"
   />
   <TerminalSnippet
     command="Add-AppxPackage -Path .\JobFoundry-<version>-x64.msix"
