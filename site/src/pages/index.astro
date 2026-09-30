@@ -7,7 +7,7 @@ import { resolvePath } from '../utils/paths.js';
 
 <MarketingLayout
   title="JobFoundry — Local-First Job Search & Resume Tailoring Infrastructure"
-  description="Local-first AI pipeline for 87 job boards, available as a Linux AppImage, Windows MSIX package, or Docker deployment."
+  description="Local-first AI pipeline for 87 job boards, available as a Docker deployment or ready-made Linux AppImage, Windows MSIX, or macOS (Apple Silicon) Homebrew."
   currentPath={resolvePath('/')}
 >
   <!-- Metro-Bento Hero Section -->
@@ -126,7 +126,7 @@ import { resolvePath } from '../utils/paths.js';
               <span class="site-badge cyan">CHOOSE YOUR INSTALL</span>
               <h3 class="quickstart-title">Run JobFoundry your way</h3>
               <p class="quickstart-text">
-                Download a ready-made desktop app or deploy the all-in-one container. The browser extension is added separately.
+                Docker is the default release (CI-built). AppImage, MSIX, and macOS Homebrew/tarball builds lower the barrier — note MSIX needs Terminal (Admin) when trusting a new certificate — and harden with every issue you report. The browser extension is added separately.
               </p>
             </div>
             <div class="quickstart-options">

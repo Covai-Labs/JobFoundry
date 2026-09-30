@@ -76,14 +76,31 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 
 ---
 
+## Built in a real job search
+
+JobFoundry didn't start as a product idea — it started while looking for a job.
+
+Existing tools fell into two traps: some burned through tokens by feeding every job posting to an LLM, and some produced low-quality tailoring that hallucinated employers, skills, or metrics. So the first step was resume-ops: a CLI-first experiment in truthful, low-token tailoring for AI coding assistants.
+
+That worked, but parsing was still weak and only half the pipeline was covered. The full loop — capture, dedup, fit scoring, tailoring, tracking — became JobFoundry.
+
+Used in a real search, the workflow was deliberately selective: let scoring reject most jobs early and only tailor and apply to the highest-fit roles. That focus led to several offers. No offer has been accepted yet — instead that time is going into hardening JobFoundry for everyone else.
+
+The larger bet: mass-apply automation and spray-and-pray flooding hurts both sides — good candidates get buried, hiring teams drown in low-fit noise. JobFoundry is the opposite: fewer, better, honest applications. If that brings a little sanity back to hiring, it's worth it.
+
+---
+
 ## Quick Install
 
-- 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below).
-- 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), trust the cert once, install, launch from the Start menu.
-- 🐳 **Any OS with Docker:** `curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
+> **Release maturity:** the container image (Docker) is the default release — CI builds it for applicable code changes. AppImage, MSIX, and macOS Homebrew/tarball builds exist to lower the barrier. Note: the Windows MSIX flow requires Terminal (Admin) when trusting a new release certificate. They work, but they get less test coverage for now. As more people use them and file issues, they'll be tested and polished to the same bar.
+
+- 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below). _Convenience build — please report issues so it can harden._
+- 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), trust the release certificate via Terminal (Admin), install, launch from the Start menu. Repeat the trust step when a release uses a new certificate. _Convenience build — please report issues so it can harden._
+- 🍺 **macOS (Apple Silicon):** `brew tap covai-labs/tap && brew install covai-labs/tap/jobfoundry`, then `jobfoundry start`. Or download the `*-darwin-arm64.tar.gz` Release asset. For Intel Macs, use Docker below. _Convenience build — please report issues so it can harden._
+- 🐳 **Any OS with Docker (default):** `curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
 - 🧩 **Extension (easiest):** install from the [Chrome Web Store](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm), [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/), or [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe). Prefer the latest build? For Chrome/Edge, download the `.zip` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases) and load unpacked — no build needed. For Firefox, extract the `.zip`, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on…**, and choose `manifest.json` (lasts until restart). Note: store listings may lag behind GitHub Releases due to store review, so check the latest Release if you hit an issue.
 
-Full walkthrough (no terminal required): **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**.
+Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**. Note: the Windows MSIX path needs Terminal (Admin) when trusting a new release certificate.
 
 <details>
 <summary><b>🛠️ Manual / Developer Setup</b></summary>

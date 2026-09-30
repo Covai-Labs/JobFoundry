@@ -24,7 +24,7 @@ JobFoundry depending on what kind of help you need.
 - **Found a bug?** File it as a
   [GitHub Issue](https://github.com/Covai-Labs/JobFoundry/issues) using the
   bug report template. Please include: your install method (Docker, AppImage,
-  MSIX), your OS and browser, and steps to reproduce.
+  MSIX, Homebrew/macOS), your OS and browser, and steps to reproduce.
 
 When asking for help, **never share** your `.env` file, API keys, or your
 full resume in public threads. Maintainers will never ask for your keys.

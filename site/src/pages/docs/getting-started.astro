@@ -6,7 +6,7 @@ import { resolvePath } from '../../utils/paths.js';
 
 <DocsLayout
   title="Getting Started"
-  description="Install JobFoundry the easy way (AppImage / MSIX, no terminal needed) or with Docker — then add the browser extension and start capturing jobs."
+  description="Install JobFoundry with Docker (default) or a ready-made AppImage / MSIX / macOS Homebrew build — then add the browser extension and start capturing jobs."
   currentPath={resolvePath('/docs/getting-started/')}
   category="Installation & Setup"
 >
@@ -24,14 +24,30 @@ import { resolvePath } from '../../utils/paths.js';
       <span>What you need</span>
     </div>
     <p>
-      A computer (Linux, Windows 11, or macOS), a browser (Chrome, Edge, Brave,
-      or Firefox), and — only if you want fit scores and tailored resumes — an
-      LLM API key (e.g. OpenRouter) <em>or</em> a free local model via Ollama.
-      Job capture alone needs nothing else.
+      If you can browse the web and run a program on your computer, you can use
+      JobFoundry. You need a computer (Linux, Windows 11, or macOS), a browser
+      (Chrome, Edge, Brave, or Firefox), and — only if you want fit scores and
+      tailored resumes — an LLM API key (e.g. OpenRouter) <em>or</em> a free
+      local model via Ollama. Job capture alone needs nothing else.
     </p>
   </div>
 
-  <h2>Method 1: Ready-made app (easiest, no terminal)</h2>
+  <div class="doc-callout">
+    <div class="callout-title">
+      <span>◈</span>
+      <span>Release maturity</span>
+    </div>
+    <p>
+      The container image (Docker) is the default release — CI builds it for
+      applicable code changes. AppImage, MSIX, and macOS Homebrew/tarball builds are
+      provided to lower the barrier. The MSIX flow requires Terminal (Admin)
+      when trusting a new release certificate. They work, but they get less test
+      coverage for now. As more people use them and report issues, they'll be tested
+      and polished to the same bar.
+    </p>
+  </div>
+
+  <h2>Method 1: Ready-made app (easiest)</h2>
   <p>
     Download the latest release from the
     <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer">Releases page</a>:
@@ -43,17 +59,25 @@ import { resolvePath } from '../../utils/paths.js';
       <code>chmod +x JobFoundry-*.AppImage</code> once), then double-click to
       launch. The dashboard opens at
       <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>.
-      <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 2 (Docker) below.</em>
+      <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 2 (Docker) below. Convenience build — please report issues.</em>
     </li>
     <li>
       <strong>Windows 11:</strong> download <code>JobFoundry-&lt;version&gt;-x64.msix</code>
       and <code>JobFoundry.cer</code>. Right-click the Start button → Terminal
-      (Admin) and trust the certificate once, then install the package:
+      (Admin) and trust the release certificate (repeat if a release uses a new certificate), then install the package.
+      <em>Convenience build — please report issues.</em>
+    </li>
+    <li>
+      <strong>macOS (Apple Silicon):</strong> install via Homebrew:
+      <code>brew tap covai-labs/tap &amp;&amp; brew install covai-labs/tap/jobfoundry</code>,
+      then launch with <code>jobfoundry start</code>. Or download the <code>*-darwin-arm64.tar.gz</code>
+      Release asset.
+      <em>For Intel Macs, use Method 2 (Docker) below. Convenience build — please report issues.</em>
     </li>
   </ul>
   <TerminalSnippet
     command="Import-Certificate -FilePath .\JobFoundry.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople"
-    title="TRUST CERTIFICATE ONCE (ADMIN POWERSHELL)"
+    title="TRUST CERTIFICATE (ADMIN POWERSHELL)"
   />
   <TerminalSnippet
     command="Add-AppxPackage -Path .\JobFoundry-<version>-x64.msix"
@@ -65,7 +89,7 @@ import { resolvePath } from '../../utils/paths.js';
     the app package.
   </p>
 
-  <h2>Method 2: One-line install with Docker</h2>
+  <h2>Method 2: One-line install with Docker (default)</h2>
   <p>
     On Linux, macOS, or Windows (WSL2) with Docker installed, this single command
     sets up everything — container, configuration, and health check:
