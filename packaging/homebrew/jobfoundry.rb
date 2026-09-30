@@ -20,7 +20,7 @@ class Jobfoundry < Formula
   on_macos do
     on_arm do
       url "https://github.com/Covai-Labs/JobFoundry/releases/download/v0.4.1/jobfoundry-0.4.1-darwin-arm64.tar.gz"
-      sha256 "REPLACE_WITH_DARWIN_ARM64_SHA256"
+      sha256 "ff7abef46a7cd022dc0efdb4bd033ef92c1bd6c865463dd7f0536c068cc88b01"
     end
   end
 
