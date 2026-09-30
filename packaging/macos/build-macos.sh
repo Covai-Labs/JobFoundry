@@ -78,9 +78,13 @@ CURL_UA="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHT
 curl_fetch() {
   local url="$1"
   local attempt=0 max_attempts=5 delay=5
+  local auth_header=()
+  if [[ "$url" == *"api.github.com"* ]] && [ -n "${GITHUB_TOKEN:-}" ]; then
+    auth_header=(-H "Authorization: Bearer $GITHUB_TOKEN")
+  fi
   while [ "$attempt" -lt "$max_attempts" ]; do
     attempt=$(( attempt + 1 ))
-    if curl -fsSL -H "User-Agent: $CURL_UA" \
+    if curl -fsSL -H "User-Agent: $CURL_UA" ${auth_header[@]+"${auth_header[@]}"} \
       --connect-timeout 30 --max-time 180 "$url"; then
       return 0
     fi
@@ -152,23 +156,34 @@ sha256_verify "$WORK/$NODE_TGZ" "$NODE_SHA"
 # A pinned UV_VERSION is honoured: concrete versions resolve through the
 # release-by-tag endpoint so the downloaded binary matches the request.
 UV_VERSION="${UV_VERSION:-latest}"
+UV_TGZ="$WORK/uv.tar.gz"
 if [ "$UV_VERSION" = "latest" ]; then
   UV_API="https://api.github.com/repos/astral-sh/uv/releases/latest"
 else
   UV_API="https://api.github.com/repos/astral-sh/uv/releases/tags/$UV_VERSION"
 fi
-UV_RELEASE="$(curl_fetch "$UV_API")"
-UV_VERSION="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
-UV_TGZ_URL="$(echo "$UV_RELEASE" | pyjson "print([a['browser_download_url'] for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0])")"
-UV_SHA="$(echo "$UV_RELEASE" | pyjson "print((data.get('assets') and [a.get('digest','') for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0]) or '')")"
-UV_SHA="${UV_SHA##*:}"
-UV_TGZ="$WORK/uv.tar.gz"
-echo "[macos] uv: $UV_VERSION"
-download "$UV_TGZ_URL" "$UV_TGZ"
-if [ -n "$UV_SHA" ]; then
-  sha256_verify "$UV_TGZ" "$UV_SHA"
+UV_RELEASE="$(curl_fetch "$UV_API" 2>/dev/null || true)"
+if [ -n "$UV_RELEASE" ]; then
+  UV_VERSION="$(echo "$UV_RELEASE" | pyjson "print(data['tag_name'])")"
+  UV_TGZ_URL="$(echo "$UV_RELEASE" | pyjson "print([a['browser_download_url'] for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0])")"
+  UV_SHA="$(echo "$UV_RELEASE" | pyjson "print((data.get('assets') and [a.get('digest','') for a in data['assets'] if a['name']=='uv-aarch64-apple-darwin.tar.gz'][0]) or '')")"
+  UV_SHA="${UV_SHA##*:}"
+  echo "[macos] uv: $UV_VERSION"
+  download "$UV_TGZ_URL" "$UV_TGZ"
+  if [ -n "$UV_SHA" ]; then
+    sha256_verify "$UV_TGZ" "$UV_SHA"
+  fi
 else
-  echo "[macos] WARNING: no digest for uv $UV_VERSION; skipping verification"
+  echo "[macos] GitHub API rate-limited; falling back to direct asset download for uv..."
+  if [ "$UV_VERSION" = "latest" ]; then
+    UV_BASE_URL="https://github.com/astral-sh/uv/releases/latest/download"
+  else
+    UV_BASE_URL="https://github.com/astral-sh/uv/releases/download/$UV_VERSION"
+  fi
+  download "$UV_BASE_URL/uv-aarch64-apple-darwin.tar.gz" "$UV_TGZ"
+  download "$UV_BASE_URL/uv-aarch64-apple-darwin.tar.gz.sha256" "$WORK/uv.sha256"
+  UV_SHA="$(awk '{print $1}' "$WORK/uv.sha256")"
+  sha256_verify "$UV_TGZ" "$UV_SHA"
 fi
 tar -xzf "$UV_TGZ" -C "$WORK"
 UV_BIN="$WORK/uv-aarch64-apple-darwin/uv"
