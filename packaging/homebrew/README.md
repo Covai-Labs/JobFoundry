@@ -49,7 +49,7 @@ brew update && brew upgrade jobfoundry
 
 ```yaml
 bump-homebrew-formula:
-  runs-on: ubuntu-latest
+  runs-on: macos-latest
   needs: build-macos-tarballs
   if: startsWith(github.ref, 'refs/tags/')
   steps:
