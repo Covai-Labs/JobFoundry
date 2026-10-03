@@ -131,7 +131,7 @@ export const JobCard: React.FC<JobCardProps> = ({
         </span>
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
           {onStatusChange &&
-            (job.status === 'applied' ? (
+            (['applied', 'interview', 'offer', 'rejected'].includes(job.status) ? (
               <span
                 className="badge badge-green"
                 style={{
@@ -141,9 +141,9 @@ export const JobCard: React.FC<JobCardProps> = ({
                   fontSize: '0.75rem',
                   padding: '0.25rem 0.45rem',
                 }}
-                title="Marked as Applied"
+                title={`Status: ${job.status}`}
               >
-                <Check size={12} /> Applied
+                <Check size={12} /> {job.status.replace(/_/g, ' ')}
               </span>
             ) : (
               <button
