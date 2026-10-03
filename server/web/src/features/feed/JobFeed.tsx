@@ -751,6 +751,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
               threshold={threshold}
               onSelect={onSelectJob}
               onTailored={onJobUpdated}
+              onStatusChange={onStatusChange}
             />
           ))}
         </div>
