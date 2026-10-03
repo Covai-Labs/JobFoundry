@@ -65,9 +65,9 @@ function getCaptureChannelInfo(source?: string) {
   }
   if (s === 'web') {
     return {
-      channel: 'Web Paste / Parser',
-      adapter: 'AI / JSON-LD Extractor',
-      description: 'Extracted from pasted job text or web posting.',
+      channel: 'Unknown Capture Channel',
+      adapter: 'Provider: web',
+      description: 'Capture channel was not recorded for this job.',
     };
   }
   if (s === 'direct') {
@@ -78,9 +78,11 @@ function getCaptureChannelInfo(source?: string) {
     };
   }
   return {
-    channel: 'Browser Extension Capture',
-    adapter: `${s.charAt(0).toUpperCase() + s.slice(1)} Adapter`,
-    description: `Zero-token capture via public ATS or DOM adapter (${s}).`,
+    channel: 'Unknown Capture Channel',
+    adapter: s ? `Provider: ${s}` : 'Not recorded',
+    description: s
+      ? `Capture channel was not recorded (provider: ${s}).`
+      : 'Capture channel and provider were not recorded for this job.',
   };
 }
 
@@ -131,10 +133,19 @@ export const JobDetail: React.FC<JobDetailProps> = ({
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(job.url);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = job.url;
+        document.body.appendChild(ta);
+        ta.select();
+        if (!document.execCommand('copy')) throw new Error('Copy command failed');
+        document.body.removeChild(ta);
       }
       setCopiedUrl(true);
       setTimeout(() => setCopiedUrl(false), 2000);
-    } catch {}
+    } catch (err) {
+      console.warn('Unable to copy job URL', err);
+    }
   };
 
   // Resume diff states
