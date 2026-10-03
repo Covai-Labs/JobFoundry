@@ -1,5 +1,5 @@
 import React from 'react';
-import { Job } from '../../types/job';
+import { Job, JobStatus } from '../../types/job';
 import { getScoreCategory, parseFitNotes } from '../filters/filterUtils';
 import { TailorButton } from '../tailor/TailorButton';
 import { MapPin, Check } from 'lucide-react';
@@ -9,9 +9,16 @@ interface JobCardProps {
   threshold?: number;
   onSelect: (job: Job) => void;
   onTailored?: (updatedJob: Job) => void;
+  onStatusChange?: (jobId: string, status: JobStatus) => void;
 }
 
-export const JobCard: React.FC<JobCardProps> = ({ job, threshold = 75, onSelect, onTailored }) => {
+export const JobCard: React.FC<JobCardProps> = ({
+  job,
+  threshold = 75,
+  onSelect,
+  onTailored,
+  onStatusChange,
+}) => {
   const fitNotes = parseFitNotes(job.fit_notes);
   const scoreCat = getScoreCategory(job.fit_score, threshold);
 
@@ -122,7 +129,41 @@ export const JobCard: React.FC<JobCardProps> = ({ job, threshold = 75, onSelect,
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           {new Date(job.created_at).toLocaleDateString()}
         </span>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          {onStatusChange &&
+            (job.status === 'applied' ? (
+              <span
+                className="badge badge-green"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.2rem',
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.45rem',
+                }}
+                title="Marked as Applied"
+              >
+                <Check size={12} /> Applied
+              </span>
+            ) : (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onStatusChange(job.id, 'applied');
+                }}
+                className="btn btn-secondary btn-sm"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  fontSize: '0.75rem',
+                }}
+                title="Mark this job as Applied"
+              >
+                <Check size={12} /> Mark Applied
+              </button>
+            ))}
           <TailorButton job={job} onTailored={onTailored} />
           <button
             onClick={(e) => {

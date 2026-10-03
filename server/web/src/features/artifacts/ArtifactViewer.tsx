@@ -36,7 +36,6 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
   const { user } = useAuth();
   const [downloading, setDownloading] = useState<string | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [previewTheme, setPreviewTheme] = useState<'folio' | 'concise'>('folio');
   const [candidateName, setCandidateName] = useState<string>(user?.name || '');
   const [error, setError] = useState<string | null>(null);
 
@@ -66,21 +65,15 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
     }
   }, [jobId, candidateName]);
 
-  const handleDownloadPdf = async (theme: 'folio' | 'concise') => {
-    setDownloading(theme);
+  const handleDownloadPdf = async () => {
+    setDownloading('pdf');
     setError(null);
     try {
-      const blob = await api.downloadPdf(jobId, theme);
+      const blob = await api.downloadPdf(jobId, 'folio');
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = buildDownloadFilename(
-        candidateName,
-        job?.company,
-        job?.title,
-        theme === 'concise' ? 'Concise' : undefined,
-        'pdf'
-      );
+      a.download = buildDownloadFilename(candidateName, job?.company, job?.title, undefined, 'pdf');
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -92,17 +85,16 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
     }
   };
 
-  const handlePreviewPdf = async (theme: 'folio' | 'concise') => {
-    setDownloading(`preview-${theme}`);
+  const handlePreviewPdf = async () => {
+    setDownloading('preview');
     setError(null);
     try {
-      const blob = await api.downloadPdf(jobId, theme);
+      const blob = await api.downloadPdf(jobId, 'folio');
       if (previewUrl) {
         window.URL.revokeObjectURL(previewUrl);
       }
       const url = window.URL.createObjectURL(blob);
       setPreviewUrl(url);
-      setPreviewTheme(theme);
     } catch (err: any) {
       setError(err.message || 'Failed to load PDF preview');
     } finally {
@@ -163,45 +155,49 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
   };
 
   return (
-    <div style={{ marginTop: '1rem' }}>
+    <div
+      style={{
+        padding: '0.85rem 1rem',
+        background: 'rgba(255, 255, 255, 0.03)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-md)',
+        marginBottom: '1rem',
+      }}
+    >
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          marginBottom: '0.75rem',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+          marginBottom: '0.65rem',
         }}
       >
-        <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-          Tailored Documents & Export
-        </h4>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+            Tailored Documents & Export
+          </span>
+          <span className="badge badge-purple" style={{ fontSize: '0.7rem' }}>
+            Ready
+          </span>
+        </div>
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          Generated in Folio, ATS Text & JSON formats
+          Folio PDF, ATS Plain Text & JSON formats
         </span>
       </div>
 
       {/* Download Action Buttons */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
         <button
-          onClick={() => handleDownloadPdf('folio')}
+          onClick={handleDownloadPdf}
           disabled={Boolean(downloading)}
           className="btn btn-secondary btn-sm"
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-          title="Download full standard PDF formatted with Folio theme"
+          title="Download PDF formatted with Folio theme"
         >
           <FileText size={13} />
-          {downloading === 'folio' ? 'Downloading...' : 'Standard PDF'}
-        </button>
-
-        <button
-          onClick={() => handleDownloadPdf('concise')}
-          disabled={Boolean(downloading)}
-          className="btn btn-secondary btn-sm"
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-          title="Download single-page concise PDF"
-        >
-          <Download size={13} />
-          {downloading === 'concise' ? 'Downloading...' : 'Concise PDF'}
+          {downloading === 'pdf' ? 'Downloading...' : 'PDF Resume'}
         </button>
 
         <button
@@ -227,25 +223,14 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
         </button>
 
         <button
-          onClick={() => handlePreviewPdf('folio')}
+          onClick={handlePreviewPdf}
           disabled={Boolean(downloading)}
-          className={`btn btn-secondary btn-sm ${previewUrl && previewTheme === 'folio' ? 'btn-primary' : ''}`}
+          className={`btn btn-secondary btn-sm ${previewUrl ? 'btn-primary' : ''}`}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-          title="Live preview Standard PDF in browser"
+          title="Live preview PDF in browser"
         >
           <Eye size={13} />
-          {downloading === 'preview-folio' ? 'Loading...' : 'Preview Standard'}
-        </button>
-
-        <button
-          onClick={() => handlePreviewPdf('concise')}
-          disabled={Boolean(downloading)}
-          className={`btn btn-secondary btn-sm ${previewUrl && previewTheme === 'concise' ? 'btn-primary' : ''}`}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-          title="Live preview Concise PDF in browser"
-        >
-          <Eye size={13} />
-          {downloading === 'preview-concise' ? 'Loading...' : 'Preview Concise'}
+          {downloading === 'preview' ? 'Loading...' : previewUrl ? 'Hide Preview' : 'Preview PDF'}
         </button>
       </div>
 
@@ -285,7 +270,7 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
             }}
           >
             <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-              Live Preview: {previewTheme === 'concise' ? 'Concise Theme' : 'Standard Folio Theme'}
+              Live Preview: Standard Folio PDF
             </span>
             <button
               onClick={() => {

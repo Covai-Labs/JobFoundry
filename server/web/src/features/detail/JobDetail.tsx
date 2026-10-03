@@ -22,6 +22,11 @@ import {
   AlertTriangle,
   Zap,
   Link2,
+  Compass,
+  Globe,
+  Calendar,
+  Cpu,
+  Copy,
 } from 'lucide-react';
 
 export interface JobDetailProps {
@@ -47,6 +52,45 @@ function safeHref(url?: string | null): string {
     // Invalid URLs use the non-navigating fallback.
   }
   return '#';
+}
+
+function getCaptureChannelInfo(source?: string) {
+  const s = (source || '').toLowerCase();
+  if (s === 'manual') {
+    return {
+      channel: 'Manual Form',
+      adapter: 'Direct Entry',
+      description: 'Entered directly via Add Job form.',
+    };
+  }
+  if (s === 'web') {
+    return {
+      channel: 'Web Paste / Parser',
+      adapter: 'AI / JSON-LD Extractor',
+      description: 'Extracted from pasted job text or web posting.',
+    };
+  }
+  if (s === 'direct') {
+    return {
+      channel: 'Direct REST Ingest',
+      adapter: 'JobFoundry Ingest API',
+      description: 'Submitted programmatically via API or script.',
+    };
+  }
+  return {
+    channel: 'Browser Extension Capture',
+    adapter: `${s.charAt(0).toUpperCase() + s.slice(1)} Adapter`,
+    description: `Zero-token capture via public ATS or DOM adapter (${s}).`,
+  };
+}
+
+function getHostName(urlStr?: string | null): string {
+  if (!urlStr) return '';
+  try {
+    return new URL(urlStr).hostname;
+  } catch {
+    return urlStr;
+  }
 }
 
 /**
@@ -78,6 +122,20 @@ export const JobDetail: React.FC<JobDetailProps> = ({
   const [rescoreSuccess, setRescoreSuccess] = useState<string | null>(null);
   const [rescoreError, setRescoreError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState(false);
+
+  const provenance = getCaptureChannelInfo(job?.source);
+
+  const handleCopyUrl = async () => {
+    if (!job?.url) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(job.url);
+      }
+      setCopiedUrl(true);
+      setTimeout(() => setCopiedUrl(false), 2000);
+    } catch {}
+  };
 
   // Resume diff states
   const [originalResume, setOriginalResume] = useState<Record<string, any>>({});
@@ -482,6 +540,9 @@ export const JobDetail: React.FC<JobDetailProps> = ({
           </div>
         )}
 
+        {/* Persistent Tailored Documents & Export Toolbar */}
+        {isTailored && <ArtifactViewer jobId={job.id} job={job} />}
+
         {activeTab === 'fit' && (
           <div>
             {/* Fit Evaluation Box */}
@@ -685,6 +746,156 @@ export const JobDetail: React.FC<JobDetailProps> = ({
               )}
             </div>
 
+            {/* Job Provenance & Pipeline Origin Section */}
+            <div
+              style={{
+                background: 'rgba(255, 255, 255, 0.02)',
+                border: '1px solid var(--border-subtle)',
+                borderRadius: 'var(--radius-md)',
+                padding: '1rem 1.25rem',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  marginBottom: '0.75rem',
+                  borderBottom: '1px solid var(--border-subtle)',
+                  paddingBottom: '0.5rem',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Compass size={16} style={{ color: 'var(--color-blue, #3b82f6)' }} />
+                  <h3
+                    style={{
+                      fontSize: '0.9rem',
+                      fontWeight: 600,
+                      color: 'var(--text-primary)',
+                      margin: 0,
+                    }}
+                  >
+                    Job Provenance & Pipeline Origin
+                  </h3>
+                </div>
+                <span className="badge badge-indigo" style={{ fontSize: '0.7rem' }}>
+                  {provenance.adapter}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                  gap: '0.85rem',
+                  fontSize: '0.8rem',
+                }}
+              >
+                <div>
+                  <div
+                    style={{
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.2rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <Cpu size={13} /> Capture Method
+                  </div>
+                  <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>
+                    {provenance.channel}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: '0.75rem',
+                      color: 'var(--text-muted)',
+                      marginTop: '0.15rem',
+                    }}
+                  >
+                    {provenance.description}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.2rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <Globe size={13} /> Original Source URL
+                  </div>
+                  {job.url ? (
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        flexWrap: 'wrap',
+                      }}
+                    >
+                      <a
+                        href={safeHref(job.url)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          color: 'var(--accent-primary, #6366f1)',
+                          textDecoration: 'none',
+                          fontWeight: 500,
+                          wordBreak: 'break-all',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '0.25rem',
+                        }}
+                        title={job.url}
+                      >
+                        {getHostName(job.url)} <ExternalLink size={12} />
+                      </a>
+                      <button
+                        type="button"
+                        onClick={handleCopyUrl}
+                        className="btn btn-secondary btn-sm"
+                        style={{ padding: '0.15rem 0.4rem', fontSize: '0.7rem' }}
+                        title="Copy full origin URL"
+                      >
+                        {copiedUrl ? <Check size={11} /> : <Copy size={11} />}
+                        {copiedUrl ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  ) : (
+                    <span style={{ color: 'var(--text-muted)' }}>No URL recorded</span>
+                  )}
+                </div>
+
+                <div>
+                  <div
+                    style={{
+                      color: 'var(--text-muted)',
+                      marginBottom: '0.2rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.3rem',
+                    }}
+                  >
+                    <Calendar size={13} /> Pipeline Timestamps
+                  </div>
+                  <div style={{ color: 'var(--text-primary)' }}>
+                    <strong>Ingested:</strong> {new Date(job.created_at).toLocaleString()}
+                  </div>
+                  {job.posted_at && (
+                    <div style={{ color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                      <strong>Posted:</strong> {new Date(job.posted_at).toLocaleDateString()}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
             {/* Job Description Section */}
             <div>
               <div
@@ -849,9 +1060,6 @@ export const JobDetail: React.FC<JobDetailProps> = ({
             ) : (
               <div>
                 <ResumeDiffView originalResume={originalResume} tailoredResume={tailoredResume} />
-                <div style={{ marginTop: '1.5rem' }}>
-                  <ArtifactViewer jobId={job.id} job={job} />
-                </div>
               </div>
             )}
           </div>
