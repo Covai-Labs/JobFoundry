@@ -5,6 +5,7 @@ import {
   Route,
   Navigate,
   NavLink,
+  Link,
   useNavigate,
   useParams,
   useLocation,
@@ -26,6 +27,7 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import { ToastProvider, useToast } from './context/ToastContext';
 import { SkeletonFeed } from './components/Skeleton';
 import { CommandPalette } from './components/CommandPalette';
+import { SupportModal } from './components/SupportModal';
 import {
   Briefcase,
   Kanban,
@@ -41,6 +43,7 @@ import {
   Laptop,
   Moon,
   Sun,
+  Heart,
 } from 'lucide-react';
 
 interface DashboardContentProps {
@@ -155,6 +158,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   const isSettingsOpen = location.pathname === '/settings';
   const [isAddJobOpen, setIsAddJobOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
+  const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [feedInitialFilters, setFeedInitialFilters] = useState<any>(undefined);
 
   // Global shortcut for Command Palette
@@ -185,7 +189,12 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
     <div className="app-container">
       {/* Navigation */}
       <header className="navbar">
-        <div className="nav-brand">
+        <Link
+          to="/feed"
+          className="nav-brand"
+          style={{ textDecoration: 'none', color: 'inherit', cursor: 'pointer' }}
+          title="JobFoundry Feed"
+        >
           <img
             src="/icons/logo.webp"
             alt="JobFoundry Logo"
@@ -195,7 +204,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             <span>Job</span>
             <span className="brand-gradient">Foundry</span>
           </span>
-        </div>
+        </Link>
 
         <nav className="nav-tabs">
           <NavLink to="/feed" className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}>
@@ -260,6 +269,16 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
             {loading ? 'Refreshing...' : 'Refresh'}
+          </button>
+          <button
+            type="button"
+            onClick={() => setIsSupportOpen(true)}
+            className="btn btn-secondary btn-sm"
+            title="Support JobFoundry (GitHub, Sponsor)"
+            aria-label="Support JobFoundry"
+            style={{ color: 'var(--color-red, #ef4444)' }}
+          >
+            <Heart size={15} />
           </button>
           <button
             onClick={() => navigate('/settings')}
@@ -475,6 +494,8 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
           onOpenAddJob={() => setIsAddJobOpen(true)}
           onRefreshJobs={onRefresh}
         />
+
+        <SupportModal isOpen={isSupportOpen} onClose={() => setIsSupportOpen(false)} />
       </main>
     </div>
   );
