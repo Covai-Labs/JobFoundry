@@ -63,12 +63,10 @@ describe('ArtifactViewer & buildDownloadFilename', () => {
     it('renders all download and preview options including JSON and ATS', () => {
       render(<ArtifactViewer jobId="job-123" job={mockJob} />);
 
-      expect(screen.getByText('Standard PDF')).toBeInTheDocument();
-      expect(screen.getByText('Concise PDF')).toBeInTheDocument();
+      expect(screen.getByText('PDF Resume')).toBeInTheDocument();
       expect(screen.getByText('ATS Text (.txt)')).toBeInTheDocument();
       expect(screen.getByText('Resume JSON (.json)')).toBeInTheDocument();
-      expect(screen.getByText('Preview Standard')).toBeInTheDocument();
-      expect(screen.getByText('Preview Concise')).toBeInTheDocument();
+      expect(screen.getByText('Preview PDF')).toBeInTheDocument();
     });
 
     it('downloads JSON resume with human-readable filename', async () => {
@@ -102,7 +100,7 @@ describe('ArtifactViewer & buildDownloadFilename', () => {
 
       render(<ArtifactViewer jobId="job-123" job={mockJob} />);
 
-      const pdfBtn = screen.getByText('Standard PDF');
+      const pdfBtn = screen.getByText('PDF Resume');
       fireEvent.click(pdfBtn);
 
       await waitFor(() => {

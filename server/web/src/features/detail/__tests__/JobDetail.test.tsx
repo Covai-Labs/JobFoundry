@@ -74,4 +74,16 @@ describe('JobDetail unification (workbench shell === modal shell)', () => {
     expect(await screen.findByRole('button', { name: /Copied/ })).toBeInTheDocument();
     unmount();
   });
+
+  it.each([
+    ['workbench', () => render(<JobWorkbench job={baseJob} {...noopHandlers} />)],
+    ['modal', () => render(<JobDetailModal job={baseJob} onClose={vi.fn()} {...noopHandlers} />)],
+  ])('%s renders job provenance and pipeline origin info', (_name, renderShell) => {
+    const { unmount } = renderShell();
+    expect(screen.getByText('Job Provenance & Pipeline Origin')).toBeInTheDocument();
+    expect(screen.getByText('Capture Method')).toBeInTheDocument();
+    expect(screen.getByText('Original Source URL')).toBeInTheDocument();
+    expect(screen.getByText('jobs.example.com')).toBeInTheDocument();
+    unmount();
+  });
 });
