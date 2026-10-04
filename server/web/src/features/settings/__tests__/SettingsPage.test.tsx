@@ -280,6 +280,81 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('renders and configures advanced tailoring options (pipeline mode, instructions, final check, section overrides)', async () => {
+    const updateSpy = vi.spyOn(api, 'updateSettings').mockResolvedValue({
+      ok: true,
+      settings: {
+        tailor_pipeline_mode: 'sequential',
+        tailor_instructions: 'Use British English. Avoid em dashes.',
+        tailor_enable_final_check: true,
+        tailor_final_check_model: 'openrouter/anthropic/claude-3.5-sonnet',
+      } as any,
+      meta: {} as any,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Resume Tailor/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Pipeline Execution Mode')).toBeInTheDocument();
+      expect(screen.getByText('Custom Tailoring Instructions')).toBeInTheDocument();
+      expect(screen.getByLabelText(/Enable Final Check \/ Critic Pass/i)).toBeInTheDocument();
+    });
+
+    // Enter custom instructions
+    const instructionsTextarea = screen.getByPlaceholderText(
+      /Custom instructions that apply across all sections/i
+    );
+    fireEvent.change(instructionsTextarea, {
+      target: { value: 'Use British English. Avoid em dashes.' },
+    });
+
+    // Toggle final check critic
+    const criticCheckbox = screen.getByLabelText(/Enable Final Check \/ Critic Pass/i);
+    fireEvent.click(criticCheckbox);
+
+    // Enter critic model
+    await waitFor(() => {
+      expect(
+        screen.getByPlaceholderText(/Leave empty to use primary tailoring model/i)
+      ).toBeInTheDocument();
+    });
+    const criticModelInput = screen.getByPlaceholderText(
+      /Leave empty to use primary tailoring model/i
+    );
+    fireEvent.change(criticModelInput, {
+      target: { value: 'openrouter/anthropic/claude-3.5-sonnet' },
+    });
+
+    // Open prompt templates section
+    const overridesBtn = screen.getByRole('button', {
+      name: /Section Prompt Templates & Instructions Overrides/i,
+    });
+    fireEvent.click(overridesBtn);
+    await waitFor(() => {
+      expect(screen.getByText('Strategy & Basics Prompt')).toBeInTheDocument();
+      expect(screen.getByText('Work Experience Prompt')).toBeInTheDocument();
+    });
+
+    // Save settings
+    const saveBtn = screen.getByRole('button', { name: /Save Changes/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(updateSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          tailor_instructions: 'Use British English. Avoid em dashes.',
+          tailor_enable_final_check: true,
+          tailor_final_check_model: 'openrouter/anthropic/claude-3.5-sonnet',
+        })
+      );
+    });
+  });
+
   it('navigates to Telemetry & System tab and displays live metrics', async () => {
     renderComponent();
     await waitFor(() => {

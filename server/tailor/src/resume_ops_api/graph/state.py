@@ -40,4 +40,9 @@ class ResumeGraphState(TypedDict, total=False):
     final_resume: dict[str, Any]
     pdf_path: str
     style: str
+    custom_instructions: str
+    pipeline_mode: str
+    enable_final_check: bool
+    final_check_model: str
+    prompt_templates: dict[str, str]
 

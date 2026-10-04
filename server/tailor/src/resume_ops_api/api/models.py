@@ -16,6 +16,11 @@ class TailorRequest(BaseModel):
     api_key: str | None = None
     api_base: str | None = None
     style: str | None = None
+    custom_instructions: str | None = None
+    pipeline_mode: str | None = "sequential"
+    enable_final_check: bool = False
+    final_check_model: str | None = None
+    prompt_templates: dict[str, str] | None = None
 
 
 class CopilotOutreachRequest(BaseModel):

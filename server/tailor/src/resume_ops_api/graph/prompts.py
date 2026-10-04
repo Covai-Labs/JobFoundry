@@ -18,7 +18,11 @@ def _toon(data: Any) -> str:
         return _json(data)
 
 
-def _apply_style(system: str, style: str | None) -> str:
+def _apply_style(
+    system: str,
+    style: str | None = None,
+    custom_instructions: str | None = None,
+) -> str:
     if style and style.strip():
         system += (
             f"\n\nWRITING STYLE AND LANGUAGE GUIDELINES:\n"
@@ -29,6 +33,15 @@ def _apply_style(system: str, style: str | None) -> str:
             f"3. If the style requests a regional language variant (e.g. 'australian english', 'british english'), use the correct spelling conventions (e.g. 'optimise', 'programme') and localized professional terminology.\n"
             f"4. If the style requests length properties (e.g. 'concise', 'verbose'), follow them strictly while adhering to the section constraints."
         )
+    if custom_instructions and custom_instructions.strip():
+        system += (
+            f"\n\nUSER CUSTOM INSTRUCTIONS & CANDIDATE GUIDELINES:\n"
+            f"The candidate has provided explicit instructions that take precedence. "
+            f"You MUST strictly adhere to them across all tailored text, framing, terminology, and exclusions:\n"
+            f"\"\"\"\n{custom_instructions.strip()}\n\"\"\"\n"
+            f"CRITICAL: If the custom instructions specify formatting constraints (e.g. British English, avoiding em dashes, "
+            f"dropping courses or keywords, specific technical/leadership archetype framing), treat these as non-negotiable rules."
+        )
     return system
 
 
@@ -36,7 +49,9 @@ def strategy_and_basics_prompt(
     resume: dict[str, Any],
     job_description: str,
     style: str | None = None,
+    custom_instructions: str | None = None,
     tailor_basics: bool = True,
+    custom_template: str | None = None,
 ) -> tuple[str, str]:
     basics_rules = ""
     if tailor_basics:
@@ -55,13 +70,13 @@ def strategy_and_basics_prompt(
             "- Basics tailoring is disabled. Return label=null and summary=null."
         )
 
-    system = (
+    base = custom_template.strip() if custom_template and custom_template.strip() else (
         "You are tailoring a resume without inventing facts. "
         "Formulate a coherent tailoring strategy for the candidate matching the target job description.\n"
         "Return structured JSON with keys: target_narrative, priority_keywords, section_rules, red_lines, label, and summary."
-        f"{basics_rules}"
     )
-    system = _apply_style(system, style)
+    system = f"{base}{basics_rules}"
+    system = _apply_style(system, style, custom_instructions)
     user = f"Job description:\n{job_description}\n\nMaster resume (TOON format):\n{_toon(resume)}"
     return system, user
 
@@ -87,6 +102,9 @@ def work_prompt(
     job_description: str,
     strategy: dict[str, Any],
     style: str | None = None,
+    custom_instructions: str | None = None,
+    custom_template: str | None = None,
+    basics_context: dict[str, Any] | None = None,
 ) -> tuple[str, str]:
     work_items = resume.get("work", [])
     N = len(work_items)
@@ -127,22 +145,29 @@ def work_prompt(
             f"- For {', '.join(t1_names)}: Set the summary to an empty string (\"\"). Limit highlights strictly to exactly 1 bullet point focusing on the single most relevant accomplishment, and discard all other points."
         )
 
-
-    system = (
+    base = custom_template.strip() if custom_template and custom_template.strip() else (
         "Tailor only the summary and highlights for each work item. "
         "Do not change company names, positions, dates, locations, urls, or order. "
         "Do not invent unsupported responsibilities or achievements. "
-        "CRITICAL: The output 'work' list MUST align 1:1 in length and order with the input list. "
-        "Return EXACTLY the same number of work entries in the same order. Do not skip or drop any items. "
-        "Return structured JSON with this key: work (a list of objects with summary and highlights).\n\n"
-        "HIGHLIGHTS COUNT AND DETAIL RULES:\n" + "\n".join(rules)
+        "Return structured JSON with this key: work (a list of objects with summary and highlights)."
     )
-    system = _apply_style(system, style)
-    user = (
-        f"Job description:\n{job_description}\n\n"
-        f"Strategy:\n{_json(strategy)}\n\n"
-        f"Target work section (TOON format):\n{_toon(resume.get('work', []))}"
+    system = (
+        f"{base}\n\nWORK OUTPUT ALIGNMENT:\n"
+        "Return exactly one work entry for each input entry, in the same order. "
+        "Do not reorder, skip, or combine entries.\n\n"
+        "HIGHLIGHTS COUNT AND DETAIL RULES:\n"
+        + "\n".join(rules)
     )
+    system = _apply_style(system, style, custom_instructions)
+
+    user_parts = [
+        f"Job description:\n{job_description}",
+        f"Strategy:\n{_json(strategy)}",
+    ]
+    if basics_context:
+        user_parts.append(f"Anchor Basics Narrative (Summary & Title):\n{_toon(basics_context)}")
+    user_parts.append(f"Target work section (TOON format):\n{_toon(resume.get('work', []))}")
+    user = "\n\n".join(user_parts)
     return system, user
 
 
@@ -151,6 +176,11 @@ def qualifications_prompt(
     job_description: str,
     strategy: dict[str, Any],
     active_sections: list[str] | None = None,
+    style: str | None = None,
+    custom_instructions: str | None = None,
+    custom_template: str | None = None,
+    work_context: list[dict[str, Any]] | None = None,
+    projects_context: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     active = set(active_sections or ["skills", "certificates", "education"])
     sections_rules = []
@@ -185,12 +215,16 @@ def qualifications_prompt(
     else:
         sections_rules.append("- EDUCATION: Education tailoring is disabled. Return education as an empty list [].")
 
+    base = custom_template.strip() if custom_template and custom_template.strip() else (
+        "Tailor candidate qualifications (skills, certificates, education) without inventing facts."
+    )
     system = (
-        "Tailor candidate qualifications (skills, certificates, education) without inventing facts.\n\n"
+        f"{base}\n\n"
         "SECTION RULES:\n" + "\n".join(sections_rules) + "\n\n"
         "Return structured JSON with keys: skills (list of objects with name and keywords), "
         "certificates (list of strings), and education (list of objects with courses list)."
     )
+    system = _apply_style(system, style, custom_instructions)
 
     target_qualifications = {
         "skills": resume.get("skills", []) if "skills" in active else [],
@@ -198,11 +232,16 @@ def qualifications_prompt(
         "education": resume.get("education", []) if "education" in active else [],
     }
 
-    user = (
-        f"Job description:\n{job_description}\n\n"
-        f"Strategy:\n{_json(strategy)}\n\n"
-        f"Target qualifications (TOON format):\n{_toon(target_qualifications)}"
-    )
+    user_parts = [
+        f"Job description:\n{job_description}",
+        f"Strategy:\n{_json(strategy)}",
+    ]
+    if work_context:
+        user_parts.append(f"Demonstrated Work Experience Context:\n{_toon(work_context)}")
+    if projects_context:
+        user_parts.append(f"Demonstrated Projects Context:\n{_toon(projects_context)}")
+    user_parts.append(f"Target qualifications (TOON format):\n{_toon(target_qualifications)}")
+    user = "\n\n".join(user_parts)
     return system, user
 
 
@@ -248,8 +287,11 @@ def projects_prompt(
     job_description: str,
     strategy: dict[str, Any],
     style: str | None = None,
+    custom_instructions: str | None = None,
+    custom_template: str | None = None,
+    work_context: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
-    system = (
+    base = custom_template.strip() if custom_template and custom_template.strip() else (
         "Choose only from existing projects. You may omit, reorder, and tailor descriptions and highlights. "
         "Select a maximum of 4 (ideally 2 to 4) projects that are most relevant to the target job description. "
         "For each project, write at most 3 relevant highlights and list at most 6 technologies/keywords used. "
@@ -258,11 +300,86 @@ def projects_prompt(
         "For each project, retain or tailor its 'keywords' list (technologies used) matching the StackOverflow layout theme. "
         "Return structured JSON with this key: projects (a list of tailored project objects with name, description, highlights, and keywords)."
     )
-    system = _apply_style(system, style)
+    if work_context:
+        base += (
+            "\n\nCROSS-SECTION COHERENCE RULE (SEQUENTIAL CASCADE):\n"
+            "Review the already-tailored work experience provided below. Select projects that strategically complement "
+            "the work history (demonstrating technical depth, hands-on building, or tools not fully captured in the job roles). "
+            "Do NOT redundantly rehash the same accomplishments already covered in work."
+        )
+    system = _apply_style(base, style, custom_instructions)
+    user_parts = [
+        f"Job description:\n{job_description}",
+        f"Strategy:\n{_json(strategy)}",
+    ]
+    if work_context:
+        user_parts.append(f"Tailored Work Experience Context:\n{_toon(work_context)}")
+    user_parts.append(f"Projects section (TOON format):\n{_toon(resume.get('projects', []))}")
+    user = "\n\n".join(user_parts)
+    return system, user
+
+
+def monolithic_prompt(
+    resume: dict[str, Any],
+    job_description: str,
+    style: str | None = None,
+    custom_instructions: str | None = None,
+    custom_template: str | None = None,
+    active_sections: list[str] | None = None,
+) -> tuple[str, str]:
+    base = custom_template.strip() if custom_template and custom_template.strip() else (
+        "You are tailoring a complete resume to match the target job description without inventing facts.\n"
+        "Retain absolute factual integrity: the master resume is the sole source of truth. "
+        "Never invent employers, job titles, degrees, certifications, tech stacks, or metrics.\n\n"
+        "SECTION GUIDELINES:\n"
+        "- BASICS: Tailor professional headline (label) and concise summary paragraph (<100 words).\n"
+        "- WORK: Tailor summary and highlights for each work role. Preserve companies, dates, titles, and order 1:1.\n"
+        "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Provide up to 3 highlights per project.\n"
+        "- SKILLS: Regroup existing skills into 4 to 6 categories with 3 to 8 keywords representing matching technologies.\n"
+        "- CERTIFICATES: Select relevant certificates verbatim from existing certificates.\n"
+        "- EDUCATION: Tailor courses if applicable; preserve degrees, institutions, and dates.\n\n"
+        "Return structured JSON matching FullResumeTailoringOutput."
+    )
+    system = _apply_style(base, style, custom_instructions)
+    user_parts = [
+        f"Job description:\n{job_description}",
+        f"Master resume (TOON format):\n{_toon(resume)}",
+    ]
+    if active_sections:
+        user_parts.append(
+            f"Only tailor these selected sections: {', '.join(active_sections)}. "
+            "Leave any unselected or unmodified sections null or omitted."
+        )
+    user = "\n\n".join(user_parts)
+    return system, user
+
+
+def final_check_prompt(
+    final_resume: dict[str, Any],
+    original_resume: dict[str, Any],
+    job_description: str,
+    style: str | None = None,
+    custom_instructions: str | None = None,
+    custom_template: str | None = None,
+) -> tuple[str, str]:
+    base = custom_template.strip() if custom_template and custom_template.strip() else (
+        "You are the Lead Resume Quality Auditor and Fact-Checking Critic.\n"
+        "Perform a rigorous final quality audit and refinement on the compiled tailored resume.\n\n"
+        "CRITICAL AUDIT CHECKS:\n"
+        "1. FACTUAL GROUNDING (Zero Hallucination): Every company, job title, degree, certification, metric, "
+        "and technology claim in the tailored resume MUST be grounded in the original master resume. "
+        "Never invent or inflate claims. Remove any hallucinated content.\n"
+        "2. INSTRUCTION COMPLIANCE: Verify strict adherence to all custom candidate instructions "
+        "(e.g., British English vs American English, avoidance of em dashes, omission of courses or project keywords, candidate archetype).\n"
+        "3. COHESION & FLOW: Smooth out phrasing across sections so the entire resume reads as an executive, cohesive narrative.\n"
+        "4. Return structured JSON with audit_observations (list of notes) and the polished sections "
+        "(basics, work, projects, skills, certificates, education)."
+    )
+    system = _apply_style(base, style, custom_instructions)
     user = (
-        f"Job description:\n{job_description}\n\n"
-        f"Strategy:\n{_json(strategy)}\n\n"
-        f"Projects section (TOON format):\n{_toon(resume.get('projects', []))}"
+        f"Target Job Description:\n{job_description}\n\n"
+        f"Original Master Resume (Ground Truth - TOON format):\n{_toon(original_resume)}\n\n"
+        f"Compiled Tailored Resume to Audit (TOON format):\n{_toon(final_resume)}"
     )
     return system, user
 
