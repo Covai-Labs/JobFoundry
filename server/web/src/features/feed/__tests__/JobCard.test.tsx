@@ -27,25 +27,27 @@ describe('JobCard Component', () => {
     expect(screen.getByText('Antigravity Systems')).toBeInTheDocument();
   });
 
-  it('renders Mark Applied button when onStatusChange is provided and triggers status update', () => {
+  it('renders status select when onStatusChange is provided and triggers status update', () => {
     const onStatusChange = vi.fn();
     const onSelect = vi.fn();
     render(<JobCard job={mockJob} onSelect={onSelect} onStatusChange={onStatusChange} />);
 
-    const applyBtn = screen.getByRole('button', { name: /Mark Applied/i });
-    expect(applyBtn).toBeInTheDocument();
+    const select = screen.getByRole('combobox', { name: /Job Status/i });
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue('new');
 
-    fireEvent.click(applyBtn);
+    fireEvent.change(select, { target: { value: 'applied' } });
     expect(onStatusChange).toHaveBeenCalledWith('job-999', 'applied');
     // Ensure card onSelect was not triggered
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('renders Applied badge when job status is applied', () => {
-    const appliedJob: Job = { ...mockJob, status: 'applied' };
-    render(<JobCard job={appliedJob} onSelect={vi.fn()} onStatusChange={vi.fn()} />);
+  it('renders status select with current status when job status is interview', () => {
+    const interviewJob: Job = { ...mockJob, status: 'interview' };
+    render(<JobCard job={interviewJob} onSelect={vi.fn()} onStatusChange={vi.fn()} />);
 
-    expect(screen.getByTitle('Marked as Applied')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /Mark Applied/i })).not.toBeInTheDocument();
+    const select = screen.getByRole('combobox', { name: /Job Status/i });
+    expect(select).toBeInTheDocument();
+    expect(select).toHaveValue('interview');
   });
 });

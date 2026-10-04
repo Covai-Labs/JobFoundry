@@ -109,5 +109,36 @@ describe('ArtifactViewer & buildDownloadFilename', () => {
         expect(removeChildSpy).toHaveBeenCalled();
       });
     });
+
+    it('previews PDF and toggles preview closed on Hide Preview', async () => {
+      const mockBlob = new Blob(['%PDF-1.4 mock content'], { type: 'application/pdf' });
+      vi.spyOn(api, 'downloadPdf').mockResolvedValue(mockBlob);
+      const createObjectURLSpy = vi
+        .spyOn(window.URL, 'createObjectURL')
+        .mockReturnValue('blob:http://localhost/test-pdf');
+      const revokeObjectURLSpy = vi
+        .spyOn(window.URL, 'revokeObjectURL')
+        .mockImplementation(() => {});
+
+      render(<ArtifactViewer jobId="job-123" job={mockJob} />);
+
+      const previewBtn = screen.getByText('Preview PDF');
+      fireEvent.click(previewBtn);
+
+      await waitFor(() => {
+        expect(api.downloadPdf).toHaveBeenCalledWith('job-123', 'folio');
+        expect(createObjectURLSpy).toHaveBeenCalled();
+        expect(screen.getByTitle('PDF Preview')).toBeInTheDocument();
+        expect(screen.getByText('Hide Preview')).toBeInTheDocument();
+      });
+
+      // Clicking Hide Preview closes the preview
+      fireEvent.click(screen.getByText('Hide Preview'));
+      await waitFor(() => {
+        expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:http://localhost/test-pdf');
+        expect(screen.queryByTitle('PDF Preview')).not.toBeInTheDocument();
+        expect(screen.getByText('Preview PDF')).toBeInTheDocument();
+      });
+    });
   });
 });

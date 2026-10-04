@@ -27,4 +27,12 @@ describe('SupportModal Component', () => {
     fireEvent.click(closeBtns[0]);
     expect(onClose).toHaveBeenCalled();
   });
+
+  it('calls onClose when Escape key is pressed', () => {
+    const onClose = vi.fn();
+    render(<SupportModal isOpen={true} onClose={onClose} />);
+
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(onClose).toHaveBeenCalled();
+  });
 });

@@ -55,32 +55,75 @@ function safeHref(url?: string | null): string {
 }
 
 function getCaptureChannelInfo(source?: string) {
-  const s = (source || '').toLowerCase();
-  if (s === 'manual') {
+  const s = (source || '').toLowerCase().trim();
+  if (!s || s === 'unknown') {
     return {
-      channel: 'Manual Form',
-      adapter: 'Direct Entry',
-      description: 'Entered directly via Add Job form.',
+      channel: 'Unspecified Origin',
+      adapter: 'Not recorded',
+      description: 'Capture channel and provider were not recorded for this job.',
     };
   }
-  if (s === 'web') {
+  if (s === 'manual') {
     return {
-      channel: 'Web Paste / Parser',
-      adapter: 'AI / JSON-LD Extractor',
-      description: 'Extracted from pasted job text or web posting.',
+      channel: 'Manual Entry',
+      adapter: 'Direct User Entry',
+      description: 'Manually added or pasted via JobFoundry web dashboard.',
     };
   }
   if (s === 'direct') {
     return {
-      channel: 'Direct REST Ingest',
-      adapter: 'JobFoundry Ingest API',
-      description: 'Submitted programmatically via API or script.',
+      channel: 'Companion Relay Task',
+      adapter: 'Internal Queue Relay',
+      description: 'Fetched via background browser companion worker.',
     };
   }
+  if (s === 'web') {
+    return {
+      channel: 'Web / DOM Fallback Capture',
+      adapter: 'Generic Web Adapter',
+      description: 'Captured via browser extension DOM parser or generic webpage.',
+    };
+  }
+
+  // Known ATS providers handled by browser extension
+  const atsAdapters: Record<string, string> = {
+    greenhouse: 'Greenhouse ATS Adapter',
+    lever: 'Lever ATS Adapter',
+    ashby: 'Ashby ATS Adapter',
+    workday: 'Workday ATS Adapter',
+  };
+  if (atsAdapters[s]) {
+    return {
+      channel: 'Browser Extension ATS Extractor',
+      adapter: atsAdapters[s],
+      description: `Zero-token extraction via public ATS endpoint or JSON-LD (${s}).`,
+    };
+  }
+
+  // Known Job Boards handled by browser extension
+  const boardAdapters: Record<string, string> = {
+    linkedin: 'LinkedIn Connector',
+    indeed: 'Indeed Connector',
+    glassdoor: 'Glassdoor Connector',
+    naukri: 'Naukri Connector',
+    ziprecruiter: 'ZipRecruiter Connector',
+    google: 'Google Jobs Connector',
+    hiringcafe: 'HiringCafe Connector',
+    adzuna: 'Adzuna Connector',
+  };
+  if (boardAdapters[s]) {
+    return {
+      channel: 'Browser Extension Job Board Extractor',
+      adapter: boardAdapters[s],
+      description: `Structured extraction from job board listing (${s}).`,
+    };
+  }
+
+  const formatted = s.charAt(0).toUpperCase() + s.slice(1);
   return {
-    channel: 'Browser Extension Capture',
-    adapter: `${s.charAt(0).toUpperCase() + s.slice(1)} Adapter`,
-    description: `Zero-token capture via public ATS or DOM adapter (${s}).`,
+    channel: 'External Import / API',
+    adapter: `${formatted} Source`,
+    description: `Imported via external source or API (${s}).`,
   };
 }
 
@@ -131,10 +174,19 @@ export const JobDetail: React.FC<JobDetailProps> = ({
     try {
       if (navigator.clipboard?.writeText) {
         await navigator.clipboard.writeText(job.url);
+      } else {
+        const ta = document.createElement('textarea');
+        ta.value = job.url;
+        document.body.appendChild(ta);
+        ta.select();
+        if (!document.execCommand('copy')) throw new Error('Copy command failed');
+        document.body.removeChild(ta);
       }
       setCopiedUrl(true);
       setTimeout(() => setCopiedUrl(false), 2000);
-    } catch {}
+    } catch (err) {
+      console.warn('Unable to copy job URL', err);
+    }
   };
 
   // Resume diff states
@@ -541,7 +593,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({
         )}
 
         {/* Persistent Tailored Documents & Export Toolbar */}
-        {isTailored && <ArtifactViewer jobId={job.id} job={job} />}
+        {isTailored && <ArtifactViewer key={job.id} jobId={job.id} job={job} />}
 
         {activeTab === 'fit' && (
           <div>

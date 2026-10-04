@@ -130,40 +130,37 @@ export const JobCard: React.FC<JobCardProps> = ({
           {new Date(job.created_at).toLocaleDateString()}
         </span>
         <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-          {onStatusChange &&
-            (job.status === 'applied' ? (
-              <span
-                className="badge badge-green"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.2rem',
-                  fontSize: '0.75rem',
-                  padding: '0.25rem 0.45rem',
-                }}
-                title="Marked as Applied"
-              >
-                <Check size={12} /> Applied
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onStatusChange(job.id, 'applied');
-                }}
-                className="btn btn-secondary btn-sm"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.25rem',
-                  fontSize: '0.75rem',
-                }}
-                title="Mark this job as Applied"
-              >
-                <Check size={12} /> Mark Applied
-              </button>
-            ))}
+          {onStatusChange && (
+            <select
+              aria-label="Job Status"
+              value={job.status}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                e.stopPropagation();
+                onStatusChange(job.id, e.target.value as JobStatus);
+              }}
+              className="status-select"
+              style={{
+                background: 'var(--color-bg-subtle, #1e293b)',
+                color: 'var(--color-fg-default, #f8fafc)',
+                border: '1px solid var(--border-subtle, #334155)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                padding: '0.2rem 0.45rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+              }}
+              title="Change pipeline status"
+            >
+              <option value="new">New</option>
+              <option value="saved">Saved</option>
+              <option value="tailored">Tailored</option>
+              <option value="applied">Applied</option>
+              <option value="interview">Interview</option>
+              <option value="offer">Offer</option>
+              <option value="rejected">Rejected</option>
+              <option value="archived">Archived</option>
+            </select>
+          )}
           <TailorButton job={job} onTailored={onTailored} />
           <button
             onClick={(e) => {

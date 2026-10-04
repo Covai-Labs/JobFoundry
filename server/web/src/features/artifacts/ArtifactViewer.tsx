@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { api } from '../../api/client';
 import { Job } from '../../types/job';
 import { useAuth } from '../../context/AuthContext';
-import { Download, Eye, FileText, FileCode, AlignLeft, X } from 'lucide-react';
+import { Eye, FileText, FileCode, AlignLeft, X } from 'lucide-react';
 
 interface ArtifactViewerProps {
   jobId: string;
@@ -40,11 +40,22 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
   const [error, setError] = useState<string | null>(null);
 
   const previewUrlRef = useRef<string | null>(null);
+  const previewRequestRef = useRef(0);
   previewUrlRef.current = previewUrl;
+
+  // Clear job-specific previews when the selected job changes
+  useEffect(() => {
+    previewRequestRef.current += 1;
+    setPreviewUrl((current) => {
+      if (current) window.URL.revokeObjectURL(current);
+      return null;
+    });
+  }, [jobId]);
 
   // Cleanup object URL on unmount to prevent memory leaks
   useEffect(() => {
     return () => {
+      previewRequestRef.current += 1;
       if (previewUrlRef.current) {
         window.URL.revokeObjectURL(previewUrlRef.current);
       }
@@ -86,19 +97,27 @@ export const ArtifactViewer: React.FC<ArtifactViewerProps> = ({ jobId, job }) =>
   };
 
   const handlePreviewPdf = async () => {
+    if (previewUrl) {
+      window.URL.revokeObjectURL(previewUrl);
+      setPreviewUrl(null);
+      return;
+    }
+    const requestId = ++previewRequestRef.current;
     setDownloading('preview');
     setError(null);
     try {
       const blob = await api.downloadPdf(jobId, 'folio');
-      if (previewUrl) {
-        window.URL.revokeObjectURL(previewUrl);
-      }
+      if (requestId !== previewRequestRef.current) return;
       const url = window.URL.createObjectURL(blob);
       setPreviewUrl(url);
     } catch (err: any) {
-      setError(err.message || 'Failed to load PDF preview');
+      if (requestId === previewRequestRef.current) {
+        setError(err.message || 'Failed to load PDF preview');
+      }
     } finally {
-      setDownloading(null);
+      if (requestId === previewRequestRef.current) {
+        setDownloading(null);
+      }
     }
   };
 
