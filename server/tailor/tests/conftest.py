@@ -123,7 +123,7 @@ class FakeStructuredLLMClient:
                 WorkEntryTailoring(summary=f"Monolithic work for {item['name']}", highlights=[f"Monolithic impact for {item['name']}"])
                 for item in self.resume.get("work", [])
             ]
-            projects = [
+            projects = None if self.resume.get("_omit_projects_in_monolithic") else [
                 ProjectEntryTailoring(name=p["name"], description=f"Monolithic: {p.get('description', p['name'])}", highlights=["Monolithic highlight"])
                 for p in self.resume.get("projects", [])[:2]
             ]

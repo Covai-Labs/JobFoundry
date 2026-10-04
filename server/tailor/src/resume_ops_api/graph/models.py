@@ -228,11 +228,11 @@ class TailorResult(BaseModel):
 
 class FullResumeTailoringOutput(BaseModel):
     basics: BasicsTailoringOutput | None = None
-    work: list[WorkEntryTailoring] = Field(default_factory=list)
-    projects: list[ProjectEntryTailoring] = Field(default_factory=list)
-    skills: list[SkillEntry] = Field(default_factory=list)
-    certificates: list[str] = Field(default_factory=list)
-    education: list[EducationEntryTailoring] = Field(default_factory=list)
+    work: list[WorkEntryTailoring] | None = None
+    projects: list[ProjectEntryTailoring] | None = None
+    skills: list[SkillEntry] | None = None
+    certificates: list[str] | None = None
+    education: list[EducationEntryTailoring] | None = None
 
 
 class FinalCheckCriticOutput(BaseModel):
@@ -241,8 +241,8 @@ class FinalCheckCriticOutput(BaseModel):
         description="Observations regarding factual accuracy, instruction compliance, and stylistic improvements."
     )
     basics: BasicsTailoringOutput | None = None
-    work: list[WorkEntryTailoring] = Field(default_factory=list)
-    projects: list[ProjectEntryTailoring] = Field(default_factory=list)
-    skills: list[SkillEntry] = Field(default_factory=list)
-    certificates: list[str] = Field(default_factory=list)
-    education: list[EducationEntryTailoring] = Field(default_factory=list)
+    work: list[WorkEntryTailoring] | None = None
+    projects: list[ProjectEntryTailoring] | None = None
+    skills: list[SkillEntry] | None = None
+    certificates: list[str] | None = None
+    education: list[EducationEntryTailoring] | None = None

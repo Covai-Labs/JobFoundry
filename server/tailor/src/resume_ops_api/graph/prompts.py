@@ -149,11 +149,15 @@ def work_prompt(
         "Tailor only the summary and highlights for each work item. "
         "Do not change company names, positions, dates, locations, urls, or order. "
         "Do not invent unsupported responsibilities or achievements. "
-        "CRITICAL: The output 'work' list MUST align 1:1 in length and order with the input list. "
-        "Return EXACTLY the same number of work entries in the same order. Do not skip or drop any items. "
         "Return structured JSON with this key: work (a list of objects with summary and highlights)."
     )
-    system = f"{base}\n\nHIGHLIGHTS COUNT AND DETAIL RULES:\n" + "\n".join(rules)
+    system = (
+        f"{base}\n\nWORK OUTPUT ALIGNMENT:\n"
+        "Return exactly one work entry for each input entry, in the same order. "
+        "Do not reorder, skip, or combine entries.\n\n"
+        "HIGHLIGHTS COUNT AND DETAIL RULES:\n"
+        + "\n".join(rules)
+    )
     system = _apply_style(system, style, custom_instructions)
 
     user_parts = [
@@ -321,6 +325,7 @@ def monolithic_prompt(
     style: str | None = None,
     custom_instructions: str | None = None,
     custom_template: str | None = None,
+    active_sections: list[str] | None = None,
 ) -> tuple[str, str]:
     base = custom_template.strip() if custom_template and custom_template.strip() else (
         "You are tailoring a complete resume to match the target job description without inventing facts.\n"
@@ -336,10 +341,16 @@ def monolithic_prompt(
         "Return structured JSON matching FullResumeTailoringOutput."
     )
     system = _apply_style(base, style, custom_instructions)
-    user = (
-        f"Job description:\n{job_description}\n\n"
-        f"Master resume (TOON format):\n{_toon(resume)}"
-    )
+    user_parts = [
+        f"Job description:\n{job_description}",
+        f"Master resume (TOON format):\n{_toon(resume)}",
+    ]
+    if active_sections:
+        user_parts.append(
+            f"Only tailor these selected sections: {', '.join(active_sections)}. "
+            "Leave any unselected or unmodified sections null or omitted."
+        )
+    user = "\n\n".join(user_parts)
     return system, user
 
 

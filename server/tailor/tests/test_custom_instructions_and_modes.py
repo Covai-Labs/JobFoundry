@@ -127,9 +127,12 @@ class TestPromptsCustomInstructions:
             resume=sample_resume,
             job_description="Principal Engineer",
             custom_instructions="British English",
+            active_sections=["basics", "work"],
         )
         assert "Return structured JSON matching FullResumeTailoringOutput" in mono_sys
         assert "British English" in mono_sys
+        assert "Principal Engineer" in mono_usr
+        assert "Only tailor these selected sections: basics, work" in mono_usr
 
         crit_sys, crit_usr = prompts.final_check_prompt(
             final_resume=sample_resume,
@@ -139,6 +142,7 @@ class TestPromptsCustomInstructions:
         )
         assert "Lead Resume Quality Auditor" in crit_sys
         assert "Verify zero hallucination and no em dashes" in crit_sys
+        assert "Principal Engineer" in crit_usr
 
 
 class TestResumeGraphTopologies:
@@ -264,3 +268,126 @@ class TestResumeGraphTopologies:
         assert "final_resume" in final_state
         # Resume rendered without crashing despite critic failure
         assert "pdf_path" in final_state
+
+    @pytest.mark.asyncio
+    async def test_monolithic_omitted_projects_preserves_original(
+        self, sample_resume: dict[str, Any], validator: ResumeSchemaValidator, tmp_path: Path
+    ) -> None:
+        # Resume has projects, and mock LLM omits projects in monolithic mode
+        resume_with_omit = dict(sample_resume)
+        resume_with_omit["_omit_projects_in_monolithic"] = True
+        client = FakeStructuredLLMClient(resume_with_omit)
+        graph = ResumeGraph(
+            llm_client=client,
+            merger=ResumeMerger(),
+            renderer=FakeRenderer(),
+            validator=validator,
+        )
+
+        state: ResumeGraphState = {
+            "original_resume": resume_with_omit,
+            "job_description": "Principal Engineer",
+            "theme": "jsonresume-theme-folio",
+            "job_id": "mono-omit-proj-test",
+            "output_dir": tmp_path,
+            "pipeline_mode": "monolithic",
+        }
+
+        final_state = await graph.run(state)
+        assert "final_resume" in final_state
+        # Verify original projects were NOT erased
+        original_proj_names = [p["name"] for p in sample_resume.get("projects", [])]
+        final_proj_names = [p["name"] for p in final_state["final_resume"].get("projects", [])]
+        assert final_proj_names == original_proj_names
+
+    def test_work_prompt_preserves_alignment_rules_with_custom_template(self, sample_resume: dict[str, Any]) -> None:
+        system, _ = prompts.work_prompt(
+            resume=sample_resume,
+            job_description="Staff Engineer",
+            strategy={"target_narrative": "Lead", "priority_keywords": []},
+            custom_template="Write strong action verbs for every role.",
+        )
+        assert "Write strong action verbs for every role." in system
+        assert "WORK OUTPUT ALIGNMENT:" in system
+        assert "Return exactly one work entry for each input entry, in the same order." in system
+
+    @pytest.mark.asyncio
+    async def test_critic_model_resolution_hierarchy(
+        self, sample_resume: dict[str, Any], validator: ResumeSchemaValidator, tmp_path: Path
+    ) -> None:
+        # LLM client records the model used
+        class RecordingLLMClient(FakeStructuredLLMClient):
+            def __init__(self, resume: dict[str, Any]) -> None:
+                super().__init__(resume)
+                self.models_called: list[str] = []
+
+            async def generate_structured(self, **kwargs: Any) -> Any:
+                self.models_called.append(kwargs.get("model", ""))
+                return await super().generate_structured(**kwargs)
+
+        client = RecordingLLMClient(sample_resume)
+        graph = ResumeGraph(
+            llm_client=client,
+            merger=ResumeMerger(),
+            renderer=FakeRenderer(),
+            validator=validator,
+        )
+
+        # 1. When request specifies model="request-custom-model" and no final_check_model, critic should use request model
+        state: ResumeGraphState = {
+            "original_resume": sample_resume,
+            "job_description": "Senior Platform Engineer",
+            "theme": "jsonresume-theme-folio",
+            "job_id": "critic-model-test",
+            "output_dir": tmp_path,
+            "pipeline_mode": "sequential",
+            "model": "request-custom-model",
+            "enable_final_check": True,
+        }
+        await graph.run(state)
+        assert "request-custom-model" in client.models_called
+
+    @pytest.mark.asyncio
+    async def test_queued_job_runner_forwards_all_custom_options(self, sample_resume: dict[str, Any]) -> None:
+        from unittest.mock import AsyncMock, MagicMock
+        from resume_ops_api.services.jobs import AsyncJobRunner
+        from resume_ops_api.graph.models import TailorResult
+
+        mock_orchestrator = AsyncMock()
+        mock_orchestrator.run.return_value = TailorResult(
+            resume=sample_resume,
+            pdf_path="/tmp/fake.pdf",
+            pdf_base64="fake-base64",
+            theme="jsonresume-theme-folio",
+            plain_text="Plain text resume",
+        )
+        mock_job = MagicMock()
+        mock_job.id = "job-queued-1"
+        mock_job.theme = "jsonresume-theme-folio"
+        mock_job.callback_url = None
+        mock_job.request_payload = {
+            "resume": sample_resume,
+            "job_description": "Staff Engineer",
+            "custom_instructions": "British English",
+            "pipeline_mode": "sequential",
+            "enable_final_check": True,
+            "final_check_model": "gpt-4o-critic",
+            "prompt_templates": {"work": "Custom work prompt"},
+        }
+        mock_store = AsyncMock()
+        mock_store.get_or_raise.return_value = mock_job
+        runner = AsyncJobRunner(
+            store=mock_store,
+            orchestrator=mock_orchestrator,
+            callback_service=AsyncMock(),
+            max_concurrency=1,
+        )
+
+        await runner._run_job("job-queued-1")
+        assert mock_orchestrator.run.called
+        call_kwargs = mock_orchestrator.run.call_args.kwargs
+        assert call_kwargs["custom_instructions"] == "British English"
+        assert call_kwargs["pipeline_mode"] == "sequential"
+        assert call_kwargs["enable_final_check"] is True
+        assert call_kwargs["final_check_model"] == "gpt-4o-critic"
+        assert call_kwargs["prompt_templates"] == {"work": "Custom work prompt"}
