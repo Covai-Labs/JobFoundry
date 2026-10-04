@@ -321,6 +321,7 @@ def monolithic_prompt(
     style: str | None = None,
     custom_instructions: str | None = None,
     custom_template: str | None = None,
+    active_sections: list[str] | None = None,
 ) -> tuple[str, str]:
     base = custom_template.strip() if custom_template and custom_template.strip() else (
         "You are tailoring a complete resume to match the target job description without inventing facts.\n"
@@ -338,7 +339,8 @@ def monolithic_prompt(
     system = _apply_style(base, style, custom_instructions)
     user = (
         f"Job description:\n{job_description}\n\n"
-        f"Master resume (TOON format):\n{_toon(resume)}"
+        f"Master resume (TOON format):\n{_toon(resume)}\n\n"
+        f"Only tailor these selected sections: {', '.join(active_sections or [])}. Preserve all other sections unchanged."
     )
     return system, user
 

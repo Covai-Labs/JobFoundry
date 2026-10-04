@@ -77,8 +77,8 @@ class ResumeGraph:
             or "default"
         )
         self.projects_model = projects_model or "default"
-        self.monolithic_model = monolithic_model or "default"
-        self.final_check_model = final_check_model or "default"
+        self.monolithic_model = monolithic_model or self.strategy_and_basics_model
+        self.final_check_model = final_check_model
         self.style = style
         self.default_sections = default_sections or list(DEFAULT_SECTIONS)
 
@@ -316,6 +316,7 @@ class ResumeGraph:
         return {"tailored_qualifications": output}
 
     async def monolithic_node(self, state: ResumeGraphState) -> dict[str, Any]:
+        active_sections = set(self._resolve_active_sections(state))
         effective_style = state.get("style") or self.style
         custom_instructions = state.get("custom_instructions")
         custom_template = (state.get("prompt_templates") or {}).get("monolithic")
@@ -325,6 +326,7 @@ class ResumeGraph:
             style=effective_style,
             custom_instructions=custom_instructions,
             custom_template=custom_template,
+            active_sections=list(active_sections),
         )
         output = await self.llm_client.generate_structured(
             model=state.get("model") or self.monolithic_model,
@@ -335,16 +337,17 @@ class ResumeGraph:
             api_key=state.get("api_key"),
             api_base=state.get("api_base"),
         )
-        return {
-            "tailored_basics": output.basics,
-            "tailored_work": WorkTailoringOutput(work=output.work),
-            "tailored_projects": ProjectsTailoringOutput(projects=output.projects),
-            "tailored_qualifications": QualificationsTailoringOutput(
-                skills=output.skills,
-                certificates=output.certificates,
-                education=output.education,
-            ),
-        }
+        result: dict[str, Any] = {}
+        if "basics" in active_sections and output.basics:
+            result["tailored_basics"] = output.basics
+        if "work" in active_sections and output.work and len(output.work) == len(state["original_resume"].get("work", [])):
+            result["tailored_work"] = WorkTailoringOutput(work=output.work)
+        if "projects" in active_sections and output.projects:
+            result["tailored_projects"] = ProjectsTailoringOutput(projects=output.projects)
+        qual = {"skills": output.skills, "certificates": output.certificates, "education": output.education}
+        if (("skills" in active_sections and output.skills) or ("certificates" in active_sections and output.certificates) or ("education" in active_sections and output.education)):
+            result["tailored_qualifications"] = QualificationsTailoringOutput(**{k: v for k, v in qual.items() if k in active_sections})
+        return result
 
     async def merge_node(self, state: ResumeGraphState) -> dict[str, dict]:
         final_resume = self.merger.merge(
@@ -377,7 +380,7 @@ class ResumeGraph:
             custom_instructions=custom_instructions,
             custom_template=custom_template,
         )
-        critic_model = state.get("final_check_model") or self.final_check_model or state.get("model") or "default"
+        critic_model = state.get("final_check_model") or state.get("model") or self.final_check_model or self.strategy_and_basics_model
         try:
             output = await self.llm_client.generate_structured(
                 model=critic_model,
@@ -390,18 +393,19 @@ class ResumeGraph:
             )
             logger.info("Critic review observations: %s", output.audit_observations)
             # Re-merge polished sections over final_resume to ensure schema integrity
+            active_sections = set(self._resolve_active_sections(state))
             polished_resume = self.merger.merge(
                 original_resume=final_resume,
-                tailored_basics=output.basics,
-                tailored_work=WorkTailoringOutput(work=output.work) if output.work else None,
-                tailored_projects=ProjectsTailoringOutput(projects=output.projects) if output.projects else None,
+                tailored_basics=output.basics if "basics" in active_sections else None,
+                tailored_work=WorkTailoringOutput(work=output.work) if "work" in active_sections and output.work else None,
+                tailored_projects=ProjectsTailoringOutput(projects=output.projects) if "projects" in active_sections and output.projects else None,
                 tailored_qualifications=QualificationsTailoringOutput(
-                    skills=output.skills,
-                    certificates=output.certificates,
-                    education=output.education,
-                ) if (output.skills or output.certificates or output.education) else None,
+                    skills=output.skills if "skills" in active_sections else [],
+                    certificates=output.certificates if "certificates" in active_sections else [],
+                    education=output.education if "education" in active_sections else [],
+                ) if active_sections & {"skills", "certificates", "education"} else None,
             )
-            self.validator.validate(polished_resume, context="critic polished resume", status_code=500, strict=False)
+            self.validator.validate(polished_resume, context="critic polished resume", status_code=500, strict=True)
             return {"final_resume": polished_resume}
         except Exception as e:
             logger.warning("Final check critic pass failed or was rejected by validator; keeping merged resume intact: %s", e)
