@@ -74,4 +74,43 @@ describe('JobDetail unification (workbench shell === modal shell)', () => {
     expect(await screen.findByRole('button', { name: /Copied/ })).toBeInTheDocument();
     unmount();
   });
+
+  it.each([
+    ['workbench', () => render(<JobWorkbench job={baseJob} {...noopHandlers} />)],
+    ['modal', () => render(<JobDetailModal job={baseJob} onClose={vi.fn()} {...noopHandlers} />)],
+  ])('%s renders job provenance and pipeline origin info', (_name, renderShell) => {
+    const { unmount } = renderShell();
+    expect(screen.getByText('Job Provenance & Pipeline Origin')).toBeInTheDocument();
+    expect(screen.getByText('Capture Method')).toBeInTheDocument();
+    expect(screen.getByText('Original Source URL')).toBeInTheDocument();
+    expect(screen.getByText('jobs.example.com')).toBeInTheDocument();
+    unmount();
+  });
+
+  it('cleans up temporary textarea when copy URL fallback fails', async () => {
+    // Delete clipboard API to force fallback
+    const origClipboard = window.navigator.clipboard;
+    // @ts-ignore
+    delete window.navigator.clipboard;
+
+    const origExec = (document as any).execCommand;
+    (document as any).execCommand = vi.fn().mockImplementation(() => {
+      throw new Error('execCommand copy failed');
+    });
+
+    render(<JobWorkbench job={baseJob} {...noopHandlers} />);
+
+    const copyBtn = screen.getByTitle(/Copy full origin URL/i);
+    fireEvent.click(copyBtn);
+
+    // Verify textarea was cleaned up from body despite failure
+    expect(document.querySelector('textarea')).toBeNull();
+
+    if (origExec) {
+      (document as any).execCommand = origExec;
+    } else {
+      delete (document as any).execCommand;
+    }
+    Object.assign(window.navigator, { clipboard: origClipboard });
+  });
 });

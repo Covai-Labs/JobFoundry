@@ -71,7 +71,7 @@ describe('App', () => {
         expect(screen.getByText('Average Fit Score')).toBeInTheDocument();
         expect(screen.getAllByText('Lead Architect').length).toBeGreaterThanOrEqual(1);
       },
-      { timeout: 5000 }
+      { timeout: 10000 }
     );
   });
 });

@@ -63,12 +63,10 @@ describe('ArtifactViewer & buildDownloadFilename', () => {
     it('renders all download and preview options including JSON and ATS', () => {
       render(<ArtifactViewer jobId="job-123" job={mockJob} />);
 
-      expect(screen.getByText('Standard PDF')).toBeInTheDocument();
-      expect(screen.getByText('Concise PDF')).toBeInTheDocument();
+      expect(screen.getByText('PDF Resume')).toBeInTheDocument();
       expect(screen.getByText('ATS Text (.txt)')).toBeInTheDocument();
       expect(screen.getByText('Resume JSON (.json)')).toBeInTheDocument();
-      expect(screen.getByText('Preview Standard')).toBeInTheDocument();
-      expect(screen.getByText('Preview Concise')).toBeInTheDocument();
+      expect(screen.getByText('Preview PDF')).toBeInTheDocument();
     });
 
     it('downloads JSON resume with human-readable filename', async () => {
@@ -102,13 +100,44 @@ describe('ArtifactViewer & buildDownloadFilename', () => {
 
       render(<ArtifactViewer jobId="job-123" job={mockJob} />);
 
-      const pdfBtn = screen.getByText('Standard PDF');
+      const pdfBtn = screen.getByText('PDF Resume');
       fireEvent.click(pdfBtn);
 
       await waitFor(() => {
         expect(api.downloadPdf).toHaveBeenCalledWith('job-123', 'folio');
         expect(appendChildSpy).toHaveBeenCalled();
         expect(removeChildSpy).toHaveBeenCalled();
+      });
+    });
+
+    it('previews PDF and toggles preview closed on Hide Preview', async () => {
+      const mockBlob = new Blob(['%PDF-1.4 mock content'], { type: 'application/pdf' });
+      vi.spyOn(api, 'downloadPdf').mockResolvedValue(mockBlob);
+      const createObjectURLSpy = vi
+        .spyOn(window.URL, 'createObjectURL')
+        .mockReturnValue('blob:http://localhost/test-pdf');
+      const revokeObjectURLSpy = vi
+        .spyOn(window.URL, 'revokeObjectURL')
+        .mockImplementation(() => {});
+
+      render(<ArtifactViewer jobId="job-123" job={mockJob} />);
+
+      const previewBtn = screen.getByText('Preview PDF');
+      fireEvent.click(previewBtn);
+
+      await waitFor(() => {
+        expect(api.downloadPdf).toHaveBeenCalledWith('job-123', 'folio');
+        expect(createObjectURLSpy).toHaveBeenCalled();
+        expect(screen.getByTitle('PDF Preview')).toBeInTheDocument();
+        expect(screen.getByText('Hide Preview')).toBeInTheDocument();
+      });
+
+      // Clicking Hide Preview closes the preview
+      fireEvent.click(screen.getByText('Hide Preview'));
+      await waitFor(() => {
+        expect(revokeObjectURLSpy).toHaveBeenCalledWith('blob:http://localhost/test-pdf');
+        expect(screen.queryByTitle('PDF Preview')).not.toBeInTheDocument();
+        expect(screen.getByText('Preview PDF')).toBeInTheDocument();
       });
     });
   });

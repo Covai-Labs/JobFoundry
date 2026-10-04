@@ -168,6 +168,11 @@ export const JobFeed: React.FC<JobFeedProps> = ({
         return;
       }
 
+      // If any other modal dialog is open, do not execute feed triage shortcuts
+      if (document.querySelector('[role="dialog"]') || document.querySelector('.modal-backdrop')) {
+        return;
+      }
+
       // / to search
       if (e.key === '/') {
         e.preventDefault();
@@ -751,6 +756,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
               threshold={threshold}
               onSelect={onSelectJob}
               onTailored={onJobUpdated}
+              onStatusChange={onStatusChange}
             />
           ))}
         </div>

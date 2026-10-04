@@ -1,5 +1,5 @@
 import React from 'react';
-import { Job } from '../../types/job';
+import { Job, JobStatus } from '../../types/job';
 import { getScoreCategory, parseFitNotes } from '../filters/filterUtils';
 import { TailorButton } from '../tailor/TailorButton';
 import { MapPin, Check } from 'lucide-react';
@@ -9,9 +9,16 @@ interface JobCardProps {
   threshold?: number;
   onSelect: (job: Job) => void;
   onTailored?: (updatedJob: Job) => void;
+  onStatusChange?: (jobId: string, status: JobStatus) => void;
 }
 
-export const JobCard: React.FC<JobCardProps> = ({ job, threshold = 75, onSelect, onTailored }) => {
+export const JobCard: React.FC<JobCardProps> = ({
+  job,
+  threshold = 75,
+  onSelect,
+  onTailored,
+  onStatusChange,
+}) => {
   const fitNotes = parseFitNotes(job.fit_notes);
   const scoreCat = getScoreCategory(job.fit_score, threshold);
 
@@ -122,7 +129,41 @@ export const JobCard: React.FC<JobCardProps> = ({ job, threshold = 75, onSelect,
         <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
           {new Date(job.created_at).toLocaleDateString()}
         </span>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+          {onStatusChange && (
+            <select
+              aria-label="Job Status"
+              value={job.status}
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                e.stopPropagation();
+                onStatusChange(job.id, e.target.value as JobStatus);
+              }}
+              className="status-select"
+              style={{
+                background: 'var(--color-bg-subtle, #1e293b)',
+                color: 'var(--color-fg-default, #f8fafc)',
+                border: '1px solid var(--border-subtle, #334155)',
+                borderRadius: 'var(--radius-sm, 4px)',
+                padding: '0.2rem 0.45rem',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+              }}
+              title="Change pipeline status"
+            >
+              <option value="new">New</option>
+              <option value="saved">Saved</option>
+              <option value="tailored">Tailored</option>
+              <option value="applied">Applied</option>
+              <option value="interview">Interview</option>
+              <option value="offer">Offer</option>
+              <option value="rejected">Rejected</option>
+              <option value="rejected_by_score">Rejected by Score</option>
+              <option value="archived">Archived</option>
+              <option value="score_failed">Score Failed</option>
+              <option value="invalid_job">Invalid Job</option>
+            </select>
+          )}
           <TailorButton job={job} onTailored={onTailored} />
           <button
             onClick={(e) => {
