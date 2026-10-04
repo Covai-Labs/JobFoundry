@@ -348,7 +348,9 @@ class TestResumeGraphTopologies:
         assert "request-custom-model" in client.models_called
 
     @pytest.mark.asyncio
-    async def test_queued_job_runner_forwards_all_custom_options(self, sample_resume: dict[str, Any]) -> None:
+    async def test_queued_job_runner_forwards_all_custom_options(
+        self, sample_resume: dict[str, Any], tmp_path: Path
+    ) -> None:
         from unittest.mock import AsyncMock, MagicMock
         from resume_ops_api.services.jobs import AsyncJobRunner
         from resume_ops_api.graph.models import TailorResult
@@ -356,7 +358,7 @@ class TestResumeGraphTopologies:
         mock_orchestrator = AsyncMock()
         mock_orchestrator.run.return_value = TailorResult(
             resume=sample_resume,
-            pdf_path="/tmp/fake.pdf",
+            pdf_path=str(tmp_path / "fake.pdf"),
             pdf_base64="fake-base64",
             theme="jsonresume-theme-folio",
             plain_text="Plain text resume",

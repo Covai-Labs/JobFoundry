@@ -340,7 +340,8 @@ class ResumeGraph:
         result: dict[str, Any] = {}
         if "basics" in active_sections and output.basics is not None:
             result["tailored_basics"] = output.basics
-        if "work" in active_sections and output.work is not None:
+        original_work_len = len(state["original_resume"].get("work", []))
+        if "work" in active_sections and output.work is not None and len(output.work) == original_work_len:
             result["tailored_work"] = WorkTailoringOutput(work=output.work)
         if "projects" in active_sections and output.projects is not None:
             result["tailored_projects"] = ProjectsTailoringOutput(projects=output.projects)
