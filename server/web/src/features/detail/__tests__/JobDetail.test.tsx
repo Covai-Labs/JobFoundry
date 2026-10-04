@@ -86,4 +86,31 @@ describe('JobDetail unification (workbench shell === modal shell)', () => {
     expect(screen.getByText('jobs.example.com')).toBeInTheDocument();
     unmount();
   });
+
+  it('cleans up temporary textarea when copy URL fallback fails', async () => {
+    // Delete clipboard API to force fallback
+    const origClipboard = window.navigator.clipboard;
+    // @ts-ignore
+    delete window.navigator.clipboard;
+
+    const origExec = (document as any).execCommand;
+    (document as any).execCommand = vi.fn().mockImplementation(() => {
+      throw new Error('execCommand copy failed');
+    });
+
+    render(<JobWorkbench job={baseJob} {...noopHandlers} />);
+
+    const copyBtn = screen.getByTitle(/Copy full origin URL/i);
+    fireEvent.click(copyBtn);
+
+    // Verify textarea was cleaned up from body despite failure
+    expect(document.querySelector('textarea')).toBeNull();
+
+    if (origExec) {
+      (document as any).execCommand = origExec;
+    } else {
+      delete (document as any).execCommand;
+    }
+    Object.assign(window.navigator, { clipboard: origClipboard });
+  });
 });

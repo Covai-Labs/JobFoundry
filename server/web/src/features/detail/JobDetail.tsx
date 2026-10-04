@@ -178,9 +178,14 @@ export const JobDetail: React.FC<JobDetailProps> = ({
         const ta = document.createElement('textarea');
         ta.value = job.url;
         document.body.appendChild(ta);
-        ta.select();
-        if (!document.execCommand('copy')) throw new Error('Copy command failed');
-        document.body.removeChild(ta);
+        try {
+          ta.select();
+          if (!document.execCommand('copy')) throw new Error('Copy command failed');
+        } finally {
+          if (document.body.contains(ta)) {
+            document.body.removeChild(ta);
+          }
+        }
       }
       setCopiedUrl(true);
       setTimeout(() => setCopiedUrl(false), 2000);

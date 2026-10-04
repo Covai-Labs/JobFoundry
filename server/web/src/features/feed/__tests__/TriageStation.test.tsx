@@ -242,4 +242,23 @@ describe('TriageStation & Split View', () => {
     fireEvent.keyDown(window, { key: 'a', metaKey: true });
     expect(handleStatusChange).not.toHaveBeenCalled();
   });
+
+  it('does not trigger triage shortcuts when a modal dialog is open in the DOM', () => {
+    const handleStatusChange = vi.fn();
+    render(<JobFeed jobs={mockJobs} onSelectJob={vi.fn()} onStatusChange={handleStatusChange} />);
+
+    // Simulate an open modal dialog attached to document
+    const modalEl = document.createElement('div');
+    modalEl.setAttribute('role', 'dialog');
+    document.body.appendChild(modalEl);
+
+    try {
+      fireEvent.keyDown(window, { key: 'a' });
+      fireEvent.keyDown(window, { key: 's' });
+      fireEvent.keyDown(window, { key: 'e' });
+      expect(handleStatusChange).not.toHaveBeenCalled();
+    } finally {
+      document.body.removeChild(modalEl);
+    }
+  });
 });

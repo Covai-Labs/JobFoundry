@@ -158,7 +158,10 @@ export const JobCard: React.FC<JobCardProps> = ({
               <option value="interview">Interview</option>
               <option value="offer">Offer</option>
               <option value="rejected">Rejected</option>
+              <option value="rejected_by_score">Rejected by Score</option>
               <option value="archived">Archived</option>
+              <option value="score_failed">Score Failed</option>
+              <option value="invalid_job">Invalid Job</option>
             </select>
           )}
           <TailorButton job={job} onTailored={onTailored} />

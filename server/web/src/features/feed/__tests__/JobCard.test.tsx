@@ -50,4 +50,34 @@ describe('JobCard Component', () => {
     expect(select).toBeInTheDocument();
     expect(select).toHaveValue('interview');
   });
+
+  it('renders status select with current status for backend statuses like rejected_by_score, score_failed, and invalid_job', () => {
+    const systemJob: Job = { ...mockJob, status: 'rejected_by_score' };
+    const { rerender } = render(
+      <JobCard job={systemJob} onSelect={vi.fn()} onStatusChange={vi.fn()} />
+    );
+
+    let select = screen.getByRole('combobox', { name: /Job Status/i });
+    expect(select).toHaveValue('rejected_by_score');
+
+    rerender(
+      <JobCard
+        job={{ ...mockJob, status: 'score_failed' }}
+        onSelect={vi.fn()}
+        onStatusChange={vi.fn()}
+      />
+    );
+    select = screen.getByRole('combobox', { name: /Job Status/i });
+    expect(select).toHaveValue('score_failed');
+
+    rerender(
+      <JobCard
+        job={{ ...mockJob, status: 'invalid_job' }}
+        onSelect={vi.fn()}
+        onStatusChange={vi.fn()}
+      />
+    );
+    select = screen.getByRole('combobox', { name: /Job Status/i });
+    expect(select).toHaveValue('invalid_job');
+  });
 });
