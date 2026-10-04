@@ -24,9 +24,9 @@ attrs==26.1.0
     #   aiohttp
     #   jsonschema
     #   referencing
-boto3==1.43.103
+boto3==1.43.108
     # via litellm
-botocore==1.43.103
+botocore==1.43.108
     # via
     #   boto3
     #   s3transfer
@@ -35,7 +35,7 @@ certifi==2026.7.22
     #   httpcore
     #   httpx
     #   requests
-charset-normalizer==3.5.1
+charset-normalizer==3.5.2
     # via requests
 click==8.5.0
     # via
@@ -52,11 +52,11 @@ distro==1.9.0
     # via openai
 docstring-parser==0.18.0
     # via instructor
-fastapi==0.141.1
+fastapi==0.142.2
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 fastuuid==0.14.0
     # via litellm
-filelock==4.0.4
+filelock==4.0.10
     # via huggingface-hub
 frozenlist==1.8.0
     # via
@@ -78,7 +78,7 @@ httpx==0.28.1
     #   huggingface-hub
     #   litellm
     #   openai
-huggingface-hub==1.33.0
+huggingface-hub==2.1.1
     # via tokenizers
 idna==3.20
     # via
@@ -87,7 +87,7 @@ idna==3.20
     #   instructor
     #   requests
     #   yarl
-importlib-metadata==8.9.0
+importlib-metadata==9.0.1
     # via litellm
 iniconfig==2.3.0
     # via pytest
@@ -97,7 +97,7 @@ jinja2==3.1.6
     # via
     #   instructor
     #   litellm
-jiter==0.14.0
+jiter==0.17.0
     # via
     #   instructor
     #   openai
@@ -109,19 +109,19 @@ jsonschema==4.26.0
     # via litellm
 jsonschema-specifications==2025.9.1
     # via jsonschema
-litellm==1.102.1
+litellm==1.104.0
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 markdown-it-py==4.2.0
     # via rich
-markupsafe==3.0.3
+markupsafe==3.0.4
     # via jinja2
 mdurl==0.1.2
     # via markdown-it-py
-multidict==6.9.1
+multidict==7.0.0
     # via
     #   aiohttp
     #   yarl
-openai==2.54.0
+openai==3.24.0
     # via
     #   instructor
     #   litellm
@@ -143,7 +143,7 @@ pydantic==2.13.5
     #   litellm
     #   openai
     #   pydantic-settings
-pydantic-core==2.46.5
+pydantic-core==2.49.0
     # via
     #   instructor
     #   pydantic
@@ -161,7 +161,7 @@ pytest-asyncio==1.4.0
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 python-dateutil==2.9.0.post0
     # via botocore
-python-dotenv==1.2.3
+python-dotenv==1.2.4
     # via
     #   litellm
     #   pydantic-settings
@@ -171,7 +171,7 @@ referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-regex==2026.9.10
+regex==2026.9.29
     # via
     #   instructor
     #   tiktoken
@@ -179,7 +179,7 @@ requests==2.34.2
     # via
     #   instructor
     #   tiktoken
-rich==14.3.4
+rich==15.0.0
     # via
     #   instructor
     #   typer
@@ -203,7 +203,7 @@ tiktoken==0.14.0
     # via litellm
 tokenizers==0.23.2
     # via litellm
-toons==0.8.0
+toons==0.9.0
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 tqdm==4.70.1
     # via
@@ -234,5 +234,5 @@ uvicorn==0.54.0
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 yarl==1.25.1
     # via aiohttp
-zipp==4.1.0
+zipp==4.1.1
     # via importlib-metadata
