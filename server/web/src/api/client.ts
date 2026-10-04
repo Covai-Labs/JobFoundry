@@ -564,6 +564,16 @@ export interface SystemSettings {
   tailor_api_base: string;
   tailor_theme: string;
   tailor_style?: string;
+  tailor_pipeline_mode?: string;
+  tailor_instructions?: string;
+  tailor_enable_final_check?: boolean;
+  tailor_final_check_model?: string;
+  tailor_prompt_strategy_and_basics?: string;
+  tailor_prompt_work?: string;
+  tailor_prompt_projects?: string;
+  tailor_prompt_qualifications?: string;
+  tailor_prompt_monolithic?: string;
+  tailor_prompt_final_check?: string;
   tailor_timeout_seconds: number;
   copilot_inherit_model?: boolean;
   copilot_model?: string;
@@ -635,6 +645,12 @@ export interface PromptTemplateDefaults {
   copilot_outreach_prompt_template: string;
   copilot_qa_prompt_template: string;
   copilot_cover_letter_prompt_template: string;
+  tailor_prompt_strategy_and_basics?: string;
+  tailor_prompt_work?: string;
+  tailor_prompt_projects?: string;
+  tailor_prompt_qualifications?: string;
+  tailor_prompt_monolithic?: string;
+  tailor_prompt_final_check?: string;
 }
 
 export interface SystemSettingsResponse {

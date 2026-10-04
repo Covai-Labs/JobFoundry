@@ -160,6 +160,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     tailor_api_base: '',
     tailor_theme: 'jsonresume-theme-folio',
     tailor_style: 'executive',
+    tailor_pipeline_mode: 'sequential',
+    tailor_instructions: '',
+    tailor_enable_final_check: false,
+    tailor_final_check_model: '',
+    tailor_prompt_strategy_and_basics: '',
+    tailor_prompt_work: '',
+    tailor_prompt_projects: '',
+    tailor_prompt_qualifications: '',
+    tailor_prompt_monolithic: '',
+    tailor_prompt_final_check: '',
     tailor_timeout_seconds: 900,
     copilot_inherit_model: true,
     copilot_model: 'openrouter/openrouter/free',
@@ -234,6 +244,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     );
   });
   const [showTailorEndpointOverride, setShowTailorEndpointOverride] = useState<boolean>(false);
+  const [showTailorPromptTemplates, setShowTailorPromptTemplates] = useState<boolean>(false);
 
   // Copilot Settings State
   const [editingCopilotKey, setEditingCopilotKey] = useState(false);
@@ -3155,6 +3166,542 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           Academic (Methodologies & publications focus)
                         </option>
                       </select>
+                    </div>
+
+                    {/* Pipeline Execution Mode */}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.35rem',
+                        }}
+                      >
+                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                          Pipeline Execution Mode
+                        </label>
+                        {renderSourceBadge('tailor_pipeline_mode')}
+                      </div>
+                      <select
+                        value={formSettings.tailor_pipeline_mode || 'sequential'}
+                        onChange={(e) => handleFieldChange('tailor_pipeline_mode', e.target.value)}
+                        className="input-text"
+                      >
+                        <option value="sequential">
+                          Sequential Cascade (Deep Coherence - cross-section aware) [Default]
+                        </option>
+                        <option value="parallel">
+                          Parallel Fan-out (Fast concurrent sections - ~5-10s)
+                        </option>
+                        <option value="monolithic">
+                          Monolithic Single-Pass (Whole resume tailored at once)
+                        </option>
+                      </select>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                          marginTop: '0.25rem',
+                          display: 'block',
+                        }}
+                      >
+                        Sequential Cascade chains sections (Basics → Work → Projects → Skills) so
+                        downstream sections avoid duplicating accomplishments and align narratives.
+                      </span>
+                    </div>
+
+                    {/* Custom Tailoring Instructions */}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.35rem',
+                        }}
+                      >
+                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                          Custom Tailoring Instructions
+                        </label>
+                        {renderSourceBadge('tailor_instructions')}
+                      </div>
+                      <textarea
+                        rows={6}
+                        value={formSettings.tailor_instructions || ''}
+                        onChange={(e) => handleFieldChange('tailor_instructions', e.target.value)}
+                        className="input-text"
+                        style={{
+                          width: '100%',
+                          fontFamily: 'monospace',
+                          fontSize: '0.8rem',
+                          resize: 'vertical',
+                        }}
+                        placeholder={
+                          'Custom instructions that apply across all sections (e.g. Tone, British English, avoid em dashes, candidate archetype, dropping courses or keywords):\n\n' +
+                          '- Maximise candidate chances through aggressive, truthful positioning\n' +
+                          '- Use British English. Avoid em dashes.\n' +
+                          '- Candidate Archetype: Hands-on technical generalist\n' +
+                          '- Drop courses under education. Drop standalone keywords lists under projects.'
+                        }
+                      />
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                          marginTop: '0.25rem',
+                          display: 'block',
+                        }}
+                      >
+                        Injected directly into the tailoring strategy and section prompts to guide
+                        candidate voice, terminology, and formatting constraints.
+                      </span>
+                    </div>
+
+                    {/* Final Verification & Quality Pass */}
+                    <div
+                      style={{
+                        marginBottom: '1.25rem',
+                        padding: '1rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-glass)',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                      >
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.5rem',
+                            fontSize: '0.85rem',
+                            fontWeight: 600,
+                            cursor: 'pointer',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={Boolean(formSettings.tailor_enable_final_check)}
+                            onChange={(e) =>
+                              handleFieldChange('tailor_enable_final_check', e.target.checked)
+                            }
+                          />
+                          Enable Final Check / Critic Pass
+                        </label>
+                        {renderSourceBadge('tailor_enable_final_check')}
+                      </div>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                          marginTop: '0.35rem',
+                          display: 'block',
+                        }}
+                      >
+                        Performs an automated quality and fact-checking audit against the master
+                        resume and custom instructions before compiling the final PDF.
+                      </span>
+
+                      {formSettings.tailor_enable_final_check && (
+                        <div style={{ marginTop: '0.75rem' }}>
+                          <label
+                            style={{
+                              display: 'block',
+                              fontSize: '0.8rem',
+                              fontWeight: 500,
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Critic / Auditor Model (Optional)
+                          </label>
+                          <input
+                            type="text"
+                            list="critic-model-suggestions"
+                            value={formSettings.tailor_final_check_model || ''}
+                            onChange={(e) =>
+                              handleFieldChange('tailor_final_check_model', e.target.value)
+                            }
+                            className="input-text"
+                            placeholder="Leave empty to use primary tailoring model, or enter reasoning model (e.g. openrouter/anthropic/claude-3.5-sonnet)"
+                          />
+                          <datalist id="critic-model-suggestions">
+                            {ALL_RECOMMENDED_MODELS.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} ({m.provider}) - {m.description}
+                              </option>
+                            ))}
+                          </datalist>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Expandable Section Prompt Templates */}
+                    <div
+                      style={{
+                        marginBottom: '1.25rem',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-glass)',
+                      }}
+                    >
+                      <button
+                        type="button"
+                        onClick={() => setShowTailorPromptTemplates(!showTailorPromptTemplates)}
+                        style={{
+                          width: '100%',
+                          padding: '0.85rem 1rem',
+                          background: 'none',
+                          border: 'none',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <ChevronRight
+                            size={16}
+                            style={{
+                              transform: showTailorPromptTemplates ? 'rotate(90deg)' : 'none',
+                              transition: 'transform 0.2s ease',
+                              color: 'var(--accent-primary)',
+                            }}
+                          />
+                          <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                            Section Prompt Templates & Instructions Overrides
+                          </span>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {showTailorPromptTemplates ? 'Hide Overrides' : 'Customize Overrides'}
+                        </span>
+                      </button>
+
+                      {showTailorPromptTemplates && (
+                        <div
+                          style={{
+                            padding: '0 1rem 1rem 1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '1rem',
+                            borderTop: '1px solid var(--border-subtle)',
+                          }}
+                        >
+                          <p
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--text-secondary)',
+                              marginTop: '0.75rem',
+                              marginBottom: '0.25rem',
+                            }}
+                          >
+                            Fine-tune the exact system instructions given to the LLM for each resume
+                            section. Click "Default" on any template to restore factory prompt.
+                          </p>
+
+                          {/* Strategy & Basics */}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.35rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                Strategy & Basics Prompt
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (defaultPromptTemplates.tailor_prompt_strategy_and_basics) {
+                                    handleFieldChange(
+                                      'tailor_prompt_strategy_and_basics',
+                                      defaultPromptTemplates.tailor_prompt_strategy_and_basics
+                                    );
+                                    toast.info('Strategy prompt restored to default');
+                                  }
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem' }}
+                              >
+                                <RotateCcw size={11} style={{ marginRight: '0.2rem' }} /> Default
+                              </button>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={formSettings.tailor_prompt_strategy_and_basics || ''}
+                              onChange={(e) =>
+                                handleFieldChange(
+                                  'tailor_prompt_strategy_and_basics',
+                                  e.target.value
+                                )
+                              }
+                              placeholder={
+                                defaultPromptTemplates.tailor_prompt_strategy_and_basics ||
+                                'Strategy prompt...'
+                              }
+                              className="input-text"
+                              style={{
+                                width: '100%',
+                                fontFamily: 'monospace',
+                                fontSize: '0.78rem',
+                              }}
+                            />
+                          </div>
+
+                          {/* Work Experience */}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.35rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                Work Experience Prompt
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (defaultPromptTemplates.tailor_prompt_work) {
+                                    handleFieldChange(
+                                      'tailor_prompt_work',
+                                      defaultPromptTemplates.tailor_prompt_work
+                                    );
+                                    toast.info('Work prompt restored to default');
+                                  }
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem' }}
+                              >
+                                <RotateCcw size={11} style={{ marginRight: '0.2rem' }} /> Default
+                              </button>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={formSettings.tailor_prompt_work || ''}
+                              onChange={(e) =>
+                                handleFieldChange('tailor_prompt_work', e.target.value)
+                              }
+                              placeholder={
+                                defaultPromptTemplates.tailor_prompt_work || 'Work prompt...'
+                              }
+                              className="input-text"
+                              style={{
+                                width: '100%',
+                                fontFamily: 'monospace',
+                                fontSize: '0.78rem',
+                              }}
+                            />
+                          </div>
+
+                          {/* Projects */}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.35rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                Projects Prompt
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (defaultPromptTemplates.tailor_prompt_projects) {
+                                    handleFieldChange(
+                                      'tailor_prompt_projects',
+                                      defaultPromptTemplates.tailor_prompt_projects
+                                    );
+                                    toast.info('Projects prompt restored to default');
+                                  }
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem' }}
+                              >
+                                <RotateCcw size={11} style={{ marginRight: '0.2rem' }} /> Default
+                              </button>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={formSettings.tailor_prompt_projects || ''}
+                              onChange={(e) =>
+                                handleFieldChange('tailor_prompt_projects', e.target.value)
+                              }
+                              placeholder={
+                                defaultPromptTemplates.tailor_prompt_projects ||
+                                'Projects prompt...'
+                              }
+                              className="input-text"
+                              style={{
+                                width: '100%',
+                                fontFamily: 'monospace',
+                                fontSize: '0.78rem',
+                              }}
+                            />
+                          </div>
+
+                          {/* Qualifications & Skills */}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.35rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                Qualifications & Skills Prompt
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (defaultPromptTemplates.tailor_prompt_qualifications) {
+                                    handleFieldChange(
+                                      'tailor_prompt_qualifications',
+                                      defaultPromptTemplates.tailor_prompt_qualifications
+                                    );
+                                    toast.info('Qualifications prompt restored to default');
+                                  }
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem' }}
+                              >
+                                <RotateCcw size={11} style={{ marginRight: '0.2rem' }} /> Default
+                              </button>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={formSettings.tailor_prompt_qualifications || ''}
+                              onChange={(e) =>
+                                handleFieldChange('tailor_prompt_qualifications', e.target.value)
+                              }
+                              placeholder={
+                                defaultPromptTemplates.tailor_prompt_qualifications ||
+                                'Qualifications prompt...'
+                              }
+                              className="input-text"
+                              style={{
+                                width: '100%',
+                                fontFamily: 'monospace',
+                                fontSize: '0.78rem',
+                              }}
+                            />
+                          </div>
+
+                          {/* Monolithic Full-Resume */}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.35rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                Monolithic (Whole Resume) Prompt
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (defaultPromptTemplates.tailor_prompt_monolithic) {
+                                    handleFieldChange(
+                                      'tailor_prompt_monolithic',
+                                      defaultPromptTemplates.tailor_prompt_monolithic
+                                    );
+                                    toast.info('Monolithic prompt restored to default');
+                                  }
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem' }}
+                              >
+                                <RotateCcw size={11} style={{ marginRight: '0.2rem' }} /> Default
+                              </button>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={formSettings.tailor_prompt_monolithic || ''}
+                              onChange={(e) =>
+                                handleFieldChange('tailor_prompt_monolithic', e.target.value)
+                              }
+                              placeholder={
+                                defaultPromptTemplates.tailor_prompt_monolithic ||
+                                'Monolithic prompt...'
+                              }
+                              className="input-text"
+                              style={{
+                                width: '100%',
+                                fontFamily: 'monospace',
+                                fontSize: '0.78rem',
+                              }}
+                            />
+                          </div>
+
+                          {/* Final Check Critic */}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.35rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+                                Final Check Critic Prompt
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  if (defaultPromptTemplates.tailor_prompt_final_check) {
+                                    handleFieldChange(
+                                      'tailor_prompt_final_check',
+                                      defaultPromptTemplates.tailor_prompt_final_check
+                                    );
+                                    toast.info('Final check prompt restored to default');
+                                  }
+                                }}
+                                className="btn btn-secondary btn-sm"
+                                style={{ fontSize: '0.72rem', padding: '0.2rem 0.45rem' }}
+                              >
+                                <RotateCcw size={11} style={{ marginRight: '0.2rem' }} /> Default
+                              </button>
+                            </div>
+                            <textarea
+                              rows={3}
+                              value={formSettings.tailor_prompt_final_check || ''}
+                              onChange={(e) =>
+                                handleFieldChange('tailor_prompt_final_check', e.target.value)
+                              }
+                              placeholder={
+                                defaultPromptTemplates.tailor_prompt_final_check ||
+                                'Final check prompt...'
+                              }
+                              className="input-text"
+                              style={{
+                                width: '100%',
+                                fontFamily: 'monospace',
+                                fontSize: '0.78rem',
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Tailor Timeout */}

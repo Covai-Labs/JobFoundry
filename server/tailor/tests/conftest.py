@@ -116,6 +116,25 @@ class FakeStructuredLLMClient:
                     for item in self.resume.get("interests", [])
                 ]
             )
+        if response_model.__name__ == "FullResumeTailoringOutput":
+            from resume_ops_api.graph.models import BasicsTailoringOutput, WorkEntryTailoring, ProjectEntryTailoring, SkillEntry
+            basics = BasicsTailoringOutput(label="Monolithic Headline", summary="Monolithic tailored summary.")
+            work = [
+                WorkEntryTailoring(summary=f"Monolithic work for {item['name']}", highlights=[f"Monolithic impact for {item['name']}"])
+                for item in self.resume.get("work", [])
+            ]
+            projects = [
+                ProjectEntryTailoring(name=p["name"], description=f"Monolithic: {p.get('description', p['name'])}", highlights=["Monolithic highlight"])
+                for p in self.resume.get("projects", [])[:2]
+            ]
+            skills = [SkillEntry(name="Engineering", keywords=["Python", "FastAPI"])]
+            return response_model(basics=basics, work=work, projects=projects, skills=skills)
+        if response_model.__name__ == "FinalCheckCriticOutput":
+            from resume_ops_api.graph.models import BasicsTailoringOutput
+            return response_model(
+                audit_observations=["Fact check passed", "Custom instructions verified"],
+                basics=BasicsTailoringOutput(label="Critic Polished Headline", summary="Critic polished summary."),
+            )
         raise AssertionError(f"Unsupported response model: {response_model.__name__}")
 
 

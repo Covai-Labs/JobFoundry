@@ -23,11 +23,35 @@ export const DEFAULT_QA_PROMPT =
 export const DEFAULT_COVER_LETTER_PROMPT =
   'Craft a clean 3-paragraph tailored cover letter: 1) Hook & functional alignment; 2) Core proof points from resume solving JD problems; 3) Forward-looking closing. Banning all generic AI cliches.';
 
+export const DEFAULT_TAILOR_STRATEGY_PROMPT =
+  'Formulate a coherent tailoring strategy for the candidate matching the target job description. Tailor only the professional label (headline/title) and the main summary paragraph aiming for under 100 words (3-4 sentences). Retain high-signaling education if present. Return target_narrative, priority_keywords, section_rules, red_lines, label, and summary without inventing facts.';
+
+export const DEFAULT_TAILOR_WORK_PROMPT =
+  'Tailor only the summary and highlights for each work item to align with the target role. Do not change company names, positions, dates, locations, urls, or order. Do not invent unsupported responsibilities or achievements. Apply tiered highlight limits based on recency.';
+
+export const DEFAULT_TAILOR_PROJECTS_PROMPT =
+  'Select a maximum of 4 (ideally 2 to 4) projects most relevant to the target job description. Write at most 3 relevant highlights per project. Keep project names exactly as provided in the master resume. In sequential cascade mode, ensure projects complement work experience without repeating identical accomplishments.';
+
+export const DEFAULT_TAILOR_QUALIFICATIONS_PROMPT =
+  'Tailor candidate qualifications (skills, certificates, education) without inventing facts. Regroup skills into 4 to 6 high-impact categories with 3 to 8 keywords representing the most relevant tools. Select only relevant certificates. Preserve education metadata.';
+
+export const DEFAULT_TAILOR_MONOLITHIC_PROMPT =
+  'Tailor the complete resume strictly grounded in the master resume to align with the target job description. Retain factual integrity, preserve all dates, employers, degrees, and positions. Do not invent facts or metrics. Craft a cohesive headline, summary, aligned work bullets, selected relevant projects, and prioritized skills.';
+
+export const DEFAULT_TAILOR_FINAL_CHECK_PROMPT =
+  'Act as a strict Resume Quality Auditor and Fact-Checker. Compare the tailored resume against the master resume and custom instructions. Verify zero hallucination, enforce language and style guidelines (e.g., British English, no em dashes), ensure project highlights and work bullets complement each other, and verify all formatting rules.';
+
 export const DEFAULT_PROMPT_TEMPLATES = {
   copilot_system_prompt_template: DEFAULT_COPILOT_SYSTEM_PROMPT,
   copilot_outreach_prompt_template: DEFAULT_OUTREACH_PROMPT,
   copilot_qa_prompt_template: DEFAULT_QA_PROMPT,
   copilot_cover_letter_prompt_template: DEFAULT_COVER_LETTER_PROMPT,
+  tailor_prompt_strategy_and_basics: DEFAULT_TAILOR_STRATEGY_PROMPT,
+  tailor_prompt_work: DEFAULT_TAILOR_WORK_PROMPT,
+  tailor_prompt_projects: DEFAULT_TAILOR_PROJECTS_PROMPT,
+  tailor_prompt_qualifications: DEFAULT_TAILOR_QUALIFICATIONS_PROMPT,
+  tailor_prompt_monolithic: DEFAULT_TAILOR_MONOLITHIC_PROMPT,
+  tailor_prompt_final_check: DEFAULT_TAILOR_FINAL_CHECK_PROMPT,
 };
 
 export const SETTINGS_METADATA = {
@@ -137,6 +161,56 @@ export const SETTINGS_METADATA = {
   tailor_style: {
     env: 'TAILOR_STYLE',
     default: '',
+    type: 'string',
+  },
+  tailor_pipeline_mode: {
+    env: 'TAILOR_PIPELINE_MODE',
+    default: 'sequential',
+    type: 'string',
+  },
+  tailor_instructions: {
+    env: 'TAILOR_INSTRUCTIONS',
+    default: '',
+    type: 'string',
+  },
+  tailor_enable_final_check: {
+    env: 'TAILOR_ENABLE_FINAL_CHECK',
+    default: false,
+    type: 'boolean',
+  },
+  tailor_final_check_model: {
+    env: 'TAILOR_FINAL_CHECK_MODEL',
+    default: '',
+    type: 'string',
+  },
+  tailor_prompt_strategy_and_basics: {
+    env: null,
+    default: DEFAULT_TAILOR_STRATEGY_PROMPT,
+    type: 'string',
+  },
+  tailor_prompt_work: {
+    env: null,
+    default: DEFAULT_TAILOR_WORK_PROMPT,
+    type: 'string',
+  },
+  tailor_prompt_projects: {
+    env: null,
+    default: DEFAULT_TAILOR_PROJECTS_PROMPT,
+    type: 'string',
+  },
+  tailor_prompt_qualifications: {
+    env: null,
+    default: DEFAULT_TAILOR_QUALIFICATIONS_PROMPT,
+    type: 'string',
+  },
+  tailor_prompt_monolithic: {
+    env: null,
+    default: DEFAULT_TAILOR_MONOLITHIC_PROMPT,
+    type: 'string',
+  },
+  tailor_prompt_final_check: {
+    env: null,
+    default: DEFAULT_TAILOR_FINAL_CHECK_PROMPT,
     type: 'string',
   },
   copilot_inherit_model: {

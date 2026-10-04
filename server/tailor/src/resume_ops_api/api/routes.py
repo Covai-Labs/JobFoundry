@@ -90,6 +90,11 @@ async def tailor_resume(
         api_key=payload.api_key,
         api_base=payload.api_base,
         style=payload.style,
+        custom_instructions=payload.custom_instructions,
+        pipeline_mode=payload.pipeline_mode,
+        enable_final_check=payload.enable_final_check,
+        final_check_model=payload.final_check_model,
+        prompt_templates=payload.prompt_templates,
     )
 
     theme = container.theme_service.resolve(payload.theme)
@@ -107,6 +112,11 @@ async def tailor_resume(
         api_key=payload.api_key,
         api_base=payload.api_base,
         style=payload.style,
+        custom_instructions=payload.custom_instructions,
+        pipeline_mode=payload.pipeline_mode,
+        enable_final_check=payload.enable_final_check,
+        final_check_model=payload.final_check_model,
+        prompt_templates=payload.prompt_templates,
     )
     return TailorResponse(resume=result.resume, pdf_base64=result.pdf_base64, theme=result.theme, plain_text=result.plain_text)
 

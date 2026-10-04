@@ -224,3 +224,25 @@ class TailorResult(BaseModel):
     pdf_base64: str
     theme: str
     plain_text: str
+
+
+class FullResumeTailoringOutput(BaseModel):
+    basics: BasicsTailoringOutput | None = None
+    work: list[WorkEntryTailoring] = Field(default_factory=list)
+    projects: list[ProjectEntryTailoring] = Field(default_factory=list)
+    skills: list[SkillEntry] = Field(default_factory=list)
+    certificates: list[str] = Field(default_factory=list)
+    education: list[EducationEntryTailoring] = Field(default_factory=list)
+
+
+class FinalCheckCriticOutput(BaseModel):
+    audit_observations: list[str] = Field(
+        default_factory=list,
+        description="Observations regarding factual accuracy, instruction compliance, and stylistic improvements."
+    )
+    basics: BasicsTailoringOutput | None = None
+    work: list[WorkEntryTailoring] = Field(default_factory=list)
+    projects: list[ProjectEntryTailoring] = Field(default_factory=list)
+    skills: list[SkillEntry] = Field(default_factory=list)
+    certificates: list[str] = Field(default_factory=list)
+    education: list[EducationEntryTailoring] = Field(default_factory=list)

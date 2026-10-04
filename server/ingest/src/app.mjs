@@ -1944,6 +1944,30 @@ export function buildApp({
         getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
         '';
       const tailorStyle = getEffectiveSetting(db, 'tailor_style', process.env, userId);
+      const tailorInstructions =
+        getEffectiveSetting(db, 'tailor_instructions', process.env, userId) || '';
+      const tailorPipelineMode =
+        getEffectiveSetting(db, 'tailor_pipeline_mode', process.env, userId) || 'sequential';
+      const tailorEnableFinalCheck = Boolean(
+        getEffectiveSetting(db, 'tailor_enable_final_check', process.env, userId)
+      );
+      const tailorFinalCheckModel =
+        getEffectiveSetting(db, 'tailor_final_check_model', process.env, userId) || '';
+
+      const promptTemplates = {
+        strategy_and_basics:
+          getEffectiveSetting(db, 'tailor_prompt_strategy_and_basics', process.env, userId) ||
+          undefined,
+        work: getEffectiveSetting(db, 'tailor_prompt_work', process.env, userId) || undefined,
+        projects:
+          getEffectiveSetting(db, 'tailor_prompt_projects', process.env, userId) || undefined,
+        qualifications:
+          getEffectiveSetting(db, 'tailor_prompt_qualifications', process.env, userId) || undefined,
+        monolithic:
+          getEffectiveSetting(db, 'tailor_prompt_monolithic', process.env, userId) || undefined,
+        final_check:
+          getEffectiveSetting(db, 'tailor_prompt_final_check', process.env, userId) || undefined,
+      };
 
       if (resumeOpsUrl) {
         try {
@@ -1960,6 +1984,11 @@ export function buildApp({
               ...(tailorKey ? { api_key: tailorKey } : {}),
               ...(tailorBase ? { api_base: tailorBase } : {}),
               ...(tailorStyle ? { style: tailorStyle } : {}),
+              ...(tailorInstructions ? { custom_instructions: tailorInstructions } : {}),
+              pipeline_mode: tailorPipelineMode,
+              enable_final_check: tailorEnableFinalCheck,
+              ...(tailorFinalCheckModel ? { final_check_model: tailorFinalCheckModel } : {}),
+              prompt_templates: promptTemplates,
             }),
           });
 

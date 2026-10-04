@@ -29,6 +29,11 @@ class TailorOrchestrator:
         api_key: str | None = None,
         api_base: str | None = None,
         style: str | None = None,
+        custom_instructions: str | None = None,
+        pipeline_mode: str | None = None,
+        enable_final_check: bool = False,
+        final_check_model: str | None = None,
+        prompt_templates: dict[str, str] | None = None,
     ) -> TailorResult:
         self.validator.validate(resume, context="input resume")
         job_id = task_id or uuid.uuid4().hex
@@ -40,6 +45,7 @@ class TailorOrchestrator:
             "theme": theme,
             "job_id": job_id,
             "output_dir": output_dir,
+            "enable_final_check": enable_final_check,
         }
         if sections is not None:
             state["sections"] = sections
@@ -51,6 +57,14 @@ class TailorOrchestrator:
             state["api_base"] = api_base
         if style is not None:
             state["style"] = style
+        if custom_instructions is not None:
+            state["custom_instructions"] = custom_instructions
+        if pipeline_mode is not None:
+            state["pipeline_mode"] = pipeline_mode
+        if final_check_model is not None:
+            state["final_check_model"] = final_check_model
+        if prompt_templates is not None:
+            state["prompt_templates"] = prompt_templates
         final_state = await self.graph.run(state)
         pdf_path = final_state["pdf_path"]
         pdf_base64 = await self.encode_pdf(pdf_path)
