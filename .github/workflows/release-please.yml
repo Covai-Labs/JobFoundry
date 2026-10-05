@@ -24,8 +24,8 @@ jobs:
         if: ${{ steps.release.outputs.release_created }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
         run: |
-          tag="${{ steps.release.outputs.tag_name }}"
-          echo "Release created: $tag. Triggering release pipelines..."
-          gh workflow run release-server.yml --repo "${{ github.repository }}" --ref "$tag"
-          gh workflow run ghcr.yml --repo "${{ github.repository }}" --ref "$tag"
+          echo "Release created: $TAG_NAME. Triggering release pipelines..."
+          gh workflow run release-server.yml --repo "${{ github.repository }}" --ref "$TAG_NAME"
+          gh workflow run ghcr.yml --repo "${{ github.repository }}" --ref "$TAG_NAME"
