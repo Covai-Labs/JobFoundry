@@ -8,6 +8,8 @@ on:
     paths:
       - 'site/**'
       - '.github/workflows/pages.yml'
+      - 'VERSION'
+      - 'CHANGELOG.md'
   workflow_dispatch:
 
 permissions:
