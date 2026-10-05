@@ -4,6 +4,26 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.5.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.4.1...v0.5.0) (2026-10-05)
+
+
+### Features
+
+* **tailor:** add custom instructions, sequential cascade, and critic check ([e12798d](https://github.com/Covai-Labs/JobFoundry/commit/e12798df2011856b1765ed87bc53853111df60c8))
+* **tailor:** add custom instructions, sequential cascade, and critic check ([111200f](https://github.com/Covai-Labs/JobFoundry/commit/111200f1b323a8c360ed880c7fae67dd521fa5d5))
+* **web:** add quick Mark Applied action to feed cards ([113eb3e](https://github.com/Covai-Labs/JobFoundry/commit/113eb3e65ee69b0d007a44a22f65cb294a407c85))
+* **web:** elevate export toolbar and add provenance info to job detail ([ce4812e](https://github.com/Covai-Labs/JobFoundry/commit/ce4812e3372c6d00ca4b1abaeb09b617bd19f945))
+* **web:** enhance UX navigation, job provenance, quick apply, and document exports ([65c9b68](https://github.com/Covai-Labs/JobFoundry/commit/65c9b68422820b7d9451eee5ded195ed4774d07b))
+* **web:** link logo to feed and add heart support modal ([94cac76](https://github.com/Covai-Labs/JobFoundry/commit/94cac76a211de7db946b0b3b1c97e7ec200bf559))
+
+
+### Bug Fixes
+
+* **tailor:** add work count validation in monolithic_node and use tmp_path in test mock ([66b3108](https://github.com/Covai-Labs/JobFoundry/commit/66b31089dd327a8b6effec97f88d5425d2676369))
+* **tailor:** address review feedback on async jobs, monolithic projects, and prompt ordering ([d447464](https://github.com/Covai-Labs/JobFoundry/commit/d447464427109b01f3bac253f0cd8196a0a708f9))
+* **web:** address PR review feedback on exports, provenance, and feed status ([7f12b38](https://github.com/Covai-Labs/JobFoundry/commit/7f12b38b4ddee3e3d5e19b50e070b7280b6ef329))
+* **web:** polish feed status options, modal shortcut isolation, and copy fallback cleanup ([a09f708](https://github.com/Covai-Labs/JobFoundry/commit/a09f708d9778d020a433a8ad70013756a456fb20))
+
 ## [0.4.1] — 2026-09-30
 
 - **macOS Apple Silicon (darwin-arm64) distribution**:
