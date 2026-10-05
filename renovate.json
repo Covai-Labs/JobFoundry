@@ -1,4 +1,5 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
-  "extends": ["local>Covai-Labs/.github"]
+  "extends": ["local>Covai-Labs/.github"],
+  "ignorePaths": ["packaging/python/**"]
 }
