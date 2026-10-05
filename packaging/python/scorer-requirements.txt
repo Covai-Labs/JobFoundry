@@ -56,8 +56,10 @@ fastapi==0.142.2
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 fastuuid==0.14.0
     # via litellm
-filelock==4.0.12
-    # via huggingface-hub
+filelock==3.32.7
+    # via
+    #   huggingface-hub
+    #   litellm
 frozenlist==1.8.0
     # via
     #   aiohttp
@@ -68,8 +70,12 @@ h11==0.16.0
     # via
     #   httpcore
     #   uvicorn
+h2==4.4.1
+    # via httpx
 hf-xet==1.6.0 ; platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
     # via huggingface-hub
+hpack==4.2.0
+    # via h2
 httpcore==1.0.9
     # via httpx
 httpx==0.28.1
@@ -78,8 +84,12 @@ httpx==0.28.1
     #   huggingface-hub
     #   litellm
     #   openai
-huggingface-hub==2.1.1
-    # via tokenizers
+huggingface-hub==1.33.0
+    # via
+    #   litellm
+    #   tokenizers
+hyperframe==6.1.0
+    # via h2
 idna==3.20
     # via
     #   anyio
@@ -87,7 +97,7 @@ idna==3.20
     #   instructor
     #   requests
     #   yarl
-importlib-metadata==9.0.1
+importlib-metadata==8.9.0
     # via litellm
 iniconfig==2.3.0
     # via pytest
@@ -97,7 +107,7 @@ jinja2==3.1.6
     # via
     #   instructor
     #   litellm
-jiter==0.17.0
+jiter==0.14.0
     # via
     #   instructor
     #   openai
@@ -117,17 +127,20 @@ markupsafe==3.0.4
     # via jinja2
 mdurl==0.1.2
     # via markdown-it-py
-multidict==7.0.0
+multidict==6.9.1
     # via
     #   aiohttp
     #   yarl
-openai==3.24.0
+openai==2.54.0
     # via
     #   instructor
     #   litellm
+opentelemetry-api==1.45.0
+    # via fastapi
 packaging==26.3
     # via
     #   huggingface-hub
+    #   litellm
     #   pytest
 pluggy==1.6.0
     # via pytest
@@ -143,7 +156,7 @@ pydantic==2.13.5
     #   litellm
     #   openai
     #   pydantic-settings
-pydantic-core==2.49.0
+pydantic-core==2.46.5
     # via
     #   instructor
     #   pydantic
@@ -166,7 +179,9 @@ python-dotenv==1.2.4
     #   litellm
     #   pydantic-settings
 pyyaml==6.0.3
-    # via huggingface-hub
+    # via
+    #   huggingface-hub
+    #   litellm
 referencing==0.37.0
     # via
     #   jsonschema
@@ -179,7 +194,7 @@ requests==2.34.2
     # via
     #   instructor
     #   tiktoken
-rich==15.0.0
+rich==14.3.4
     # via
     #   instructor
     #   typer
@@ -217,6 +232,7 @@ typing-extensions==4.16.0
     #   fastapi
     #   huggingface-hub
     #   openai
+    #   opentelemetry-api
     #   pydantic
     #   pydantic-core
     #   typing-inspection

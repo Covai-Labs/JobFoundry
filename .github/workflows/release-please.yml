@@ -20,10 +20,12 @@ jobs:
           config-file: .release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      - name: Trigger Server Release Workflow
+      - name: Trigger Release Packaging and Container Workflows
         if: ${{ steps.release.outputs.release_created }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          echo "Release created: ${{ steps.release.outputs.tag_name }}. Triggering packaging workflows..."
-          gh workflow run release-server.yml --repo "${{ github.repository }}" --ref "${{ steps.release.outputs.tag_name }}"
+          tag="${{ steps.release.outputs.tag_name }}"
+          echo "Release created: $tag. Triggering release pipelines..."
+          gh workflow run release-server.yml --repo "${{ github.repository }}" --ref "$tag"
+          gh workflow run ghcr.yml --repo "${{ github.repository }}" --ref "$tag"

@@ -42,12 +42,15 @@ if [ "$PYTHON_SERIES" != "3.14" ]; then
 fi
 # GITHUB_REF_NAME is only a version for tag builds. On branch runs
 # (including workflow_dispatch) it holds a branch name — which may contain
-# slashes — so fall back to package.json there.
+# slashes — so fall back to VERSION (or package.json) there.
 if [ -z "${APP_VERSION:-}" ] && [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
   APP_VERSION="${GITHUB_REF_NAME:-}"
 fi
 APP_VERSION="${APP_VERSION:-}"
 APP_VERSION="${APP_VERSION#v}"
+if [ -z "$APP_VERSION" ] && [ -f "$REPO_ROOT/VERSION" ]; then
+  APP_VERSION="$(tr -d '[:space:]' < "$REPO_ROOT/VERSION")"
+fi
 if [ -z "$APP_VERSION" ]; then
   APP_VERSION="$(python3 -c "import json; print(json.load(open('$REPO_ROOT/package.json'))['version'])")"
 fi

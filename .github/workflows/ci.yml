@@ -52,6 +52,10 @@ jobs:
         env:
           UV_EXTRA_BUILD_DEPENDENCIES: hatchling
       - run: uv run pytest
+      - name: Validate packaging requirements resolve cleanly
+        run: |
+          uv pip install --dry-run --system --python 3.14 -r ../../packaging/python/scorer-requirements.txt
+          uv pip install --dry-run --system --python 3.14 -r ../../packaging/python/tailor-requirements.txt
 
   tailor:
     name: Resume tailor tests
