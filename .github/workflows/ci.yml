@@ -54,8 +54,9 @@ jobs:
       - run: uv run pytest
       - name: Validate packaging requirements resolve cleanly
         run: |
-          uv pip install --dry-run -r ../../packaging/python/scorer-requirements.txt
-          uv pip install --dry-run -r ../../packaging/python/tailor-requirements.txt
+          uv venv --python 3.14 /tmp/packaging-venv
+          uv pip install --dry-run --python /tmp/packaging-venv/bin/python -r ../../packaging/python/scorer-requirements.txt
+          uv pip install --dry-run --python /tmp/packaging-venv/bin/python -r ../../packaging/python/tailor-requirements.txt
 
   tailor:
     name: Resume tailor tests
