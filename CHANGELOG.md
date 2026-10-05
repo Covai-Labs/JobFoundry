@@ -4,6 +4,13 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.5.1](https://github.com/Covai-Labs/JobFoundry/compare/v0.5.0...v0.5.1) (2026-10-05)
+
+
+### Bug Fixes
+
+* automate ghcr release, repair python packaging deps, and respect VERSION ([#94](https://github.com/Covai-Labs/JobFoundry/issues/94)) ([4ace4a1](https://github.com/Covai-Labs/JobFoundry/commit/4ace4a1101e944ba4c435d8b1c4cedb2e8219106))
+
 ## [0.5.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.4.1...v0.5.0) (2026-10-05)
 
 
