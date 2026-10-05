@@ -1,6 +1,18 @@
 ---
+import fs from 'node:fs';
+import path from 'node:path';
 import DocsLayout from '../../layouts/DocsLayout.astro';
 import { resolvePath } from '../../utils/paths.js';
+
+let currentVersion = '0.4.1';
+try {
+  const versionPath = path.resolve(import.meta.dirname, '../../../../VERSION');
+  if (fs.existsSync(versionPath)) {
+    currentVersion = fs.readFileSync(versionPath, 'utf8').replace(/#.*/g, '').trim();
+  }
+} catch {
+  // fallback
+}
 ---
 
 <DocsLayout
@@ -12,11 +24,17 @@ import { resolvePath } from '../../utils/paths.js';
   <h1>Changelog</h1>
   <p>
     JobFoundry follows <a href="https://semver.org" target="_blank" rel="noopener noreferrer">Semantic Versioning</a>.
-    The current version lives in <code>VERSION</code> in the repository root
-    (<strong>0.4.0</strong> at the time of writing). Highlights per release below —
-    the full commit history is in git, and the canonical file is
-    <a href="https://github.com/Covai-Labs/JobFoundry/blob/main/CHANGELOG.md" target="_blank" rel="noopener noreferrer"><code>CHANGELOG.md</code></a>.
+    The current release is <strong>v{currentVersion}</strong>.
+    For the complete release history, automated changelogs, and binary downloads, see
+    <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer"><strong>GitHub Releases</strong></a>.
   </p>
+
+  <h2>0.4.1 — 2026-09-30</h2>
+  <p>macOS Apple Silicon distribution and documentation overhaul.</p>
+  <ul>
+    <li><strong>macOS Apple Silicon tarball</strong> (darwin-arm64) and official Homebrew formula.</li>
+    <li>Comprehensive project docs: Architecture, Manifesto, Governance, Support, and contributor guides.</li>
+  </ul>
 
   <h2>0.4.0 — 2026-09-12</h2>
   <p>First packaged distribution release.</p>

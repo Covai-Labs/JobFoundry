@@ -88,6 +88,7 @@ jobs:
           files: |
             dist-extension/*.zip
             dist-extension/SHA256SUMS.txt
+          generate_release_notes: true
 
   # -- Browser store publishing -----------------------------------------------
   # Firefox (AMO) is LIVE: every extension tag auto-submits to the listed channel

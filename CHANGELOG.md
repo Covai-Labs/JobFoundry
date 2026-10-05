@@ -4,11 +4,13 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
-## [Unreleased]
+## [0.4.1] — 2026-09-30
 
-- Documentation overhaul: new Code of Conduct, Support, Architecture,
-  Manifesto, Governance, Privacy-adjacent legal docs, changelog, provider
-  authoring rewrite, and a non-technical-user-first getting-started guide.
+- **macOS Apple Silicon (darwin-arm64) distribution**:
+  - Standalone portable tarball release with self-contained Node, Python standalone, Chrome headless shell, and dispatcher CLI.
+  - Official Homebrew formula and automated tap release bump workflow.
+- **Documentation overhaul**:
+  - New Code of Conduct, Support, Architecture, Manifesto, Governance, Privacy-adjacent legal docs, and a non-technical-user-first getting-started guide.
 
 ## [0.4.0] — 2026-09-12
 
