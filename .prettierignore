@@ -10,3 +10,6 @@ extension/src/background/tests/fixtures/
 **/.wxt/
 
 docs/
+
+# Release changelog is generated and maintained automatically by release-please
+CHANGELOG.md
