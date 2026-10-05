@@ -50,7 +50,7 @@ fi
 APP_VERSION="${APP_VERSION:-}"
 APP_VERSION="${APP_VERSION#v}"
 if [ -z "$APP_VERSION" ] && [ -f "$REPO_ROOT/VERSION" ]; then
-  APP_VERSION="$(tr -d '[:space:]' < "$REPO_ROOT/VERSION")"
+  APP_VERSION="$(awk '!/^[[:space:]]*#/ && NF { print; exit }' "$REPO_ROOT/VERSION")"
 fi
 if [ -z "$APP_VERSION" ]; then
   APP_VERSION="$(python3 -c "import json; print(json.load(open('$REPO_ROOT/package.json'))['version'])")"
