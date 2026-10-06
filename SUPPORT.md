@@ -70,8 +70,22 @@ All participation is covered by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ## Response expectations
 
-JobFoundry is maintained by a small team alongside day jobs. We triage
-issues and discussions as fast as we can, roughly in this order: security
-reports, data-loss bugs, broken installs, provider breakage, feature
-requests. If your issue hasn't had a response in two weeks, a polite bump is
-welcome — things do slip.
+JobFoundry is developed and maintained by a solo developer in my spare time. I
+triage issues and discussions as fast as I can, roughly in this order: security
+reports, data-loss bugs, broken installs, provider breakage, feature requests.
+If your issue hasn't had a response in two weeks, a polite bump is welcome —
+progress is happening every day.
+
+## How to support JobFoundry
+
+JobFoundry is completely free, local-first, and open-source (AGPL-3.0). If it has
+saved you time, reduced your job-search anxiety, or helped you land a job, here
+is how you can support it:
+
+- **Star the repository:** Helps other job seekers discover the project on
+  [GitHub](https://github.com/Covai-Labs/JobFoundry).
+- **Report bugs and test:** Try it on your favorite job sites and open an issue
+  if something feels rough.
+- **[Sponsor on GitHub](https://github.com/sponsors/deadrat-in):** Helps fund
+  testing infrastructure and ongoing development so the project stays free of
+  ads and subscriptions.

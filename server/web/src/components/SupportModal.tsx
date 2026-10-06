@@ -109,7 +109,7 @@ export const SupportModal: React.FC<SupportModalProps> = ({ isOpen, onClose }) =
 
           {/* Sponsor */}
           <a
-            href="https://github.com/sponsors/Covai-Labs"
+            href="https://github.com/sponsors/deadrat-in"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-secondary"

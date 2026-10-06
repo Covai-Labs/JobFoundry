@@ -32,24 +32,34 @@ import { resolvePath } from '../../utils/paths.js';
     </p>
   </div>
 
-  <div class="doc-callout">
+  <div class="doc-callout warning">
     <div class="callout-title">
-      <span>◈</span>
-      <span>Release maturity</span>
+      <span>!</span>
+      <span>Work in Progress / Beta</span>
     </div>
     <p>
-      The container image (Docker) is the default release — CI builds it for
-      applicable code changes. AppImage, MSIX, and macOS Homebrew/tarball builds are
-      provided to lower the barrier. The MSIX flow requires Terminal (Admin)
-      when trusting a new release certificate. They work, but they get less test
-      coverage for now. As more people use them and report issues, they'll be tested
-      and polished to the same bar.
+      JobFoundry is built by a solo developer scratching his own itch during a hard job search. The core flows work, but rough edges exist and active progress is happening every day. Bug reports, testing, and feedback are deeply appreciated!
     </p>
   </div>
 
-  <h2>Method 1: Ready-made app (easiest)</h2>
+  <h2>Method 1: One-line install with Docker or Podman (default & recommended)</h2>
   <p>
-    Download the latest release from the
+    On Linux, macOS, or Windows (WSL2), this single command sets up everything —
+    automatically detecting whether you have <code>docker compose</code>, <code>podman compose</code>,
+    <code>podman-compose</code>, <code>docker-compose</code>, or compatible container tools:
+  </p>
+  <TerminalSnippet
+    command="curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash"
+    title="ONE-LINE INSTALL (DOCKER / PODMAN)"
+  />
+  <p>
+    Then open <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>
+    in your browser to see the dashboard.
+  </p>
+
+  <h2>Method 2: Standalone desktop app (no containers needed)</h2>
+  <p>
+    If you prefer ready-made native desktop builds without Docker or Podman, download the latest release from the
     <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer">Releases page</a>:
   </p>
   <ul>
@@ -59,7 +69,7 @@ import { resolvePath } from '../../utils/paths.js';
       <code>chmod +x JobFoundry-*.AppImage</code> once), then double-click to
       launch. The dashboard opens at
       <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>.
-      <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 2 (Docker) below. Convenience build — please report issues.</em>
+      <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 1 (Docker/Podman). Convenience build — please report issues.</em>
     </li>
     <li>
       <strong>Windows 11:</strong> download <code>JobFoundry-&lt;version&gt;-x64.msix</code>
@@ -72,7 +82,7 @@ import { resolvePath } from '../../utils/paths.js';
       <code>brew tap covai-labs/tap &amp;&amp; brew install covai-labs/tap/jobfoundry</code>,
       then launch with <code>jobfoundry start</code>. Or download the <code>*-darwin-arm64.tar.gz</code>
       Release asset.
-      <em>For Intel Macs, use Method 2 (Docker) below. Convenience build — please report issues.</em>
+      <em>For Intel Macs, use Method 1 (Docker). Convenience build — please report issues.</em>
     </li>
   </ul>
   <TerminalSnippet
@@ -87,20 +97,6 @@ import { resolvePath } from '../../utils/paths.js';
     Then launch <strong>JobFoundry</strong> from the Start menu. Your data and
     settings live under <code>%LOCALAPPDATA%\JobFoundry\</code>, safely outside
     the app package.
-  </p>
-
-  <h2>Method 2: One-line install with Docker (default)</h2>
-  <p>
-    On Linux, macOS, or Windows (WSL2) with Docker installed, this single command
-    sets up everything — container, configuration, and health check:
-  </p>
-  <TerminalSnippet
-    command="curl -sSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash"
-    title="ONE-LINE INSTALL"
-  />
-  <p>
-    Then open <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>
-    in your browser to see the dashboard.
   </p>
 
   <h2>Method 3: Manual setup (developers)</h2>

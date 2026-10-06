@@ -4,22 +4,34 @@ _Who this is for: anyone who needs a job and knows how to run a computer. If you
 
 ## Origin: built in a real job search
 
-JobFoundry started while looking for a job. Existing products either consumed
-too many tokens reading every posting with an LLM, or produced low-quality
-tailoring that hallucinated experience. So first came resume-ops —
-a CLI-first experiment in truthful, low-token tailoring.
+JobFoundry didn't start as a startup pitch — it started because I was broke,
+exhausted, and struggling to find a job in a brutal market. Existing tools either
+locked basic features behind \$30/month subscriptions, burned endless tokens
+reading every posting with an LLM, or produced low-quality tailoring that
+hallucinated fake experience.
 
-Parsing needed to be better and the whole pipeline needed care: capture, dedup,
-scoring, tailoring, tracking. That became JobFoundry.
+I couldn't afford subscriptions, and I refused to apply with fabricated claims.
+So I started building tools to survive my own search. First came resume-ops —
+a CLI-first experiment in truthful, zero-token resume tailoring. But parsing
+needed to be much better, and the whole search cycle needed care: capturing from
+authenticated browser tabs, deduplicating cross-postings across 80+ boards,
+scoring fit locally, and tracking applications. That became JobFoundry.
 
-Used in earnest, it was deliberately selective — most jobs were rejected at the
-scoring stage, and only the highest-fit roles got tailored resumes and
-applications. That focus led to several offers. None accepted yet; that time is
-going into making JobFoundry useful to many people instead.
+Used in my own search, the pipeline was deliberately selective: let fit scoring
+reject most noise early, and only tailor and apply to the highest-fit roles.
+That discipline actually worked, and I ended up receiving multiple job offers.
+
+I don't know whether it was the right decision or the wrong decision, but I
+decided to take a pause for a couple of months and put my energy into polishing
+this and open-sourcing it under AGPL-3.0. I wanted to see if the tools that got
+me through the hardest stretch of my life could help other people going through
+the exact same struggle.
 
 Mass-apply automation is flooding the market: it buries strong candidates and
 overwhelms hiring teams. JobFoundry bets the other way — fewer, better, honest
-applications bring sanity back for jobseekers _and_ employers.
+applications bring sanity back for jobseekers _and_ employers. It is not
+perfect, and active development continues every day — but it is built to give
+jobseekers an honest edge.
 
 ## 1. Job hunting is hard enough. The tooling should not make it harder.
 

@@ -123,25 +123,25 @@ import { resolvePath } from '../utils/paths.js';
         <BentoTile colSpan={4} class="quickstart-bar-tile">
           <div class="quickstart-inner">
             <div class="quickstart-meta">
-              <span class="site-badge cyan">CHOOSE YOUR INSTALL</span>
-              <h3 class="quickstart-title">Run JobFoundry your way</h3>
+              <span class="site-badge cyan">DEFAULT INSTALL</span>
+              <h3 class="quickstart-title">Up and Running in Seconds</h3>
               <p class="quickstart-text">
-                Docker is the default release (CI-built). AppImage, MSIX, and macOS Homebrew/tarball builds lower the barrier — note MSIX needs Terminal (Admin) when trusting a new certificate — and harden with every issue you report. The browser extension is added separately.
+                Containerized via Docker or Podman is the recommended default. A single command auto-detects your container runtime and starts the entire stack. Portable desktop convenience builds (AppImage, MSIX, Homebrew) are also available.
               </p>
             </div>
             <div class="quickstart-options">
+              <div class="quickstart-option quickstart-command">
+                <strong>Docker / Podman (Default)</strong>
+                <code>curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash</code>
+              </div>
               <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer" class="quickstart-option">
                 <strong>Linux AppImage</strong>
-                <span>Portable, no Docker required</span>
+                <span>Portable binary, no containers needed</span>
               </a>
               <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer" class="quickstart-option">
                 <strong>Windows MSIX</strong>
-                <span>Install manually, then launch from the Start menu</span>
+                <span>Sideload package with Start menu launch</span>
               </a>
-              <div class="quickstart-option quickstart-command">
-                <strong>Docker</strong>
-                <code>curl -sSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash</code>
-              </div>
             </div>
           </div>
           <a href={resolvePath('/docs/getting-started/')} class="quickstart-guide-link">

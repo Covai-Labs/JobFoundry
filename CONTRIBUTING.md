@@ -1,12 +1,12 @@
 # Contributing to JobFoundry
 
-Thank you for your interest in contributing to JobFoundry! We welcome community contributions to help improve job search workflows, provider support, and local-first tooling.
+Thank you for your interest in contributing to JobFoundry! As an independent open-source project, community contributions are deeply appreciated to help improve job search workflows, add new ATS provider adapters, and build better local-first tooling for everyone.
 
 ---
 
 ## Code of Conduct
 
-We are committed to providing a welcoming, inclusive, and harassment-free environment for everyone. Please be respectful, constructive, and kind in all discussions and code reviews.
+I am committed to providing a welcoming, inclusive, and harassment-free environment for everyone. Please be respectful, constructive, and kind in all discussions and code reviews. Job hunting is stressful enough; our community should always be an encouraging space.
 
 ---
 

@@ -34,30 +34,93 @@ if ! command -v git >/dev/null 2>&1; then
   exit 1
 fi
 
-# Determine container compose command
+# Determine container compose command and engine
 COMPOSE_CMD=""
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE_CMD="docker compose"
-elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE_CMD="docker-compose"
-elif podman compose version >/dev/null 2>&1; then
-  COMPOSE_CMD="podman compose"
-elif command -v podman-compose >/dev/null 2>&1; then
-  COMPOSE_CMD="podman-compose"
+ENGINE_NAME=""
+
+# Helper to test if docker engine is responsive
+_has_docker_engine() {
+  command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
+}
+
+# Helper to test if podman engine is responsive
+_has_podman_engine() {
+  command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1
+}
+
+# 1. Check Podman first if active (common in Fedora, RHEL, rootless setups) or Docker
+# Check for docker compose
+if _has_docker_engine; then
+  if docker compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="docker compose"
+    ENGINE_NAME="Docker (Compose v2)"
+  elif command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+    ENGINE_NAME="Docker (docker-compose)"
+  fi
+fi
+
+# If no active docker compose found, check Podman
+if [ -z "$COMPOSE_CMD" ] && _has_podman_engine; then
+  if podman compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="podman compose"
+    ENGINE_NAME="Podman (podman compose)"
+  elif command -v podman-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="podman-compose"
+    ENGINE_NAME="Podman (podman-compose)"
+  fi
+fi
+
+# Fallback: check if docker is installed without running daemon, or podman without compose
+if [ -z "$COMPOSE_CMD" ]; then
+  # Check if docker is installed but daemon is not running
+  if command -v docker >/dev/null 2>&1 && ! docker info >/dev/null 2>&1; then
+    echo -e "${YELLOW}✖ Docker is installed, but the Docker daemon is not responding.${NC}"
+    echo ""
+    echo "Please ensure the Docker daemon is running:"
+    echo "  - Linux: sudo systemctl start docker"
+    echo "  - macOS / Windows: Start Docker Desktop"
+    echo "Then re-run this script."
+    exit 1
+  fi
+
+  # Check if podman is installed but compose is missing
+  if command -v podman >/dev/null 2>&1; then
+    echo -e "${YELLOW}✖ Podman is installed, but neither 'podman compose' nor 'podman-compose' was found.${NC}"
+    echo ""
+    echo "To install podman-compose:"
+    echo "  - Fedora/RHEL: sudo dnf install podman-compose"
+    echo "  - Ubuntu/Debian: sudo apt install podman-compose"
+    echo "  - macOS (Homebrew): brew install podman-compose"
+    echo "  - Or via pip: pip install podman-compose"
+    echo "Then re-run this script."
+    exit 1
+  fi
+
+  # Check nerdctl as compatible alternative
+  if command -v nerdctl >/dev/null 2>&1 && nerdctl compose version >/dev/null 2>&1; then
+    COMPOSE_CMD="nerdctl compose"
+    ENGINE_NAME="containerd (nerdctl compose)"
+  fi
 fi
 
 if [ -z "$COMPOSE_CMD" ]; then
-  echo -e "${YELLOW}✖ Neither 'docker compose' nor 'podman compose' was found.${NC}"
+  echo -e "${YELLOW}✖ No container runtime found (Docker or Podman).${NC}"
   echo ""
   echo "JobFoundry runs as a local-first containerized stack (ingest, scorer, tailor, web)."
   echo "To install Docker on Linux, run:"
   echo -e "  ${BOLD}curl -fsSL https://get.docker.com | sh${NC}"
   echo ""
-  echo "Once Docker is installed, please re-run this script."
+  echo "Or install Podman:"
+  echo "  - Fedora: sudo dnf install podman podman-compose"
+  echo "  - Ubuntu: sudo apt install podman podman-compose"
+  echo "  - macOS: brew install podman podman-compose"
+  echo ""
+  echo "Once Docker or Podman is installed, please re-run this script."
   exit 1
 fi
 
-echo -e "  ${GREEN}✔ Found container orchestrator:${NC} $COMPOSE_CMD"
+echo -e "  ${GREEN}✔ Found container orchestrator:${NC} $ENGINE_NAME ($COMPOSE_CMD)"
 
 # ------------------------------------------------------------------------------
 # 2. Determine Installation Directory
@@ -146,15 +209,22 @@ echo ""
 echo -e "${BOLD}Next Steps:${NC}"
 echo "  1. Open your Dashboard: http://localhost:8080"
 echo "  2. Install the Browser Extension:"
-echo "     👉 View guide & download: https://jobfoundry.covai.org/extension.html"
+echo "     👉 Store listings & guide: https://jobfoundry.covai.org/docs/extension/"
 echo "     Or load unpacked from: $TARGET_DIR/extension"
 echo "  3. Configure your LLM API key in:"
 echo -e "     ${BLUE}$TARGET_DIR/.env${NC}"
 echo "     Then restart: $COMPOSE_CMD restart"
 echo ""
+echo -e "${BOLD}Support & Community:${NC}"
+echo "  ⭐ Star on GitHub: https://github.com/Covai-Labs/JobFoundry"
+echo "  💖 Sponsor ongoing development: https://github.com/sponsors/deadrat-in"
+echo "  💬 Questions & Feedback: https://github.com/Covai-Labs/JobFoundry/discussions"
+echo ""
 echo -e "${BOLD}Useful Commands:${NC}"
 echo "  View logs:    cd $TARGET_DIR && $COMPOSE_CMD logs -f"
 echo "  Stop stack:   cd $TARGET_DIR && $COMPOSE_CMD down"
+echo "  Restart:      cd $TARGET_DIR && $COMPOSE_CMD restart"
+echo ""
 echo "  Restart:      cd $TARGET_DIR && $COMPOSE_CMD restart"
 echo ""
 
