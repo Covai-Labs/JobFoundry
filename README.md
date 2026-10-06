@@ -16,6 +16,8 @@
 
 </div>
 
+> ⚠️ **Active Development / Beta:** JobFoundry is built by a solo developer scratching his own itch. The core flows work, but rough edges exist and progress is happening every day. Bug reports, testing, and feedback are deeply appreciated!
+
 ---
 
 ## Why JobFoundry?
@@ -78,32 +80,35 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 
 ## Built in a real job search
 
-JobFoundry didn't start as a product idea — it started while looking for a job.
+JobFoundry didn't start as a startup pitch or a polished product idea — it started because I was broke, exhausted, and desperately trying to get a job in a brutal tech market.
 
-Existing tools fell into two traps: some burned through tokens by feeding every job posting to an LLM, and some produced low-quality tailoring that hallucinated employers, skills, or metrics. So the first step was resume-ops: a CLI-first experiment in truthful, low-token tailoring for AI coding assistants.
+Job hunting right now is soul-crushing. Every tool out there wants a $30/month subscription, tries to lock you into their cloud, or burns expensive LLM tokens reading job descriptions only to hallucinate fake metrics, false skills, and invented employers on your resume. I couldn't afford subscriptions, and I refused to send recruiters hallucinated lies.
 
-That worked, but parsing was still weak and only half the pipeline was covered. The full loop — capture, dedup, fit scoring, tailoring, tracking — became JobFoundry.
+So I started hacking together tools to survive my own search. First came a tiny CLI experiment in truthful, zero-token resume tailoring. But I quickly realized that half the struggle was the daily chaos of browsing, tab-hopping, and sifting through duplicate cross-postings across 80+ job boards. That end-to-end loop became JobFoundry: capture straight from the browser session, dedup cross-posts with 64-bit SimHash, score fit with local models, and tailor truthfully under strict schema constraints.
 
-Used in a real search, the workflow was deliberately selective: let scoring reject most jobs early and only tailor and apply to the highest-fit roles. That focus led to several offers. No offer has been accepted yet — instead that time is going into hardening JobFoundry for everyone else.
+Using it in my own search, I stayed stubbornly selective: letting fit scores filter out low-match noise, and only tailoring and applying to genuine high-fit roles. That focus actually worked, and I ended up receiving multiple job offers.
 
-The larger bet: mass-apply automation and spray-and-pray flooding hurts both sides — good candidates get buried, hiring teams drown in low-fit noise. JobFoundry is the opposite: fewer, better, honest applications. If that brings a little sanity back to hiring, it's worth it.
+I don't know whether it was the right decision or the wrong decision, but I decided to take a pause for a couple of months and put my energy into polishing this and open-sourcing it under AGPL-3.0. I wanted to see if the tool that got me through the hardest stretch of my life could help other people going through the exact same struggle.
+
+It is definitely not perfect. Rough edges exist, and active development is happening every single day. But if it saves you hours of burnout, protects your privacy, or helps you land an interview, it will have been completely worth it.
 
 ---
 
 ## Quick Install
 
-> **Release maturity:** the container image (Docker) is the default release — CI builds it for applicable code changes. AppImage, MSIX, and macOS Homebrew/tarball builds exist to lower the barrier. Note: the Windows MSIX flow requires Terminal (Admin) when trusting a new release certificate. They work, but they get less test coverage for now. As more people use them and file issues, they'll be tested and polished to the same bar.
+The recommended way to run JobFoundry is containerized via **Docker** or **Podman**. The complete stack (Fastify ingest API, React dashboard, LLM scorer, and tailoring engine) starts in seconds:
 
-- 💻 **Linux:** download `JobFoundry-*-x86_64.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), allow executing, double-click. No Docker needed (requires glibc 2.39+, e.g. Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch; for older distros, use the Docker install below). _Convenience build — please report issues so it can harden._
-- 🪟 **Windows 11:** download the `.msix` + `.cer` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), trust the release certificate via Terminal (Admin), install, launch from the Start menu. Repeat the trust step when a release uses a new certificate. _Convenience build — please report issues so it can harden._
-- 🍺 **macOS (Apple Silicon):** `brew tap covai-labs/tap && brew install covai-labs/tap/jobfoundry`, then `jobfoundry start`. Or download the `*-darwin-arm64.tar.gz` Release asset. For Intel Macs, use Docker below. _Convenience build — please report issues so it can harden._
-- 🐳 **Any OS with Docker (default):** `curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash`, then open `http://localhost:8080`.
-- 🧩 **Extension (easiest):** install from the [Chrome Web Store](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm), [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/), or [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe). Prefer the latest build? For Chrome/Edge, download the `.zip` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases) and load unpacked — no build needed. For Firefox, extract the `.zip`, open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on…**, and choose `manifest.json` (lasts until restart). Note: store listings may lag behind GitHub Releases due to store review, so check the latest Release if you hit an issue.
+### 1. One-Line Install (Default & Recommended)
 
-Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**. Note: the Windows MSIX path needs Terminal (Admin) when trusting a new release certificate.
+Run this in your terminal (Linux, macOS, or Windows WSL2):
 
-<details>
-<summary><b>🛠️ Manual / Developer Setup</b></summary>
+```bash
+curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash
+```
+
+> **Smart runtime detection:** The script automatically detects whether you have `docker compose`, `podman compose`, `podman-compose`, `docker-compose`, or compatible container engines running, sets up `.env`, and launches the stack at `http://localhost:8080`.
+
+Prefer running compose directly?
 
 ```bash
 git clone https://github.com/Covai-Labs/JobFoundry.git && cd JobFoundry
@@ -111,12 +116,29 @@ docker compose up -d   # or: podman compose up -d
 ./scripts/healthcheck.sh
 ```
 
-JobFoundry starts with no `.env` file. To add an LLM key or override a default,
-copy `.env.example` to `.env` and edit the values you need.
+---
 
-Bare-metal per-service commands, test suites, and repo layout: [DEVELOPMENT.md](DEVELOPMENT.md).
+### 2. Add the Companion Browser Extension
 
-</details>
+The extension captures jobs directly as you browse your favorite boards (zero server scraping):
+
+- **Chrome / Brave:** [Chrome Web Store](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm)
+- **Firefox:** [Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/)
+- **Microsoft Edge:** [Edge Add-ons](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe)
+
+_(Prefer manual unpacked builds? Download the latest `.zip` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases).)_
+
+---
+
+### 3. Standalone Desktop Apps (No Containers Needed)
+
+If you don't use Docker or Podman, ready-made desktop convenience builds are available from [Releases](https://github.com/Covai-Labs/JobFoundry/releases):
+
+- 💻 **Linux:** Download `JobFoundry-*-x86_64.AppImage`, make it executable (`chmod +x`), and double-click to launch (requires glibc 2.39+, e.g. Ubuntu 24.04+, Fedora 40+, Arch; older distros should use Docker).
+- 🪟 **Windows 11:** Download `.msix` + `.cer`, trust the certificate via Terminal (Admin), and launch from the Start menu.
+- 🍺 **macOS (Apple Silicon):** `brew tap covai-labs/tap && brew install covai-labs/tap/jobfoundry`, then `jobfoundry start` (or download the arm64 tarball). Intel Macs should use Docker above.
+
+Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**.
 
 ---
 
@@ -134,9 +156,22 @@ Already using career-ops? Import your pipeline: `node scripts/import-career-ops.
 
 ---
 
+## Supporting Independent Development
+
+JobFoundry is developed and maintained by a solo developer. There are no venture capitalists, no subscription paywalls, no tracking ads, and no selling of your data.
+
+If JobFoundry saved you hours of tedious copy-pasting, reduced your job-search anxiety, or helped you land a role, here are meaningful ways to back the work:
+
+- ⭐ **Star the repository:** It takes two seconds and helps more job seekers find the tool.
+- 💬 **Share feedback & report bugs:** Open an [issue](https://github.com/Covai-Labs/JobFoundry/issues) or join [Discussions](https://github.com/Covai-Labs/JobFoundry/discussions).
+- 🧩 **Contribute job boards:** Adding an ATS adapter is usually under 100 lines of code. See [ADDING_A_PROVIDER.md](extension/src/background/providers/ADDING_A_PROVIDER.md).
+- 💖 **[Sponsor on GitHub](https://github.com/sponsors/deadrat-in):** Help fund testing infrastructure, domain upkeep, and ongoing development time so JobFoundry remains free and open for everyone.
+
+---
+
 ## Contributing
 
-Contributions welcome — especially new providers (fewer than 100 lines each). Start with [CONTRIBUTING.md](CONTRIBUTING.md), the [provider authoring guide](extension/src/background/providers/ADDING_A_PROVIDER.md), and [SUPPORT.md](SUPPORT.md). All participation follows our [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions welcome — especially new providers (fewer than 100 lines each). Start with [CONTRIBUTING.md](CONTRIBUTING.md), the [provider authoring guide](extension/src/background/providers/ADDING_A_PROVIDER.md), and [SUPPORT.md](SUPPORT.md). Bare-metal per-service commands and developer workflows live in [DEVELOPMENT.md](DEVELOPMENT.md). All participation follows our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 ---
 
