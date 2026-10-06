@@ -129,8 +129,13 @@ TAILOR_MODEL=mistral-small-latest</code></pre>
       <span>Local models via Ollama</span>
     </div>
     <p>
-      If you prefer fully local inference (no API key, no data leaving your machine), JobFoundry also works with <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a>. Set <code>OPENAI_BASE_URL=http://localhost:11434/v1</code> and <code>OPENAI_API_KEY=ollama</code> (any non-empty string). Models like <code>llama3.3</code> or <code>mistral</code> work well for scoring.
+      If you prefer fully local inference (no API key, no data leaving your machine), JobFoundry also works with <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a>.
     </p>
+    <ul>
+      <li><strong>Endpoint URL:</strong> For desktop or bare-metal installs, use <code>http://localhost:11434/v1</code>. For container installs (Docker), use <code>http://host.docker.internal:11434/v1</code> (or <code>http://host.containers.internal:11434/v1</code> with Podman) so the container can reach the host.</li>
+      <li><strong>In Settings UI:</strong> Set Base URL to your Ollama endpoint, API Key to <code>ollama</code> (any non-empty value), and Model to your local model name (e.g. <code>llama3.3</code> or <code>mistral</code>).</li>
+      <li><strong>In .env:</strong> Set both <code>SCORER_API_BASE</code> and <code>OPENAI_BASE_URL</code> to the Ollama endpoint, and configure <code>SCORER_MODEL</code> and <code>TAILOR_MODEL</code>. If <code>OPENROUTER_API_BASE</code> was previously set, clear it so the scorer does not prioritize OpenRouter.</li>
+    </ul>
   </div>
 
   <div class="next-step-box">
