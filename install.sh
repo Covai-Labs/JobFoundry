@@ -161,7 +161,16 @@ main() {
       exit 1
     fi
 
-    # Case C: Docker CLI is installed, but the engine is stopped or lacks permissions
+    # Case C: nerdctl engine is running, but nerdctl compose is missing
+    if [ "$NERDCTL_ENGINE_RESPONSIVE" = true ]; then
+      echo -e "${YELLOW}✖ containerd engine is active, but 'nerdctl compose' is not working or not installed.${NC}"
+      echo ""
+      echo "Please install or verify nerdctl compose support (buildkit and compose plugin)."
+      echo "Then re-run this script."
+      exit 1
+    fi
+
+    # Case D: Docker CLI is installed, but the engine is stopped or lacks permissions
     if command -v docker >/dev/null 2>&1 && [ "$DOCKER_ENGINE_RESPONSIVE" = false ]; then
       # Check if failure is due to socket permissions (common Linux non-root issue)
       if docker info 2>&1 | grep -qi "permission denied"; then
@@ -183,7 +192,7 @@ main() {
       exit 1
     fi
 
-    # Case D: Podman CLI is installed, but the engine is stopped
+    # Case E: Podman CLI is installed, but the engine is stopped
     if command -v podman >/dev/null 2>&1 && [ "$PODMAN_ENGINE_RESPONSIVE" = false ]; then
       echo -e "${YELLOW}✖ Podman is installed, but the Podman engine is not responding.${NC}"
       echo ""
@@ -194,7 +203,7 @@ main() {
       exit 1
     fi
 
-    # Case E: nerdctl CLI is installed, but containerd daemon is stopped
+    # Case F: nerdctl CLI is installed, but containerd daemon is stopped
     if command -v nerdctl >/dev/null 2>&1 && [ "$NERDCTL_ENGINE_RESPONSIVE" = false ]; then
       echo -e "${YELLOW}✖ nerdctl is installed, but the containerd daemon is not responding.${NC}"
       echo ""
@@ -204,7 +213,7 @@ main() {
       exit 1
     fi
 
-    # Case F: No container runtime found at all
+    # Case G: No container runtime found at all
     echo -e "${YELLOW}✖ No container runtime found (Docker, Podman, or nerdctl).${NC}"
     echo ""
     echo "JobFoundry runs as a local-first containerized stack (ingest, scorer, tailor, web)."
@@ -266,8 +275,9 @@ main() {
     fi
 
     if [ -z "$RANDOM_KEY" ]; then
+      rm -f .env
       echo -e "${RED}✖ Failed to generate a secure random API key.${NC}"
-      echo "Please set INGEST_API_KEYS in .env manually before starting."
+      echo "Please set API_KEYS in .env manually before starting."
       exit 1
     fi
 
@@ -280,12 +290,18 @@ main() {
 
     # Verify placeholder credentials were removed
     if grep -q "secret-api-key-1" .env; then
+      rm -f .env
       echo -e "${RED}✖ Failed to replace placeholder API keys in .env.${NC}"
       exit 1
     fi
 
     echo -e "  ${GREEN}✔ Created .env with generated API key${NC}"
   else
+    if grep -q "secret-api-key-1" .env; then
+      echo -e "${RED}✖ Existing .env contains insecure template default credentials (secret-api-key-1).${NC}"
+      echo "Please replace API_KEYS in .env with a secure random key before starting."
+      exit 1
+    fi
     echo -e "  ${GREEN}✔ Existing .env preserved${NC}"
   fi
 
