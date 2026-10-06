@@ -96,6 +96,7 @@ main() {
   ENGINE_NAME=""
   DOCKER_ENGINE_RESPONSIVE=false
   PODMAN_ENGINE_RESPONSIVE=false
+  NERDCTL_ENGINE_RESPONSIVE=false
 
   # 1. Probe Docker
   if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
@@ -124,9 +125,14 @@ main() {
   fi
 
   # 3. Probe nerdctl (if neither Docker nor Podman compose was selected)
-  if [ -z "$COMPOSE_CMD" ] && command -v nerdctl >/dev/null 2>&1 && nerdctl compose version >/dev/null 2>&1; then
-    COMPOSE_CMD="nerdctl compose"
-    ENGINE_NAME="containerd (nerdctl compose)"
+  if command -v nerdctl >/dev/null 2>&1 && nerdctl info >/dev/null 2>&1; then
+    NERDCTL_ENGINE_RESPONSIVE=true
+    if [ -z "$COMPOSE_CMD" ]; then
+      if nerdctl compose version >/dev/null 2>&1 || nerdctl compose --help >/dev/null 2>&1; then
+        COMPOSE_CMD="nerdctl compose"
+        ENGINE_NAME="containerd (nerdctl compose)"
+      fi
+    fi
   fi
 
   # If still no working compose command found, diagnose and provide actionable help
@@ -188,7 +194,17 @@ main() {
       exit 1
     fi
 
-    # Case E: No container runtime found at all
+    # Case E: nerdctl CLI is installed, but containerd daemon is stopped
+    if command -v nerdctl >/dev/null 2>&1 && [ "$NERDCTL_ENGINE_RESPONSIVE" = false ]; then
+      echo -e "${YELLOW}✖ nerdctl is installed, but the containerd daemon is not responding.${NC}"
+      echo ""
+      echo "Please ensure containerd is running:"
+      echo "  - Linux: sudo systemctl start containerd"
+      echo "Then re-run this script."
+      exit 1
+    fi
+
+    # Case F: No container runtime found at all
     echo -e "${YELLOW}✖ No container runtime found (Docker, Podman, or nerdctl).${NC}"
     echo ""
     echo "JobFoundry runs as a local-first containerized stack (ingest, scorer, tailor, web)."
@@ -237,24 +253,37 @@ main() {
   if [ ! -f ".env" ]; then
     cp .env.example .env
 
-    # Generate random 32-character API key using best available source
+    # Generate random 32-character API key using sequential fallbacks
     RANDOM_KEY=""
     if command -v openssl >/dev/null 2>&1; then
       RANDOM_KEY="$(openssl rand -hex 16 2>/dev/null || true)"
-    elif command -v python3 >/dev/null 2>&1; then
+    fi
+    if [ -z "$RANDOM_KEY" ] && command -v python3 >/dev/null 2>&1; then
       RANDOM_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(16))' 2>/dev/null || true)"
-    else
+    fi
+    if [ -z "$RANDOM_KEY" ]; then
       RANDOM_KEY="$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom 2>/dev/null | head -c 32 || true)"
     fi
 
-    if [ -n "$RANDOM_KEY" ]; then
-      # Replace placeholder in .env
-      if [ "$OS" = "Darwin" ]; then
-        sed -i '' "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env
-      else
-        sed -i "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env
-      fi
+    if [ -z "$RANDOM_KEY" ]; then
+      echo -e "${RED}✖ Failed to generate a secure random API key.${NC}"
+      echo "Please set INGEST_API_KEYS in .env manually before starting."
+      exit 1
     fi
+
+    # Replace placeholder in .env
+    if [ "$OS" = "Darwin" ]; then
+      sed -i '' "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env
+    else
+      sed -i "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env
+    fi
+
+    # Verify placeholder credentials were removed
+    if grep -q "secret-api-key-1" .env; then
+      echo -e "${RED}✖ Failed to replace placeholder API keys in .env.${NC}"
+      exit 1
+    fi
+
     echo -e "  ${GREEN}✔ Created .env with generated API key${NC}"
   else
     echo -e "  ${GREEN}✔ Existing .env preserved${NC}"
