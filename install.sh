@@ -37,20 +37,12 @@ fi
 # Determine container compose command and engine
 COMPOSE_CMD=""
 ENGINE_NAME=""
+DOCKER_ENGINE_RESPONSIVE=false
+PODMAN_ENGINE_RESPONSIVE=false
 
-# Helper to test if docker engine is responsive
-_has_docker_engine() {
-  command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
-}
-
-# Helper to test if podman engine is responsive
-_has_podman_engine() {
-  command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1
-}
-
-# 1. Check Podman first if active (common in Fedora, RHEL, rootless setups) or Docker
-# Check for docker compose
-if _has_docker_engine; then
+# Check each engine independently so an inactive runtime does not hide alternatives.
+if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+  DOCKER_ENGINE_RESPONSIVE=true
   if docker compose version >/dev/null 2>&1; then
     COMPOSE_CMD="docker compose"
     ENGINE_NAME="Docker (Compose v2)"
@@ -60,21 +52,31 @@ if _has_docker_engine; then
   fi
 fi
 
-# If no active docker compose found, check Podman
-if [ -z "$COMPOSE_CMD" ] && _has_podman_engine; then
-  if podman compose version >/dev/null 2>&1; then
+if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+  PODMAN_ENGINE_RESPONSIVE=true
+  if [ -z "$COMPOSE_CMD" ] && podman compose version >/dev/null 2>&1; then
     COMPOSE_CMD="podman compose"
     ENGINE_NAME="Podman (podman compose)"
-  elif command -v podman-compose >/dev/null 2>&1; then
+  elif [ -z "$COMPOSE_CMD" ] && command -v podman-compose >/dev/null 2>&1; then
     COMPOSE_CMD="podman-compose"
     ENGINE_NAME="Podman (podman-compose)"
   fi
 fi
 
-# Fallback: check if docker is installed without running daemon, or podman without compose
+# Check all supported alternatives before reporting a runtime-specific failure.
+if [ -z "$COMPOSE_CMD" ] && command -v nerdctl >/dev/null 2>&1 && nerdctl compose version >/dev/null 2>&1; then
+  COMPOSE_CMD="nerdctl compose"
+  ENGINE_NAME="containerd (nerdctl compose)"
+fi
+
 if [ -z "$COMPOSE_CMD" ]; then
-  # Check if docker is installed but daemon is not running
-  if command -v docker >/dev/null 2>&1 && ! docker info >/dev/null 2>&1; then
+  if [ "$DOCKER_ENGINE_RESPONSIVE" = true ]; then
+    echo -e "${YELLOW}✖ Docker is responding, but neither 'docker compose' nor 'docker-compose' was found.${NC}"
+    echo "Install Docker Compose, then re-run this script."
+    exit 1
+  fi
+
+  if command -v docker >/dev/null 2>&1 && [ "$DOCKER_ENGINE_RESPONSIVE" = false ]; then
     echo -e "${YELLOW}✖ Docker is installed, but the Docker daemon is not responding.${NC}"
     echo ""
     echo "Please ensure the Docker daemon is running:"
@@ -84,28 +86,22 @@ if [ -z "$COMPOSE_CMD" ]; then
     exit 1
   fi
 
-  # Check if podman is installed but compose is missing
-  if command -v podman >/dev/null 2>&1; then
-    echo -e "${YELLOW}✖ Podman is installed, but neither 'podman compose' nor 'podman-compose' was found.${NC}"
+  if command -v podman >/dev/null 2>&1 && [ "$PODMAN_ENGINE_RESPONSIVE" = false ]; then
+    echo -e "${YELLOW}✖ Podman is installed, but its engine is not responding.${NC}"
     echo ""
-    echo "To install podman-compose:"
-    echo "  - Fedora/RHEL: sudo dnf install podman-compose"
-    echo "  - Ubuntu/Debian: sudo apt install podman-compose"
-    echo "  - macOS (Homebrew): brew install podman-compose"
-    echo "  - Or via pip: pip install podman-compose"
-    echo "Then re-run this script."
+    echo "Please start the Podman engine, then re-run this script:"
+    echo "  - macOS / Windows: podman machine start"
+    echo "  - Linux: sudo systemctl start podman"
     exit 1
   fi
 
-  # Check nerdctl as compatible alternative
-  if command -v nerdctl >/dev/null 2>&1 && nerdctl compose version >/dev/null 2>&1; then
-    COMPOSE_CMD="nerdctl compose"
-    ENGINE_NAME="containerd (nerdctl compose)"
+  if [ "$PODMAN_ENGINE_RESPONSIVE" = true ]; then
+    echo -e "${YELLOW}✖ Podman is responding, but neither 'podman compose' nor 'podman-compose' was found.${NC}"
+    echo "Install podman-compose, then re-run this script."
+    exit 1
   fi
-fi
 
-if [ -z "$COMPOSE_CMD" ]; then
-  echo -e "${YELLOW}✖ No container runtime found (Docker or Podman).${NC}"
+  echo -e "${YELLOW}✖ No container runtime found (Docker, Podman, or nerdctl).${NC}"
   echo ""
   echo "JobFoundry runs as a local-first containerized stack (ingest, scorer, tailor, web)."
   echo "To install Docker on Linux, run:"
