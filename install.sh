@@ -281,15 +281,16 @@ main() {
       exit 1
     fi
 
-    # Replace placeholder in .env
-    if [ "$OS" = "Darwin" ]; then
-      sed -i '' "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env
-    else
-      sed -i "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env
+    # Replace placeholder in .env using temp file for universal sed compatibility (GNU/BSD)
+    if ! sed "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env > .env.tmp; then
+      rm -f .env .env.tmp
+      echo -e "${RED}✖ Failed to write API key to .env.${NC}"
+      exit 1
     fi
+    mv .env.tmp .env
 
     # Verify placeholder credentials were removed
-    if grep -q "secret-api-key-1" .env; then
+    if grep -E -q "secret-api-key-[12]" .env; then
       rm -f .env
       echo -e "${RED}✖ Failed to replace placeholder API keys in .env.${NC}"
       exit 1
@@ -297,8 +298,8 @@ main() {
 
     echo -e "  ${GREEN}✔ Created .env with generated API key${NC}"
   else
-    if grep -q "secret-api-key-1" .env; then
-      echo -e "${RED}✖ Existing .env contains insecure template default credentials (secret-api-key-1).${NC}"
+    if grep -E -q "secret-api-key-[12]" .env; then
+      echo -e "${RED}✖ Existing .env contains insecure template default credentials (secret-api-key-1 or secret-api-key-2).${NC}"
       echo "Please replace API_KEYS in .env with a secure random key before starting."
       exit 1
     fi
