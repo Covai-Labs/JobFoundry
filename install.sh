@@ -289,8 +289,8 @@ main() {
     fi
     mv .env.tmp .env
 
-    # Verify placeholder credentials were removed
-    if grep -E -q "secret-api-key-[12]" .env; then
+    # Verify placeholder credentials were removed from active API_KEYS setting
+    if grep -E -q '^[[:space:]]*API_KEYS=.*secret-api-key-[12]' .env; then
       rm -f .env
       echo -e "${RED}✖ Failed to replace placeholder API keys in .env.${NC}"
       exit 1
@@ -298,8 +298,8 @@ main() {
 
     echo -e "  ${GREEN}✔ Created .env with generated API key${NC}"
   else
-    if grep -E -q "secret-api-key-[12]" .env; then
-      echo -e "${RED}✖ Existing .env contains insecure template default credentials (secret-api-key-1 or secret-api-key-2).${NC}"
+    if grep -E -q '^[[:space:]]*API_KEYS=.*secret-api-key-[12]' .env; then
+      echo -e "${RED}✖ Existing .env contains insecure template default credentials in API_KEYS (secret-api-key-1 or secret-api-key-2).${NC}"
       echo "Please replace API_KEYS in .env with a secure random key before starting."
       exit 1
     fi
