@@ -45,7 +45,7 @@ import { resolvePath } from '../../utils/paths.js';
           <td class="col-name"><strong>Google Gemini</strong></td>
           <td class="col-mono">1,500 req/day (Gemini Flash)</td>
           <td class="col-mono col-good">No</td>
-          <td class="col-mono col-url">https://generativelanguage.googleapis.com/v1beta</td>
+          <td class="col-mono col-url">https://generativelanguage.googleapis.com/v1beta/openai</td>
           <td><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com →</a></td>
         </tr>
         <tr>
@@ -59,14 +59,14 @@ import { resolvePath } from '../../utils/paths.js';
           <td class="col-name"><strong>Cohere</strong></td>
           <td class="col-mono">1,000 calls/month (non-commercial)</td>
           <td class="col-mono col-good">No</td>
-          <td class="col-mono col-url">https://api.cohere.com/v2</td>
+          <td class="col-mono col-url">https://api.cohere.com/compatibility/v1</td>
           <td><a href="https://dashboard.cohere.com/api-keys" target="_blank" rel="noopener noreferrer">dashboard.cohere.com →</a></td>
         </tr>
         <tr>
           <td class="col-name"><strong>Cloudflare Workers AI</strong></td>
           <td class="col-mono">10,000 neurons/day (60+ models)</td>
           <td class="col-mono col-good">No</td>
-          <td class="col-mono col-url">https://api.cloudflare.com/client/v4/accounts/&#123;account_id&#125;/ai/run</td>
+          <td class="col-mono col-url">https://api.cloudflare.com/client/v4/accounts/&#123;account_id&#125;/ai/v1</td>
           <td><a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer">dash.cloudflare.com →</a></td>
         </tr>
         <tr>
@@ -98,8 +98,11 @@ import { resolvePath } from '../../utils/paths.js';
   <ul>
     <li><strong>Base URL</strong> — the provider's OpenAI-compatible endpoint (see table above)</li>
     <li><strong>API Key</strong> — the key you obtained from the provider's dashboard</li>
-    <li><strong>Model</strong> — e.g. <code>mistral-small-latest</code>, <code>gemini-3.5-flash</code>, or any model ID the provider supports</li>
+    <li><strong>Model</strong> — e.g. <code>mistral-small-latest</code>, <code>gemini-2.0-flash</code>, or any model ID the provider supports</li>
   </ul>
+  <p>
+    Provider-specific examples: Cohere uses <code>command-a-03-2025</code>, Gemini uses <code>gemini-2.0-flash</code>, and Cloudflare Workers AI uses <code>@cf/meta/llama-3.1-8b-instruct</code>. Cloudflare also requires an account ID in the base URL and an API token with Workers AI permissions.
+  </p>
 
   <h3>Manual / developer installs (.env file)</h3>
   <p>
@@ -109,12 +112,15 @@ import { resolvePath } from '../../utils/paths.js';
 OPENROUTER_API_BASE=https://openrouter.ai/api/v1
 OPENROUTER_API_KEY=sk-or-...
 
-# Or for any OpenAI-compatible provider:
+# Or for any OpenAI-compatible provider (scorer and tailor):
+SCORER_API_BASE=https://api.mistral.ai/v1
+SCORER_API_KEY=...
+SCORER_MODEL=mistral-small-latest
 OPENAI_BASE_URL=https://api.mistral.ai/v1
 OPENAI_API_KEY=...
-LLM_MODEL=mistral-small-latest</code></pre>
+TAILOR_MODEL=mistral-small-latest</code></pre>
   <p>
-    Restart the services after editing: <code>docker compose restart</code> (or <code>podman compose restart</code>).
+    Recreate the services after editing: <code>docker compose up -d --force-recreate</code> (or <code>podman compose up -d --force-recreate</code>).
   </p>
 
   <div class="doc-callout">
