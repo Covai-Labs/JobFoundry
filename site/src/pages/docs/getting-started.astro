@@ -12,37 +12,50 @@ import { resolvePath } from '../../utils/paths.js';
 >
   <h1>Getting Started with JobFoundry</h1>
   <p>
-    You do <strong>not</strong> need to know programming, Docker, or AI tools to use
-    JobFoundry. Pick the easiest install method for your computer below, add the
-    browser extension, and keep browsing job sites like you always have —
-    capture, scoring, and tailoring happen automatically in the background.
+    JobFoundry captures job listings from your browser, scores them against your
+    profile using an LLM, and generates tailored ATS resumes — automatically.
+    Scoring and tailoring are the core value. To unlock them you need an LLM API
+    key (many providers offer a permanent free tier — see
+    <a href={resolvePath('/docs/api-keys/')}>LLM API Keys</a>). Install
+    JobFoundry first, then add your key in Settings.
   </p>
 
-  <div class="doc-callout success">
-    <div class="callout-title">
-      <span>✓</span>
-      <span>What you need</span>
+  <details class="collapsible-callout success">
+    <summary>
+      <span class="summary-inner">
+        <span>✓</span>
+        <span>What you need</span>
+      </span>
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </summary>
+    <div class="callout-body">
+      <p>
+        A computer (Linux, Windows 11, or macOS), a browser (Firefox, Chrome,
+        Edge, or Brave), and an <strong>LLM API key</strong> — this is what
+        powers scoring and tailoring. Many providers have a permanent free tier
+        with no credit card required. See
+        <a href={resolvePath('/docs/api-keys/')}>LLM API Keys</a> for a curated
+        list. Job capture alone works without a key.
+      </p>
     </div>
-    <p>
-      If you can browse the web and run a program on your computer, you can use
-      JobFoundry. You need a computer (Linux, Windows 11, or macOS), a browser
-      (Chrome, Edge, Brave, or Firefox), and — only if you want fit scores and
-      tailored resumes — an LLM API key (e.g. OpenRouter) <em>or</em> a free
-      local model via Ollama. Job capture alone needs nothing else.
-    </p>
-  </div>
+  </details>
 
-  <div class="doc-callout warning">
-    <div class="callout-title">
-      <span>!</span>
-      <span>Work in Progress / Beta</span>
+  <details class="collapsible-callout warning">
+    <summary>
+      <span class="summary-inner">
+        <span>!</span>
+        <span>Work in Progress / Beta</span>
+      </span>
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </summary>
+    <div class="callout-body">
+      <p>
+        JobFoundry is built by a solo developer scratching his own itch during a hard job search. The core flows work, but rough edges exist and active progress is happening every day. Bug reports, testing, and feedback are deeply appreciated!
+      </p>
     </div>
-    <p>
-      JobFoundry is built by a solo developer scratching his own itch during a hard job search. The core flows work, but rough edges exist and active progress is happening every day. Bug reports, testing, and feedback are deeply appreciated!
-    </p>
-  </div>
+  </details>
 
-  <h2>Method 1: One-line install with Docker or Podman (default & recommended)</h2>
+  <h2>Method 1: One-line install with Docker or Podman (default &amp; recommended)</h2>
   <p>
     On Linux, macOS, or Windows (WSL2), this single command sets up everything —
     automatically detecting whether you have <code>docker compose</code>, <code>podman compose</code>,
@@ -57,80 +70,94 @@ import { resolvePath } from '../../utils/paths.js';
     in your browser to see the dashboard.
   </p>
 
-  <h2>Method 2: Standalone desktop app (no containers needed)</h2>
-  <p>
-    If you prefer ready-made native desktop builds without Docker or Podman, download the latest release from the
-    <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer">Releases page</a>:
-  </p>
-  <ul>
-    <li>
-      <strong>Linux:</strong> download <code>JobFoundry-&lt;version&gt;-x86_64.AppImage</code>,
-      right-click → Properties → allow executing (or run
-      <code>chmod +x JobFoundry-*.AppImage</code> once), then double-click to
-      launch. The dashboard opens at
-      <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>.
-      <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 1 (Docker/Podman). Convenience build — please report issues.</em>
-    </li>
-    <li>
-      <strong>Windows 11:</strong> download <code>JobFoundry-&lt;version&gt;-x64.msix</code>
-      and <code>JobFoundry.cer</code>. Right-click the Start button → Terminal
-      (Admin) and trust the release certificate (repeat if a release uses a new certificate), then install the package.
-      <em>Convenience build — please report issues.</em>
-    </li>
-    <li>
-      <strong>macOS (Apple Silicon):</strong> install via Homebrew:
-      <code>brew tap covai-labs/tap &amp;&amp; brew install covai-labs/tap/jobfoundry</code>,
-      then launch with <code>jobfoundry start</code>. Or download the <code>*-darwin-arm64.tar.gz</code>
-      Release asset.
-      <em>For Intel Macs, use Method 1 (Docker). Convenience build — please report issues.</em>
-    </li>
-  </ul>
-  <TerminalSnippet
-    command="Import-Certificate -FilePath .\JobFoundry.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople"
-    title="TRUST CERTIFICATE (ADMIN POWERSHELL)"
-  />
-  <TerminalSnippet
-    command="Add-AppxPackage -Path .\JobFoundry-<version>-x64.msix"
-    title="INSTALL JOBFOUNDRY"
-  />
-  <p>
-    Then launch <strong>JobFoundry</strong> from the Start menu. Your data and
-    settings live under <code>%LOCALAPPDATA%\JobFoundry\</code>, safely outside
-    the app package.
-  </p>
+  <details class="collapsible-section">
+    <summary>
+      Method 2: Standalone desktop app (no containers needed)
+      <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </summary>
+    <div class="section-body">
+      <p>
+        If you prefer ready-made native desktop builds without Docker or Podman, download the latest release from the
+        <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer">Releases page</a>:
+      </p>
+      <ul>
+        <li>
+          <strong>Linux:</strong> download <code>JobFoundry-&lt;version&gt;-x86_64.AppImage</code>,
+          right-click → Properties → allow executing (or run
+          <code>chmod +x JobFoundry-*.AppImage</code> once), then double-click to
+          launch. The dashboard opens at
+          <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>.
+          <em>Requires glibc 2.39+ (Fedora 40+, Ubuntu 24.04+, Debian 13+, Arch). For older distributions, use Method 1 (Docker/Podman). Convenience build — please report issues.</em>
+        </li>
+        <li>
+          <strong>Windows 11:</strong> download <code>JobFoundry-&lt;version&gt;-x64.msix</code>
+          and <code>JobFoundry.cer</code>. Right-click the Start button → Terminal
+          (Admin) and trust the release certificate (repeat if a release uses a new certificate), then install the package.
+          <em>Convenience build — please report issues.</em>
+        </li>
+        <li>
+          <strong>macOS (Apple Silicon):</strong> install via Homebrew:
+          <code>brew tap covai-labs/tap &amp;&amp; brew install covai-labs/tap/jobfoundry</code>,
+          then launch with <code>jobfoundry start</code>. Or download the <code>*-darwin-arm64.tar.gz</code>
+          Release asset.
+          <em>For Intel Macs, use Method 1 (Docker). Convenience build — please report issues.</em>
+        </li>
+      </ul>
+      <TerminalSnippet
+        command="Import-Certificate -FilePath .\JobFoundry.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople"
+        title="TRUST CERTIFICATE (ADMIN POWERSHELL)"
+      />
+      <TerminalSnippet
+        command="Add-AppxPackage -Path .\JobFoundry-<version>-x64.msix"
+        title="INSTALL JOBFOUNDRY"
+      />
+      <p>
+        Then launch <strong>JobFoundry</strong> from the Start menu. Your data and
+        settings live under <code>%LOCALAPPDATA%\JobFoundry\</code>, safely outside
+        the app package.
+      </p>
+    </div>
+  </details>
 
-  <h2>Method 3: Manual setup (developers)</h2>
-  <p>
-    If you prefer to manage services yourself or contribute code:
-  </p>
-  <TerminalSnippet
-    command="git clone https://github.com/Covai-Labs/JobFoundry.git && cd JobFoundry"
-    title="CLONE REPOSITORY"
-  />
-  <p>
-    Copy the sample configuration and add your LLM provider key:
-  </p>
-  <TerminalSnippet
-    command="cp .env.example .env"
-    title="CONFIGURE ENVIRONMENT"
-  />
-  <p>
-    Start everything in the background:
-  </p>
-  <TerminalSnippet
-    command="docker compose up -d"
-    title="START SERVICES (DOCKER)"
-  />
-  <p>Or with Podman:</p>
-  <TerminalSnippet
-    command="podman compose up -d"
-    title="START SERVICES (PODMAN)"
-  />
-  <p>
-    For bare-metal development without containers (Node.js 26+, Python 3.12+,
-    <code>uv</code>), see the <a href="https://github.com/Covai-Labs/JobFoundry/blob/main/DEVELOPMENT.md" target="_blank" rel="noopener noreferrer">Development Guide</a>
-    for per-service commands.
-  </p>
+  <details class="collapsible-section">
+    <summary>
+      Method 3: Manual setup (developers)
+      <svg class="chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </summary>
+    <div class="section-body">
+      <p>
+        If you prefer to manage services yourself or contribute code:
+      </p>
+      <TerminalSnippet
+        command="git clone https://github.com/Covai-Labs/JobFoundry.git && cd JobFoundry"
+        title="CLONE REPOSITORY"
+      />
+      <p>
+        Copy the sample configuration and add your LLM provider key:
+      </p>
+      <TerminalSnippet
+        command="cp .env.example .env"
+        title="CONFIGURE ENVIRONMENT"
+      />
+      <p>
+        Start everything in the background:
+      </p>
+      <TerminalSnippet
+        command="docker compose up -d"
+        title="START SERVICES (DOCKER)"
+      />
+      <p>Or with Podman:</p>
+      <TerminalSnippet
+        command="podman compose up -d"
+        title="START SERVICES (PODMAN)"
+      />
+      <p>
+        For bare-metal development without containers (Node.js 26+, Python 3.12+,
+        <code>uv</code>), see the <a href="https://github.com/Covai-Labs/JobFoundry/blob/main/DEVELOPMENT.md" target="_blank" rel="noopener noreferrer">Development Guide</a>
+        for per-service commands.
+      </p>
+    </div>
+  </details>
 
   <h2>Next: add the browser extension</h2>
   <p>
@@ -139,22 +166,29 @@ import { resolvePath } from '../../utils/paths.js';
     official store:
   </p>
   <ul>
+    <li><strong>Firefox:</strong> <a href="https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/" target="_blank" rel="noopener noreferrer">JobFoundry on Firefox Add-ons</a></li>
     <li><strong>Chrome / Brave:</strong> <a href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm" target="_blank" rel="noopener noreferrer">JobFoundry on the Chrome Web Store</a></li>
     <li><strong>Edge:</strong> <a href="https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe" target="_blank" rel="noopener noreferrer">JobFoundry on Edge Add-ons</a></li>
-    <li><strong>Firefox:</strong> <a href="https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/" target="_blank" rel="noopener noreferrer">JobFoundry on Firefox Add-ons</a></li>
   </ul>
-  <div class="doc-callout">
-    <div class="callout-title">
-      <span>◈</span>
-      <span>Store listings may lag behind GitHub Releases</span>
+
+  <details class="collapsible-callout">
+    <summary>
+      <span class="summary-inner">
+        <span>◈</span>
+        <span>Store listings may lag behind GitHub Releases</span>
+      </span>
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </summary>
+    <div class="callout-body">
+      <p>
+        Store reviews take time, so the store version can trail the latest
+        <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Release</a>.
+        If you hit an issue, compare your installed version against the latest GitHub Release — and fall back to the
+        manual <code>.zip</code> install below if you need the newest fix right away.
+      </p>
     </div>
-    <p>
-      Store reviews take time, so the store version can trail the latest
-      <a href="https://github.com/Covai-Labs/JobFoundry/releases" target="_blank" rel="noopener noreferrer">GitHub Release</a>.
-      If you hit an issue, compare your installed version against the latest GitHub Release — and fall back to the
-      manual <code>.zip</code> install below if you need the newest fix right away.
-    </p>
-  </div>
+  </details>
+
   <p>
     Manual fallback (latest build, no building required): download the prebuilt
     <code>.zip</code> from the
@@ -162,15 +196,15 @@ import { resolvePath } from '../../utils/paths.js';
     and load it:
   </p>
   <ul>
-    <li><strong>Chrome / Edge / Brave:</strong> open <code>chrome://extensions/</code>, enable <strong>Developer mode</strong>, click <strong>Load unpacked</strong>, and select the unzipped folder.</li>
     <li><strong>Firefox:</strong> open <code>about:debugging#/runtime/this-firefox</code>, click <strong>Load Temporary Add-on…</strong>, and select the manifest file. Note: this manual install is temporary — Firefox removes it on restart, so prefer the signed store listing above for persistent installs.</li>
+    <li><strong>Chrome / Edge / Brave:</strong> open <code>chrome://extensions/</code>, enable <strong>Developer mode</strong>, click <strong>Load unpacked</strong>, and select the unzipped folder.</li>
   </ul>
 
   <h2>Then: upload your resume and browse</h2>
   <ol>
     <li>Open the dashboard at <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>.</li>
     <li>Go to the <strong>Resume Manager</strong> and upload your master resume (JSON Resume format).</li>
-    <li>If you want fit scores and tailored resumes, add your LLM key in <strong>Settings</strong> (or the <code>.env</code> file for manual installs).</li>
+    <li>Add your LLM key in <strong>Settings</strong> (or the <code>.env</code> file for manual installs) — this is what enables scoring and tailoring. See <a href={resolvePath('/docs/api-keys/')}>LLM API Keys</a> for free options.</li>
     <li>Browse job sites normally. Listings flow into the dashboard, get scored, and appear on your Kanban board.</li>
   </ol>
 

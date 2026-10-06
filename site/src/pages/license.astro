@@ -1,66 +1,62 @@
 ---
-import MarketingLayout from '../layouts/MarketingLayout.astro';
+import DocsLayout from '../layouts/DocsLayout.astro';
 import { resolvePath } from '../utils/paths.js';
 ---
 
-<MarketingLayout
-  title="License — JobFoundry (AGPL-3.0)"
+<DocsLayout
+  title="AGPL-3.0 License"
   description="JobFoundry is open source software licensed under the GNU Affero General Public License v3."
   currentPath={resolvePath('/license/')}
+  category="Trust & Governance"
 >
-  <section class="license-section">
-    <div class="site-container">
-      <div class="license-header">
-        <span class="site-badge cyan">OPEN SOURCE SOFTWARE</span>
-        <h1 class="license-title">GNU Affero General Public License v3</h1>
-        <p class="license-subtitle">
-          JobFoundry is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation.
-        </p>
-      </div>
+  <h1>GNU Affero General Public License v3</h1>
+  <p>
+    JobFoundry is free software: you can redistribute it and/or modify it under the terms of the GNU Affero General Public License as published by the Free Software Foundation.
+  </p>
 
-      <div class="license-summary-grid">
-        <div class="summary-card permissions">
-          <h3 class="card-heading">Permissions</h3>
-          <ul class="summary-list">
-            <li>✓ Commercial use</li>
-            <li>✓ Modification</li>
-            <li>✓ Distribution</li>
-            <li>✓ Private use</li>
-          </ul>
-        </div>
+  <div class="license-summary-grid">
+    <div class="summary-card permissions">
+      <h3 class="card-heading">Permissions</h3>
+      <ul class="summary-list">
+        <li>✓ Commercial use</li>
+        <li>✓ Modification</li>
+        <li>✓ Distribution</li>
+        <li>✓ Private use</li>
+      </ul>
+    </div>
 
-        <div class="summary-card conditions">
-          <h3 class="card-heading">Conditions</h3>
-          <ul class="summary-list">
-            <li>! Disclose source code</li>
-            <li>! License and copyright notice</li>
-            <li>! State changes made</li>
-            <li>! Network use is distribution (Affero)</li>
-          </ul>
-        </div>
+    <div class="summary-card conditions">
+      <h3 class="card-heading">Conditions</h3>
+      <ul class="summary-list">
+        <li>! Disclose source code</li>
+        <li>! License and copyright notice</li>
+        <li>! State changes made</li>
+        <li>! Network use is distribution (Affero)</li>
+      </ul>
+    </div>
 
-        <div class="summary-card limitations">
-          <h3 class="card-heading">Limitations</h3>
-          <ul class="summary-list">
-            <li>✕ No liability</li>
-            <li>✕ No warranty</li>
-          </ul>
-        </div>
-      </div>
+    <div class="summary-card limitations">
+      <h3 class="card-heading">Limitations</h3>
+      <ul class="summary-list">
+        <li>✕ No liability</li>
+        <li>✕ No warranty</li>
+      </ul>
+    </div>
+  </div>
 
-      <div class="license-text-box">
-        <div class="box-header">
-          <span>LICENSE (AGPL-3.0-only)</span>
-          <a
-            href="https://github.com/Covai-Labs/JobFoundry/blob/main/LICENSE"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="view-raw-link"
-          >
-            View raw in repository →
-          </a>
-        </div>
-        <pre class="license-content"><code>                    GNU AFFERO GENERAL PUBLIC LICENSE
+  <div class="license-text-box">
+    <div class="box-header">
+      <span>LICENSE (AGPL-3.0-only)</span>
+      <a
+        href="https://github.com/Covai-Labs/JobFoundry/blob/main/LICENSE"
+        target="_blank"
+        rel="noopener noreferrer"
+        class="view-raw-link"
+      >
+        View raw in repository →
+      </a>
+    </div>
+    <pre class="license-content"><code>                    GNU AFFERO GENERAL PUBLIC LICENSE
                        Version 3, 19 November 2007
 
  Copyright (C) 2007 Free Software Foundation, Inc. &lt;https://fsf.org/&gt;
@@ -85,39 +81,15 @@ freedom to distribute copies of free software (and charge for them if
 you wish), that you receive source code or can get it if you want it,
 that you can change the software or use pieces of it in new free
 programs, and that you know you can do these things.</code></pre>
-      </div>
-    </div>
-  </section>
-</MarketingLayout>
+  </div>
+</DocsLayout>
 
 <style>
-  .license-section {
-    padding: 4rem 0 6rem;
-  }
-
-  .license-header {
-    max-width: 760px;
-    margin-bottom: 3rem;
-  }
-
-  .license-title {
-    font-size: 2.5rem;
-    margin: 1rem 0 0.75rem;
-    letter-spacing: -0.02em;
-  }
-
-  .license-subtitle {
-    font-size: 1.05rem;
-    color: var(--text-secondary);
-    line-height: 1.6;
-    margin-bottom: 0;
-  }
-
   .license-summary-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1.25rem;
-    margin-bottom: 3rem;
+    margin: 1.75rem 0 2rem;
   }
 
   .summary-card {
@@ -154,6 +126,7 @@ programs, and that you know you can do these things.</code></pre>
     background-color: var(--code-bg);
     border-radius: var(--radius-xs);
     overflow: hidden;
+    margin-top: 1.75rem;
   }
 
   .box-header {

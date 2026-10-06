@@ -15,18 +15,23 @@ import { resolvePath } from '../../utils/paths.js';
     JobFoundry is structured as a decoupled, multi-stage processing pipeline that converts unstructured web job listings into deduplicated, score-ranked opportunities with tailored ATS resumes.
   </p>
 
-  <div class="doc-callout">
-    <div class="callout-title">
-      <span>◈</span>
-      <span>The Architectural Invariant</span>
+  <details class="collapsible-callout">
+    <summary>
+      <span class="summary-inner">
+        <span>◈</span>
+        <span>The Architectural Invariant</span>
+      </span>
+      <svg class="chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"></polyline></svg>
+    </summary>
+    <div class="callout-body">
+      <p>
+        <strong>The JobFoundry server never performs outbound job-board scraping. All scraping and job-board HTTP requests originate from the user's browser extension.</strong>
+      </p>
+      <p>
+        By delegating ingestion to the client extension, JobFoundry bypasses aggressive IP rate-limiting, Cloudflare bot challenges, and CAPTCHAs, while ensuring user credentials and session tokens never leave the browser.
+      </p>
     </div>
-    <p>
-      <strong>The JobFoundry server never performs outbound job-board scraping. All scraping and job-board HTTP requests originate from the user's browser extension.</strong>
-    </p>
-    <p>
-      By delegating ingestion to the client extension, JobFoundry bypasses aggressive IP rate-limiting, Cloudflare bot challenges, and CAPTCHAs, while ensuring user credentials and session tokens never leave the browser.
-    </p>
-  </div>
+  </details>
 
   <h2>Interactive Pipeline Visualizer</h2>
   <p>

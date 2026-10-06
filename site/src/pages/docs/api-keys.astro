@@ -1,0 +1,251 @@
+---
+import DocsLayout from '../../layouts/DocsLayout.astro';
+import { resolvePath } from '../../utils/paths.js';
+---
+
+<DocsLayout
+  title="LLM API Keys"
+  description="Get an LLM API key to unlock scoring and resume tailoring in JobFoundry. Free tier options available — no credit card required for most providers."
+  currentPath={resolvePath('/docs/api-keys/')}
+  category="Installation & Setup"
+>
+  <h1>LLM API Keys</h1>
+  <p>
+    JobFoundry's core value is <strong>fit scoring</strong> and <strong>resume tailoring</strong>. Both require an LLM. Once your server is running, add your API key in the dashboard under <strong>Settings → LLM Provider</strong> (or in the <code>.env</code> file for manual installs) and you're done.
+  </p>
+
+  <div class="doc-callout success">
+    <div class="callout-title">
+      <span>✓</span>
+      <span>Free tiers available — no credit card required</span>
+    </div>
+    <p>
+      All providers below offer a permanent free tier. Most require no credit card to get started. JobFoundry works with any OpenAI-compatible endpoint — just set the base URL and key in Settings.
+    </p>
+  </div>
+
+  <h2>Recommended Free Providers</h2>
+  <p>
+    Curated picks from <a href="https://github.com/mnfst/awesome-free-llm-apis" target="_blank" rel="noopener noreferrer">mnfst/awesome-free-llm-apis</a> (CC0 1.0 — public domain). Each is OpenAI SDK-compatible unless noted. Check each provider's Terms of Service — some free tiers restrict commercial use.
+  </p>
+
+  <div class="table-container">
+    <table class="providers-table">
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Free Tier</th>
+          <th>Card Required</th>
+          <th>Base URL for JobFoundry</th>
+          <th>Get Key</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="col-name"><strong>Google Gemini</strong></td>
+          <td class="col-mono">1,500 req/day (Gemini Flash)</td>
+          <td class="col-mono col-good">No</td>
+          <td class="col-mono col-url">https://generativelanguage.googleapis.com/v1beta</td>
+          <td><a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer">aistudio.google.com →</a></td>
+        </tr>
+        <tr>
+          <td class="col-name"><strong>Mistral AI</strong></td>
+          <td class="col-mono">Free mode (may train on prompts — opt out available)</td>
+          <td class="col-mono col-good">No</td>
+          <td class="col-mono col-url">https://api.mistral.ai/v1</td>
+          <td><a href="https://console.mistral.ai/api-keys" target="_blank" rel="noopener noreferrer">console.mistral.ai →</a></td>
+        </tr>
+        <tr>
+          <td class="col-name"><strong>Cohere</strong></td>
+          <td class="col-mono">1,000 calls/month (non-commercial)</td>
+          <td class="col-mono col-good">No</td>
+          <td class="col-mono col-url">https://api.cohere.com/v2</td>
+          <td><a href="https://dashboard.cohere.com/api-keys" target="_blank" rel="noopener noreferrer">dashboard.cohere.com →</a></td>
+        </tr>
+        <tr>
+          <td class="col-name"><strong>Cloudflare Workers AI</strong></td>
+          <td class="col-mono">10,000 neurons/day (60+ models)</td>
+          <td class="col-mono col-good">No</td>
+          <td class="col-mono col-url">https://api.cloudflare.com/client/v4/accounts/&#123;account_id&#125;/ai/run</td>
+          <td><a href="https://dash.cloudflare.com/profile/api-tokens" target="_blank" rel="noopener noreferrer">dash.cloudflare.com →</a></td>
+        </tr>
+        <tr>
+          <td class="col-name"><strong>OpenRouter</strong> <span class="rec-badge">Recommended</span></td>
+          <td class="col-mono">Free models available (Llama, Gemma, Mistral, and more)</td>
+          <td class="col-mono col-good">No</td>
+          <td class="col-mono col-url">https://openrouter.ai/api/v1</td>
+          <td><a href="https://openrouter.ai/keys" target="_blank" rel="noopener noreferrer">openrouter.ai →</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="attribution-note">
+    Free tier data sourced from <a href="https://github.com/mnfst/awesome-free-llm-apis" target="_blank" rel="noopener noreferrer">mnfst/awesome-free-llm-apis</a> (CC0 1.0 Universal — public domain). See the full list for all providers and detailed rate limits. OpenRouter not in the source list but included as the recommended multi-provider gateway.
+  </p>
+
+  <h2>Why OpenRouter?</h2>
+  <p>
+    OpenRouter routes requests to dozens of models (Llama 4, Gemma, Mistral, Command R, and more) through a single API key and base URL. Free models are clearly labelled. It's the easiest way to try multiple models without managing separate keys. JobFoundry's scorer and tailor both work out of the box with it.
+  </p>
+
+  <h2>How to configure in JobFoundry</h2>
+
+  <h3>Container / Desktop installs (Settings UI)</h3>
+  <p>
+    Open the dashboard at <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>, go to <strong>Settings → LLM Provider</strong>, and enter:
+  </p>
+  <ul>
+    <li><strong>Base URL</strong> — the provider's OpenAI-compatible endpoint (see table above)</li>
+    <li><strong>API Key</strong> — the key you obtained from the provider's dashboard</li>
+    <li><strong>Model</strong> — e.g. <code>mistral-small-latest</code>, <code>gemini-3.5-flash</code>, or any model ID the provider supports</li>
+  </ul>
+
+  <h3>Manual / developer installs (.env file)</h3>
+  <p>
+    Edit your <code>.env</code> file in the repository root:
+  </p>
+  <pre><code># For OpenRouter (recommended):
+OPENROUTER_API_BASE=https://openrouter.ai/api/v1
+OPENROUTER_API_KEY=sk-or-...
+
+# Or for any OpenAI-compatible provider:
+OPENAI_BASE_URL=https://api.mistral.ai/v1
+OPENAI_API_KEY=...
+LLM_MODEL=mistral-small-latest</code></pre>
+  <p>
+    Restart the services after editing: <code>docker compose restart</code> (or <code>podman compose restart</code>).
+  </p>
+
+  <div class="doc-callout">
+    <div class="callout-title">
+      <span>◈</span>
+      <span>Local models via Ollama</span>
+    </div>
+    <p>
+      If you prefer fully local inference (no API key, no data leaving your machine), JobFoundry also works with <a href="https://ollama.com" target="_blank" rel="noopener noreferrer">Ollama</a>. Set <code>OPENAI_BASE_URL=http://localhost:11434/v1</code> and <code>OPENAI_API_KEY=ollama</code> (any non-empty string). Models like <code>llama3.3</code> or <code>mistral</code> work well for scoring.
+    </p>
+  </div>
+
+  <div class="next-step-box">
+    <span class="next-label">NEXT STEP</span>
+    <a href={resolvePath('/docs/getting-started/')} class="next-link">
+      Back to Getting Started →
+    </a>
+  </div>
+</DocsLayout>
+
+<style>
+  .table-container {
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    background-color: var(--bg-surface);
+    overflow-x: auto;
+    margin: 1.5rem 0 0.75rem;
+  }
+
+  .providers-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+  }
+
+  .providers-table th {
+    background-color: var(--bg-surface-elevated);
+    border-bottom: 1px solid var(--border-subtle);
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--text-muted);
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .providers-table td {
+    padding: 0.75rem 1rem;
+    border-bottom: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    vertical-align: top;
+  }
+
+  .providers-table tbody tr:last-child td {
+    border-bottom: none;
+  }
+
+  .providers-table tbody tr:hover td {
+    background-color: var(--bg-surface-elevated);
+  }
+
+  .col-name strong {
+    color: var(--text-primary);
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+  }
+
+  .col-mono {
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+  }
+
+  .col-good {
+    color: var(--accent-emerald);
+  }
+
+  .col-url {
+    font-size: 0.72rem;
+    word-break: break-all;
+    color: var(--text-muted);
+  }
+
+  .rec-badge {
+    display: inline-block;
+    margin-left: 0.4rem;
+    padding: 0.1rem 0.4rem;
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: var(--accent-cyan-bg);
+    color: var(--accent-cyan);
+    border: 1px solid var(--accent-cyan);
+    border-radius: var(--radius-xs);
+    vertical-align: middle;
+  }
+
+  .attribution-note {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    font-style: italic;
+    margin-top: 0.5rem;
+  }
+
+  .next-step-box {
+    margin-top: 3rem;
+    padding: 1.25rem 1.5rem;
+    background-color: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-left: 3px solid var(--accent-cyan);
+    border-radius: var(--radius-xs);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .next-label {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+  }
+
+  .next-link {
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent-cyan);
+  }
+</style>
