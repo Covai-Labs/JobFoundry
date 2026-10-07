@@ -3,183 +3,217 @@
 // provider modules with fs.readdirSync + dynamic import (see _registry.mjs),
 // so every provider is imported up front and keyed by id.
 //
-// 87 providers. Regenerate with: npm run gen:provider-index
+// 104 providers. Regenerate with: npm run gen:provider-index
 
 import * as _p0 from "./4dayweek.mjs";
 import * as _p1 from "./a16z-speedrun-talent.mjs";
-import * as _p2 from "./agentic-jobs.mjs";
-import * as _p3 from "./alibaba.mjs";
-import * as _p4 from "./amazon.mjs";
-import * as _p5 from "./arbeitnow.mjs";
-import * as _p6 from "./arbeitsagentur.mjs";
-import * as _p7 from "./ashby.mjs";
-import * as _p8 from "./avature.mjs";
-import * as _p9 from "./bamboohr.mjs";
-import * as _p10 from "./beesite.mjs";
-import * as _p11 from "./breezy.mjs";
-import * as _p12 from "./builtin.mjs";
-import * as _p13 from "./careerviet.mjs";
-import * as _p14 from "./collage.mjs";
-import * as _p15 from "./comeet.mjs";
-import * as _p16 from "./consider.mjs";
-import * as _p17 from "./cryptocurrencyjobs.mjs";
-import * as _p18 from "./csod.mjs";
-import * as _p19 from "./dassault.mjs";
-import * as _p20 from "./deutschebahn.mjs";
-import * as _p21 from "./echojobs.mjs";
-import * as _p22 from "./eightfold.mjs";
-import * as _p23 from "./feishu-jobs.mjs";
-import * as _p24 from "./flowxtra.mjs";
-import * as _p25 from "./garena.mjs";
-import * as _p26 from "./gem.mjs";
-import * as _p27 from "./getonbrd.mjs";
-import * as _p28 from "./getro.mjs";
-import * as _p29 from "./glints.mjs";
-import * as _p30 from "./greenhouse.mjs";
-import * as _p31 from "./hackernews.mjs";
-import * as _p32 from "./hecklerkoch.mjs";
-import * as _p33 from "./higheredjobs.mjs";
-import * as _p34 from "./himalayas.mjs";
-import * as _p35 from "./ibm.mjs";
-import * as _p36 from "./icims.mjs";
-import * as _p37 from "./itviec.mjs";
-import * as _p38 from "./jibeapply.mjs";
-import * as _p39 from "./jobbankca.mjs";
-import * as _p40 from "./jobicy.mjs";
-import * as _p41 from "./jobspresso.mjs";
-import * as _p42 from "./jobstreet.mjs";
-import * as _p43 from "./jobvite.mjs";
-import * as _p44 from "./join.mjs";
-import * as _p45 from "./joinup.mjs";
-import * as _p46 from "./justjoin.mjs";
-import * as _p47 from "./landingjobs.mjs";
-import * as _p48 from "./larajobs.mjs";
-import * as _p49 from "./lever.mjs";
-import * as _p50 from "./local-parser.mjs";
-import * as _p51 from "./manfred.mjs";
-import * as _p52 from "./meituan.mjs";
-import * as _p53 from "./mokahr.mjs";
-import * as _p54 from "./mycareersfuture.mjs";
-import * as _p55 from "./nodesk.mjs";
-import * as _p56 from "./nofluffjobs.mjs";
-import * as _p57 from "./oraclecloud.mjs";
-import * as _p58 from "./personio.mjs";
-import * as _p59 from "./phenom.mjs";
-import * as _p60 from "./pinpoint.mjs";
-import * as _p61 from "./radancy.mjs";
-import * as _p62 from "./recruitee.mjs";
-import * as _p63 from "./remoteok.mjs";
-import * as _p64 from "./remotive.mjs";
-import * as _p65 from "./remotli.mjs";
-import * as _p66 from "./rheinmetall.mjs";
-import * as _p67 from "./rippling.mjs";
-import * as _p68 from "./senjob.mjs";
-import * as _p69 from "./smartrecruiters.mjs";
-import * as _p70 from "./softgarden.mjs";
-import * as _p71 from "./solidjobs.mjs";
-import * as _p72 from "./successfactors.mjs";
-import * as _p73 from "./teamtailor.mjs";
-import * as _p74 from "./telegram-channel.mjs";
-import * as _p75 from "./tencent.mjs";
-import * as _p76 from "./thehub.mjs";
-import * as _p77 from "./themuse.mjs";
-import * as _p78 from "./tkms.mjs";
-import * as _p79 from "./torre.mjs";
-import * as _p80 from "./vdab.mjs";
-import * as _p81 from "./weworkremotely.mjs";
-import * as _p82 from "./workable.mjs";
-import * as _p83 from "./workday.mjs";
-import * as _p84 from "./workingnomads.mjs";
-import * as _p85 from "./wttj.mjs";
-import * as _p86 from "./yourator.mjs";
+import * as _p2 from "./adp-workforcenow.mjs";
+import * as _p3 from "./agentic-jobs.mjs";
+import * as _p4 from "./alibaba.mjs";
+import * as _p5 from "./amazon.mjs";
+import * as _p6 from "./applitrack.mjs";
+import * as _p7 from "./arbeitnow.mjs";
+import * as _p8 from "./arbeitsagentur.mjs";
+import * as _p9 from "./ashby.mjs";
+import * as _p10 from "./avature.mjs";
+import * as _p11 from "./bamboohr.mjs";
+import * as _p12 from "./beesite.mjs";
+import * as _p13 from "./breezy.mjs";
+import * as _p14 from "./builtin.mjs";
+import * as _p15 from "./careerviet.mjs";
+import * as _p16 from "./collage.mjs";
+import * as _p17 from "./comeet.mjs";
+import * as _p18 from "./consider.mjs";
+import * as _p19 from "./cryptocurrencyjobs.mjs";
+import * as _p20 from "./csod.mjs";
+import * as _p21 from "./dassault.mjs";
+import * as _p22 from "./deutschebahn.mjs";
+import * as _p23 from "./echojobs.mjs";
+import * as _p24 from "./eightfold.mjs";
+import * as _p25 from "./eploy.mjs";
+import * as _p26 from "./feishu-jobs.mjs";
+import * as _p27 from "./flowxtra.mjs";
+import * as _p28 from "./garena.mjs";
+import * as _p29 from "./gem.mjs";
+import * as _p30 from "./generalist-world.mjs";
+import * as _p31 from "./getonbrd.mjs";
+import * as _p32 from "./getro.mjs";
+import * as _p33 from "./glints.mjs";
+import * as _p34 from "./greenhouse.mjs";
+import * as _p35 from "./gupy.mjs";
+import * as _p36 from "./hackernews.mjs";
+import * as _p37 from "./hecklerkoch.mjs";
+import * as _p38 from "./higheredjobs.mjs";
+import * as _p39 from "./himalayas.mjs";
+import * as _p40 from "./hiringroom.mjs";
+import * as _p41 from "./ibm.mjs";
+import * as _p42 from "./icims.mjs";
+import * as _p43 from "./itviec.mjs";
+import * as _p44 from "./jazzhr.mjs";
+import * as _p45 from "./jibeapply.mjs";
+import * as _p46 from "./jobbankca.mjs";
+import * as _p47 from "./jobicy.mjs";
+import * as _p48 from "./jobspresso.mjs";
+import * as _p49 from "./jobstreet.mjs";
+import * as _p50 from "./jobvite.mjs";
+import * as _p51 from "./join.mjs";
+import * as _p52 from "./joinup.mjs";
+import * as _p53 from "./justjoin.mjs";
+import * as _p54 from "./landingjobs.mjs";
+import * as _p55 from "./larajobs.mjs";
+import * as _p56 from "./lever.mjs";
+import * as _p57 from "./local-parser.mjs";
+import * as _p58 from "./manfred.mjs";
+import * as _p59 from "./meituan.mjs";
+import * as _p60 from "./mokahr.mjs";
+import * as _p61 from "./mycareersfuture.mjs";
+import * as _p62 from "./neogov.mjs";
+import * as _p63 from "./nodesk.mjs";
+import * as _p64 from "./nofluffjobs.mjs";
+import * as _p65 from "./occ.mjs";
+import * as _p66 from "./oraclecloud.mjs";
+import * as _p67 from "./peoplesoft.mjs";
+import * as _p68 from "./personio.mjs";
+import * as _p69 from "./phenom.mjs";
+import * as _p70 from "./pinpoint.mjs";
+import * as _p71 from "./prevueaps.mjs";
+import * as _p72 from "./pythonorg.mjs";
+import * as _p73 from "./radancy.mjs";
+import * as _p74 from "./recruitee.mjs";
+import * as _p75 from "./redrover.mjs";
+import * as _p76 from "./remoteok.mjs";
+import * as _p77 from "./remotive.mjs";
+import * as _p78 from "./remotli.mjs";
+import * as _p79 from "./rheinmetall.mjs";
+import * as _p80 from "./rippling.mjs";
+import * as _p81 from "./schoolspring.mjs";
+import * as _p82 from "./senjob.mjs";
+import * as _p83 from "./smartrecruiters.mjs";
+import * as _p84 from "./softgarden.mjs";
+import * as _p85 from "./solidjobs.mjs";
+import * as _p86 from "./startup-jobs.mjs";
+import * as _p87 from "./successfactors.mjs";
+import * as _p88 from "./taleo.mjs";
+import * as _p89 from "./teamtailor.mjs";
+import * as _p90 from "./telegram-channel.mjs";
+import * as _p91 from "./tencent.mjs";
+import * as _p92 from "./thehub.mjs";
+import * as _p93 from "./themuse.mjs";
+import * as _p94 from "./tkms.mjs";
+import * as _p95 from "./torre.mjs";
+import * as _p96 from "./ultipro.mjs";
+import * as _p97 from "./vdab.mjs";
+import * as _p98 from "./weworkremotely.mjs";
+import * as _p99 from "./workable.mjs";
+import * as _p100 from "./workday.mjs";
+import * as _p101 from "./workingnomads.mjs";
+import * as _p102 from "./wttj.mjs";
+import * as _p103 from "./yourator.mjs";
 
 /** id → provider module default export. */
 export const providerMap = {
   "4dayweek": _p0.default,
   "a16z-speedrun-talent": _p1.default,
-  "agentic-jobs": _p2.default,
-  "alibaba": _p3.default,
-  "amazon": _p4.default,
-  "arbeitnow": _p5.default,
-  "arbeitsagentur": _p6.default,
-  "ashby": _p7.default,
-  "avature": _p8.default,
-  "bamboohr": _p9.default,
-  "beesite": _p10.default,
-  "breezy": _p11.default,
-  "builtin": _p12.default,
-  "careerviet": _p13.default,
-  "collage": _p14.default,
-  "comeet": _p15.default,
-  "consider": _p16.default,
-  "cryptocurrencyjobs": _p17.default,
-  "csod": _p18.default,
-  "dassault": _p19.default,
-  "deutschebahn": _p20.default,
-  "echojobs": _p21.default,
-  "eightfold": _p22.default,
-  "feishu-jobs": _p23.default,
-  "flowxtra": _p24.default,
-  "garena": _p25.default,
-  "gem": _p26.default,
-  "getonbrd": _p27.default,
-  "getro": _p28.default,
-  "glints": _p29.default,
-  "greenhouse": _p30.default,
-  "hackernews": _p31.default,
-  "hecklerkoch": _p32.default,
-  "higheredjobs": _p33.default,
-  "himalayas": _p34.default,
-  "ibm": _p35.default,
-  "icims": _p36.default,
-  "itviec": _p37.default,
-  "jibeapply": _p38.default,
-  "jobbankca": _p39.default,
-  "jobicy": _p40.default,
-  "jobspresso": _p41.default,
-  "jobstreet": _p42.default,
-  "jobvite": _p43.default,
-  "join": _p44.default,
-  "joinup": _p45.default,
-  "justjoin": _p46.default,
-  "landingjobs": _p47.default,
-  "larajobs": _p48.default,
-  "lever": _p49.default,
-  "local-parser": _p50.default,
-  "manfred": _p51.default,
-  "meituan": _p52.default,
-  "mokahr": _p53.default,
-  "mycareersfuture": _p54.default,
-  "nodesk": _p55.default,
-  "nofluffjobs": _p56.default,
-  "oraclecloud": _p57.default,
-  "personio": _p58.default,
-  "phenom": _p59.default,
-  "pinpoint": _p60.default,
-  "radancy": _p61.default,
-  "recruitee": _p62.default,
-  "remoteok": _p63.default,
-  "remotive": _p64.default,
-  "remotli": _p65.default,
-  "rheinmetall": _p66.default,
-  "rippling": _p67.default,
-  "senjob": _p68.default,
-  "smartrecruiters": _p69.default,
-  "softgarden": _p70.default,
-  "solidjobs": _p71.default,
-  "successfactors": _p72.default,
-  "teamtailor": _p73.default,
-  "telegram-channel": _p74.default,
-  "tencent": _p75.default,
-  "thehub": _p76.default,
-  "themuse": _p77.default,
-  "tkms": _p78.default,
-  "torre": _p79.default,
-  "vdab": _p80.default,
-  "weworkremotely": _p81.default,
-  "workable": _p82.default,
-  "workday": _p83.default,
-  "workingnomads": _p84.default,
-  "wttj": _p85.default,
-  "yourator": _p86.default,
+  "adp-workforcenow": _p2.default,
+  "agentic-jobs": _p3.default,
+  "alibaba": _p4.default,
+  "amazon": _p5.default,
+  "applitrack": _p6.default,
+  "arbeitnow": _p7.default,
+  "arbeitsagentur": _p8.default,
+  "ashby": _p9.default,
+  "avature": _p10.default,
+  "bamboohr": _p11.default,
+  "beesite": _p12.default,
+  "breezy": _p13.default,
+  "builtin": _p14.default,
+  "careerviet": _p15.default,
+  "collage": _p16.default,
+  "comeet": _p17.default,
+  "consider": _p18.default,
+  "cryptocurrencyjobs": _p19.default,
+  "csod": _p20.default,
+  "dassault": _p21.default,
+  "deutschebahn": _p22.default,
+  "echojobs": _p23.default,
+  "eightfold": _p24.default,
+  "eploy": _p25.default,
+  "feishu-jobs": _p26.default,
+  "flowxtra": _p27.default,
+  "garena": _p28.default,
+  "gem": _p29.default,
+  "generalist-world": _p30.default,
+  "getonbrd": _p31.default,
+  "getro": _p32.default,
+  "glints": _p33.default,
+  "greenhouse": _p34.default,
+  "gupy": _p35.default,
+  "hackernews": _p36.default,
+  "hecklerkoch": _p37.default,
+  "higheredjobs": _p38.default,
+  "himalayas": _p39.default,
+  "hiringroom": _p40.default,
+  "ibm": _p41.default,
+  "icims": _p42.default,
+  "itviec": _p43.default,
+  "jazzhr": _p44.default,
+  "jibeapply": _p45.default,
+  "jobbankca": _p46.default,
+  "jobicy": _p47.default,
+  "jobspresso": _p48.default,
+  "jobstreet": _p49.default,
+  "jobvite": _p50.default,
+  "join": _p51.default,
+  "joinup": _p52.default,
+  "justjoin": _p53.default,
+  "landingjobs": _p54.default,
+  "larajobs": _p55.default,
+  "lever": _p56.default,
+  "local-parser": _p57.default,
+  "manfred": _p58.default,
+  "meituan": _p59.default,
+  "mokahr": _p60.default,
+  "mycareersfuture": _p61.default,
+  "neogov": _p62.default,
+  "nodesk": _p63.default,
+  "nofluffjobs": _p64.default,
+  "occ": _p65.default,
+  "oraclecloud": _p66.default,
+  "peoplesoft": _p67.default,
+  "personio": _p68.default,
+  "phenom": _p69.default,
+  "pinpoint": _p70.default,
+  "prevueaps": _p71.default,
+  "pythonorg": _p72.default,
+  "radancy": _p73.default,
+  "recruitee": _p74.default,
+  "redrover": _p75.default,
+  "remoteok": _p76.default,
+  "remotive": _p77.default,
+  "remotli": _p78.default,
+  "rheinmetall": _p79.default,
+  "rippling": _p80.default,
+  "schoolspring": _p81.default,
+  "senjob": _p82.default,
+  "smartrecruiters": _p83.default,
+  "softgarden": _p84.default,
+  "solidjobs": _p85.default,
+  "startup-jobs": _p86.default,
+  "successfactors": _p87.default,
+  "taleo": _p88.default,
+  "teamtailor": _p89.default,
+  "telegram-channel": _p90.default,
+  "tencent": _p91.default,
+  "thehub": _p92.default,
+  "themuse": _p93.default,
+  "tkms": _p94.default,
+  "torre": _p95.default,
+  "ultipro": _p96.default,
+  "vdab": _p97.default,
+  "weworkremotely": _p98.default,
+  "workable": _p99.default,
+  "workday": _p100.default,
+  "workingnomads": _p101.default,
+  "wttj": _p102.default,
+  "yourator": _p103.default,
 };

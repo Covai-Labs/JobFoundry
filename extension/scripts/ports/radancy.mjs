@@ -1,5 +1,5 @@
 import { decodeEntities } from './_html-entities.mjs';
-import { fetchJsonWithRetry, fetchTextWithRetry } from './_http.mjs';
+import { fetchJsonWithRetry, fetchTextWithRetry, sleep } from './_http.mjs';
 
 function makeNonce() {
   const c = globalThis.crypto;
@@ -317,8 +317,6 @@ export default {
     const listUrl = resolveListUrl(entry);
     if (!listUrl) throw new Error(`radancy: cannot resolve search-jobs URL for ${entry.name}`);
     const origin = new URL(listUrl).origin;
-
-    const wait = (ms) => (ctx.sleep ? ctx.sleep(ms) : new Promise((r) => setTimeout(r, ms)));
     const maxPages = resolveMaxPages(entry);
     const maxJobs = resolveMaxJobs(entry);
     // ctx.maxPages is set only by verify-portals.mjs's bounded liveness probe
@@ -384,7 +382,7 @@ export default {
           let stopReason = 'complete';
           let page = 2;
           for (; page <= lastPage && jobs.length < maxJobs; page++) {
-            await wait(PAGE_DELAY_MS);
+            await sleep(PAGE_DELAY_MS, ctx);
             let rows;
             try {
               const json = await fetchJsonWithRetry(ctx, buildFragmentUrl(listUrl, page), {
@@ -489,7 +487,7 @@ export default {
     // (meituan/tencent idiom). A resolved fragment request above, or a mid-scan
     // failure here, keeps partials instead.
     for (let page = 1; page <= effectiveMaxPages; page++) {
-      if (page > 1) await wait(PAGE_DELAY_MS);
+      if (page > 1) await sleep(PAGE_DELAY_MS, ctx);
       let rows;
       try {
         const html = await fetchTextWithRetry(ctx, `${listUrl}?p=${page}`, { redirect: 'error', headers: { accept: 'text/html' } });

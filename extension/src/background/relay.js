@@ -18,6 +18,28 @@ export const SUPPORTED_TASK_TYPES = new Set([
   'RUN_PROVIDER_SCAN',
 ]);
 
+export const BOT_CHALLENGE_PATTERNS = [
+  /just a moment\b/i,
+  /performing security verification/i,
+  /checking your browser before/i,
+  /verify you are (a |not a )?human/i,
+  /enable javascript and cookies to continue/i,
+  /attention required.*cloudflare/i,
+  /\bray id\b/i,
+  /\bcf-ray\b/i,
+  /please complete the security check/i,
+  /cf-browser-verification/i,
+  /challenges\.cloudflare\.com/i,
+  /turnstile/i,
+  /access denied.*security check/i,
+  /bot detected/i,
+];
+
+export function detectBotChallenge(html) {
+  if (typeof html !== 'string' || !html) return false;
+  return BOT_CHALLENGE_PATTERNS.some((pat) => pat.test(html));
+}
+
 /**
  * Pure execution of a typed companion task.
  */
@@ -56,11 +78,20 @@ export async function executeRelayTask(
       { lookupImpl, fetchImpl }
     );
 
+    const html = await res.text().catch(() => '');
+
+    if (detectBotChallenge(html)) {
+      if (typeof globalThis.chrome !== 'undefined' && globalThis.chrome?.tabs?.create) {
+        globalThis.chrome.tabs.create({ url: task.url, active: true });
+      }
+      throw new Error(
+        `Bot challenge / Cloudflare verification detected; opened tab for user to solve: ${task.url}`
+      );
+    }
+
     if (!res.ok) {
       throw new Error(`HTTP error ${res.status} fetching job page`);
     }
-
-    const html = await res.text();
 
     // Extract title & company from JSON-LD if available in HTML
     let title;

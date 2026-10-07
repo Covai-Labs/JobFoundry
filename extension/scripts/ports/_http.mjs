@@ -70,23 +70,24 @@ export function isRefusedRedirectError(err) {
 
 const NULL_BODY_STATUSES = new Set([204, 205, 304]);
 
-async function fetchWithTimeout(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, method = 'GET', body = null, redirect = null } = {}, consume, allowEmptyBody = false) {
+async function fetchWithTimeout(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, method = 'GET', body = null, redirect = 'error', onResponse = null } = {}, consume, allowEmptyBody = false) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    // redirect:'manual' + the 3xx guard below = the SSRF trust guard. Never
-    // 'follow' (a hostile server could bounce us to an internal address) and
-    // never 'error' (browser TypeError shape is indistinguishable from a
-    // network failure, which would be retried forever). 'manual' lets us throw
-    // the pinned, non-retryable shape instead.
+    const requestHeaders = new Headers(headers);
+    if (!requestHeaders.has('user-agent')) requestHeaders.set('user-agent', DEFAULT_USER_AGENT);
+    if (!requestHeaders.has('accept-encoding')) requestHeaders.set('accept-encoding', 'gzip, deflate, br');
+
     const res = await fetch(url, {
       method,
-      headers: { 'user-agent': DEFAULT_USER_AGENT, ...headers },
+      headers: requestHeaders,
       body,
       redirect: 'manual',
       signal: controller.signal,
     });
-    if (isRedirectResponse(res)) {
+    onResponse?.(res);
+    const isInspectableManualRedirect = allowEmptyBody && redirect === 'manual' && res.status >= 300 && res.status < 400;
+    if (isRedirectResponse(res) && !isInspectableManualRedirect) {
       if (redirect === 'manual') {
         const responseText = await res.text().catch(() => '');
         const err = new Error(`HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`);
@@ -98,7 +99,7 @@ async function fetchWithTimeout(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers =
       }
       throw redirectRefusal(res);
     }
-    if (!res.ok && !(allowEmptyBody && NULL_BODY_STATUSES.has(res.status))) {
+    if (!res.ok && !isInspectableManualRedirect && !(allowEmptyBody && NULL_BODY_STATUSES.has(res.status))) {
       const responseText = await res.text().catch(() => '');
       const err = new Error(`HTTP ${res.status}${res.statusText ? ` ${res.statusText}` : ''}`);
       err.status = res.status;
@@ -239,11 +240,32 @@ export async function fetchTextWithRetry(ctx, url, opts = {}, policy = {}) {
   return withRetry(() => ctx.fetchText(url, opts), ctx, policy);
 }
 
-export function makeHttpCtx() {
-  return {
+/** Fetch raw Response with bounded retry on transient failures. */
+export async function fetchResponseWithRetry(ctx, url, opts = {}, policy = {}) {
+  return withRetry(() => ctx.fetchResponse(url, opts), ctx, policy);
+}
+
+export function makeHttpCtx(observer) {
+  const ctx = {
     transport: 'http',
     fetchJson,
     fetchText,
     fetchResponse,
+    normalizePostingUrl: (url) => (typeof url === 'string' ? url.trim() : ''),
   };
+  if (!observer) return ctx;
+  for (const method of ['fetchJson', 'fetchText', 'fetchResponse']) {
+    const original = ctx[method];
+    ctx[method] = (url, opts = {}) => {
+      observer.onRequest?.();
+      return original(url, {
+        ...opts,
+        onResponse: (response) => {
+          opts.onResponse?.(response);
+          observer.onResponse?.(response.status);
+        },
+      });
+    };
+  }
+  return ctx;
 }

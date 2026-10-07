@@ -280,3 +280,51 @@ test('relay: aborts fetch when timeout is reached', async () => {
     /timed out after 50ms/
   );
 });
+
+test('relay: detects bot challenge in FETCH_JOB_PAGE, opens tab and throws informative error', async () => {
+  const challengeHtml = `
+    <!DOCTYPE html>
+    <html>
+      <head><title>Just a moment...</title></head>
+      <body>
+        <h1>Verify you are human</h1>
+        <div id="cf-wrapper">Cloudflare Ray ID: 84a7e93bc214</div>
+      </body>
+    </html>
+  `;
+
+  const openedTabs = [];
+  const originalChrome = globalThis.chrome;
+  globalThis.chrome = {
+    tabs: {
+      create: (opts) => {
+        openedTabs.push(opts);
+      },
+    },
+  };
+
+  try {
+    const mockFetch = async () => ({
+      ok: false,
+      status: 403,
+      text: async () => challengeHtml,
+    });
+
+    await assert.rejects(
+      () =>
+        executeRelayTask(
+          { type: 'FETCH_JOB_PAGE', url: 'https://challenge.example.com/job/123' },
+          { fetchImpl: mockFetch, lookupImpl: async () => ['93.184.216.34'] }
+        ),
+      /Bot challenge \/ Cloudflare verification detected; opened tab for user to solve: https:\/\/challenge\.example\.com\/job\/123/
+    );
+
+    assert.equal(openedTabs.length, 1);
+    assert.deepEqual(openedTabs[0], {
+      url: 'https://challenge.example.com/job/123',
+      active: true,
+    });
+  } finally {
+    globalThis.chrome = originalChrome;
+  }
+});

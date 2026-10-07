@@ -22,6 +22,16 @@ export function buildIndeedGraphQLQuery(criteria: SearchCriteria, cursor?: strin
     locationClause = `location: { where: ${JSON.stringify(criteria.location)}, radius: 50, radiusUnit: MILES }`;
   }
 
+  const filters: string[] = [];
+  if (criteria.hoursOld) {
+    filters.push(`{ date: { field: "dateOnIndeed", start: "${criteria.hoursOld}h" } }`);
+  }
+  if (criteria.isRemote) {
+    filters.push('{ keyword: { field: "attributes", keys: ["DSQF7"] } }');
+    filters.push('{ keyword: { field: "attributes", keys: ["PAXZC"], match: MUST_NOT } }');
+  }
+  const filtersClause = filters.length > 0 ? `filters: [${filters.join(', ')}]` : '';
+
   const cursorClause = cursor ? `cursor: ${JSON.stringify(cursor)}` : '';
 
   return `
@@ -29,6 +39,7 @@ export function buildIndeedGraphQLQuery(criteria: SearchCriteria, cursor?: strin
       jobSearch(
         ${whatClause}
         ${locationClause}
+        ${filtersClause}
         limit: 50
         sort: RELEVANCE
         ${cursorClause}
@@ -40,7 +51,9 @@ export function buildIndeedGraphQLQuery(criteria: SearchCriteria, cursor?: strin
           job {
             key
             title
+            sourceEmployerName
             datePublished
+            dateOnIndeed
             description {
               html
             }
@@ -54,15 +67,28 @@ export function buildIndeedGraphQLQuery(criteria: SearchCriteria, cursor?: strin
             }
             compensation {
               baseSalary {
+                unitOfWork
                 range {
                   ... on Range {
                     min
                     max
                   }
+                  ... on AtLeast {
+                    min
+                  }
+                  ... on AtMost {
+                    max
+                  }
+                  ... on Exactly {
+                    value
+                  }
                 }
               }
             }
             source {
+              name
+            }
+            employer {
               name
             }
             recruit {
@@ -92,7 +118,9 @@ export function parseIndeedGraphQLResponse(json: any): {
     if (!job || !job.title) continue;
 
     const title = String(job.title).trim();
-    const company = String(job.source?.name || 'Unknown Company').trim();
+    const company = String(
+      job.sourceEmployerName || job.source?.name || job.employer?.name || 'Unknown Company'
+    ).trim();
     const key = job.key ? String(job.key) : '';
     const viewUrl =
       job.recruit?.viewJobUrl || (key ? `https://www.indeed.com/viewjob?jk=${key}` : '');
@@ -104,16 +132,26 @@ export function parseIndeedGraphQLResponse(json: any): {
     const descHtml = job.description?.html || '';
 
     const range = job.compensation?.baseSalary?.range;
-    const salaryMin = typeof range?.min === 'number' ? range.min : undefined;
-    const salaryMax = typeof range?.max === 'number' ? range.max : undefined;
+    let salaryMin: number | undefined;
+    let salaryMax: number | undefined;
+
+    if (range) {
+      if (typeof range.min === 'number') salaryMin = range.min;
+      if (typeof range.max === 'number') salaryMax = range.max;
+      if (typeof range.value === 'number') {
+        salaryMin = range.value;
+        salaryMax = range.value;
+      }
+    }
 
     let postedAt: string | undefined;
-    if (job.datePublished) {
-      if (typeof job.datePublished === 'number') {
-        const date = new Date(job.datePublished);
+    const rawDate = job.dateOnIndeed || job.datePublished;
+    if (rawDate) {
+      if (typeof rawDate === 'number') {
+        const date = new Date(rawDate);
         postedAt = Number.isNaN(date.getTime()) ? undefined : date.toISOString();
       } else {
-        postedAt = String(job.datePublished);
+        postedAt = String(rawDate);
       }
     }
 
