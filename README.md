@@ -183,4 +183,7 @@ This project is licensed under the [GNU Affero General Public License v3.0 (AGPL
 
 ## Attributions & Acknowledgements
 
-A subset of the browser provider layer is adapted from the MIT-licensed [career-ops](https://github.com/career-ops) provider collection. Original MIT headers are preserved in every lifted file; see `extension/scripts/ports/README.md` for details. We are grateful to its maintainers and the open-source community.
+- A subset of the browser ATS provider layer is adapted from the MIT-licensed [career-ops](https://github.com/career-ops) provider collection. Original MIT headers are preserved in every lifted file; see `extension/scripts/ports/README.md` for details.
+- Job search aggregator providers (including Naukri, Indeed, and LinkedIn search adapters) are adapted from the MIT-licensed [JobSpy](https://github.com/speedyapply/JobSpy) project by Cullen Watson and contributors.
+
+We are grateful to the authors, maintainers, and open-source communities behind both projects.

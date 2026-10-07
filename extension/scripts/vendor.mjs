@@ -62,6 +62,9 @@ const DROP_TEST_FILES = new Set([
   'local-parser.test.mjs',
   'jobbankca.test.mjs',
   'mycareersfuture.test.mjs',
+  'proxy-egress.test.mjs',
+  'startup-jobs.test.mjs',
+  'workday-multi-location.test.mjs',
 ]);
 
 // Provider modules that cannot run in a browser as copied. Each is replaced by
@@ -82,6 +85,8 @@ const PORTED_TESTS = new Set([
   '_profile-keywords.test.mjs',
   'vdab.test.mjs',
   'mokahr.test.mjs',
+  'gupy.test.mjs',
+  '_http.test.mjs',
 ]);
 
 function argValue(name) {
@@ -147,11 +152,19 @@ copy(helpersSrc, helpersDst);
 // No textual ROOT change is needed: the upstream comment is dropped because
 // __dirname already puts ROOT at src/background.
 
-const fixture = join(SRC, 'tests', 'fixtures', 'icims-search-page.html');
-if (existsSync(fixture)) copy(fixture, join(FIXTURES_DST, 'icims-search-page.html'));
+const fixturesSrc = join(SRC, 'tests', 'fixtures');
+if (existsSync(fixturesSrc)) {
+  for (const name of readdirSync(fixturesSrc)) {
+    copy(join(fixturesSrc, name), join(FIXTURES_DST, name));
+  }
+}
 
 const mjsFilesSrc = join(SRC, 'lib', 'mjs-files.mjs');
 if (existsSync(mjsFilesSrc)) copy(mjsFilesSrc, join(LIB_DST, 'mjs-files.mjs'));
+const scratchDirsSrc = join(SRC, 'lib', 'scratch-dirs.mjs');
+if (existsSync(scratchDirsSrc)) copy(scratchDirsSrc, join(LIB_DST, 'scratch-dirs.mjs'));
+const localTodaySrc = join(SRC, 'lib', 'local-today.mjs');
+if (existsSync(localTodaySrc)) copy(localTodaySrc, join(LIB_DST, 'local-today.mjs'));
 
 for (const name of PORTED_PROVIDERS) {
   const port = join(PORTS, name);

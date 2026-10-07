@@ -27,9 +27,8 @@
 //     careers_url: https://talent.alibaba.com/off-campus/position-list   # auto-detected
 //     keywords: ["AI", "大模型"]   # each keyword is a separate server-side query, results deduped;
 //                                  # omit to pull the whole board (~4100 postings)
-//     max_pages: 50                # per keyword, pageSize 100
-
 import { sleep } from './_http.mjs';
+import { safeEncodeURIComponent } from './_safe-url.mjs';
 
 /** WebCrypto random UUID for the double-submit CSRF token (browser port). */
 function randomUUID() {
@@ -100,10 +99,14 @@ export function parseAlibabaResponse(json, companyName) {
     const title = p.name || '';
     const id = p.id;
     if (!title || id == null) continue;
+    // A lone surrogate in id throws URIError out of encodeURIComponent and
+    // aborts this loop, losing every job on the page. Drop just this one.
+    const encodedId = safeEncodeURIComponent(id);
+    if (encodedId === null) continue;
     const experience = formatExperience(p.experience);
     jobs.push({
       title,
-      url: DETAIL + encodeURIComponent(id),
+      url: DETAIL + encodedId,
       company: companyName,
       location: Array.isArray(p.workLocations) ? p.workLocations.filter(Boolean).join('/') : '',
       // Alibaba posts carry full-text JDs (description + requirement), much

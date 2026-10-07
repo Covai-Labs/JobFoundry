@@ -12,7 +12,7 @@ import type {
 
 export function parseLinkedInJobCards(html: string): RawAggregatorJob[] {
   const jobs: RawAggregatorJob[] = [];
-  if (!html || typeof html !== 'string') return jobs;
+  if (!html || typeof html !== 'string' || html.includes('<!DOCTYPE html>\n\n<!---->')) return jobs;
 
   if (typeof DOMParser !== 'undefined') {
     try {

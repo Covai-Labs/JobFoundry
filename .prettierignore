@@ -3,6 +3,7 @@
 # stable. Upstream files intentionally do not match this repo's prettier
 # config; reformatting them would report every vendored file as drifted.
 extension/src/background/providers/
+extension/src/background/lib/
 extension/src/background/user-agent.mjs
 extension/scripts/ports/
 extension/src/background/tests/fixtures/
@@ -13,3 +14,5 @@ docs/
 
 # Release changelog is generated and maintained automatically by release-please
 CHANGELOG.md
+VERSION
+
