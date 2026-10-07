@@ -234,6 +234,123 @@ const {
     margin-bottom: 0.5rem;
   }
 
+  /* ── Collapsible callout blocks (doc-callout + <details>) ── */
+  .docs-prose :global(details.collapsible-callout) {
+    margin: 1.75rem 0;
+    border-radius: var(--radius-xs);
+    border: 1px solid var(--border-subtle);
+    background-color: var(--bg-surface);
+    border-left: 3px solid var(--accent-cyan);
+  }
+
+  .docs-prose :global(details.collapsible-callout.warning) {
+    border-left-color: var(--accent-amber);
+  }
+
+  .docs-prose :global(details.collapsible-callout.success) {
+    border-left-color: var(--accent-emerald);
+  }
+
+  .docs-prose :global(details.collapsible-callout > summary) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 1.25rem;
+    font-family: var(--font-heading);
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+  }
+
+  .docs-prose :global(details.collapsible-callout > summary::-webkit-details-marker) {
+    display: none;
+  }
+
+  .docs-prose :global(details.collapsible-callout > summary .summary-inner) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .docs-prose :global(details.collapsible-callout > summary .chevron) {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+  }
+
+  .docs-prose :global(details.collapsible-callout[open] > summary .chevron) {
+    transform: rotate(90deg);
+  }
+
+  .docs-prose :global(details.collapsible-callout > summary:hover) {
+    background-color: var(--bg-surface-elevated);
+  }
+
+  .docs-prose :global(details.collapsible-callout .callout-body) {
+    padding: 0 1.25rem 1.25rem;
+  }
+
+  .docs-prose :global(details.collapsible-callout .callout-body p:last-child) {
+    margin-bottom: 0;
+  }
+
+  /* ── Collapsible section blocks (h2-style <details>) ── */
+  .docs-prose :global(details.collapsible-section) {
+    margin-top: 2.5rem;
+    margin-bottom: 0;
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-xs);
+    background-color: var(--bg-surface);
+  }
+
+  .docs-prose :global(details.collapsible-section > summary) {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 1rem 1.25rem;
+    font-family: var(--font-heading);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    color: var(--text-primary);
+    cursor: pointer;
+    list-style: none;
+    user-select: none;
+    border-radius: var(--radius-xs);
+  }
+
+  .docs-prose :global(details.collapsible-section > summary::-webkit-details-marker) {
+    display: none;
+  }
+
+  .docs-prose :global(details.collapsible-section > summary .chevron) {
+    flex-shrink: 0;
+    color: var(--text-muted);
+    transition: transform 0.2s ease;
+  }
+
+  .docs-prose :global(details.collapsible-section[open] > summary .chevron) {
+    transform: rotate(90deg);
+  }
+
+  .docs-prose :global(details.collapsible-section > summary:hover) {
+    background-color: var(--bg-surface-elevated);
+  }
+
+  .docs-prose :global(details.collapsible-section .section-body) {
+    padding: 0 1.5rem 1.5rem;
+    border-top: 1px solid var(--border-subtle);
+  }
+
+  .docs-prose :global(details.collapsible-section .section-body > *:first-child) {
+    margin-top: 1.25rem;
+  }
+
   @media (max-width: 768px) {
     .docs-main {
       padding: 1.5rem 1rem 3rem;

@@ -6,12 +6,10 @@ on:
     tags: ['v*']
     paths-ignore:
       - 'docs/**'
-      - 'site/**'
       - '**.md'
   pull_request:
     paths-ignore:
       - 'docs/**'
-      - 'site/**'
       - '**.md'
 
 concurrency:
