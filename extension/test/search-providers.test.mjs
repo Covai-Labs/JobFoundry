@@ -22,7 +22,9 @@ const { parseZipRecruiterResponse } = await import(
   join(EXT, 'src', 'background', 'search', 'ziprecruiter.ts')
 );
 const { parseGoogleJobsHtml } = await import(join(EXT, 'src', 'background', 'search', 'google.ts'));
-const { parseNaukriResponse } = await import(join(EXT, 'src', 'background', 'search', 'naukri.ts'));
+const { parseNaukriResponse, generateNkparam } = await import(
+  join(EXT, 'src', 'background', 'search', 'naukri.ts')
+);
 const { adzunaSearchProvider } = await import(
   join(EXT, 'src', 'background', 'search', 'adzuna.ts')
 );
@@ -290,6 +292,16 @@ test('Naukri: parseNaukriResponse maps jobDetails array', () => {
   assert.equal(jobs[0].location, 'Bengaluru');
   assert.equal(jobs[0].url, 'https://www.naukri.com/job-listings-python-dev-12345678');
   assert.equal(jobs[0].source, 'naukri');
+});
+
+test('Naukri: generateNkparam produces valid RSA token and rejects oversized messages', () => {
+  const token = generateNkparam('srp');
+  assert.equal(typeof token, 'string');
+  assert.equal(token.length, 88); // 64 bytes base64-encoded is 88 chars
+
+  // Overly long page input must be rejected when padLen < 8
+  const longPage = 'a'.repeat(60);
+  assert.throws(() => generateNkparam(longPage), /nkparam message too long/);
 });
 
 // 7. runSearchPipeline Orchestrator Tests

@@ -38,6 +38,9 @@ export function generateNkparam(page: string = 'srp'): string {
   const encoder = new TextEncoder();
   const message = encoder.encode(`v0|${Date.now()}|121_${page}`);
   const padLen = NKPARAM_SIZE - 3 - message.length;
+  if (padLen < 8) {
+    throw new Error('nkparam message too long');
+  }
   const padding = new Uint8Array(padLen);
   if (typeof crypto !== 'undefined' && crypto.getRandomValues) {
     crypto.getRandomValues(padding);
