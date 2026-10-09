@@ -4,6 +4,19 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.6.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.5.1...v0.6.0) (2026-10-09)
+
+
+### Features
+
+* **extension:** sync upstream ATS providers from career-ops & search improvements from JobSpy ([#104](https://github.com/Covai-Labs/JobFoundry/issues/104)) ([e662ca6](https://github.com/Covai-Labs/JobFoundry/commit/e662ca64b96f5afc529410a9f7bb198c0563532f))
+* **site:** add unlisted directory listings page for external backlinks ([#106](https://github.com/Covai-Labs/JobFoundry/issues/106)) ([b426136](https://github.com/Covai-Labs/JobFoundry/commit/b426136bc197b4e1076673a207d03a95018030ba))
+
+
+### Bug Fixes
+
+* **deps:** update all dependencies ([#97](https://github.com/Covai-Labs/JobFoundry/issues/97)) ([9c0b749](https://github.com/Covai-Labs/JobFoundry/commit/9c0b74923a618bd33199325c3736c68e4f4a16be))
+
 ## [0.5.1](https://github.com/Covai-Labs/JobFoundry/compare/v0.5.0...v0.5.1) (2026-10-05)
 
 
