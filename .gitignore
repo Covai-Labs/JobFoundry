@@ -69,4 +69,13 @@ pnpm-debug.log*
 
 # Scratch workspace
 Scratch/
+
+# Share Graphify outputs that help humans and agents navigate the codebase.
 graphify-out/
+!graphify-out/
+graphify-out/*
+!graphify-out/GRAPH_REPORT.md
+!graphify-out/graph.json
+!graphify-out/graph.html
+!graphify-out/manifest.json
+!graphify-out/.vocab.txt

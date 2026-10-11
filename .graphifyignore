@@ -1,0 +1,35 @@
+# ==============================================================================
+# .graphifyignore
+# Excludes noise, mock fixtures, static media, and marketing files from
+# the Graphify architectural knowledge graph.
+# ==============================================================================
+
+# Standalone marketing & Astro documentation site
+site/
+
+# Test fixtures, mock HTTP/HTML pages, and snapshot data
+**/fixtures/
+**/__snapshots__/
+
+# Static media assets & icons (avoids dozens of duplicate icon/tile nodes)
+*.png
+*.ico
+*.svg
+*.jpg
+*.jpeg
+*.webp
+**/public/icons/
+
+# OS distribution wrappers, installers, and packaging tooling
+packaging/
+
+# Graphify internal query memory & outputs (prevents circular indexing)
+graphify-out/
+
+# Non-technical community governance & repository boilerplate
+CODE_OF_CONDUCT.md
+GOVERNANCE.md
+LEGAL_DISCLAIMER.md
+SUPPORT.md
+SECURITY.md
+.github/
