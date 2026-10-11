@@ -69,3 +69,4 @@ pnpm-debug.log*
 
 # Scratch workspace
 Scratch/
+graphify-out/
