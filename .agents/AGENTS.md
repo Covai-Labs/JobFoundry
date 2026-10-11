@@ -49,7 +49,7 @@ When modifying the task relay (`server/ingest/src/relay/` or `extension/src/back
 ### 2.4 Generated Architecture Graph
 
 - Use `graphify-out/GRAPH_REPORT.md` for a human-readable overview, `graphify-out/graph.html` for the interactive view, and `graphify-out/graph.json` with `graphify-out/.vocab.txt` for Graphify queries.
-- The graph is a generated navigation aid, not a source of truth. Check its build commit in the report, verify claims against current source, and treat `INFERRED` connections as hypotheses.
+- The graph is a generated navigation aid, not a source of truth. Check `built_at_commit` in `graphify-out/graph.json`, verify claims against current source, and treat `INFERRED` connections as hypotheses.
 - Keep the shared graph snapshot read-only during reviews: do not add conversation prompts or answers to the committed outputs. Refresh code changes with `graphify update .`.
 
 ---
