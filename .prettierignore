@@ -16,3 +16,5 @@ docs/
 CHANGELOG.md
 VERSION
 
+# Machine-generated architecture graph artifacts
+graphify-out/
