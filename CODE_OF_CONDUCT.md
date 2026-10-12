@@ -66,8 +66,10 @@ appointed representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the founding maintainer
-([@deadrat-in](https://github.com/deadrat-in)).
+reported privately to the founding maintainer
+([@deadrat-in](https://github.com/deadrat-in)) by opening a
+[private advisory](https://github.com/Covai-Labs/JobFoundry/security/advisories/new)
+titled "Code of Conduct report". Please do not report incidents in public issues.
 All complaints will be reviewed and investigated promptly and fairly.
 
 All community leaders are obligated to respect the privacy and security of the
