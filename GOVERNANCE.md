@@ -46,8 +46,10 @@ so that responsibility can be shared, not so that status can be hoarded.
 
 All governance is exercised under [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 Moderation actions (warnings, bans) follow its enforcement ladder, are
-decided by maintainers, and may be appealed once by email to
-[security@covai.org](mailto:security@covai.org).
+decided by maintainers, and may be appealed once to the founding maintainer
+([@deadrat-in](https://github.com/deadrat-in)) by opening a
+[private advisory](https://github.com/Covai-Labs/JobFoundry/security/advisories/new)
+titled "Moderation Appeal".
 
 ## Money, licensing, and forks
 
