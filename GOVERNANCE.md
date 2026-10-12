@@ -47,7 +47,9 @@ so that responsibility can be shared, not so that status can be hoarded.
 All governance is exercised under [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 Moderation actions (warnings, bans) follow its enforcement ladder, are
 decided by maintainers, and may be appealed once to the founding maintainer
-([@deadrat-in](https://github.com/deadrat-in)).
+privately at [jay@covai.org](mailto:jay@covai.org), or publicly through
+[@deadrat-in](https://github.com/deadrat-in). Confidential appeals will be
+shared only with the maintainers who need to review them.
 
 ## Money, licensing, and forks
 

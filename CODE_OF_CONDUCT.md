@@ -66,12 +66,13 @@ appointed representative at an online or offline event.
 ## Enforcement
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the founding maintainer
-([@deadrat-in](https://github.com/deadrat-in)).
-All complaints will be reviewed and investigated promptly and fairly.
+reported privately to the founding maintainer at [jay@covai.org](mailto:jay@covai.org),
+or publicly through [@deadrat-in](https://github.com/deadrat-in). All complaints
+will be reviewed and investigated promptly and fairly.
 
-All community leaders are obligated to respect the privacy and security of the
-reporter of any incident.
+Confidential reports sent to the email address will be shared only with the
+maintainers who need to review or investigate them. All community leaders are
+obligated to respect the privacy and security of the reporter of any incident.
 
 ## Enforcement Guidelines
 
