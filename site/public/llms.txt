@@ -1,0 +1,22 @@
+# JobFoundry
+
+> Local-first, open-source infrastructure for job discovery, fit assessment, and truthful resume tailoring across 87 ATS and job boards.
+
+JobFoundry pairs a privacy-first browser extension with a local backend server (SQLite, SimHash deduplication, LLM fit scoring, and LangGraph section-by-section tailoring) and a Kanban web UI. All candidate data and API keys remain strictly on the user's local machine.
+
+## Core Documentation
+
+- [Getting Started](https://jobfoundry.covai.org/docs/getting-started/): Installation options (Docker, AppImage, MSIX, Homebrew) and initial configuration.
+- [Extension Guide](https://jobfoundry.covai.org/docs/extension/): Browser extension setup, zero-token ATS extraction, and local sync.
+- [Architecture & Invariants](https://jobfoundry.covai.org/docs/architecture/): Local-first architecture, server-never-scrapes invariant, and task relay design.
+- [Provider Directory](https://jobfoundry.covai.org/docs/providers/): Directory of 87 supported ATS and job board connectors.
+- [API Keys & Providers](https://jobfoundry.covai.org/docs/api-keys/): Supported LLM providers (OpenRouter, OpenAI, Anthropic, Ollama) and key isolation.
+- [Privacy Policy](https://jobfoundry.covai.org/docs/privacy/): Local storage guarantees, zero telemetry, and API key confidentiality.
+- [Manifesto](https://jobfoundry.covai.org/docs/manifesto/): Core project principles and ethical guidelines.
+- [Support](https://jobfoundry.covai.org/docs/support/): Help, bug reporting, and private vulnerability disclosures.
+
+## Developer & Contributor Guides
+
+- [Adding a Provider](https://github.com/Covai-Labs/JobFoundry/blob/main/extension/src/background/providers/ADDING_A_PROVIDER.md): Step-by-step guide to writing a new ATS extractor.
+- [Architecture Deep Dive](https://github.com/Covai-Labs/JobFoundry/blob/main/ARCHITECTURE.md): Service coordination, ports, and data pipelines.
+- [Contributing](https://github.com/Covai-Labs/JobFoundry/blob/main/CONTRIBUTING.md): Code style, testing invariants, and development setup.
