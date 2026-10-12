@@ -57,8 +57,7 @@ Welcome — the tools are complementary, and migration is supported:
 ## I found a security vulnerability
 
 Do **not** open a public issue. Follow
-[SECURITY.md](SECURITY.md): email
-[security@covai.org](mailto:security@covai.org) or open a
+[SECURITY.md](SECURITY.md) and submit a
 [private security advisory](https://github.com/Covai-Labs/JobFoundry/security/advisories/new).
 
 ## I want to contribute
