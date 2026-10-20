@@ -2,7 +2,7 @@
 #    uv pip compile --python-version 3.14 --universal server/tailor/pyproject.toml -o packaging/python/tailor-requirements.txt
 aiohappyeyeballs==2.7.1
     # via aiohttp
-aiohttp==3.14.3
+aiohttp==3.14.4
     # via
     #   instructor
     #   litellm
