@@ -1,4 +1,4 @@
-FROM python:3.14-slim
+FROM python:3.15-slim
 
 ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-stackoverflow"
 
