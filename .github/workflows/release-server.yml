@@ -38,7 +38,7 @@ jobs:
           path: build/appimage/output/*.AppImage
 
       - name: Attach AppImage to Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: build/appimage/output/*.AppImage
@@ -102,7 +102,7 @@ jobs:
             build/macos/output/*.sha256
 
       - name: Attach macOS tarball to Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
@@ -200,7 +200,7 @@ jobs:
             build/*.cer
 
       - name: Attach MSIX to Release
-        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+        uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
         if: startsWith(github.ref, 'refs/tags/')
         with:
           files: |
