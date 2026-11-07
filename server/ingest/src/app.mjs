@@ -55,6 +55,13 @@ import {
   updateSettings,
 } from './settings/settings.mjs';
 import { safeFetch } from './security/ssrf.mjs';
+import {
+  buildExportArchive,
+  getExportJobs,
+  getMasterResume,
+  getTailoredResume,
+  jobsToCsv,
+} from './export/export.mjs';
 
 function bearerToken(header) {
   if (typeof header !== 'string') return '';
@@ -2661,6 +2668,84 @@ export function buildApp({
         request.log?.error?.(err);
         return reply.code(502).send({ error: err.message || 'Ad-hoc copilot generation failed' });
       }
+    }
+  );
+
+  // GET /api/v1/export - Download user-owned data in standard formats
+  app.get(
+    '/api/v1/export',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 10)) return;
+      if (!authenticate(request, reply)) return;
+
+      const userId = String(request.user.id || 'dev-user');
+      const format = String(request.query?.format || '').toLowerCase();
+      const dateStamp = new Date().toISOString().slice(0, 10);
+
+      // 1. CSV job search history
+      if (format === 'csv') {
+        const csv = jobsToCsv(getExportJobs(db, userId));
+        reply.header(
+          'Content-Disposition',
+          `attachment; filename="jobfoundry-jobs-${dateStamp}.csv"`
+        );
+        reply.type('text/csv; charset=utf-8');
+        return reply.send(csv);
+      }
+
+      // 2. JSON Resume standard (master profile, or a tailored variant via ?job_id=)
+      if (format === 'json-resume') {
+        const jobId = request.query?.job_id ? String(request.query.job_id) : null;
+        if (jobId && !/^[a-zA-Z0-9_-]+$/.test(jobId)) {
+          return reply.code(400).send({ error: 'Invalid job ID format' });
+        }
+        if (jobId && !canAccessJob(userId, jobId)) {
+          return reply.code(404).send({ error: 'job not found' });
+        }
+
+        const resume = jobId
+          ? getTailoredResume(artifactsDir, userId, jobId)
+          : getMasterResume(db, userId);
+        if (!resume) {
+          return reply.code(404).send({
+            error: jobId ? 'No tailored resume found for this job' : 'No master resume found',
+          });
+        }
+
+        const filename = jobId ? `json-resume-${jobId}.json` : 'json-resume.json';
+        reply.header('Content-Disposition', `attachment; filename="${filename}"`);
+        reply.type('application/json; charset=utf-8');
+        return reply.send(JSON.stringify(resume, null, 2));
+      }
+
+      // 3. Full archive: database records, master resume, tailored resumes, and artifacts
+      if (format === 'archive') {
+        try {
+          const archive = await buildExportArchive({ db, userId, artifactsDir });
+          reply.header('Content-Disposition', `attachment; filename="${archive.filename}"`);
+          reply.type('application/zip');
+          return reply.send(archive.buffer);
+        } catch (err) {
+          request.log?.error?.(err);
+          return reply.code(500).send({ error: 'Failed to build export archive' });
+        }
+      }
+
+      return reply.code(400).send({
+        error: "Unsupported format. Use 'json-resume', 'csv', or 'archive'.",
+      });
     }
   );
 
