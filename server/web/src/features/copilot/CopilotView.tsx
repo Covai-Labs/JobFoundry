@@ -308,12 +308,22 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
     frameDocument.write(html);
     frameDocument.close();
 
+    // Remove the iframe once the print dialog closes. Some browsers render the preview
+    // asynchronously, so keep a generous fallback instead of a short fixed timeout.
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      frame.remove();
+    };
+    frameWindow.addEventListener('afterprint', cleanup);
+
     window.setTimeout(() => {
       if (typeof frameWindow.print === 'function') {
         frameWindow.focus();
         frameWindow.print();
       }
-      window.setTimeout(() => frame.remove(), 1000);
+      window.setTimeout(cleanup, 60000);
     }, 150);
   };
 

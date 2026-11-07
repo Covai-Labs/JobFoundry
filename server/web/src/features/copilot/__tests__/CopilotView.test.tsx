@@ -212,6 +212,12 @@ describe('CopilotView', () => {
     expect(printed).toContain('CloudCorp');
     expect(printed).toContain('Dear CloudCorp Team');
     expect(printed).toContain('Sincerely,');
+
+    // The frame stays mounted until the print dialog reports it has closed.
+    frame?.contentWindow?.dispatchEvent(new Event('afterprint'));
+    await waitFor(() => {
+      expect(document.querySelector('iframe[title="Cover letter print preview"]')).toBeNull();
+    });
   });
 
   it('escapes letterhead fields so resume data cannot inject markup', () => {
