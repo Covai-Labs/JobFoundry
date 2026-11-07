@@ -6,6 +6,7 @@ import {
   SettingMeta,
   DiagnosticsInfo,
   ExtensionConfig,
+  ExportFormat,
   PromptTemplateDefaults,
 } from '../../api/client';
 import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/ThemeContext';
@@ -44,6 +45,10 @@ import {
   MessageSquare,
   ShieldCheck,
   Cpu,
+  Download,
+  FileJson,
+  FileSpreadsheet,
+  Archive,
 } from 'lucide-react';
 import { LLM_PROVIDERS, detectProviderFromModel, ALL_RECOMMENDED_MODELS } from './llmCatalog';
 
@@ -137,6 +142,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [_isExtensionDirty, setIsExtensionDirty] = useState(false);
   const [savingScrapers, setSavingScrapers] = useState(false);
   const [extractingResume, setExtractingResume] = useState(false);
+  const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
 
   // System settings state
   const [formSettings, setFormSettings] = useState<SystemSettings>({
@@ -517,6 +523,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       toast.error(`Failed to fetch resume keywords: ${err?.message || 'Unknown error'}`);
     } finally {
       setExtractingResume(false);
+    }
+  };
+
+  const handleExport = async (format: ExportFormat) => {
+    setExportingFormat(format);
+    try {
+      const { blob, filename } = await api.downloadExport(format);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+      toast.success(`Export ready: ${filename}`);
+    } catch (err: any) {
+      toast.error(`Export failed: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setExportingFormat(null);
     }
   };
 
@@ -4946,6 +4972,90 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {activeTab === 'system' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <RegistrationControls />
+
+                  <div className="settings-card" style={{ padding: '1.5rem' }}>
+                    <h3
+                      style={{
+                        fontSize: '1.1rem',
+                        fontWeight: 600,
+                        marginBottom: '0.35rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                      }}
+                    >
+                      <Download size={18} style={{ color: 'var(--accent-primary)' }} />
+                      Data Export
+                    </h3>
+                    <p
+                      style={{
+                        fontSize: '0.85rem',
+                        color: 'var(--text-secondary)',
+                        marginBottom: '1.25rem',
+                      }}
+                    >
+                      Your career data belongs to you. Download portable copies generated from your
+                      local database and artifacts — no platform lock-in.
+                    </p>
+
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => handleExport('json-resume')}
+                        disabled={exportingFormat !== null}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                      >
+                        {exportingFormat === 'json-resume' ? (
+                          <RefreshCw size={16} className="spin" />
+                        ) : (
+                          <FileJson size={16} />
+                        )}
+                        JSON Resume
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => handleExport('csv')}
+                        disabled={exportingFormat !== null}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                      >
+                        {exportingFormat === 'csv' ? (
+                          <RefreshCw size={16} className="spin" />
+                        ) : (
+                          <FileSpreadsheet size={16} />
+                        )}
+                        Job History CSV
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-primary"
+                        onClick={() => handleExport('archive')}
+                        disabled={exportingFormat !== null}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                      >
+                        {exportingFormat === 'archive' ? (
+                          <RefreshCw size={16} className="spin" />
+                        ) : (
+                          <Archive size={16} />
+                        )}
+                        Full Archive (.zip)
+                      </button>
+                    </div>
+
+                    <p
+                      style={{
+                        fontSize: '0.78rem',
+                        color: 'var(--text-muted)',
+                        margin: '0.9rem 0 0',
+                      }}
+                    >
+                      JSON Resume exports your active master profile (v1.0.0). The CSV covers your
+                      full job search history. The archive bundles database records, tailored
+                      resumes, and generated PDFs.
+                    </p>
+                  </div>
+
                   <div className="settings-card" style={{ padding: '1.5rem' }}>
                     <h3
                       style={{

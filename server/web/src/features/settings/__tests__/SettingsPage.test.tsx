@@ -495,13 +495,57 @@ describe('SettingsPage', () => {
 
     renderComponent();
     await waitFor(() => {
-      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
-    });
-
-    await waitFor(() => {
       expect(
         screen.getByText(/Default AI Gateway \(Primary Model & Credentials\)/i)
       ).toBeInTheDocument();
     });
+  });
+
+  it('triggers downloads for JSON Resume, CSV, and Archive in System tab', async () => {
+    const downloadSpy = vi.spyOn(api, 'downloadExport').mockResolvedValue({
+      blob: new Blob(['test-data']),
+      filename: 'test-export.json',
+    });
+
+    const createObjectURLSpy = vi
+      .spyOn(URL, 'createObjectURL')
+      .mockReturnValue('blob:http://localhost/test-export');
+    const revokeObjectURLSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    // Switch to Telemetry & System tab
+    fireEvent.click(screen.getByRole('button', { name: /Telemetry & System/i }));
+
+    expect(screen.getByText('Data Export')).toBeInTheDocument();
+
+    const jsonResumeBtn = screen.getByRole('button', { name: /JSON Resume/i });
+    const csvBtn = screen.getByRole('button', { name: /Job History CSV/i });
+    const archiveBtn = screen.getByRole('button', { name: /Full Archive \(\.zip\)/i });
+
+    expect(jsonResumeBtn).toBeInTheDocument();
+    expect(csvBtn).toBeInTheDocument();
+    expect(archiveBtn).toBeInTheDocument();
+
+    fireEvent.click(jsonResumeBtn);
+    await waitFor(() => {
+      expect(downloadSpy).toHaveBeenCalledWith('json-resume');
+    });
+
+    fireEvent.click(csvBtn);
+    await waitFor(() => {
+      expect(downloadSpy).toHaveBeenCalledWith('csv');
+    });
+
+    fireEvent.click(archiveBtn);
+    await waitFor(() => {
+      expect(downloadSpy).toHaveBeenCalledWith('archive');
+    });
+
+    createObjectURLSpy.mockRestore();
+    revokeObjectURLSpy.mockRestore();
   });
 });

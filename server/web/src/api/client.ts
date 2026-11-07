@@ -29,6 +29,13 @@ export interface UserResume {
   updatedAt: number;
 }
 
+export type ExportFormat = 'json-resume' | 'csv' | 'archive';
+
+export interface ExportDownload {
+  blob: Blob;
+  filename: string;
+}
+
 export interface DiagnosticsInfo {
   status: string;
   uptime: number;
@@ -410,6 +417,40 @@ export class ApiClient {
       throw new ApiError(response.status, 'Failed to download ATS text');
     }
     return response.text();
+  }
+
+  async downloadExport(format: ExportFormat): Promise<ExportDownload> {
+    const url = `${this.baseUrl}/api/v1/export?format=${encodeURIComponent(format)}`;
+    const headers: Record<string, string> = {};
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      let errorMessage = response.statusText;
+      try {
+        const errorJson = await response.json();
+        errorMessage = errorJson.error || errorJson.message || errorMessage;
+      } catch {
+        // Response wasn't JSON
+      }
+      throw new ApiError(response.status, errorMessage || 'Failed to export data');
+    }
+
+    const disposition = response.headers.get('content-disposition') || '';
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    const fallback =
+      format === 'json-resume'
+        ? 'json-resume.json'
+        : `jobfoundry-${format === 'csv' ? 'jobs' : 'export'}-${new Date()
+            .toISOString()
+            .slice(0, 10)}.${format === 'csv' ? 'csv' : 'zip'}`;
+
+    return {
+      blob: await response.blob(),
+      filename: match?.[1] || fallback,
+    };
   }
 
   async getPipelineStats(): Promise<{
