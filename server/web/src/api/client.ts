@@ -31,6 +31,14 @@ export interface UserResume {
 
 export type ExportFormat = 'json-resume' | 'csv' | 'archive';
 
+export interface TailoredJob {
+  id: string;
+  title: string;
+  company: string;
+  tailored_resume_id: string;
+  updated_at?: number | null;
+}
+
 export interface ExportDownload {
   blob: Blob;
   filename: string;
@@ -280,6 +288,13 @@ export class ApiClient {
     const queryString = params.toString();
     const path = `/api/v1/jobs${queryString ? `?${queryString}` : ''}`;
     const res = await this.request<{ jobs: Job[] }>(path);
+    return res.jobs;
+  }
+
+  async getTailoredJobs(): Promise<TailoredJob[]> {
+    const res = await this.request<{ jobs: TailoredJob[] }>('/api/v1/export/tailored-jobs', {
+      signal: AbortSignal.timeout(15000),
+    });
     return res.jobs;
   }
 

@@ -7,7 +7,12 @@ import JSZip from 'jszip';
 import { buildApp } from '../src/app.mjs';
 import { openDb } from '../src/db/index.mjs';
 import { saveUserResume, validateResumeJson } from '../src/resumes/resumes.mjs';
-import { buildExportArchive, ExportLimitError } from '../src/export/export.mjs';
+import {
+  archiveSlots,
+  buildExportArchive,
+  ExportBusyError,
+  ExportLimitError,
+} from '../src/export/export.mjs';
 
 const MASTER_RESUME = {
   basics: {
@@ -248,10 +253,17 @@ test('export API', async (t) => {
     assert.ok(zip.file('artifacts/job-1/cover-letter.md'));
     assert.equal(zip.file('artifacts/job-1/payload.exe'), null);
 
+    // Automatic tailoring would omit Markdown; the archive synthesizes it from resume.json.
+    const markdown = await zip.file('artifacts/job-1/resume.md').async('string');
+    assert.match(markdown, /^# Jane Doe/);
+    assert.match(markdown, /Staff Distributed Systems Engineer/);
+
     const manifest = JSON.parse(await zip.file('manifest.json').async('string'));
     assert.equal(manifest.generator, 'JobFoundry');
     assert.equal(manifest.user_id, 'user-1');
-    assert.deepEqual(manifest.counts, { jobs: 3, artifacts: 4, has_master_resume: true });
+    assert.deepEqual(manifest.counts, { jobs: 3, artifacts: 5, has_master_resume: true });
+    assert.ok(manifest.archive_bytes > 0);
+    assert.ok(manifest.artifact_bytes > 0);
     assert.ok(manifest.files.includes('jobs.csv'));
     assert.ok(manifest.files.includes('master-resume.json'));
 
@@ -286,7 +298,7 @@ test('export API', async (t) => {
           db,
           userId: 'user-1',
           artifactsDir,
-          limits: { maxArtifactBytes: 8, maxArchiveBytes: 1024 },
+          limits: { maxArtifactBytes: 8, maxArchiveBytes: 10 * 1024 * 1024 },
         }),
       (err) => {
         assert.ok(err instanceof ExportLimitError);
@@ -296,6 +308,7 @@ test('export API', async (t) => {
       }
     );
 
+    // The cap covers serialized entries too, so a tiny total limit trips on jobs.json.
     await assert.rejects(
       () =>
         buildExportArchive({
@@ -310,5 +323,60 @@ test('export API', async (t) => {
         return true;
       }
     );
+  });
+
+  await t.test('excludes artifacts for jobs without a completed tailored variant', async () => {
+    const jobDir = join(artifactsDir, 'user-1', 'job-3');
+    mkdirSync(jobDir, { recursive: true });
+    writeFileSync(join(jobDir, 'resume.json'), JSON.stringify(TAILORED_RESUME));
+    writeFileSync(join(jobDir, 'resume.md'), '# In-progress variant');
+
+    const archive = await buildExportArchive({ db, userId: 'user-1', artifactsDir });
+    const zip = await JSZip.loadAsync(archive.buffer);
+
+    assert.equal(zip.file('artifacts/job-3/resume.json'), null);
+    assert.equal(zip.file('artifacts/job-3/resume.md'), null);
+  });
+
+  await t.test('rejects concurrent archive builds at the process limit', async () => {
+    const previousMax = archiveSlots.max;
+    archiveSlots.max = 1;
+    try {
+      const results = await Promise.allSettled([
+        buildExportArchive({ db, userId: 'user-1', artifactsDir }),
+        buildExportArchive({ db, userId: 'user-1', artifactsDir }),
+      ]);
+      const rejected = results.filter((result) => result.status === 'rejected');
+      assert.equal(rejected.length, 1);
+      assert.ok(rejected[0].reason instanceof ExportBusyError);
+    } finally {
+      archiveSlots.max = previousMax;
+    }
+  });
+
+  await t.test('lists tailored jobs through a dedicated endpoint', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/export/tailored-jobs',
+      headers: auth,
+    });
+
+    assert.equal(res.statusCode, 200);
+    const { jobs } = JSON.parse(res.payload);
+    assert.equal(jobs.length, 1);
+    assert.equal(jobs[0].id, 'job-1');
+    assert.equal(jobs[0].tailored_resume_id, 'tailored-job-1');
+    assert.equal(jobs[0].title, 'Staff Distributed Systems Engineer');
+  });
+
+  await t.test('does not advertise another user’s tailored variants', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/export/tailored-jobs',
+      headers: { authorization: 'Bearer user-2-key' },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(JSON.parse(res.payload).jobs, []);
   });
 });

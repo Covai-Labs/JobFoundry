@@ -2,6 +2,7 @@ import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import JSZip from 'jszip';
 import { isRegisteredUser } from '../settings/settings.mjs';
+import { renderResumeMarkdown } from '../resumes/resume-markdown.mjs';
 
 const SAFE_ID = /^[a-zA-Z0-9_-]+$/;
 const SAFE_ARTIFACT_FILENAME = /^[a-zA-Z0-9_-]+\.(json|pdf|txt|md)$/;
@@ -9,17 +10,35 @@ const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
 
 /**
  * Upper bounds that keep a single archive build from exhausting process memory.
- * Both values are measured against uncompressed artifact bytes.
+ * Both values are measured against uncompressed bytes, including the serialized
+ * job records, master resume, artifacts, and manifest.
  */
 export const DEFAULT_EXPORT_LIMITS = Object.freeze({
   maxArtifactBytes: 25 * 1024 * 1024,
   maxArchiveBytes: 100 * 1024 * 1024,
 });
 
+/**
+ * Process-wide guard so concurrent archive builds cannot exhaust memory even when
+ * each individual archive stays under `maxArchiveBytes`.
+ */
+export const archiveSlots = {
+  max: Number(process.env.MAX_CONCURRENT_EXPORT_ARCHIVES) || 2,
+  active: 0,
+};
+
 export class ExportLimitError extends Error {
   constructor(message, details = {}) {
     super(message);
     this.name = 'ExportLimitError';
+    this.details = details;
+  }
+}
+
+export class ExportBusyError extends Error {
+  constructor(message, details = {}) {
+    super(message);
+    this.name = 'ExportBusyError';
     this.details = details;
   }
 }
@@ -76,6 +95,38 @@ export function getExportJobs(db, userId) {
          j.liveness, j.fit_score, j.fit_notes, j.status, j.tailored_resume_id, j.created_at, j.updated_at
        FROM jobs j
        ORDER BY j.created_at DESC`
+    )
+    .all();
+}
+
+/**
+ * Return every job the user has successfully tailored, without pagination.
+ *
+ * Registered users are scoped through `user_jobs.tailored_resume_id` so a shared
+ * job's global tailored ID never advertises a variant the user does not own.
+ *
+ * @returns {Array<object>} Job rows ordered by most recently updated first.
+ */
+export function getTailoredJobs(db, userId) {
+  if (isRegisteredUser(db, userId)) {
+    return db
+      .prepare(
+        `SELECT
+           j.id, j.title, j.company, uj.tailored_resume_id, uj.updated_at
+         FROM user_jobs uj
+         JOIN jobs j ON uj.job_id = j.id
+         WHERE uj.user_id = ? AND uj.tailored_resume_id IS NOT NULL AND uj.tailored_resume_id != ''
+         ORDER BY uj.updated_at DESC`
+      )
+      .all(userId);
+  }
+
+  return db
+    .prepare(
+      `SELECT j.id, j.title, j.company, j.tailored_resume_id, j.updated_at
+       FROM jobs j
+       WHERE j.tailored_resume_id IS NOT NULL AND j.tailored_resume_id != ''
+       ORDER BY j.updated_at DESC`
     )
     .all();
 }
@@ -209,23 +260,72 @@ export async function buildExportArchive({
   now = new Date(),
   limits = DEFAULT_EXPORT_LIMITS,
 }) {
+  if (archiveSlots.active >= archiveSlots.max) {
+    throw new ExportBusyError('Another export archive is already being generated', {
+      active: archiveSlots.active,
+      limit: archiveSlots.max,
+    });
+  }
+
+  archiveSlots.active += 1;
+  try {
+    return await buildArchive({ db, userId, artifactsDir, now, limits });
+  } finally {
+    archiveSlots.active -= 1;
+  }
+}
+
+async function buildArchive({ db, userId, artifactsDir, now, limits }) {
   const zip = new JSZip();
   const jobs = getExportJobs(db, userId);
+  const completedTailoredJobIds = new Set(getTailoredJobs(db, userId).map((job) => job.id));
   const masterResume = getMasterResume(db, userId);
   const exportedAt = now.toISOString();
   const artifactFiles = [];
+  let archiveBytes = 0;
   let artifactBytes = 0;
 
-  zip.file('jobs.json', JSON.stringify({ exported_at: exportedAt, jobs }, null, 2));
-  zip.file('jobs.csv', jobsToCsv(jobs));
+  const byteLength = (content) =>
+    Buffer.isBuffer(content) ? content.length : Buffer.byteLength(content, 'utf8');
+
+  const addEntry = (name, content, { artifact = false } = {}) => {
+    const size = byteLength(content);
+    if (artifact && size > limits.maxArtifactBytes) {
+      throw new ExportLimitError(
+        `Artifact ${name} exceeds the ${limits.maxArtifactBytes} byte export limit`,
+        { file: name, size, limit: limits.maxArtifactBytes }
+      );
+    }
+    if (archiveBytes + size > limits.maxArchiveBytes) {
+      throw new ExportLimitError(
+        `Archive exceeds the ${limits.maxArchiveBytes} byte uncompressed export limit`,
+        { file: name, size: archiveBytes + size, limit: limits.maxArchiveBytes }
+      );
+    }
+    archiveBytes += size;
+    if (artifact) artifactBytes += size;
+    zip.file(name, content);
+  };
+
+  addEntry('jobs.json', JSON.stringify({ exported_at: exportedAt, jobs }, null, 2));
+  addEntry('jobs.csv', jobsToCsv(jobs));
 
   if (masterResume) {
-    zip.file('master-resume.json', JSON.stringify(masterResume, null, 2));
+    addEntry('master-resume.json', JSON.stringify(masterResume, null, 2));
   }
 
   for (const job of jobs) {
     if (!SAFE_ID.test(job.id)) continue;
-    for (const artifact of getArtifactFiles(artifactsDir, userId, job.id)) {
+    // Only bundle variants that finished successfully for this user. During tailoring
+    // the DB row keeps the previous value, so half-written files are excluded.
+    if (!completedTailoredJobIds.has(job.id)) continue;
+
+    const files = getArtifactFiles(artifactsDir, userId, job.id);
+    const available = new Set(files.map((file) => file.name));
+    let resumeJson = null;
+
+    for (const artifact of files) {
+      // Reject oversized files before reading them into memory.
       if (artifact.size > limits.maxArtifactBytes) {
         throw new ExportLimitError(
           `Artifact ${artifact.name} for job ${job.id} exceeds the ${limits.maxArtifactBytes} byte export limit`,
@@ -237,21 +337,33 @@ export async function buildExportArchive({
           }
         );
       }
-      artifactBytes += artifact.size;
-      if (artifactBytes > limits.maxArchiveBytes) {
-        throw new ExportLimitError(
-          `Archive exceeds the ${limits.maxArchiveBytes} byte uncompressed export limit`,
-          { size: artifactBytes, limit: limits.maxArchiveBytes }
-        );
-      }
 
+      let content;
       try {
-        const content = readFileSync(artifact.path);
-        const entry = `artifacts/${job.id}/${artifact.name}`;
-        zip.file(entry, content);
-        artifactFiles.push(entry);
+        content = readFileSync(artifact.path);
       } catch {
-        // Skip inaccessible artifact
+        // Skip unreadable artifact; it does not count towards the byte budget.
+        continue;
+      }
+      if (artifact.name === 'resume.json') resumeJson = content;
+
+      const entry = `artifacts/${job.id}/${artifact.name}`;
+      addEntry(entry, content, { artifact: true });
+      artifactFiles.push(entry);
+    }
+
+    // Automatic tailoring (scorer worker) writes resume.json without Markdown.
+    if (!available.has('resume.md') && resumeJson) {
+      let parsed;
+      try {
+        parsed = JSON.parse(resumeJson.toString('utf8'));
+      } catch {
+        parsed = null;
+      }
+      if (parsed) {
+        const entry = `artifacts/${job.id}/resume.md`;
+        addEntry(entry, renderResumeMarkdown(parsed), { artifact: true });
+        artifactFiles.push(entry);
       }
     }
   }
@@ -261,6 +373,7 @@ export async function buildExportArchive({
     format_version: 1,
     exported_at: exportedAt,
     user_id: userId,
+    archive_bytes: archiveBytes,
     artifact_bytes: artifactBytes,
     counts: {
       jobs: jobs.length,
@@ -275,7 +388,7 @@ export async function buildExportArchive({
       ...artifactFiles,
     ],
   };
-  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+  addEntry('manifest.json', JSON.stringify(manifest, null, 2));
 
   const buffer = await zip.generateAsync({
     type: 'nodebuffer',

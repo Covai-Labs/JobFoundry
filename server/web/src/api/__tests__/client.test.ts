@@ -241,6 +241,36 @@ describe('ApiClient', () => {
     expect(data.database.totalJobs).toBe(10);
   });
 
+  it('getTailoredJobs requests the unpaginated tailored jobs endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        jobs: [
+          {
+            id: 'job-1',
+            title: 'Staff Engineer',
+            company: 'CloudCorp',
+            tailored_resume_id: 'tailored-1',
+          },
+        ],
+      }),
+    });
+    global.fetch = fetchMock;
+
+    const jobs = await client.getTailoredJobs();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/export/tailored-jobs',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer test-key-123' },
+        signal: expect.anything(),
+      })
+    );
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].id).toBe('job-1');
+  });
+
   it('downloadExport requests the format and honours the returned filename', async () => {
     const blob = new Blob(['job_id,title\n'], { type: 'text/csv' });
     const fetchMock = vi.fn().mockResolvedValue({

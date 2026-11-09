@@ -147,6 +147,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [tailoredJobs, setTailoredJobs] = useState<Array<{ id: string; label: string }>>([]);
   const [tailoredJobsLoaded, setTailoredJobsLoaded] = useState(false);
   const [loadingTailoredJobs, setLoadingTailoredJobs] = useState(false);
+  const [tailoredJobsError, setTailoredJobsError] = useState<string | null>(null);
+  const [tailoredJobsReloadKey, setTailoredJobsReloadKey] = useState(0);
   const [selectedTailoredJobId, setSelectedTailoredJobId] = useState('');
 
   // System settings state
@@ -392,35 +394,40 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load tailored resume variants only when the System tab needs them
+  // Load tailored resume variants only when the System tab needs them.
+  // The list is only marked loaded after a successful response so failures can retry.
   useEffect(() => {
     if (activeTab !== 'system' || tailoredJobsLoaded) return;
 
     let cancelled = false;
     setLoadingTailoredJobs(true);
+    setTailoredJobsError(null);
     api
-      .getJobs({ limit: 500 })
+      .getTailoredJobs()
       .then((jobs) => {
         if (cancelled) return;
-        const options = jobs
-          .filter((job) => job.tailored_resume_id)
-          .map((job) => ({ id: job.id, label: `${job.title} — ${job.company}` }));
+        const options = jobs.map((job) => ({
+          id: job.id,
+          label: `${job.title} — ${job.company}`,
+        }));
         setTailoredJobs(options);
         setSelectedTailoredJobId((current) => current || options[0]?.id || '');
+        setTailoredJobsLoaded(true);
       })
-      .catch(() => {
+      .catch((err) => {
+        if (cancelled) return;
         // Exporting the master profile remains available when the job list cannot load.
+        setTailoredJobsError(err instanceof Error ? err.message : 'Failed to load tailored jobs');
       })
       .finally(() => {
         if (cancelled) return;
         setLoadingTailoredJobs(false);
-        setTailoredJobsLoaded(true);
       });
 
     return () => {
       cancelled = true;
     };
-  }, [activeTab, tailoredJobsLoaded]);
+  }, [activeTab, tailoredJobsLoaded, tailoredJobsReloadKey]);
 
   const handleSelectDefaultProvider = (providerId: string) => {
     setSelectedDefaultProvider(providerId);
@@ -5105,7 +5112,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           <option value="">
                             {loadingTailoredJobs
                               ? 'Loading tailored resumes...'
-                              : 'No tailored resumes yet'}
+                              : tailoredJobsError
+                                ? 'Could not load tailored resumes'
+                                : 'No tailored resumes yet'}
                           </option>
                         ) : (
                           tailoredJobs.map((job) => (
@@ -5129,6 +5138,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         )}
                         Tailored variant
                       </button>
+                      {tailoredJobsError && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setTailoredJobsReloadKey((key) => key + 1)}
+                          disabled={loadingTailoredJobs}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                        >
+                          <RefreshCw size={16} />
+                          Retry
+                        </button>
+                      )}
                     </div>
 
                     <p

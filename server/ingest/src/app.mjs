@@ -59,9 +59,11 @@ import {
 import { safeFetch } from './security/ssrf.mjs';
 import {
   buildExportArchive,
+  ExportBusyError,
   ExportLimitError,
   getExportJobs,
   getMasterResume,
+  getTailoredJobs,
   getTailoredResume,
   jobsToCsv,
 } from './export/export.mjs';
@@ -1928,7 +1930,6 @@ export function buildApp({
       const plainText = plainTextLines.join('\n');
       writeFileSync(resolve(jobDir, 'resume.txt'), plainText, 'utf-8');
       writeFileSync(resolve(jobDir, 'resume-text.txt'), plainText, 'utf-8');
-      writeFileSync(resolve(jobDir, 'resume.md'), renderResumeMarkdown(tailoredResume), 'utf-8');
 
       // Attempt internal resume-ops call for tailoring and PDF rendering
       const tailorPort = process.env.TAILOR_PORT || 8081;
@@ -2018,11 +2019,16 @@ export function buildApp({
                 JSON.stringify(data.resume, null, 2),
                 'utf-8'
               );
-              writeFileSync(
-                resolve(jobDir, 'resume.md'),
-                renderResumeMarkdown(data.resume),
-                'utf-8'
-              );
+              // Markdown is a secondary artifact: never fail tailoring if it cannot render.
+              try {
+                writeFileSync(
+                  resolve(jobDir, 'resume.md'),
+                  renderResumeMarkdown(data.resume),
+                  'utf-8'
+                );
+              } catch (mdErr) {
+                request.log?.warn?.(`resume.md render failed: ${mdErr.message}`);
+              }
             }
             tailorSuccess = true;
           } else {
@@ -2680,6 +2686,30 @@ export function buildApp({
     }
   );
 
+  // GET /api/v1/export/tailored-jobs - Jobs with a completed tailored resume for this user
+  app.get(
+    '/api/v1/export/tailored-jobs',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+
+      const userId = String(request.user.id || 'dev-user');
+      return reply.send({ jobs: getTailoredJobs(db, userId) });
+    }
+  );
+
   // GET /api/v1/export - Download user-owned data in standard formats
   app.get(
     '/api/v1/export',
@@ -2756,6 +2786,9 @@ export function buildApp({
           reply.type('application/zip');
           return reply.send(archive.buffer);
         } catch (err) {
+          if (err instanceof ExportBusyError) {
+            return reply.code(429).send({ error: err.message, details: err.details });
+          }
           if (err instanceof ExportLimitError) {
             return reply.code(413).send({ error: err.message, details: err.details });
           }

@@ -115,7 +115,7 @@ describe('SettingsPage', () => {
       },
     });
     vi.spyOn(api, 'getResumes').mockResolvedValue([]);
-    vi.spyOn(api, 'getJobs').mockResolvedValue([]);
+    vi.spyOn(api, 'getTailoredJobs').mockResolvedValue([]);
   });
 
   const renderComponent = (onSaveSettings = vi.fn()) => {
@@ -551,17 +551,12 @@ describe('SettingsPage', () => {
   });
 
   it('downloads a job-tailored JSON Resume variant from the System tab', async () => {
-    vi.mocked(api.getJobs).mockResolvedValue([
+    vi.mocked(api.getTailoredJobs).mockResolvedValue([
       {
         id: 'job-1',
         title: 'Staff Engineer',
         company: 'CloudCorp',
-        url: 'https://example.com/jobs/1',
-        source: 'greenhouse',
-        liveness: 'active',
-        status: 'tailored',
         tailored_resume_id: 'tailored-1',
-        created_at: 1000,
         updated_at: 1000,
       },
     ]);
@@ -580,7 +575,7 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /Telemetry & System/i }));
 
     await waitFor(() => {
-      expect(api.getJobs).toHaveBeenCalledWith({ limit: 500 });
+      expect(api.getTailoredJobs).toHaveBeenCalled();
       expect(screen.getByRole('option', { name: /Staff Engineer — CloudCorp/i })).toBeVisible();
     });
 
@@ -589,5 +584,37 @@ describe('SettingsPage', () => {
     await waitFor(() => {
       expect(downloadSpy).toHaveBeenCalledWith('json-resume', { jobId: 'job-1' });
     });
+  });
+
+  it('allows retrying when tailored jobs fail to load', async () => {
+    vi.mocked(api.getTailoredJobs)
+      .mockRejectedValueOnce(new Error('network down'))
+      .mockResolvedValueOnce([
+        {
+          id: 'job-2',
+          title: 'Principal Engineer',
+          company: 'DataCorp',
+          tailored_resume_id: 'tailored-2',
+          updated_at: 2000,
+        },
+      ]);
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Telemetry & System/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /Retry/i })).toBeVisible();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Retry/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('option', { name: /Principal Engineer — DataCorp/i })).toBeVisible();
+    });
+    expect(api.getTailoredJobs).toHaveBeenCalledTimes(2);
   });
 });
