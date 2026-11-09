@@ -143,6 +143,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [savingScrapers, setSavingScrapers] = useState(false);
   const [extractingResume, setExtractingResume] = useState(false);
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
+  const [exportingJobId, setExportingJobId] = useState<string | null>(null);
+  const [tailoredJobs, setTailoredJobs] = useState<Array<{ id: string; label: string }>>([]);
+  const [tailoredJobsLoaded, setTailoredJobsLoaded] = useState(false);
+  const [loadingTailoredJobs, setLoadingTailoredJobs] = useState(false);
+  const [tailoredJobsError, setTailoredJobsError] = useState<string | null>(null);
+  const [tailoredJobsReloadKey, setTailoredJobsReloadKey] = useState(0);
+  const [selectedTailoredJobId, setSelectedTailoredJobId] = useState('');
 
   // System settings state
   const [formSettings, setFormSettings] = useState<SystemSettings>({
@@ -387,6 +394,41 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load tailored resume variants only when the System tab needs them.
+  // The list is only marked loaded after a successful response so failures can retry.
+  useEffect(() => {
+    if (activeTab !== 'system' || tailoredJobsLoaded) return;
+
+    let cancelled = false;
+    setLoadingTailoredJobs(true);
+    setTailoredJobsError(null);
+    api
+      .getTailoredJobs()
+      .then((jobs) => {
+        if (cancelled) return;
+        const options = jobs.map((job) => ({
+          id: job.id,
+          label: `${job.title} — ${job.company}`,
+        }));
+        setTailoredJobs(options);
+        setSelectedTailoredJobId((current) => current || options[0]?.id || '');
+        setTailoredJobsLoaded(true);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        // Exporting the master profile remains available when the job list cannot load.
+        setTailoredJobsError(err instanceof Error ? err.message : 'Failed to load tailored jobs');
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoadingTailoredJobs(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTab, tailoredJobsLoaded, tailoredJobsReloadKey]);
+
   const handleSelectDefaultProvider = (providerId: string) => {
     setSelectedDefaultProvider(providerId);
     handleFieldChange('default_llm_provider', providerId);
@@ -526,10 +568,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     }
   };
 
-  const handleExport = async (format: ExportFormat) => {
+  const handleExport = async (format: ExportFormat, jobId?: string) => {
     setExportingFormat(format);
+    setExportingJobId(jobId || null);
     try {
-      const { blob, filename } = await api.downloadExport(format);
+      const { blob, filename } = jobId
+        ? await api.downloadExport(format, { jobId })
+        : await api.downloadExport(format);
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -545,6 +590,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       toast.error(`Export failed: ${err?.message || 'Unknown error'}`);
     } finally {
       setExportingFormat(null);
+      setExportingJobId(null);
     }
   };
 
@@ -5008,7 +5054,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         disabled={exportingFormat !== null}
                         style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
                       >
-                        {exportingFormat === 'json-resume' ? (
+                        {exportingFormat === 'json-resume' && !exportingJobId ? (
                           <RefreshCw size={16} className="spin" />
                         ) : (
                           <FileJson size={16} />
@@ -5045,6 +5091,67 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       </button>
                     </div>
 
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        marginTop: '0.9rem',
+                      }}
+                    >
+                      <select
+                        className="input-text"
+                        aria-label="Tailored resume to export"
+                        value={selectedTailoredJobId}
+                        onChange={(e) => setSelectedTailoredJobId(e.target.value)}
+                        disabled={loadingTailoredJobs || tailoredJobs.length === 0}
+                        style={{ maxWidth: '22rem' }}
+                      >
+                        {tailoredJobs.length === 0 ? (
+                          <option value="">
+                            {loadingTailoredJobs
+                              ? 'Loading tailored resumes...'
+                              : tailoredJobsError
+                                ? 'Could not load tailored resumes'
+                                : 'No tailored resumes yet'}
+                          </option>
+                        ) : (
+                          tailoredJobs.map((job) => (
+                            <option key={job.id} value={job.id}>
+                              {job.label}
+                            </option>
+                          ))
+                        )}
+                      </select>
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => handleExport('json-resume', selectedTailoredJobId)}
+                        disabled={!selectedTailoredJobId || exportingFormat !== null}
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                      >
+                        {exportingJobId === selectedTailoredJobId ? (
+                          <RefreshCw size={16} className="spin" />
+                        ) : (
+                          <FileJson size={16} />
+                        )}
+                        Tailored variant
+                      </button>
+                      {tailoredJobsError && (
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => setTailoredJobsReloadKey((key) => key + 1)}
+                          disabled={loadingTailoredJobs}
+                          style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}
+                        >
+                          <RefreshCw size={16} />
+                          Retry
+                        </button>
+                      )}
+                    </div>
+
                     <p
                       style={{
                         fontSize: '0.78rem',
@@ -5052,9 +5159,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         margin: '0.9rem 0 0',
                       }}
                     >
-                      JSON Resume exports your active master profile (v1.0.0). The CSV covers your
-                      full job search history. The archive bundles database records, tailored
-                      resumes, and generated PDFs.
+                      JSON Resume exports your active master profile (v1.0.0), and the selector
+                      downloads a job-tailored variant. The CSV covers your full job search history.
+                      The archive bundles database records, tailored resumes, and generated PDFs.
                     </p>
                   </div>
 
