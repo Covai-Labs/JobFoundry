@@ -265,6 +265,28 @@ describe('ApiClient', () => {
     expect(result.blob).toBe(blob);
   });
 
+  it('downloadExport encodes optional jobId into the export request URL', async () => {
+    const blob = new Blob(['{}'], { type: 'application/json' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      blob: async () => blob,
+    });
+    global.fetch = fetchMock;
+
+    const result = await client.downloadExport('json-resume', { jobId: 'job-123' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/export?format=json-resume&job_id=job-123',
+      {
+        headers: { Authorization: 'Bearer test-key-123' },
+      }
+    );
+    expect(result.filename).toBe('json-resume-job-123.json');
+    expect(result.blob).toBe(blob);
+  });
+
   it('downloadExport falls back to a generated filename when no header is present', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,

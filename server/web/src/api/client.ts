@@ -419,8 +419,15 @@ export class ApiClient {
     return response.text();
   }
 
-  async downloadExport(format: ExportFormat): Promise<ExportDownload> {
-    const url = `${this.baseUrl}/api/v1/export?format=${encodeURIComponent(format)}`;
+  async downloadExport(
+    format: ExportFormat,
+    options?: { jobId?: string }
+  ): Promise<ExportDownload> {
+    const params = new URLSearchParams({ format });
+    if (options?.jobId) {
+      params.set('job_id', options.jobId);
+    }
+    const url = `${this.baseUrl}/api/v1/export?${params.toString()}`;
     const headers: Record<string, string> = {};
     if (this.apiKey) {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
@@ -442,7 +449,9 @@ export class ApiClient {
     const match = /filename="?([^";]+)"?/i.exec(disposition);
     const fallback =
       format === 'json-resume'
-        ? 'json-resume.json'
+        ? options?.jobId
+          ? `json-resume-${options.jobId}.json`
+          : 'json-resume.json'
         : `jobfoundry-${format === 'csv' ? 'jobs' : 'export'}-${new Date()
             .toISOString()
             .slice(0, 10)}.${format === 'csv' ? 'csv' : 'zip'}`;

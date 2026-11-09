@@ -91,13 +91,38 @@ function setup(t) {
     now - 1000,
     now - 1000
   );
+  insertJob.run(
+    'job-3',
+    '=1+1',
+    '@EvilCorp',
+    '+Remote',
+    'https://example.com/jobs/3',
+    'custom',
+    'Formula test.',
+    null,
+    null,
+    'new',
+    now - 2000,
+    now - 2000
+  );
 
   const linkJob = db.prepare(
-    `INSERT INTO user_jobs (id, user_id, job_id, fit_score, status, tailored_resume_id, created_at, updated_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO user_jobs (id, user_id, job_id, fit_score, fit_notes, status, tailored_resume_id, created_at, updated_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
   );
-  linkJob.run('uj-1', 'user-1', 'job-1', 92, 'interview', 'tailored-job-1', now, now);
-  linkJob.run('uj-2', 'user-1', 'job-2', 71, 'applied', null, now - 1000, now - 1000);
+  linkJob.run(
+    'uj-1',
+    'user-1',
+    'job-1',
+    92,
+    JSON.stringify({ match: 'Strong' }),
+    'interview',
+    'tailored-job-1',
+    now,
+    now
+  );
+  linkJob.run('uj-2', 'user-1', 'job-2', 71, null, 'applied', null, now - 1000, now - 1000);
+  linkJob.run('uj-3', 'user-1', 'job-3', null, null, 'new', null, now - 2000, now - 2000);
 
   const jobDir = join(artifactsDir, 'user-1', 'job-1');
   mkdirSync(jobDir, { recursive: true });
@@ -129,28 +154,35 @@ test('export API', async (t) => {
     assert.match(JSON.parse(res.payload).error, /Unsupported format/);
   });
 
-  await t.test('exports CSV with RFC 4180 escaping and ISO dates', async () => {
-    const res = await app.inject({
-      method: 'GET',
-      url: '/api/v1/export?format=csv',
-      headers: auth,
-    });
+  await t.test(
+    'exports CSV with RFC 4180 escaping, CRLF separators, formula neutralization, and ISO dates',
+    async () => {
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/v1/export?format=csv',
+        headers: auth,
+      });
 
-    assert.equal(res.statusCode, 200);
-    assert.match(res.headers['content-type'], /text\/csv/);
-    assert.match(res.headers['content-disposition'], /attachment; filename="jobfoundry-jobs-/);
+      assert.equal(res.statusCode, 200);
+      assert.match(res.headers['content-type'], /text\/csv/);
+      assert.match(res.headers['content-disposition'], /attachment; filename="jobfoundry-jobs-/);
 
-    const lines = res.payload.trimEnd().split('\n');
-    assert.equal(
-      lines[0],
-      'job_id,title,company,location,source,url,fit_score,status,tailored_resume_id,posted_at,created_at,updated_at'
-    );
-    assert.equal(lines.length, 3);
-    assert.match(lines[1], /^job-1,/);
-    assert.match(lines[1], /"Acme, Inc\. ""North"""/);
-    assert.match(lines[1], /2023-11-14T22:13:20\.000Z/);
-    assert.match(lines[2], /^job-2,/);
-  });
+      assert.ok(res.payload.includes('\r\n'), 'CSV must use CRLF delimiters');
+      const lines = res.payload.trimEnd().split('\r\n');
+      assert.equal(
+        lines[0],
+        'job_id,title,company,location,source,url,fit_score,status,tailored_resume_id,posted_at,created_at,updated_at'
+      );
+      assert.equal(lines.length, 4);
+      assert.match(lines[1], /^job-1,/);
+      assert.match(lines[1], /"Acme, Inc\. ""North"""/);
+      assert.match(lines[1], /,92,/); // Numeric fit_score is NOT prefixed with single quote
+      assert.match(lines[1], /2023-11-14T22:13:20\.000Z/);
+      assert.match(lines[2], /^job-2,/);
+      // job-3 tests formula trigger characters neutralization
+      assert.match(lines[3], /^job-3,'=1\+1,'@EvilCorp,'\+Remote,/);
+    }
+  );
 
   await t.test('exports the master profile as JSON Resume', async () => {
     const res = await app.inject({
@@ -191,7 +223,7 @@ test('export API', async (t) => {
     assert.equal(res.statusCode, 404);
   });
 
-  await t.test('exports a full archive with records and artifacts', async () => {
+  await t.test('exports a full archive with records, fit notes, and artifacts', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/v1/export?format=archive',
@@ -205,8 +237,10 @@ test('export API', async (t) => {
     const zip = await JSZip.loadAsync(res.rawPayload);
     assert.ok(zip.file('manifest.json'));
     assert.ok(zip.file('jobs.json'));
-    assert.ok(zip.file('job-search.csv'));
-    assert.ok(zip.file('resume/master.json'));
+    assert.ok(zip.file('jobs.csv'));
+    assert.ok(zip.file('master-resume.json'));
+    assert.equal(zip.file('job-search.csv'), null);
+    assert.equal(zip.file('resume/master.json'), null);
     assert.ok(zip.file('artifacts/job-1/resume.json'));
     assert.ok(zip.file('artifacts/job-1/resume.pdf'));
     assert.ok(zip.file('artifacts/job-1/resume.txt'));
@@ -216,10 +250,13 @@ test('export API', async (t) => {
     const manifest = JSON.parse(await zip.file('manifest.json').async('string'));
     assert.equal(manifest.generator, 'JobFoundry');
     assert.equal(manifest.user_id, 'user-1');
-    assert.deepEqual(manifest.counts, { jobs: 2, artifacts: 4, has_master_resume: true });
+    assert.deepEqual(manifest.counts, { jobs: 3, artifacts: 4, has_master_resume: true });
+    assert.ok(manifest.files.includes('jobs.csv'));
+    assert.ok(manifest.files.includes('master-resume.json'));
 
     const jobs = JSON.parse(await zip.file('jobs.json').async('string'));
-    assert.equal(jobs.jobs.length, 2);
+    assert.equal(jobs.jobs.length, 3);
     assert.ok(jobs.jobs.every((job) => job.description));
+    assert.equal(jobs.jobs[0].fit_notes, JSON.stringify({ match: 'Strong' }));
   });
 });

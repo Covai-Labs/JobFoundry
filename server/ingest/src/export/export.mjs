@@ -1,10 +1,11 @@
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { readdirSync, readFileSync } from 'node:fs';
+import { isAbsolute, relative, resolve } from 'node:path';
 import JSZip from 'jszip';
 import { isRegisteredUser } from '../settings/settings.mjs';
 
 const SAFE_ID = /^[a-zA-Z0-9_-]+$/;
 const SAFE_ARTIFACT_FILENAME = /^[a-zA-Z0-9_-]+\.(json|pdf|txt|md)$/;
+const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
 
 const CSV_COLUMNS = [
   'job_id',
@@ -35,6 +36,7 @@ export function getExportJobs(db, userId) {
            j.id, j.title, j.company, j.location, j.url, j.source, j.description, j.posted_at,
            j.liveness,
            COALESCE(uj.fit_score, j.fit_score) AS fit_score,
+           COALESCE(uj.fit_notes, j.fit_notes) AS fit_notes,
            COALESCE(uj.status, j.status) AS status,
            COALESCE(uj.tailored_resume_id, j.tailored_resume_id) AS tailored_resume_id,
            COALESCE(uj.created_at, j.created_at) AS created_at,
@@ -51,7 +53,7 @@ export function getExportJobs(db, userId) {
     .prepare(
       `SELECT
          j.id, j.title, j.company, j.location, j.url, j.source, j.description, j.posted_at,
-         j.liveness, j.fit_score, j.status, j.tailored_resume_id, j.created_at, j.updated_at
+         j.liveness, j.fit_score, j.fit_notes, j.status, j.tailored_resume_id, j.created_at, j.updated_at
        FROM jobs j
        ORDER BY j.created_at DESC`
     )
@@ -93,10 +95,9 @@ export function getTailoredResume(artifactsDir, userId, jobId) {
   const base = resolve(artifactsDir);
   const filePath = resolve(base, userId, jobId, 'resume.json');
   const rel = relative(base, filePath);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(filePath)) return null;
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
 
   try {
-    if (!statSync(filePath).isFile()) return null;
     return JSON.parse(readFileSync(filePath, 'utf8'));
   } catch {
     return null;
@@ -114,15 +115,16 @@ export function getArtifactFiles(artifactsDir, userId, jobId) {
   const base = resolve(artifactsDir);
   const jobDir = resolve(base, userId, jobId);
   const rel = relative(base, jobDir);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(jobDir)) return [];
+  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return [];
 
   try {
-    if (!statSync(jobDir).isDirectory()) return [];
-    return readdirSync(jobDir)
-      .filter((name) => SAFE_ARTIFACT_FILENAME.test(name))
-      .map((name) => resolve(jobDir, name))
-      .filter((path) => statSync(path).isFile())
-      .map((path) => ({ name: path.slice(path.lastIndexOf(sep) + 1), path }));
+    const entries = readdirSync(jobDir, { withFileTypes: true });
+    return entries
+      .filter((entry) => entry.isFile() && SAFE_ARTIFACT_FILENAME.test(entry.name))
+      .map((entry) => ({
+        name: entry.name,
+        path: resolve(jobDir, entry.name),
+      }));
   } catch {
     return [];
   }
@@ -130,7 +132,10 @@ export function getArtifactFiles(artifactsDir, userId, jobId) {
 
 const csvCell = (value) => {
   if (value === null || value === undefined) return '';
-  const text = String(value);
+  let text = String(value);
+  if (typeof value === 'string' && FORMULA_TRIGGER.test(text)) {
+    text = `'${text}`;
+  }
   return /[",\r\n]/.test(text) ? `"${text.replaceAll('"', '""')}"` : text;
 };
 
@@ -167,7 +172,7 @@ export function jobsToCsv(jobs) {
         .join(',')
     );
   }
-  return `${lines.join('\n')}\n`;
+  return `${lines.join('\r\n')}\r\n`;
 }
 
 /**
@@ -184,18 +189,23 @@ export async function buildExportArchive({ db, userId, artifactsDir, now = new D
   const artifactFiles = [];
 
   zip.file('jobs.json', JSON.stringify({ exported_at: exportedAt, jobs }, null, 2));
-  zip.file('job-search.csv', jobsToCsv(jobs));
+  zip.file('jobs.csv', jobsToCsv(jobs));
 
   if (masterResume) {
-    zip.file('resume/master.json', JSON.stringify(masterResume, null, 2));
+    zip.file('master-resume.json', JSON.stringify(masterResume, null, 2));
   }
 
   for (const job of jobs) {
     if (!SAFE_ID.test(job.id)) continue;
     for (const artifact of getArtifactFiles(artifactsDir, userId, job.id)) {
-      const entry = `artifacts/${job.id}/${artifact.name}`;
-      zip.file(entry, readFileSync(artifact.path));
-      artifactFiles.push(entry);
+      try {
+        const content = readFileSync(artifact.path);
+        const entry = `artifacts/${job.id}/${artifact.name}`;
+        zip.file(entry, content);
+        artifactFiles.push(entry);
+      } catch {
+        // Skip inaccessible artifact
+      }
     }
   }
 
@@ -212,8 +222,8 @@ export async function buildExportArchive({ db, userId, artifactsDir, now = new D
     files: [
       'manifest.json',
       'jobs.json',
-      'job-search.csv',
-      ...(masterResume ? ['resume/master.json'] : []),
+      'jobs.csv',
+      ...(masterResume ? ['master-resume.json'] : []),
       ...artifactFiles,
     ],
   };

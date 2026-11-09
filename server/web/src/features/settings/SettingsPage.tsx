@@ -537,7 +537,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       document.body.appendChild(link);
       link.click();
       link.remove();
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        URL.revokeObjectURL(url);
+      }, 1000);
       toast.success(`Export ready: ${filename}`);
     } catch (err: any) {
       toast.error(`Export failed: ${err?.message || 'Unknown error'}`);
