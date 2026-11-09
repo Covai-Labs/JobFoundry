@@ -26,6 +26,7 @@ import { normalizeJob } from './jobs/normalize.mjs';
 import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
 import { parseJobDescription } from './jobs/parse-jd.mjs';
 import { parseResumeText } from './resume/parse-resume.mjs';
+import { renderResumeMarkdown } from './resumes/resume-markdown.mjs';
 import { cleanBoilerplate } from './jobs/decant.mjs';
 import {
   enqueueTask,
@@ -42,6 +43,7 @@ import {
   saveUserResume,
   setActiveResume,
   deleteUserResume,
+  validateResumeJson,
 } from './resumes/resumes.mjs';
 import {
   DEFAULT_EXTENSION_CONFIG,
@@ -57,6 +59,7 @@ import {
 import { safeFetch } from './security/ssrf.mjs';
 import {
   buildExportArchive,
+  ExportLimitError,
   getExportJobs,
   getMasterResume,
   getTailoredResume,
@@ -1925,6 +1928,7 @@ export function buildApp({
       const plainText = plainTextLines.join('\n');
       writeFileSync(resolve(jobDir, 'resume.txt'), plainText, 'utf-8');
       writeFileSync(resolve(jobDir, 'resume-text.txt'), plainText, 'utf-8');
+      writeFileSync(resolve(jobDir, 'resume.md'), renderResumeMarkdown(tailoredResume), 'utf-8');
 
       // Attempt internal resume-ops call for tailoring and PDF rendering
       const tailorPort = process.env.TAILOR_PORT || 8081;
@@ -2012,6 +2016,11 @@ export function buildApp({
               writeFileSync(
                 resolve(jobDir, 'resume.json'),
                 JSON.stringify(data.resume, null, 2),
+                'utf-8'
+              );
+              writeFileSync(
+                resolve(jobDir, 'resume.md'),
+                renderResumeMarkdown(data.resume),
                 'utf-8'
               );
             }
@@ -2724,6 +2733,15 @@ export function buildApp({
           });
         }
 
+        try {
+          validateResumeJson(resume);
+        } catch (err) {
+          return reply.code(422).send({
+            error: 'Resume does not conform to the JSON Resume v1.0.0 schema',
+            details: err.message,
+          });
+        }
+
         const filename = jobId ? `json-resume-${jobId}.json` : 'json-resume.json';
         reply.header('Content-Disposition', `attachment; filename="${filename}"`);
         reply.type('application/json; charset=utf-8');
@@ -2738,6 +2756,9 @@ export function buildApp({
           reply.type('application/zip');
           return reply.send(archive.buffer);
         } catch (err) {
+          if (err instanceof ExportLimitError) {
+            return reply.code(413).send({ error: err.message, details: err.details });
+          }
           request.log?.error?.(err);
           return reply.code(500).send({ error: 'Failed to build export archive' });
         }

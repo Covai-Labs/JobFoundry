@@ -1,11 +1,31 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 import JSZip from 'jszip';
 import { isRegisteredUser } from '../settings/settings.mjs';
 
 const SAFE_ID = /^[a-zA-Z0-9_-]+$/;
 const SAFE_ARTIFACT_FILENAME = /^[a-zA-Z0-9_-]+\.(json|pdf|txt|md)$/;
 const FORMULA_TRIGGER = /^[=+\-@\t\r]/;
+
+/**
+ * Upper bounds that keep a single archive build from exhausting process memory.
+ * Both values are measured against uncompressed artifact bytes.
+ */
+export const DEFAULT_EXPORT_LIMITS = Object.freeze({
+  maxArtifactBytes: 25 * 1024 * 1024,
+  maxArchiveBytes: 100 * 1024 * 1024,
+});
+
+export class ExportLimitError extends Error {
+  constructor(message, details = {}) {
+    super(message);
+    this.name = 'ExportLimitError';
+    this.details = details;
+  }
+}
+
+const escapesParent = (rel) =>
+  !rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel);
 
 const CSV_COLUMNS = [
   'job_id',
@@ -94,8 +114,7 @@ export function getTailoredResume(artifactsDir, userId, jobId) {
 
   const base = resolve(artifactsDir);
   const filePath = resolve(base, userId, jobId, 'resume.json');
-  const rel = relative(base, filePath);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return null;
+  if (escapesParent(relative(base, filePath))) return null;
 
   try {
     return JSON.parse(readFileSync(filePath, 'utf8'));
@@ -107,24 +126,26 @@ export function getTailoredResume(artifactsDir, userId, jobId) {
 /**
  * Return the user's artifact files on disk that are safe to bundle in an export.
  *
- * @returns {Array<{ name: string, path: string }>} Whitelisted artifact files.
+ * @returns {Array<{ name: string, path: string, size: number }>} Whitelisted artifact files.
  */
 export function getArtifactFiles(artifactsDir, userId, jobId) {
   if (!SAFE_ID.test(userId) || !SAFE_ID.test(jobId)) return [];
 
   const base = resolve(artifactsDir);
   const jobDir = resolve(base, userId, jobId);
-  const rel = relative(base, jobDir);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel)) return [];
+  if (escapesParent(relative(base, jobDir))) return [];
 
   try {
-    const entries = readdirSync(jobDir, { withFileTypes: true });
-    return entries
+    return readdirSync(jobDir, { withFileTypes: true })
       .filter((entry) => entry.isFile() && SAFE_ARTIFACT_FILENAME.test(entry.name))
-      .map((entry) => ({
-        name: entry.name,
-        path: resolve(jobDir, entry.name),
-      }));
+      .flatMap((entry) => {
+        const path = resolve(jobDir, entry.name);
+        try {
+          return [{ name: entry.name, path, size: statSync(path).size }];
+        } catch {
+          return [];
+        }
+      });
   } catch {
     return [];
   }
@@ -181,12 +202,19 @@ export function jobsToCsv(jobs) {
  *
  * @returns {Promise<{ buffer: Buffer, filename: string, counts: object }>} Archive payload.
  */
-export async function buildExportArchive({ db, userId, artifactsDir, now = new Date() }) {
+export async function buildExportArchive({
+  db,
+  userId,
+  artifactsDir,
+  now = new Date(),
+  limits = DEFAULT_EXPORT_LIMITS,
+}) {
   const zip = new JSZip();
   const jobs = getExportJobs(db, userId);
   const masterResume = getMasterResume(db, userId);
   const exportedAt = now.toISOString();
   const artifactFiles = [];
+  let artifactBytes = 0;
 
   zip.file('jobs.json', JSON.stringify({ exported_at: exportedAt, jobs }, null, 2));
   zip.file('jobs.csv', jobsToCsv(jobs));
@@ -198,6 +226,25 @@ export async function buildExportArchive({ db, userId, artifactsDir, now = new D
   for (const job of jobs) {
     if (!SAFE_ID.test(job.id)) continue;
     for (const artifact of getArtifactFiles(artifactsDir, userId, job.id)) {
+      if (artifact.size > limits.maxArtifactBytes) {
+        throw new ExportLimitError(
+          `Artifact ${artifact.name} for job ${job.id} exceeds the ${limits.maxArtifactBytes} byte export limit`,
+          {
+            job_id: job.id,
+            file: artifact.name,
+            size: artifact.size,
+            limit: limits.maxArtifactBytes,
+          }
+        );
+      }
+      artifactBytes += artifact.size;
+      if (artifactBytes > limits.maxArchiveBytes) {
+        throw new ExportLimitError(
+          `Archive exceeds the ${limits.maxArchiveBytes} byte uncompressed export limit`,
+          { size: artifactBytes, limit: limits.maxArchiveBytes }
+        );
+      }
+
       try {
         const content = readFileSync(artifact.path);
         const entry = `artifacts/${job.id}/${artifact.name}`;
@@ -214,6 +261,7 @@ export async function buildExportArchive({ db, userId, artifactsDir, now = new D
     format_version: 1,
     exported_at: exportedAt,
     user_id: userId,
+    artifact_bytes: artifactBytes,
     counts: {
       jobs: jobs.length,
       artifacts: artifactFiles.length,

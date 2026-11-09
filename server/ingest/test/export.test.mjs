@@ -7,6 +7,7 @@ import JSZip from 'jszip';
 import { buildApp } from '../src/app.mjs';
 import { openDb } from '../src/db/index.mjs';
 import { saveUserResume, validateResumeJson } from '../src/resumes/resumes.mjs';
+import { buildExportArchive, ExportLimitError } from '../src/export/export.mjs';
 
 const MASTER_RESUME = {
   basics: {
@@ -136,7 +137,7 @@ function setup(t) {
 }
 
 test('export API', async (t) => {
-  const { app } = setup(t);
+  const { app, db, artifactsDir } = setup(t);
   const auth = { authorization: 'Bearer user-1-key' };
 
   await t.test('rejects unauthenticated requests', async () => {
@@ -258,5 +259,56 @@ test('export API', async (t) => {
     assert.equal(jobs.jobs.length, 3);
     assert.ok(jobs.jobs.every((job) => job.description));
     assert.equal(jobs.jobs[0].fit_notes, JSON.stringify({ match: 'Strong' }));
+  });
+
+  await t.test('rejects tailored resumes that fail JSON Resume validation', async () => {
+    const jobDir = join(artifactsDir, 'user-1', 'job-2');
+    mkdirSync(jobDir, { recursive: true });
+    writeFileSync(
+      join(jobDir, 'resume.json'),
+      JSON.stringify({ basics: { name: 42, email: 'not-an-email' } })
+    );
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/export?format=json-resume&job_id=job-2',
+      headers: auth,
+    });
+
+    assert.equal(res.statusCode, 422);
+    assert.match(JSON.parse(res.payload).error, /JSON Resume/);
+  });
+
+  await t.test('rejects archives that exceed the configured size limits', async () => {
+    await assert.rejects(
+      () =>
+        buildExportArchive({
+          db,
+          userId: 'user-1',
+          artifactsDir,
+          limits: { maxArtifactBytes: 8, maxArchiveBytes: 1024 },
+        }),
+      (err) => {
+        assert.ok(err instanceof ExportLimitError);
+        assert.match(err.message, /exceeds/);
+        assert.equal(err.details.limit, 8);
+        return true;
+      }
+    );
+
+    await assert.rejects(
+      () =>
+        buildExportArchive({
+          db,
+          userId: 'user-1',
+          artifactsDir,
+          limits: { maxArtifactBytes: 1024, maxArchiveBytes: 10 },
+        }),
+      (err) => {
+        assert.ok(err instanceof ExportLimitError);
+        assert.match(err.message, /uncompressed export limit/);
+        return true;
+      }
+    );
   });
 });

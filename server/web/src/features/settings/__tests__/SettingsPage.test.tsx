@@ -115,6 +115,7 @@ describe('SettingsPage', () => {
       },
     });
     vi.spyOn(api, 'getResumes').mockResolvedValue([]);
+    vi.spyOn(api, 'getJobs').mockResolvedValue([]);
   });
 
   const renderComponent = (onSaveSettings = vi.fn()) => {
@@ -547,5 +548,46 @@ describe('SettingsPage', () => {
 
     createObjectURLSpy.mockRestore();
     revokeObjectURLSpy.mockRestore();
+  });
+
+  it('downloads a job-tailored JSON Resume variant from the System tab', async () => {
+    vi.mocked(api.getJobs).mockResolvedValue([
+      {
+        id: 'job-1',
+        title: 'Staff Engineer',
+        company: 'CloudCorp',
+        url: 'https://example.com/jobs/1',
+        source: 'greenhouse',
+        liveness: 'active',
+        status: 'tailored',
+        tailored_resume_id: 'tailored-1',
+        created_at: 1000,
+        updated_at: 1000,
+      },
+    ]);
+    const downloadSpy = vi.spyOn(api, 'downloadExport').mockResolvedValue({
+      blob: new Blob(['{}']),
+      filename: 'json-resume-job-1.json',
+    });
+    vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:http://localhost/tailored');
+    vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => {});
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Telemetry & System/i }));
+
+    await waitFor(() => {
+      expect(api.getJobs).toHaveBeenCalledWith({ limit: 500 });
+      expect(screen.getByRole('option', { name: /Staff Engineer — CloudCorp/i })).toBeVisible();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Tailored variant/i }));
+
+    await waitFor(() => {
+      expect(downloadSpy).toHaveBeenCalledWith('json-resume', { jobId: 'job-1' });
+    });
   });
 });
