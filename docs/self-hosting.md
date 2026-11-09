@@ -66,7 +66,9 @@ database becomes the administrator.
 
 Until you lock registration, anyone who can reach the dashboard can create the
 first account and become admin. Do not leave a public instance unattended with
-`REGISTRATION_MODE=open`.
+`REGISTRATION_MODE=open`. If deploying directly to a public host, you can also
+pre-set `API_KEYS` in your environment to enforce API key authentication, or keep
+port 8080 restricted to loopback/VPN until your account is initialized.
 
 `TRUST_PROXY=true` is correct when the container is only reachable through the
 panel's reverse proxy. If you publish the port directly, set `TRUST_PROXY` to
@@ -183,8 +185,23 @@ docker compose up -d
 ./scripts/healthcheck.sh
 ```
 
-Open `http://localhost:8080`. For a public host, put Caddy, nginx, Traefik, or
-another TLS proxy in front of port 8080 and set `TRUST_PROXY` appropriately.
+Open `http://localhost:8080`.
+
+> [!IMPORTANT]
+> When deploying on a public VPS behind a TLS reverse proxy (Caddy, Nginx, Traefik),
+> do not expose unencrypted port 8080 publicly. Bind it to localhost by adding a
+> `compose.override.yaml` (or setting firewall rules to block external access to port 8080):
+>
+> ```yaml
+> # compose.override.yaml
+> services:
+>   jobfoundry:
+>     ports:
+>       - "127.0.0.1:8080:8080"
+> ```
+>
+> Ensure `TRUST_PROXY=true` is set in your `.env` so JobFoundry detects the client's
+> HTTPS protocol and public hostname from the proxy headers.
 
 The complete environment reference is [`.env.example`](../.env.example). The
 root `compose.yaml` also works with Podman:
@@ -215,14 +232,22 @@ The exact volume name differs by platform. Find it with:
 docker volume ls | grep -i jobfoundry
 ```
 
-Back up a volume to a tarball:
+Back up a volume to a tarball. Stop or pause the container briefly before taking the
+backup to ensure SQLite checkpoints its WAL log and writes finish cleanly:
 
 ```bash
 VOLUME=jobfoundry-data   # replace with the real name
+
+# Stop the container briefly to prevent partial writes
+docker compose stop jobfoundry  # or stop/pause the service in your panel
+
 docker run --rm \
   -v "$VOLUME":/data:ro \
   -v "$PWD":/backup \
   alpine tar czf /backup/jobfoundry-data-$(date +%F).tgz -C /data .
+
+# Restart the container
+docker compose start jobfoundry
 ```
 
 Stop the app before restoring, then extract into a fresh volume:
