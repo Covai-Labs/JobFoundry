@@ -142,6 +142,18 @@ Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting
 
 ---
 
+### 4. Self-Hosted Panels (Coolify, CapRover, Dokploy)
+
+Prefer a web-based deployment panel? Ready-to-paste templates and backup notes are in the **[Self-Hosting Guide](docs/self-hosting.md)**:
+
+- **Coolify:** paste `deploy/coolify/jobfoundry.yaml` into a **Docker Compose Empty** service. The official Coolify catalog requires 1,000 GitHub stars, so it is not listed there yet.
+- **CapRover:** paste `deploy/caprover/jobfoundry.yml` into **One-Click Apps → TEMPLATE**.
+- **Dokploy:** paste `deploy/dokploy/docker-compose.yml` into a **Compose** service; the `blueprints/`-ready files are included too.
+
+All templates mount a persistent `/data` volume and use a health check.
+
+---
+
 ## JobFoundry vs career-ops
 
 Both are free, local-first, and worth your time — they solve different jobs:

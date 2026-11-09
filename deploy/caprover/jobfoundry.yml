@@ -1,0 +1,50 @@
+captainVersion: 4
+services:
+  # CapRover parses only a Compose subset. The image's Dockerfile HEALTHCHECK
+  # is what CapRover/Docker Swarm uses to detect an unhealthy container.
+  $$cap_appname:
+    image: ghcr.io/covai-labs/jobfoundry:$$cap_version
+    environment:
+      PORT: '8080'
+      DATA_DIR: /data
+      DB_PATH: /data/jobfoundry.db
+      ARTIFACTS_DIR: /data/artifacts
+      MASTER_RESUME_PATH: /data/master-resume.json
+      REGISTRATION_MODE: open
+      TRUST_PROXY: 'true'
+    volumes:
+      # SQLite database, tailored artifacts, master resume, and themes all live
+      # under /data. Back up this volume separately from CapRover config.
+      - $$cap_appname-data:/data
+    caproverExtra:
+      containerHttpPort: '8080'
+caproverOneClickApp:
+  variables:
+    - id: $$cap_version
+      label: JobFoundry image tag
+      defaultValue: latest
+      description: Use a release tag such as v0.5.1 for reproducible deployments, or latest to track main.
+      validRegex: '/^[A-Za-z0-9._-]+$/'
+  instructions:
+    start: |-
+      JobFoundry is a local-first job-search pipeline: capture postings from your
+      browser, deduplicate cross-posts, score fit with an LLM, and tailor truthful
+      resumes. Everything is stored in this app's /data volume.
+
+      After deployment, open the dashboard and register the first account
+      immediately. The first account becomes the administrator.
+    end: |-
+      JobFoundry is deployed at http://$$cap_appname.$$cap_root_domain
+
+      Next steps:
+      1. Enable HTTPS and force HTTPS in CapRover's HTTP settings.
+      2. Open the dashboard and register the first account (it becomes admin).
+      3. Add your LLM API key under Settings, or set provider keys as app env vars.
+      4. Set REGISTRATION_MODE=disabled in App Configs and redeploy after creating
+         your account, unless you intentionally want public sign-ups.
+      5. Back up the $$cap_appname-data volume; CapRover config backups do not
+         include application data.
+  displayName: JobFoundry
+  isOfficial: true
+  description: Local-first job capture, deduplication, LLM fit scoring, and truthful resume tailoring with a Kanban tracker.
+  documentation: https://github.com/Covai-Labs/JobFoundry/blob/main/docs/self-hosting.md
