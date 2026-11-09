@@ -66,9 +66,9 @@ database becomes the administrator.
 
 Until you lock registration, anyone who can reach the dashboard can create the
 first account and become admin. Do not leave a public instance unattended with
-`REGISTRATION_MODE=open`. If deploying directly to a public host, you can also
-pre-set `API_KEYS` in your environment to enforce API key authentication, or keep
-port 8080 restricted to loopback/VPN until your account is initialized.
+`REGISTRATION_MODE=open`. On an internet-facing host, keep port 8080 bound to
+loopback, restrict external access, or use temporary HTTP basic auth on your
+reverse proxy until you have completed initial administrator registration.
 
 `TRUST_PROXY=true` is correct when the container is only reachable through the
 panel's reverse proxy. If you publish the port directly, set `TRUST_PROXY` to
@@ -196,7 +196,7 @@ Open `http://localhost:8080`.
 > # compose.override.yaml
 > services:
 >   jobfoundry:
->     ports:
+>     ports: !override
 >       - "127.0.0.1:8080:8080"
 > ```
 >
@@ -236,27 +236,40 @@ Back up a volume to a tarball. Stop or pause the container briefly before taking
 backup to ensure SQLite checkpoints its WAL log and writes finish cleanly:
 
 ```bash
-VOLUME=jobfoundry-data   # replace with the real name
+VOLUME=jobfoundry-data   # replace with the real volume name
 
 # Stop the container briefly to prevent partial writes
 docker compose stop jobfoundry  # or stop/pause the service in your panel
 
+# Create archive with restrictive permissions (0600) so secrets remain private
 docker run --rm \
   -v "$VOLUME":/data:ro \
   -v "$PWD":/backup \
-  alpine tar czf /backup/jobfoundry-data-$(date +%F).tgz -C /data .
+  alpine sh -c 'umask 077 && tar czf /backup/jobfoundry-data-$(date +%F).tgz -C /data .'
 
 # Restart the container
 docker compose start jobfoundry
 ```
 
-Stop the app before restoring, then extract into a fresh volume:
+To restore from a backup:
 
 ```bash
+ARCHIVE="jobfoundry-data-YYYY-MM-DD.tgz"  # replace with target backup filename
+
+# Verify archive integrity before touching data
+tar -tzf "$ARCHIVE" > /dev/null || { echo "Archive corrupted"; exit 1; }
+
+# Stop the service
+docker compose stop jobfoundry
+
+# Extract into the volume
 docker run --rm \
   -v "$VOLUME":/data \
   -v "$PWD":/backup \
-  alpine sh -c 'rm -rf /data/* && tar xzf /backup/jobfoundry-data-YYYY-MM-DD.tgz -C /data'
+  alpine sh -c "rm -rf /data/* && tar xzf /backup/$ARCHIVE -C /data"
+
+# Restart the service
+docker compose up -d
 ```
 
 Start the app and verify the dashboard, job list, and a tailored artifact after
