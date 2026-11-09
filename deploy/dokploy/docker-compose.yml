@@ -1,0 +1,38 @@
+services:
+  jobfoundry:
+    image: ghcr.io/covai-labs/jobfoundry:${JOBFOUNDRY_VERSION:-latest}
+    restart: unless-stopped
+    expose:
+      # Dokploy/Traefik proxies this port. Do not publish it directly.
+      - '8080'
+    environment:
+      PORT: '8080'
+      DATA_DIR: /data
+      DB_PATH: /data/jobfoundry.db
+      ARTIFACTS_DIR: /data/artifacts
+      MASTER_RESUME_PATH: /data/master-resume.json
+      SERVER_URL: ${SERVER_URL:-}
+      REGISTRATION_MODE: ${REGISTRATION_MODE:-open}
+      TRUST_PROXY: ${TRUST_PROXY:-true}
+      API_KEYS: ${API_KEYS:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    volumes:
+      # SQLite database, tailored artifacts, master resume, and themes all live
+      # under /data. Keep this volume backed up.
+      - jobfoundry-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8080/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  jobfoundry-data: {}
