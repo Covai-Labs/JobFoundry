@@ -1847,15 +1847,6 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
   const tmpDir = mkdtempSync(join(tmpdir(), 'jobfoundry-mcp-e2e-'));
   const artifactsDir = join(tmpDir, 'artifacts');
   const db = openDb({ path: join(tmpDir, 'jobfoundry.db') });
-  const apiKey = 'mcp-e2e-key';
-
-  const app = buildApp({
-    db,
-    apiKeys: [apiKey],
-    artifactsDir,
-    logger: false,
-  });
-  const baseUrl = await app.listen({ port: 0, host: '127.0.0.1' });
 
   const tailorServer = createHttpServer((req, res) => {
     if (req.method !== 'POST' || req.url !== '/api/v1/tailor') {
@@ -1881,7 +1872,13 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
   const previousTailorPort = process.env.TAILOR_PORT;
   process.env.TAILOR_PORT = String(tailorServer.address().port);
 
-  const auth = { authorization: `Bearer ${apiKey}` };
+  const app = buildApp({
+    db,
+    apiKeys: [],
+    artifactsDir,
+    logger: false,
+  });
+  const baseUrl = await app.listen({ port: 0, host: '127.0.0.1' });
 
   const client = new Client({ name: 'jobfoundry-mcp-e2e', version: '0.0.0' });
 
@@ -1894,6 +1891,27 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
     else process.env.TAILOR_PORT = previousTailorPort;
     rmSync(tmpDir, { recursive: true, force: true });
   });
+
+  // Register a real user: the MCP server authenticates with that user's API key,
+  // exactly as a dashboard user would copy it from Settings.
+  const registerRes = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/register',
+    payload: { email: 'alice@example.com', password: 'password123', name: 'Alice Developer' },
+  });
+  assert.equal(registerRes.statusCode, 201);
+  const registered = registerRes.json();
+  const apiKey = registered.user.apiKey;
+  const userId = registered.user.id;
+  const auth = { authorization: `Bearer ${apiKey}` };
+
+  // A registered user must supply their own LLM key before tailoring runs.
+  db.prepare('INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)').run(
+    userId,
+    'default_llm_api_key',
+    'test-llm-key',
+    Date.now()
+  );
 
   const resumeRes = await app.inject({
     method: 'POST',
@@ -1912,7 +1930,9 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
   assert.equal(ingestRes.statusCode, 200);
   const [jobA, jobB] = ingestRes.json().ids;
 
-  db.prepare('UPDATE jobs SET fit_score = ?, fit_notes = ? WHERE id = ?').run(
+  db.prepare(
+    'UPDATE user_jobs SET fit_score = ?, fit_notes = ? WHERE user_id = ? AND job_id = ?'
+  ).run(
     88,
     JSON.stringify({
       reasoning: 'Strong platform match',
@@ -1921,6 +1941,7 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
       is_valid_job: true,
       is_truncated: false,
     }),
+    userId,
     jobA
   );
 
@@ -1928,9 +1949,7 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
     command: process.execPath,
     args: [resolve(import.meta.dirname, '../src/index.mjs')],
     env: {
-      ...Object.fromEntries(
-        Object.entries(process.env).filter(([, value]) => value !== undefined)
-      ),
+      ...Object.fromEntries(Object.entries(process.env).filter(([, value]) => value !== undefined)),
       JOBFOUNDRY_URL: baseUrl,
       JOBFOUNDRY_API_KEY: apiKey,
     },
@@ -1950,9 +1969,7 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
     ]
   );
 
-  const profile = JSON.parse(
-    textOf(await client.callTool({ name: 'get_profile', arguments: {} }))
-  );
+  const profile = JSON.parse(textOf(await client.callTool({ name: 'get_profile', arguments: {} })));
   assert.equal(profile.resume.basics.name, 'Alice Developer');
   assert.deepEqual(profile.skills, ['Go', 'Kubernetes', 'SQLite', 'TypeScript']);
 
@@ -1974,9 +1991,7 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
   assert.equal(badSearch.isError, true);
 
   const fit = JSON.parse(
-    textOf(
-      await client.callTool({ name: 'get_job_fit_score', arguments: { job_id: jobA } })
-    )
+    textOf(await client.callTool({ name: 'get_job_fit_score', arguments: { job_id: jobA } }))
   );
   assert.equal(fit.scored, true);
   assert.equal(fit.breakdown.reasoning, 'Strong platform match');
@@ -1991,14 +2006,22 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
     )
   );
   assert.equal(applied.status, 'interview');
-  assert.equal(db.prepare('SELECT status FROM jobs WHERE id = ?').get(jobB).status, 'interview');
+  assert.equal(
+    db.prepare('SELECT status FROM user_jobs WHERE user_id = ? AND job_id = ?').get(userId, jobB)
+      .status,
+    'interview'
+  );
 
   const badUpdate = await client.callTool({
     name: 'update_application_status',
     arguments: { job_id: jobB, status: 'score_failed' },
   });
   assert.equal(badUpdate.isError, true);
-  assert.equal(db.prepare('SELECT status FROM jobs WHERE id = ?').get(jobB).status, 'interview');
+  assert.equal(
+    db.prepare('SELECT status FROM user_jobs WHERE user_id = ? AND job_id = ?').get(userId, jobB)
+      .status,
+    'interview'
+  );
 
   const tailored = JSON.parse(
     textOf(
@@ -2012,7 +2035,7 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
   assert.match(tailored.tailored_resume_id, /^tailored-/);
   assert.equal(tailored.job.status, 'tailored');
 
-  const artifactDir = join(artifactsDir, 'legacy-admin', jobA);
+  const artifactDir = join(artifactsDir, userId, jobA);
   assert.ok(existsSync(join(artifactDir, 'resume.json')));
   assert.ok(existsSync(join(artifactDir, 'resume.txt')));
   const pdf = readFileSync(join(artifactDir, 'resume.pdf'));
@@ -2036,10 +2059,13 @@ npm --workspace=server/mcp test
 
 If it fails, fix the defect in the task that owns the behavior (Tasks 1–6), never by weakening an assertion. The concrete checks are:
 
+- `POST /api/v1/auth/register` must return 201 and yield a user id plus API key. `user_resumes` has a foreign key to `users`, so a legacy pre-shared key cannot own a master resume; the test authenticates as a registered user, exactly like a dashboard user who copies the key from Settings.
 - `POST /api/v1/resumes` must return 201. If it returns 400, the `RESUME` fixture failed `validateResumeJson`; correct the fixture until it passes the JSON Resume schema.
+- Tailoring must not fail with "No API key configured". A registered user is BYOK, so the test inserts a `default_llm_api_key` row into `user_settings` for that user before calling the tool.
 - The child process must resolve `@modelcontextprotocol/sdk`. Run the suite through `npm --workspace=server/mcp test` so resolution starts at the repo root.
 - The tailor call must reach the mock. `process.env.TAILOR_PORT` is set before `buildApp` and before the tool call; if it is not, move the assignment above both.
-- Artifacts must land under `<artifactsDir>/legacy-admin/<jobA>/`. If the path differs, print the tailored job response and correct the assertion path while keeping the `%PDF-` magic-byte check.
+- Artifacts must land under `<artifactsDir>/<userId>/<jobA>/`. If the path differs, print the tailored job response and correct the assertion path while keeping the `%PDF-` magic-byte check.
+- Per-user stage changes live in `user_jobs`, so assert against `SELECT status FROM user_jobs WHERE user_id = ? AND job_id = ?`.
 
 - [ ] **Step 4: Run the MCP test suite to verify it passes**
 
