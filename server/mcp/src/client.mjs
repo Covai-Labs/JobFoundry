@@ -11,12 +11,40 @@ function encodeId(id) {
   return encodeURIComponent(String(id));
 }
 
+function timeoutMessage(timeoutMs) {
+  return `Request to JobFoundry timed out after ${Math.max(1, Math.round(timeoutMs / 1000))}s`;
+}
+
+function isTimeout(err) {
+  return err?.name === 'TimeoutError' || err?.name === 'AbortError';
+}
+
 export class JobFoundryClient {
   constructor({ baseUrl, apiKey = '', timeoutMs = 30000, fetchImpl = fetch }) {
     this.baseUrl = String(baseUrl).replace(/\/+$/, '');
     this.apiKey = apiKey;
     this.timeoutMs = timeoutMs;
     this.fetchImpl = fetchImpl;
+  }
+
+  networkError(err, timeoutMs) {
+    if (isTimeout(err)) return new ApiError(timeoutMessage(timeoutMs));
+    if (/redirect/i.test(err?.cause?.message ?? '')) {
+      return new ApiError(
+        'JobFoundry redirected the request, but redirects are not followed. Point JOBFOUNDRY_URL at the final base URL.'
+      );
+    }
+    const cause = err?.cause?.message ? `: ${err.cause.message}` : '';
+    return new ApiError(`Could not reach JobFoundry at ${this.baseUrl}${cause}`);
+  }
+
+  errorMessage(data, text, status) {
+    // JobFoundry's own handlers use `{ error: "human text" }`; Fastify and most
+    // proxies add `message` alongside a machine-readable `error` code.
+    if (data && typeof data.message === 'string' && data.message) return data.message;
+    if (data && typeof data.error === 'string' && data.error) return data.error;
+    const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 200);
+    return `JobFoundry API returned HTTP ${status}${snippet ? `: ${snippet}` : ''}`;
   }
 
   async request(path, { method = 'GET', body, timeoutMs } = {}) {
@@ -35,14 +63,16 @@ export class JobFoundryClient {
         signal: AbortSignal.timeout(effectiveTimeout),
       });
     } catch (err) {
-      if (err.name === 'TimeoutError' || err.name === 'AbortError') {
-        const seconds = Math.round(effectiveTimeout / 1000);
-        throw new ApiError(`Request to JobFoundry timed out after ${seconds}s`);
-      }
-      throw new ApiError(`Could not reach JobFoundry at ${this.baseUrl}: ${err.message}`);
+      throw this.networkError(err, effectiveTimeout);
     }
 
-    const text = await response.text();
+    let text;
+    try {
+      text = await response.text();
+    } catch (err) {
+      throw this.networkError(err, effectiveTimeout);
+    }
+
     let data = null;
     if (text.trim()) {
       try {
@@ -53,11 +83,10 @@ export class JobFoundryClient {
     }
 
     if (!response.ok) {
-      const message =
-        data && typeof data.error === 'string'
-          ? data.error
-          : `JobFoundry API returned HTTP ${response.status}`;
-      throw new ApiError(message, { status: response.status, body: text.slice(0, 500) });
+      throw new ApiError(this.errorMessage(data, text, response.status), {
+        status: response.status,
+        body: text.slice(0, 500),
+      });
     }
 
     if (text.trim() && data === null) {

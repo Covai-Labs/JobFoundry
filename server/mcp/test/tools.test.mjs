@@ -274,6 +274,20 @@ test('search_saved_jobs applies schema defaults when arguments are omitted', asy
   assert.equal(params.company, undefined);
 });
 
+test('generate_tailored_resume refuses to claim success without server confirmation', async (t) => {
+  const impl = fakeClient({
+    async tailorJob() {
+      return {};
+    },
+  });
+  const { server, client } = await connect(impl);
+  t.after(() => server.close());
+
+  const { isError, data } = await call(client, 'generate_tailored_resume', { job_id: 'job_1' });
+  assert.equal(isError, true);
+  assert.match(data.message, /did not confirm|unexpected/i);
+});
+
 test('API failures become actionable tool errors', async (t) => {
   const impl = fakeClient({
     async tailorJob() {

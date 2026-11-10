@@ -65,6 +65,28 @@ test('handles non-JSON error responses without crashing', async (t) => {
 
   const client = new JobFoundryClient({ baseUrl: url });
   await assert.rejects(() => client.getJob('job-1'), /HTTP 502/);
+  await assert.rejects(() => client.getJob('job-1'), /Bad gateway/);
+});
+
+test('surfaces the upstream message for non-standard error bodies', async (t) => {
+  const { server, url } = await startServer((req, res) => {
+    res.writeHead(429, { 'content-type': 'application/json' });
+    res.end(
+      JSON.stringify({
+        statusCode: 429,
+        error: 'Too Many Requests',
+        message: 'Rate limit exceeded',
+      })
+    );
+  });
+  t.after(() => server.close());
+
+  const client = new JobFoundryClient({ baseUrl: url });
+  await assert.rejects(
+    () => client.getJob('job-1'),
+    (err) =>
+      err instanceof ApiError && err.status === 429 && /Rate limit exceeded/.test(err.message)
+  );
 });
 
 test('reports timeouts as ApiError', async (t) => {
@@ -99,8 +121,26 @@ test('never follows redirects', async (t) => {
   });
 
   const client = new JobFoundryClient({ baseUrl: source.url });
-  await assert.rejects(() => client.getActiveResume(), /Could not reach JobFoundry/);
+  await assert.rejects(() => client.getActiveResume(), /redirect/i);
+  await assert.rejects(() => client.getActiveResume(), /JOBFOUNDRY_URL/);
   assert.equal(targetHit, false);
+});
+
+test('maps a stalled response body to a timeout ApiError', async (t) => {
+  const { server, url } = await startServer((req, res) => {
+    res.writeHead(200, { 'content-type': 'application/json' });
+    res.write('{"jobs"');
+  });
+  t.after(() => {
+    server.closeAllConnections();
+    server.close();
+  });
+
+  const client = new JobFoundryClient({ baseUrl: url, timeoutMs: 50 });
+  await assert.rejects(
+    () => client.getActiveResume(),
+    (err) => err instanceof ApiError && /timed out/.test(err.message)
+  );
 });
 
 test('builds query strings and encodes job ids', async (t) => {

@@ -168,6 +168,11 @@ export function registerTools(server, client) {
         const result = await client.tailorJob(args.job_id, {
           timeoutMs: args.timeout_seconds * 1000,
         });
+        if (result?.ok === false || typeof result?.tailored_resume_id !== 'string') {
+          return errorResult(
+            'JobFoundry did not confirm the tailoring result. Check the job in the dashboard before retrying.'
+          );
+        }
         return textResult({
           ok: true,
           tailored_resume_id: result.tailored_resume_id,
