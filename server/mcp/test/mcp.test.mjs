@@ -167,6 +167,8 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
     },
     stderr: 'pipe',
   });
+  const stderrChunks = [];
+  transport.stderr?.on('data', (chunk) => stderrChunks.push(chunk));
   await client.connect(transport);
 
   const list = await client.listTools();
@@ -249,4 +251,17 @@ test('MCP stdio server executes all five tools against a temp SQLite database', 
   assert.ok(existsSync(join(artifactDir, 'resume.txt')));
   const pdf = readFileSync(join(artifactDir, 'resume.pdf'));
   assert.equal(pdf.subarray(0, 5).toString(), '%PDF-');
+
+  // The API key travels only in the Authorization header: never in tool output,
+  // never on stderr (which is the only diagnostic channel over stdio).
+  for (const payload of [profile, search, fit, applied, tailored]) {
+    assert.ok(
+      !JSON.stringify(payload).includes(apiKey),
+      'tool output must never contain the API key'
+    );
+  }
+  const stderrText = Buffer.concat(stderrChunks.map((chunk) => Buffer.from(chunk))).toString(
+    'utf8'
+  );
+  assert.ok(!stderrText.includes(apiKey), 'stderr must never print the API key');
 });

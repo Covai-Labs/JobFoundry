@@ -175,6 +175,46 @@ test('search_saved_jobs rejects unknown statuses', async (t) => {
   assert.equal(impl.calls.length, 0);
 });
 
+test('rejects malformed arguments before calling the API', async (t) => {
+  const impl = fakeClient();
+  const { server, client } = await connect(impl);
+  t.after(() => server.close());
+
+  const cases = [
+    ['search_saved_jobs', { limit: 500 }],
+    ['search_saved_jobs', { min_score: 101 }],
+    ['search_saved_jobs', { sort_by: 'description' }],
+    ['get_job_fit_score', {}],
+    ['generate_tailored_resume', { job_id: 'job_1', timeout_seconds: 1.5 }],
+    ['generate_tailored_resume', { job_id: 'job_1', timeout_seconds: 1801 }],
+    ['update_application_status', { job_id: 'bad id!' }],
+  ];
+
+  for (const [name, args] of cases) {
+    try {
+      const result = await client.callTool({ name, arguments: args });
+      assert.equal(Boolean(result.isError), true, `${name} accepted ${JSON.stringify(args)}`);
+    } catch (err) {
+      assert.match(String(err.message), /invalid|validation|expected|required/i);
+    }
+  }
+  assert.equal(impl.calls.length, 0, 'invalid arguments must never reach the API');
+});
+
+test('search_saved_jobs reports an unexpected response shape instead of guessing', async (t) => {
+  const impl = fakeClient({
+    async listJobs() {
+      return {};
+    },
+  });
+  const { server, client } = await connect(impl);
+  t.after(() => server.close());
+
+  const { isError, data } = await call(client, 'search_saved_jobs');
+  assert.equal(isError, true);
+  assert.match(data.message, /unexpected response/i);
+});
+
 test('get_job_fit_score returns breakdown and unscored states', async (t) => {
   const impl = fakeClient();
   const { server, client } = await connect(impl);

@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { resolve } from 'node:path';
+import { VERSION } from '../src/version.mjs';
 
 const execFileAsync = promisify(execFile);
 const ENTRY = resolve(import.meta.dirname, '../src/index.mjs');
@@ -15,7 +16,14 @@ test('--help prints usage and exits 0', async () => {
 
 test('--version prints the package version and exits 0', async () => {
   const { stdout } = await execFileAsync(process.execPath, [ENTRY, '--version']);
-  assert.equal(stdout.trim(), '0.1.0');
+  assert.equal(stdout.trim(), VERSION);
+});
+
+test('--help prints usage even when the environment is invalid', async () => {
+  const { stdout } = await execFileAsync(process.execPath, [ENTRY, '--help'], {
+    env: { ...process.env, JOBFOUNDRY_URL: 'ftp://nope', JOBFOUNDRY_TIMEOUT: 'soon' },
+  });
+  assert.match(stdout, /Usage: jobfoundry-mcp/);
 });
 
 test('invalid remote http URL exits with code 2 and a clear stderr message', async () => {

@@ -118,6 +118,11 @@ export function registerTools(server, client) {
           order: args.order,
           limit: args.limit,
         });
+        if (!Array.isArray(jobs)) {
+          return errorResult(
+            'JobFoundry returned an unexpected response: no job list. Check that JOBFOUNDRY_URL points at a JobFoundry API.'
+          );
+        }
         return textResult({ count: jobs.length, jobs: jobs.map(summarizeJob) });
       } catch (err) {
         return toToolError(err);

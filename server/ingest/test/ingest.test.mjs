@@ -304,6 +304,54 @@ test('GET /api/v1/jobs filters by company case-insensitively', async () => {
   await app.close();
 });
 
+test('GET /api/v1/jobs filters by company for registered users', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({ db, jwtSecret: 'test-secret' });
+
+  const reg = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/register',
+    payload: { email: 'company-filter@test.com', password: 'password123' },
+  });
+  const apiKey = reg.json().user.apiKey;
+  const headers = { authorization: `Bearer ${apiKey}` };
+
+  const [acme] = payload();
+  const ingest = await app.inject({
+    method: 'POST',
+    url: '/api/v1/jobs/ingest',
+    headers,
+    payload: [
+      acme,
+      {
+        ...acme,
+        title: 'Frontend Engineer',
+        company: 'Beta Inc',
+        url: 'https://beta.example/j/7',
+        // Distinct text keeps SimHash from collapsing this into the Acme posting.
+        description: `${acme.description} You will also own the React dashboard and its design system.`,
+      },
+    ],
+  });
+  assert.equal(ingest.statusCode, 200);
+
+  const all = await app.inject({ method: 'GET', url: '/api/v1/jobs', headers });
+  assert.equal(all.json().jobs.length, 2);
+
+  const res = await app.inject({
+    method: 'GET',
+    url: '/api/v1/jobs?company=beta%20inc',
+    headers,
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(
+    res.json().jobs.map((job) => job.company),
+    ['Beta Inc']
+  );
+
+  await app.close();
+});
+
 test('POST /api/v1/jobs/:id/sanitize sanitizes title and description', async () => {
   const { app, db } = makeApp();
   const now = Date.now();

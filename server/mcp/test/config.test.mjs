@@ -93,3 +93,9 @@ test('help and version flags are reported without requiring other config', () =>
   assert.match(usage(), /--api-key/);
   assert.match(usage(), /JOBFOUNDRY_API_KEY/);
 });
+
+test('help and version short-circuit before URL and timeout validation', () => {
+  const env = { JOBFOUNDRY_URL: 'ftp://nope', JOBFOUNDRY_TIMEOUT: 'not-a-number' };
+  assert.equal(resolveConfig({ argv: ['--help'], env }).help, true);
+  assert.equal(resolveConfig({ argv: ['--version'], env }).version, true);
+});

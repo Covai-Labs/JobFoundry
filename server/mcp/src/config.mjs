@@ -89,6 +89,19 @@ export function resolveConfig({ argv = process.argv.slice(2), env = process.env 
   }
 
   const { values } = parsed;
+
+  // --help and --version must work with a broken environment: a user debugging
+  // configuration should never be blocked by the configuration itself.
+  if (values.help || values.version) {
+    return {
+      help: values.help,
+      version: values.version,
+      url: DEFAULT_URL,
+      apiKey: '',
+      timeoutMs: DEFAULT_TIMEOUT_SECONDS * 1000,
+    };
+  }
+
   const url = normalizeUrl(values.url ?? env.JOBFOUNDRY_URL ?? DEFAULT_URL);
   const apiKey = String(values['api-key'] ?? env.JOBFOUNDRY_API_KEY ?? '').trim();
   const timeoutMs =
