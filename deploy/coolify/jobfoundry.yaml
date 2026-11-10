@@ -1,0 +1,48 @@
+# Coolify: paste this file into a "Docker Compose Empty" service. This is not an
+# official Coolify catalog template yet; the catalog requires 1,000+ GitHub stars.
+# documentation: https://github.com/Covai-Labs/JobFoundry/blob/main/docs/self-hosting.md
+# slogan: Local-first job capture, fit scoring, and truthful resume tailoring.
+# category: productivity
+# tags: job-search,career,resume,ai,self-hosted
+# logo: svgs/jobfoundry.svg
+# port: 8080
+
+services:
+  jobfoundry:
+    image: ghcr.io/covai-labs/jobfoundry:${JOBFOUNDRY_VERSION:-latest}
+    restart: unless-stopped
+    environment:
+      # Coolify replaces this entry with the generated public URL and proxies it
+      # to the container's port 8080. If SERVER_URL is empty, JobFoundry automatically
+      # infers the public URL from the reverse proxy's Host and X-Forwarded-* headers.
+      - SERVICE_URL_JOBFOUNDRY_8080
+      - PORT=8080
+      - DATA_DIR=/data
+      - DB_PATH=/data/jobfoundry.db
+      - ARTIFACTS_DIR=/data/artifacts
+      - MASTER_RESUME_PATH=/data/master-resume.json
+      - SERVER_URL=${SERVICE_URL_JOBFOUNDRY_8080:-}
+      - REGISTRATION_MODE=${REGISTRATION_MODE:-open}
+      - TRUST_PROXY=${TRUST_PROXY:-true}
+      - API_KEYS=${API_KEYS:-}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY:-}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+    volumes:
+      # SQLite database, tailored artifacts, master resume, and themes all live
+      # under /data. Keep this volume backed up.
+      - jobfoundry-data:/data
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://localhost:8080/health').then(r => r.ok ? process.exit(0) : process.exit(1)).catch(() => process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+volumes:
+  jobfoundry-data:

@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { CopilotView } from '../CopilotView';
+import { CopilotView, buildCoverLetterPrintDocument } from '../CopilotView';
 import { api } from '../../../api/client';
 
 vi.mock('../../../api/client', () => ({
@@ -9,6 +9,7 @@ vi.mock('../../../api/client', () => ({
     generateCopilotOutreach: vi.fn(),
     generateCopilotQA: vi.fn(),
     generateCopilotCoverLetter: vi.fn(),
+    getActiveResume: vi.fn(),
   },
 }));
 
@@ -153,5 +154,85 @@ describe('CopilotView', () => {
       ).toBeInTheDocument();
       expect(screen.getAllByText(/Distributed Systems/i).length).toBeGreaterThan(0);
     });
+  });
+
+  it('renders a print-ready letterhead with candidate details and job metadata', async () => {
+    vi.mocked(api.getCopilotData).mockResolvedValue({
+      ok: true,
+      data: {
+        outreach: null,
+        qa_history: [],
+        cover_letter: {
+          cover_letter:
+            'Dear CloudCorp Team,\n\nDistributed queues are my craft.\n\nI would welcome the opportunity to discuss further.',
+          word_count: 180,
+          paragraph_breakdown: {
+            hook: 'Targeting high-scale infrastructure at CloudCorp.',
+            evidence: 'Architected distributed systems handling 50k req/sec.',
+            alignment: 'Excited to bring deep distributed systems skills to the team.',
+          },
+          highlighted_skills: ['Distributed Systems'],
+        },
+      },
+    });
+    vi.mocked(api.getActiveResume).mockResolvedValue({
+      id: 'resume-1',
+      userId: 'user-1',
+      title: 'Master Resume',
+      isActive: true,
+      createdAt: 0,
+      updatedAt: 0,
+      resume: {
+        basics: {
+          name: 'Anu Shah',
+          email: 'anu@example.com',
+          phone: '+1 555 0100',
+          location: { city: 'Bengaluru', region: 'KA', countryCode: 'IN' },
+          url: 'https://example.com',
+        },
+      },
+    });
+
+    render(<CopilotView jobId="job-copilot-1" jobTitle="Staff Engineer" company="CloudCorp" />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Tailored Cover Letter/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /Download \/ Print PDF/i }));
+
+    await waitFor(() => expect(api.getActiveResume).toHaveBeenCalled());
+
+    const frame = document.querySelector<HTMLIFrameElement>(
+      'iframe[title="Cover letter print preview"]'
+    );
+    expect(frame).toBeTruthy();
+    const printed = frame?.contentDocument?.body.textContent || '';
+    expect(printed).toContain('Anu Shah');
+    expect(printed).toContain('anu@example.com');
+    expect(printed).toContain('Bengaluru, KA, IN');
+    expect(printed).toContain('Re: Application for Staff Engineer');
+    expect(printed).toContain('CloudCorp');
+    expect(printed).toContain('Dear CloudCorp Team');
+    expect(printed).toContain('Sincerely,');
+
+    // The frame stays mounted until the print dialog reports it has closed.
+    frame?.contentWindow?.dispatchEvent(new Event('afterprint'));
+    await waitFor(() => {
+      expect(document.querySelector('iframe[title="Cover letter print preview"]')).toBeNull();
+    });
+  });
+
+  it('escapes letterhead fields so resume data cannot inject markup', () => {
+    const html = buildCoverLetterPrintDocument({
+      body: 'Body with <script>alert(1)</script>',
+      basics: { name: 'A & B <Ltd>', email: 'a"b@example.com' },
+      jobTitle: 'Engineer <Lead>',
+      company: 'Cloud & Co',
+      date: new Date('2026-11-07T00:00:00Z'),
+    });
+
+    expect(html).not.toContain('<script>alert(1)</script>');
+    expect(html).toContain('&lt;script&gt;alert(1)&lt;/script&gt;');
+    expect(html).toContain('A &amp; B &lt;Ltd&gt;');
+    expect(html).toContain('Cloud &amp; Co');
+    expect(html).toContain('Re: Application for Engineer &lt;Lead&gt;');
   });
 });
