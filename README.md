@@ -78,6 +78,17 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 
 ---
 
+## Use from Claude Desktop or Cursor
+
+JobFoundry includes a stdio **Model Context Protocol** server, so you can query
+your saved jobs, fit scores, master resume, and Kanban stages from Claude
+Desktop, Cursor, or a local agentic CLI. It talks only to your local or
+self-hosted JobFoundry API; it opens no database and never sees your LLM keys.
+
+See [docs/mcp.md](docs/mcp.md) for setup and the tool reference.
+
+---
+
 ## Built in a real job search
 
 JobFoundry didn't start as a startup pitch or a polished product idea — it started because I was broke, exhausted, and desperately trying to get a job in a brutal tech market.
