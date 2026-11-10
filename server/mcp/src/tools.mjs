@@ -123,7 +123,7 @@ export function registerTools(server, client) {
             'JobFoundry returned an unexpected response: no job list. Check that JOBFOUNDRY_URL points at a JobFoundry API.'
           );
         }
-        return textResult({ count: jobs.length, jobs: jobs.map(summarizeJob) });
+        return textResult({ count: jobs.length, jobs: jobs.map((job) => summarizeJob(job)) });
       } catch (err) {
         return toToolError(err);
       }

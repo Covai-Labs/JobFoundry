@@ -17,14 +17,16 @@ never holds LLM provider keys.
 
 ## Install
 
-The MCP server lives in this repository and is installed with the root
-workspace:
+Clone the repository and install dependencies from the repository root:
 
 ```bash
+git clone https://github.com/Covai-Labs/JobFoundry.git
+cd JobFoundry
 npm ci
 ```
 
-It is not published to npm. Use an absolute path when configuring a client.
+It is not published to npm. Use an absolute path to `server/mcp/src/index.mjs`
+when configuring a client.
 
 ## Configure Claude Desktop
 
@@ -71,6 +73,11 @@ Add the same block to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json`
 }
 ```
 
+> [!WARNING]
+> If you configure `.cursor/mcp.json` at project level, ensure `.cursor/` is
+> listed in `.gitignore` so your `JOBFOUNDRY_API_KEY` is not accidentally committed.
+> Prefer global configuration (`~/.cursor/mcp.json`) for shared projects.
+
 ## Configuration
 
 CLI flags override environment variables.
@@ -110,10 +117,15 @@ Runs the truthful tailoring pipeline and returns links to the PDF, JSON Resume,
 Markdown, and ATS plaintext artifacts. `timeout_seconds` defaults to 900 and is
 capped at 1800.
 
-Clients with a shorter tool timeout will cut the call off. The job remains on the
-server and its status becomes `tailored` or `failed`; re-run the tool or check
-the dashboard. `resume.pdf`, `resume.json`, and `resume.txt` are guaranteed on
-success; `resume.md` is best-effort.
+Downloading returned artifact URLs directly (e.g., via `curl` or browser) requires
+passing the `Authorization: Bearer <key>` header on authenticated instances. You
+can also view and download artifacts directly from the JobFoundry web dashboard.
+
+Clients with a shorter tool timeout will cut the call off. The backend tailoring
+task will continue running on the server until it reaches `tailored` or `failed`.
+Before re-running the tool or retrying, check the web dashboard to see if the first
+tailoring run succeeded to avoid starting duplicate LLM jobs. `resume.pdf`,
+`resume.json`, and `resume.txt` are guaranteed on success; `resume.md` is best-effort.
 
 ### `update_application_status`
 
@@ -142,7 +154,7 @@ this process always runs locally over stdio.
 | "Could not reach JobFoundry"                 | Start the container and confirm `JOBFOUNDRY_URL`                          |
 | "No active master resume found"              | Upload a master resume in the dashboard                                   |
 | Tailoring fails with "No API key configured" | Add an LLM key in Settings                                                |
-| Tailoring times out in the client            | Raise the client timeout, or pass a smaller `timeout_seconds`             |
+| Tailoring times out in the client            | Raise the client tool timeout and/or pass a larger `timeout_seconds`     |
 
 ## Security
 

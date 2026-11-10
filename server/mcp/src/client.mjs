@@ -19,9 +19,17 @@ function isTimeout(err) {
   return err?.name === 'TimeoutError' || err?.name === 'AbortError';
 }
 
+function stripTrailingSlashes(str) {
+  let end = str.length;
+  while (end > 0 && str.charCodeAt(end - 1) === 47) {
+    end--;
+  }
+  return str.slice(0, end);
+}
+
 export class JobFoundryClient {
   constructor({ baseUrl, apiKey = '', timeoutMs = 30000, fetchImpl = fetch }) {
-    this.baseUrl = String(baseUrl).replace(/\/+$/, '');
+    this.baseUrl = stripTrailingSlashes(String(baseUrl));
     this.apiKey = apiKey;
     this.timeoutMs = timeoutMs;
     this.fetchImpl = fetchImpl;
@@ -44,7 +52,8 @@ export class JobFoundryClient {
     if (data && typeof data.message === 'string' && data.message) return data.message;
     if (data && typeof data.error === 'string' && data.error) return data.error;
     const snippet = text.replace(/\s+/g, ' ').trim().slice(0, 200);
-    return `JobFoundry API returned HTTP ${status}${snippet ? `: ${snippet}` : ''}`;
+    const detail = snippet ? `: ${snippet}` : '';
+    return `JobFoundry API returned HTTP ${status}${detail}`;
   }
 
   async request(path, { method = 'GET', body, timeoutMs } = {}) {
@@ -107,7 +116,8 @@ export class JobFoundryClient {
       query.set(key, String(value));
     }
     const qs = query.toString();
-    return this.request(`/api/v1/jobs${qs ? `?${qs}` : ''}`);
+    const path = qs ? `/api/v1/jobs?${qs}` : '/api/v1/jobs';
+    return this.request(path);
   }
 
   getJob(id) {

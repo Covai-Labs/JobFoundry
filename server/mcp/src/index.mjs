@@ -43,7 +43,9 @@ async function main() {
   process.on('SIGTERM', shutdown);
 }
 
-main().catch((err) => {
+try {
+  await main();
+} catch (err) {
   console.error(`jobfoundry-mcp: ${err.message}`);
   process.exit(1);
-});
+}

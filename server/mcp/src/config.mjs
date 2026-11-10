@@ -1,5 +1,5 @@
 import { parseArgs } from 'node:util';
-import { VERSION } from './version.mjs';
+export { VERSION } from './version.mjs';
 
 const LOOPBACK_HOSTS = new Set(['127.0.0.1', '::1', 'localhost']);
 const DEFAULT_URL = 'http://127.0.0.1:8080';
@@ -29,6 +29,14 @@ Environment:
   JOBFOUNDRY_URL, JOBFOUNDRY_API_KEY, JOBFOUNDRY_TIMEOUT`;
 }
 
+function stripTrailingSlashes(str) {
+  let end = str.length;
+  while (end > 0 && str.charCodeAt(end - 1) === 47) {
+    end--;
+  }
+  return str.slice(0, end);
+}
+
 function normalizeUrl(raw) {
   const trimmed = String(raw ?? '').trim();
   if (!trimmed) throw new ConfigError('JobFoundry URL must not be empty');
@@ -37,7 +45,7 @@ function normalizeUrl(raw) {
   try {
     url = new URL(trimmed);
   } catch {
-    throw new ConfigError(`Invalid JobFoundry URL: ${trimmed}`);
+    throw new ConfigError('Invalid JobFoundry URL: failed to parse URL');
   }
 
   if (!['http:', 'https:'].includes(url.protocol)) {
@@ -57,7 +65,7 @@ function normalizeUrl(raw) {
     );
   }
 
-  const path = url.pathname.replace(/\/+$/, '');
+  const path = stripTrailingSlashes(url.pathname);
   return `${url.origin}${path}`;
 }
 
@@ -109,5 +117,3 @@ export function resolveConfig({ argv = process.argv.slice(2), env = process.env 
 
   return { help: values.help, version: values.version, url, apiKey, timeoutMs };
 }
-
-export { VERSION };
