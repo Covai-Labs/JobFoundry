@@ -1,5 +1,11 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["local>Covai-Labs/.github"],
-  "ignorePaths": ["packaging/python/**"]
+  "ignorePaths": ["packaging/python/**"],
+  "packageRules": [
+    {
+      "matchPackageNames": ["python", "docker.io/library/python"],
+      "allowedVersions": "<3.15"
+    }
+  ]
 }
