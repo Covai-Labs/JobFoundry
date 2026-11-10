@@ -78,6 +78,17 @@ How the pieces fit: [ARCHITECTURE.md](ARCHITECTURE.md). How it started: [MANIFES
 
 ---
 
+## Use from Claude Desktop or Cursor
+
+JobFoundry includes a stdio **Model Context Protocol** server, so you can query
+your saved jobs, fit scores, master resume, and Kanban stages from Claude
+Desktop, Cursor, or a local agentic CLI. It talks only to your local or
+self-hosted JobFoundry API; it opens no database and never sees your LLM keys.
+
+See [docs/mcp.md](docs/mcp.md) for setup and the tool reference.
+
+---
+
 ## Built in a real job search
 
 JobFoundry didn't start as a startup pitch or a polished product idea — it started because I was broke, exhausted, and desperately trying to get a job in a brutal tech market.
@@ -139,6 +150,18 @@ If you don't use Docker or Podman, ready-made desktop convenience builds are ava
 - 🍺 **macOS (Apple Silicon):** `brew tap covai-labs/tap && brew install covai-labs/tap/jobfoundry`, then `jobfoundry start` (or download the arm64 tarball). Intel Macs should use Docker above.
 
 Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**.
+
+---
+
+### 4. Self-Hosted Panels (Coolify, CapRover, Dokploy)
+
+Prefer a web-based deployment panel? Ready-to-paste templates and backup notes are in the **[Self-Hosting Guide](docs/self-hosting.md)**:
+
+- **Coolify:** paste `deploy/coolify/jobfoundry.yaml` into a **Docker Compose Empty** service. The official Coolify catalog requires 1,000 GitHub stars, so it is not listed there yet.
+- **CapRover:** paste `deploy/caprover/jobfoundry.yml` into **One-Click Apps → TEMPLATE**.
+- **Dokploy:** paste `deploy/dokploy/docker-compose.yml` into a **Compose** service; the `blueprints/`-ready files are included too.
+
+All templates mount a persistent `/data` volume and use a health check.
 
 ---
 

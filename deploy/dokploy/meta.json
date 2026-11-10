@@ -1,0 +1,16 @@
+{
+  "id": "jobfoundry",
+  "name": "JobFoundry",
+  "version": "latest",
+  "description": "Local-first job-search pipeline with browser capture, deduplication, LLM fit scoring, and truthful resume tailoring. Self-host JobFoundry with Docker Compose on Dokploy.",
+  "logo": "jobfoundry.svg",
+  "links": {
+    "github": "https://github.com/Covai-Labs/JobFoundry",
+    "website": "https://jobfoundry.covai.org/",
+    "docs": "https://github.com/Covai-Labs/JobFoundry/blob/main/docs/self-hosting.md"
+  },
+  "tags": ["career", "job-search", "productivity", "self-hosted"],
+  "seoTitle": "JobFoundry Docker Compose Setup",
+  "seoDescription": "Self-host JobFoundry on Dokploy: browser-based job capture, deduplication, fit scoring, and truthful resume tailoring in one local-first container.",
+  "newConfig": true
+}

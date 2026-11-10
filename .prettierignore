@@ -12,9 +12,16 @@ extension/src/background/tests/fixtures/
 
 docs/
 
+# Platform-specific deployment manifests use formats Prettier cannot parse.
+deploy/**/*.toml
+deploy/**/*.svg
+
 # Release changelog is generated and maintained automatically by release-please
 CHANGELOG.md
 VERSION
 
 # Machine-generated architecture graph artifacts
 graphify-out/
+
+# Local agent execution ledger and task briefs
+.superpowers/

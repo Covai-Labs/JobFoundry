@@ -1,0 +1,16 @@
+[variables]
+main_domain = "${domain}"
+
+[config]
+env = [
+  "JOBFOUNDRY_VERSION=latest",
+  "SERVER_URL=https://${main_domain}",
+  "REGISTRATION_MODE=open",
+  "TRUST_PROXY=true",
+]
+mounts = []
+
+[[config.domains]]
+serviceName = "jobfoundry"
+port = 8080
+host = "${main_domain}"

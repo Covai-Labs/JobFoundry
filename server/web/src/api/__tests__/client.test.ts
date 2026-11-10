@@ -240,4 +240,104 @@ describe('ApiClient', () => {
     expect(data.status).toBe('healthy');
     expect(data.database.totalJobs).toBe(10);
   });
+
+  it('getTailoredJobs requests the unpaginated tailored jobs endpoint', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        jobs: [
+          {
+            id: 'job-1',
+            title: 'Staff Engineer',
+            company: 'CloudCorp',
+            tailored_resume_id: 'tailored-1',
+          },
+        ],
+      }),
+    });
+    global.fetch = fetchMock;
+
+    const jobs = await client.getTailoredJobs();
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/export/tailored-jobs',
+      expect.objectContaining({
+        headers: { Authorization: 'Bearer test-key-123' },
+        signal: expect.anything(),
+      })
+    );
+    expect(jobs).toHaveLength(1);
+    expect(jobs[0].id).toBe('job-1');
+  });
+
+  it('downloadExport requests the format and honours the returned filename', async () => {
+    const blob = new Blob(['job_id,title\n'], { type: 'text/csv' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: {
+        get: (name: string) =>
+          name.toLowerCase() === 'content-disposition'
+            ? 'attachment; filename="jobfoundry-jobs-2026-11-07.csv"'
+            : null,
+      },
+      blob: async () => blob,
+    });
+    global.fetch = fetchMock;
+
+    const result = await client.downloadExport('csv');
+
+    expect(fetchMock).toHaveBeenCalledWith('http://api.test/api/v1/export?format=csv', {
+      headers: { Authorization: 'Bearer test-key-123' },
+    });
+    expect(result.filename).toBe('jobfoundry-jobs-2026-11-07.csv');
+    expect(result.blob).toBe(blob);
+  });
+
+  it('downloadExport encodes optional jobId into the export request URL', async () => {
+    const blob = new Blob(['{}'], { type: 'application/json' });
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      blob: async () => blob,
+    });
+    global.fetch = fetchMock;
+
+    const result = await client.downloadExport('json-resume', { jobId: 'job-123' });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/export?format=json-resume&job_id=job-123',
+      {
+        headers: { Authorization: 'Bearer test-key-123' },
+      }
+    );
+    expect(result.filename).toBe('json-resume-job-123.json');
+    expect(result.blob).toBe(blob);
+  });
+
+  it('downloadExport falls back to a generated filename when no header is present', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      headers: { get: () => null },
+      blob: async () => new Blob(['zip']),
+    });
+
+    const result = await client.downloadExport('archive');
+
+    expect(result.filename).toMatch(/^jobfoundry-export-\d{4}-\d{2}-\d{2}\.zip$/);
+  });
+
+  it('downloadExport surfaces the server error message', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 404,
+      statusText: 'Not Found',
+      json: async () => ({ error: 'No master resume found' }),
+    });
+
+    await expect(client.downloadExport('json-resume')).rejects.toThrow('No master resume found');
+  });
 });

@@ -29,6 +29,21 @@ export interface UserResume {
   updatedAt: number;
 }
 
+export type ExportFormat = 'json-resume' | 'csv' | 'archive';
+
+export interface TailoredJob {
+  id: string;
+  title: string;
+  company: string;
+  tailored_resume_id: string;
+  updated_at?: number | null;
+}
+
+export interface ExportDownload {
+  blob: Blob;
+  filename: string;
+}
+
 export interface DiagnosticsInfo {
   status: string;
   uptime: number;
@@ -276,6 +291,13 @@ export class ApiClient {
     return res.jobs;
   }
 
+  async getTailoredJobs(): Promise<TailoredJob[]> {
+    const res = await this.request<{ jobs: TailoredJob[] }>('/api/v1/export/tailored-jobs', {
+      signal: AbortSignal.timeout(15000),
+    });
+    return res.jobs;
+  }
+
   async getJob(id: string): Promise<Job> {
     const res = await this.request<{ job: Job }>(`/api/v1/jobs/${id}`);
     return res.job;
@@ -410,6 +432,49 @@ export class ApiClient {
       throw new ApiError(response.status, 'Failed to download ATS text');
     }
     return response.text();
+  }
+
+  async downloadExport(
+    format: ExportFormat,
+    options?: { jobId?: string }
+  ): Promise<ExportDownload> {
+    const params = new URLSearchParams({ format });
+    if (options?.jobId) {
+      params.set('job_id', options.jobId);
+    }
+    const url = `${this.baseUrl}/api/v1/export?${params.toString()}`;
+    const headers: Record<string, string> = {};
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      let errorMessage = response.statusText;
+      try {
+        const errorJson = await response.json();
+        errorMessage = errorJson.error || errorJson.message || errorMessage;
+      } catch {
+        // Response wasn't JSON
+      }
+      throw new ApiError(response.status, errorMessage || 'Failed to export data');
+    }
+
+    const disposition = response.headers.get('content-disposition') || '';
+    const match = /filename="?([^";]+)"?/i.exec(disposition);
+    const fallback =
+      format === 'json-resume'
+        ? options?.jobId
+          ? `json-resume-${options.jobId}.json`
+          : 'json-resume.json'
+        : `jobfoundry-${format === 'csv' ? 'jobs' : 'export'}-${new Date()
+            .toISOString()
+            .slice(0, 10)}.${format === 'csv' ? 'csv' : 'zip'}`;
+
+    return {
+      blob: await response.blob(),
+      filename: match?.[1] || fallback,
+    };
   }
 
   async getPipelineStats(): Promise<{

@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   UserCheck,
   Layers,
+  Printer,
 } from 'lucide-react';
 import { api, CopilotArtifacts } from '../../api/client';
 
@@ -26,6 +27,117 @@ const QA_SUGGESTIONS = [
   'Tell me about a complex legacy service or database migration you led.',
   'How do you manage trade-offs between technical debt and product delivery velocity?',
 ];
+
+const escapeHtml = (value: unknown): string =>
+  String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+const contactItems = (basics: Record<string, any>): string[] => {
+  const location = basics.location;
+  const formattedLocation =
+    typeof location === 'string'
+      ? location
+      : [location?.city, location?.region, location?.countryCode].filter(Boolean).join(', ');
+
+  return [basics.email, basics.phone, formattedLocation, basics.url]
+    .filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    .map((item) => `<span>${escapeHtml(item)}</span>`);
+};
+
+export interface CoverLetterPrintOptions {
+  body: string;
+  basics?: Record<string, any>;
+  jobTitle?: string;
+  company?: string;
+  date?: Date;
+}
+
+export const buildCoverLetterPrintDocument = ({
+  body,
+  basics = {},
+  jobTitle,
+  company,
+  date = new Date(),
+}: CoverLetterPrintOptions): string => {
+  const name = typeof basics.name === 'string' ? basics.name.trim() : '';
+  const contacts = contactItems(basics);
+  const formattedDate = date.toLocaleDateString(undefined, {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+  const recipient = company ? `Hiring Team<br>${escapeHtml(company)}` : 'Hiring Team';
+
+  // The model normally returns the full letter, but append a signature when it signs off
+  // without including a name.
+  const tail = body.trimEnd().slice(-200).toLowerCase();
+  const hasSignOff = /\b(sincerely|best regards|kind regards|regards|thank you)\b[\s,]*$/.test(
+    tail
+  );
+  let signature = '';
+  if (name && !hasSignOff) {
+    signature = `<div class="signature">Sincerely,<br>${escapeHtml(name)}</div>`;
+  } else if (name && !tail.includes(name.toLowerCase())) {
+    signature = `<div class="signature">${escapeHtml(name)}</div>`;
+  }
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cover Letter${name ? ` — ${escapeHtml(name)}` : ''}</title>
+<style>
+  @page { size: letter; margin: 1in; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-size: 11pt;
+    line-height: 1.55;
+    color: #111;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .letterhead {
+    border-bottom: 1px solid #d4d4d4;
+    padding-bottom: 14pt;
+    margin-bottom: 22pt;
+  }
+  .name {
+    font-size: 18pt;
+    letter-spacing: 0.04em;
+    margin: 0 0 6pt;
+  }
+  .contact { font-size: 9.5pt; color: #444; }
+  .contact span + span::before { content: ' · '; color: #999; }
+  .meta { margin-bottom: 18pt; }
+  .meta .date { margin-bottom: 12pt; color: #444; }
+  .meta .recipient { margin: 0; }
+  .subject { margin: 16pt 0 14pt; font-weight: 600; }
+  .body { white-space: pre-wrap; }
+  .signature { margin-top: 18pt; }
+  @media screen { body { padding: 0.75in 1in; } }
+</style>
+</head>
+<body>
+<header class="letterhead">
+  ${name ? `<h1 class="name">${escapeHtml(name)}</h1>` : ''}
+  ${contacts.length ? `<div class="contact">${contacts.join('')}</div>` : ''}
+</header>
+<section class="meta">
+  <div class="date">${escapeHtml(formattedDate)}</div>
+  <p class="recipient">${recipient}</p>
+</section>
+${jobTitle ? `<p class="subject">Re: Application for ${escapeHtml(jobTitle)}</p>` : ''}
+<div class="body">${escapeHtml(body)}</div>
+${signature}
+</body>
+</html>`;
+};
 
 export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, company }) => {
   const [activeTab, setActiveTab] = useState<'outreach' | 'qa' | 'cover_letter'>('outreach');
@@ -157,6 +269,62 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
     } finally {
       setGenerating(null);
     }
+  };
+
+  const handlePrintCoverLetter = async () => {
+    const letter = artifacts.cover_letter;
+    if (!letter) return;
+
+    let basics: Record<string, any> = {};
+    try {
+      const activeResume = await api.getActiveResume();
+      basics = (activeResume?.resume?.basics as Record<string, any>) || {};
+    } catch {
+      // Printing still works without the master profile; the letterhead degrades gracefully.
+    }
+
+    const html = buildCoverLetterPrintDocument({
+      body: letter.cover_letter,
+      basics,
+      jobTitle,
+      company,
+    });
+
+    const frame = document.createElement('iframe');
+    frame.setAttribute('aria-hidden', 'true');
+    frame.setAttribute('title', 'Cover letter print preview');
+    frame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+    document.body.appendChild(frame);
+
+    const frameWindow = frame.contentWindow;
+    const frameDocument = frame.contentDocument;
+    if (!frameWindow || !frameDocument) {
+      frame.remove();
+      setError('Could not open the print preview. Please try again.');
+      return;
+    }
+
+    frameDocument.open();
+    frameDocument.write(html);
+    frameDocument.close();
+
+    // Remove the iframe once the print dialog closes. Some browsers render the preview
+    // asynchronously, so keep a generous fallback instead of a short fixed timeout.
+    let cleaned = false;
+    const cleanup = () => {
+      if (cleaned) return;
+      cleaned = true;
+      frame.remove();
+    };
+    frameWindow.addEventListener('afterprint', cleanup);
+
+    window.setTimeout(() => {
+      if (typeof frameWindow.print === 'function') {
+        frameWindow.focus();
+        frameWindow.print();
+      }
+      window.setTimeout(cleanup, 60000);
+    }, 150);
   };
 
   return (
@@ -1004,23 +1172,33 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                   </span>
                 </div>
 
-                <button
-                  onClick={() =>
-                    copyToClipboard(artifacts.cover_letter!.cover_letter, 'cover_letter')
-                  }
-                  className="btn btn-sm btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                >
-                  {copiedKey === 'cover_letter' ? (
-                    <>
-                      <Check size={14} color="var(--color-green)" /> Copied Letter!
-                    </>
-                  ) : (
-                    <>
-                      <Copy size={14} /> Copy Full Letter
-                    </>
-                  )}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <button
+                    onClick={handlePrintCoverLetter}
+                    className="btn btn-sm btn-primary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                    title="Open a print-ready letterhead and save it as a PDF"
+                  >
+                    <Printer size={14} /> Download / Print PDF
+                  </button>
+                  <button
+                    onClick={() =>
+                      copyToClipboard(artifacts.cover_letter!.cover_letter, 'cover_letter')
+                    }
+                    className="btn btn-sm btn-secondary"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    {copiedKey === 'cover_letter' ? (
+                      <>
+                        <Check size={14} color="var(--color-green)" /> Copied Letter!
+                      </>
+                    ) : (
+                      <>
+                        <Copy size={14} /> Copy Full Letter
+                      </>
+                    )}
+                  </button>
+                </div>
               </div>
 
               {/* Cover Letter Body */}
