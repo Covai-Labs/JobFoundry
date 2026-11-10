@@ -259,6 +259,21 @@ test('generate_tailored_resume passes the timeout and returns artifact URLs', as
   assert.deepEqual(impl.calls.at(-1), ['tailorJob', 'job_1', { timeoutMs: 120000 }]);
 });
 
+test('search_saved_jobs applies schema defaults when arguments are omitted', async (t) => {
+  const impl = fakeClient();
+  const { server, client } = await connect(impl);
+  t.after(() => server.close());
+
+  const { isError } = await call(client, 'search_saved_jobs');
+  assert.equal(isError, false);
+  const params = impl.calls.find(([name]) => name === 'listJobs')[1];
+  assert.equal(params.sort_by, 'updated_at');
+  assert.equal(params.order, 'desc');
+  assert.equal(params.limit, 25);
+  assert.equal(params.status, undefined);
+  assert.equal(params.company, undefined);
+});
+
 test('API failures become actionable tool errors', async (t) => {
   const impl = fakeClient({
     async tailorJob() {
