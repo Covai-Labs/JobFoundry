@@ -281,6 +281,29 @@ test('GET /api/v1/jobs supports sort_by and order query parameters', async () =>
   await app.close();
 });
 
+test('GET /api/v1/jobs filters by company case-insensitively', async () => {
+  const { app, db } = makeApp();
+  const now = Date.now();
+  const insert = db.prepare(
+    'INSERT INTO jobs (id, title, company, url, source, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  );
+  insert.run('jc1', 'Engineer', 'Acme Corp', 'https://example.com/c1', 'test', now, now);
+  insert.run('jc2', 'Engineer', 'Beta Inc', 'https://example.com/c2', 'test', now, now);
+
+  const res = await app.inject({
+    method: 'GET',
+    url: '/api/v1/jobs?company=acme%20corp',
+    headers: { authorization: 'Bearer testkey' },
+  });
+  assert.equal(res.statusCode, 200);
+  assert.deepEqual(
+    res.json().jobs.map((job) => job.id),
+    ['jc1']
+  );
+
+  await app.close();
+});
+
 test('POST /api/v1/jobs/:id/sanitize sanitizes title and description', async () => {
   const { app, db } = makeApp();
   const now = Date.now();

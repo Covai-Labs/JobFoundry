@@ -1179,6 +1179,7 @@ export function buildApp({
     const {
       status,
       source,
+      company,
       min_score,
       search,
       sort_by = 'created_at',
@@ -1218,6 +1219,12 @@ export function buildApp({
     if (source) {
       query += isMultiTenant ? ' AND j.source = ?' : ' AND source = ?';
       params.push(source);
+    }
+    if (company && String(company).trim()) {
+      query += isMultiTenant
+        ? ' AND j.company = ? COLLATE NOCASE'
+        : ' AND company = ? COLLATE NOCASE';
+      params.push(String(company).trim());
     }
     if (min_score !== undefined && min_score !== '') {
       query += isMultiTenant ? ' AND uj.fit_score >= ?' : ' AND fit_score >= ?';
