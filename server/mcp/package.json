@@ -1,0 +1,22 @@
+{
+  "name": "jobfoundry-mcp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "AGPL-3.0-only",
+  "description": "stdio Model Context Protocol server for JobFoundry",
+  "bin": {
+    "jobfoundry-mcp": "src/index.mjs"
+  },
+  "scripts": {
+    "start": "node src/index.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.5"
+  },
+  "engines": {
+    "node": ">=26"
+  }
+}

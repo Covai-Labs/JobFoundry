@@ -22,3 +22,6 @@ VERSION
 
 # Machine-generated architecture graph artifacts
 graphify-out/
+
+# Local agent execution ledger and task briefs
+.superpowers/
