@@ -22,7 +22,7 @@ test('ingest computes and persists repost_confidence and repost_status', async (
     payload: [
       {
         title: 'Backend Engineer',
-        company: 'Stark Industries',
+        company: 'Stark Industries Inc',
         url: 'https://stark.test/jobs/req-1',
         postedAt: new Date(now - 60 * dayMs).toISOString(),
       },
@@ -30,7 +30,7 @@ test('ingest computes and persists repost_confidence and repost_status', async (
   });
   assert.equal(res1.statusCode, 200);
 
-  // Ingest second posting 30 days ago
+  // Ingest second posting 30 days ago with different legal suffix
   const res2 = await app.inject({
     method: 'POST',
     url: '/api/v1/jobs/ingest',
@@ -38,7 +38,7 @@ test('ingest computes and persists repost_confidence and repost_status', async (
     payload: [
       {
         title: 'Senior Backend Engineer',
-        company: 'Stark Industries',
+        company: 'Stark Industries LLC',
         url: 'https://stark.test/jobs/req-2',
         postedAt: new Date(now - 30 * dayMs).toISOString(),
       },

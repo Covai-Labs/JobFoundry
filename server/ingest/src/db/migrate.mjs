@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { analyzeRepost } from '../jobs/detect-reposts.mjs';
+import { analyzeRepost, normalizeCompany } from '../jobs/detect-reposts.mjs';
 
 const SCHEMA_SQL = new URL('./schema.sql', import.meta.url);
 
@@ -28,11 +28,22 @@ export function backfillReposts(db) {
 
   db.transaction(() => {
     for (const job of rows) {
-      const history = db
-        .prepare(
-          'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company = ? COLLATE NOCASE AND id != ?'
-        )
-        .all(job.company, job.id);
+      const normComp = normalizeCompany(job.company);
+      const candidates = normComp
+        ? db
+            .prepare(
+              'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE id != ? AND (company LIKE ? OR company = ? COLLATE NOCASE)'
+            )
+            .all(job.id, `${normComp}%`, job.company)
+        : db
+            .prepare(
+              'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE id != ? AND company = ? COLLATE NOCASE'
+            )
+            .all(job.id, job.company);
+
+      const history = normComp
+        ? candidates.filter((c) => normalizeCompany(c.company) === normComp)
+        : candidates;
 
       const analysis = analyzeRepost(job, history, { repostThresholdDays: threshold });
       updateStmt.run(JSON.stringify(analysis), analysis.confidence || 'none', job.id);

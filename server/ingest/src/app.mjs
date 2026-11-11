@@ -24,7 +24,7 @@ try {
 import { randomUUID } from 'node:crypto';
 import { normalizeJob } from './jobs/normalize.mjs';
 import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
-import { analyzeRepost } from './jobs/detect-reposts.mjs';
+import { analyzeRepost, normalizeCompany } from './jobs/detect-reposts.mjs';
 import { parseJobDescription } from './jobs/parse-jd.mjs';
 import { parseResumeText } from './resume/parse-resume.mjs';
 import { renderResumeMarkdown } from './resumes/resume-markdown.mjs';
@@ -1148,11 +1148,22 @@ export function buildApp({
         const needsFetch = row._needsFetch;
         delete row._needsFetch;
 
-        const companyHistory = db
-          .prepare(
-            'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company = ? COLLATE NOCASE'
-          )
-          .all(row.company);
+        const normComp = normalizeCompany(row.company);
+        const candidates = normComp
+          ? db
+              .prepare(
+                'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company LIKE ? OR company = ? COLLATE NOCASE'
+              )
+              .all(`${normComp}%`, row.company)
+          : db
+              .prepare(
+                'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company = ? COLLATE NOCASE'
+              )
+              .all(row.company);
+
+        const companyHistory = normComp
+          ? candidates.filter((c) => normalizeCompany(c.company) === normComp)
+          : candidates;
 
         const analysis = analyzeRepost(row, companyHistory, { repostThresholdDays });
         row.repost_status = JSON.stringify(analysis);
