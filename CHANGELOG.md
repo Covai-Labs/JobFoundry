@@ -4,6 +4,36 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.6.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.5.1...v0.6.0) (2026-11-11)
+
+
+### Features
+
+* **copilot:** print-ready cover letter PDF export ([#127](https://github.com/Covai-Labs/JobFoundry/issues/127)) ([9ccde5a](https://github.com/Covai-Labs/JobFoundry/commit/9ccde5ae3d4e12ebc74b5056789b113f87bf4e0c))
+* **deploy:** add self-hosting templates for Coolify, CapRover, and Dokploy ([#130](https://github.com/Covai-Labs/JobFoundry/issues/130)) ([f9c5b79](https://github.com/Covai-Labs/JobFoundry/commit/f9c5b79ee736e402ce572d011933ce09082b6c4f))
+* **docs:** add graphify architecture knowledge graph and ignore rules ([#111](https://github.com/Covai-Labs/JobFoundry/issues/111)) ([591aa32](https://github.com/Covai-Labs/JobFoundry/commit/591aa322e70a2da2cbaf9d7662c10c20b7e7bc01))
+* **export:** universal data export for JSON Resume, CSV, and full archive ([#128](https://github.com/Covai-Labs/JobFoundry/issues/128)) ([acf2ca4](https://github.com/Covai-Labs/JobFoundry/commit/acf2ca4d9a81d5f71f5dd18e1d94bffade57aace))
+* **extension:** sync upstream ATS providers from career-ops & search improvements from JobSpy ([#104](https://github.com/Covai-Labs/JobFoundry/issues/104)) ([e662ca6](https://github.com/Covai-Labs/JobFoundry/commit/e662ca64b96f5afc529410a9f7bb198c0563532f))
+* **ingest:** vendor career-ops parsers & static datasets verbatim ([#163](https://github.com/Covai-Labs/JobFoundry/issues/163)) ([702a818](https://github.com/Covai-Labs/JobFoundry/commit/702a81893480d9742b91f04097a790c586d73bcb))
+* **ingest:** wire up repost and ghost job detection ([#149](https://github.com/Covai-Labs/JobFoundry/issues/149)) ([#162](https://github.com/Covai-Labs/JobFoundry/issues/162)) ([1745ee8](https://github.com/Covai-Labs/JobFoundry/commit/1745ee82bc0f3e97ac264f912fff2995db902612))
+* **mcp:** Add stdio Model Context Protocol server ([#121](https://github.com/Covai-Labs/JobFoundry/issues/121)) ([#137](https://github.com/Covai-Labs/JobFoundry/issues/137)) ([e21f475](https://github.com/Covai-Labs/JobFoundry/commit/e21f4752a90acfc0d79e7a1b0db7aea33239e016))
+* **site:** add unlisted directory listings page for external backlinks ([#106](https://github.com/Covai-Labs/JobFoundry/issues/106)) ([b426136](https://github.com/Covai-Labs/JobFoundry/commit/b426136bc197b4e1076673a207d03a95018030ba))
+
+
+### Bug Fixes
+
+* **deps:** update all dependencies ([#108](https://github.com/Covai-Labs/JobFoundry/issues/108)) ([0808495](https://github.com/Covai-Labs/JobFoundry/commit/080849535b38bf37ccc139d3c8a126315520fff0))
+* **deps:** update all dependencies ([#97](https://github.com/Covai-Labs/JobFoundry/issues/97)) ([9c0b749](https://github.com/Covai-Labs/JobFoundry/commit/9c0b74923a618bd33199325c3736c68e4f4a16be))
+* **deps:** update security-updates [security] ([#139](https://github.com/Covai-Labs/JobFoundry/issues/139)) ([89ddf46](https://github.com/Covai-Labs/JobFoundry/commit/89ddf46fc722f38dfdd27342a258da0bb1bf427c))
+* **export:** close review gaps from [#128](https://github.com/Covai-Labs/JobFoundry/issues/128) ([#129](https://github.com/Covai-Labs/JobFoundry/issues/129)) ([1cc37e8](https://github.com/Covai-Labs/JobFoundry/commit/1cc37e87a0490476f0471a849c827fdfefba9798))
+* **ingest:** require admin auth for diagnostics and drop pytest from runtime deps ([#161](https://github.com/Covai-Labs/JobFoundry/issues/161)) ([d500b42](https://github.com/Covai-Labs/JobFoundry/commit/d500b425c9ad83efb037cc62c2def45f4395ab7a))
+* **site:** refine icon.svg styling ([#110](https://github.com/Covai-Labs/JobFoundry/issues/110)) ([9c2dd8f](https://github.com/Covai-Labs/JobFoundry/commit/9c2dd8f681324dd3eae97b2df9d3c68aae3a09f3))
+
+
+### Performance Improvements
+
+* **docker:** drop the uv build cache and prune the build context ([#156](https://github.com/Covai-Labs/JobFoundry/issues/156)) ([9cf8fd6](https://github.com/Covai-Labs/JobFoundry/commit/9cf8fd67fe8b7a74d73a3e93bddb96263a7c7a7a)), closes [#146](https://github.com/Covai-Labs/JobFoundry/issues/146)
+
 ## [0.5.1](https://github.com/Covai-Labs/JobFoundry/compare/v0.5.0...v0.5.1) (2026-10-05)
 
 
