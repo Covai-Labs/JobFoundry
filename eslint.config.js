@@ -16,6 +16,8 @@ export default [
       // "fix" them here or the drift check will flag every vendored file.
       'extension/src/background/providers/**',
       'extension/scripts/ports/**',
+      'server/ingest/src/vendored/**',
+      'templates/**',
     ],
   },
   js.configs.recommended,

@@ -7,6 +7,8 @@ extension/src/background/lib/
 extension/src/background/user-agent.mjs
 extension/scripts/ports/
 extension/src/background/tests/fixtures/
+server/ingest/src/vendored/
+templates/
 **/.output/
 **/.wxt/
 
