@@ -64,7 +64,7 @@ export const JobCard: React.FC<JobCardProps> = ({
           {job.repost_confidence === 'high' && (
             <span
               className="badge badge-amber"
-              title={repostInfo.reason || 'Likely recycled or ghost repost'}
+              title={repostInfo.reason ?? 'Likely recycled or ghost repost'}
               style={{
                 background: 'rgba(245, 158, 11, 0.15)',
                 color: '#f59e0b',

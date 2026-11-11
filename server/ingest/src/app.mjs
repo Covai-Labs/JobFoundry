@@ -1148,17 +1148,15 @@ export function buildApp({
         const needsFetch = row._needsFetch;
         delete row._needsFetch;
 
-        if (!row.repost_status) {
-          const companyHistory = db
-            .prepare(
-              'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company = ? COLLATE NOCASE'
-            )
-            .all(row.company);
+        const companyHistory = db
+          .prepare(
+            'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company = ? COLLATE NOCASE'
+          )
+          .all(row.company);
 
-          const analysis = analyzeRepost(row, companyHistory, { repostThresholdDays });
-          row.repost_status = JSON.stringify(analysis);
-          row.repost_confidence = analysis.confidence || 'none';
-        }
+        const analysis = analyzeRepost(row, companyHistory, { repostThresholdDays });
+        row.repost_status = JSON.stringify(analysis);
+        row.repost_confidence = analysis.confidence || 'none';
 
         const { id, deduped: dup } = insertIfNew(db, row);
         ids.push(id);
