@@ -46,7 +46,6 @@ click==8.5.0
     #   uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
     # via
-    #   pytest
     #   tqdm
     #   typer
 distro==1.9.0
@@ -100,8 +99,6 @@ idna==3.20
     #   yarl
 importlib-metadata==8.9.0
     # via litellm
-iniconfig==2.3.0
-    # via pytest
 instructor==1.17.0
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 jinja2==3.1.6
@@ -142,9 +139,6 @@ packaging==26.3
     # via
     #   huggingface-hub
     #   litellm
-    #   pytest
-pluggy==1.6.0
-    # via pytest
 propcache==0.5.4
     # via
     #   aiohttp
@@ -164,15 +158,7 @@ pydantic-core==2.46.5
 pydantic-settings==2.15.0
     # via litellm
 pygments==2.21.0
-    # via
-    #   pytest
-    #   rich
-pytest==9.1.1
-    # via
-    #   jobfoundry-scorer (server/scorer/pyproject.toml)
-    #   pytest-asyncio
-pytest-asyncio==1.4.0
-    # via jobfoundry-scorer (server/scorer/pyproject.toml)
+    # via rich
 python-dateutil==2.9.0.post0
     # via botocore
 python-dotenv==1.2.4

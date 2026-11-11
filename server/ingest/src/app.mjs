@@ -238,7 +238,9 @@ export function buildApp({
   app.get('/health', async () => ({ ok: true }));
 
   // GET /api/v1/diagnostics - Health & system telemetry
-  app.get('/api/v1/diagnostics', async () => {
+  app.get('/api/v1/diagnostics', async (request, reply) => {
+    if (!requireAdmin(request, reply)) return;
+
     const jobStats = db
       .prepare(
         `SELECT 
