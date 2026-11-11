@@ -82,11 +82,11 @@ WORKDIR /app
 
 # 3. Install Python dependencies for Scorer and Tailor
 COPY server/scorer/pyproject.toml server/scorer/uv.lock ./server/scorer/
-RUN cd server/scorer && uv pip install --system -r pyproject.toml
+RUN cd server/scorer && uv pip install --system --no-cache -r pyproject.toml
 
 COPY server/tailor/pyproject.toml server/tailor/uv.lock server/tailor/README.md ./server/tailor/
 COPY server/tailor/src ./server/tailor/src
-RUN cd server/tailor && uv pip install --system -e .
+RUN cd server/tailor && uv pip install --system --no-cache -e .
 
 # 4. Copy Ingest Server and node_modules
 COPY --from=ingest-builder /app/node_modules ./node_modules
