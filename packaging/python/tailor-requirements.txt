@@ -62,7 +62,7 @@ fastapi==0.142.2
     # via resume-ops-api (server/tailor/pyproject.toml)
 fastuuid==0.14.0
     # via litellm
-filelock==3.32.7
+filelock==4.2.1
     # via
     #   huggingface-hub
     #   litellm
@@ -159,7 +159,7 @@ langgraph-checkpoint==4.2.0
     #   langgraph-prebuilt
 langgraph-prebuilt==1.1.0
     # via langgraph
-langgraph-sdk==0.4.5
+langgraph-sdk==0.4.6
     # via langgraph
 langsmith==0.14.4
     # via langchain-core
@@ -179,7 +179,7 @@ openai==2.54.0
     # via
     #   instructor
     #   litellm
-opentelemetry-api==1.45.0
+opentelemetry-api==1.45.1
     # via fastapi
 orjson==3.12.0
     # via
