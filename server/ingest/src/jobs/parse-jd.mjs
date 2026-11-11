@@ -4,7 +4,7 @@
  */
 
 import { safeFetch } from '../security/ssrf.mjs';
-import { extractSkills } from '../vendored/skill-extract.mjs';
+import { extractSkills, canonicalize } from '../vendored/skill-extract.mjs';
 
 function cleanText(text) {
   if (!text || typeof text !== 'string') return '';
@@ -202,8 +202,15 @@ ${text.slice(0, 20000)}
       : [],
     skills:
       Array.isArray(parsed.skills) && parsed.skills.length > 0
-        ? parsed.skills.map(cleanText).filter(Boolean)
-        : Array.from(extractSkills(text)),
+        ? Array.from(
+            new Set(
+              parsed.skills
+                .map(cleanText)
+                .filter(Boolean)
+                .map((s) => canonicalize(s) || s)
+            )
+          )
+        : Array.from(extractSkills(parsed.description || text)),
   };
 }
 

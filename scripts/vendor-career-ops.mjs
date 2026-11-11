@@ -35,6 +35,7 @@ if (!existsSync(SRC)) {
 }
 
 const VENDOR_MAP = [
+  { src: 'LICENSE', dst: 'server/ingest/src/vendored/LICENSE' },
   { src: 'ats-vendor.mjs', dst: 'server/ingest/src/vendored/ats-vendor.mjs' },
   { src: 'url-key.mjs', dst: 'server/ingest/src/vendored/url-key.mjs' },
   {
@@ -50,17 +51,20 @@ const VENDOR_MAP = [
   { src: 'templates/ats/cv-template.ats.html', dst: 'templates/ats/cv-template.ats.html' },
 ];
 
+// Pre-flight check: verify all upstream source files exist before mutating or comparing
+const missingUpstream = VENDOR_MAP.filter(({ src }) => !existsSync(join(SRC, src)));
+if (missingUpstream.length > 0) {
+  console.error(
+    `Error: missing upstream source files:\n${missingUpstream.map((m) => `  - ${m.src}`).join('\n')}`
+  );
+  process.exit(1);
+}
+
 let hasDrift = false;
 
 for (const { src, dst } of VENDOR_MAP) {
   const fullSrc = join(SRC, src);
   const fullDst = join(ROOT, dst);
-
-  if (!existsSync(fullSrc)) {
-    console.error(`Missing upstream file: ${src}`);
-    hasDrift = true;
-    continue;
-  }
 
   if (isCheckOnly) {
     if (!existsSync(fullDst)) {

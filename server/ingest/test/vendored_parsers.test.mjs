@@ -1,8 +1,9 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { resolve, join } from 'node:path';
 import { atsVendorOf, KNOWN_ATS_VENDORS } from '../src/vendored/ats-vendor.mjs';
 import { normalizeUrl, isAggregatorUrl, aggregatorPostingId } from '../src/vendored/url-key.mjs';
 import { extractSkills, canonicalize } from '../src/vendored/skill-extract.mjs';
@@ -106,7 +107,8 @@ test('extractSkills recognizes hard skills, frameworks, cloud tools, and credent
   const skills = extractSkills(text);
   assert.ok(skills.has('TypeScript'));
   assert.ok(skills.has('Python'));
-  assert.ok(skills.has('Golang') || skills.has('Go'));
+  assert.ok(skills.has('Go'));
+  assert.ok(!skills.has('Golang'));
   assert.ok(skills.has('Kubernetes'));
   assert.ok(skills.has('Docker'));
   assert.ok(skills.has('PostgreSQL'));
@@ -199,7 +201,7 @@ test('analyzeRepost skips clustering across multi-employer aggregators', () => {
   assert.equal(analysis.confidence, 'none');
 });
 
-test('vendor-career-ops sync script verifies zero drift in --check mode', () => {
+test('vendor-career-ops sync script verifies zero drift in --check mode and rejects incomplete source', () => {
   const rootDir = resolve(import.meta.dirname, '../../..');
   const careerOpsPath = resolve(rootDir, '../Scratch/career-ops');
   if (existsSync(careerOpsPath)) {
@@ -209,6 +211,23 @@ test('vendor-career-ops sync script verifies zero drift in --check mode', () => 
       { cwd: rootDir, encoding: 'utf8' }
     );
     assert.ok(stdout.includes('Sync check passed'));
+  }
+
+  // Verify missing upstream source files fail with status 1
+  const emptyDir = mkdtempSync(join(tmpdir(), 'career-ops-test-'));
+  try {
+    assert.throws(
+      () => {
+        execFileSync(process.execPath, ['scripts/vendor-career-ops.mjs', '--from', emptyDir], {
+          cwd: rootDir,
+          encoding: 'utf8',
+          stdio: 'pipe',
+        });
+      },
+      (err) => err.status === 1
+    );
+  } finally {
+    rmSync(emptyDir, { recursive: true, force: true });
   }
 });
 
