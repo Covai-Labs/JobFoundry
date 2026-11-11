@@ -24,7 +24,7 @@
   "devDependencies": {
     "@webext-core/messaging": "^4.0.0",
     "@wxt-dev/storage": "^1.2.9",
-    "jsdom": "^30.0.1",
+    "jsdom": "^31.0.0",
     "typescript": "^7.0.2",
     "vitest": "^5.1.0",
     "web-ext": "^10.8.0",
