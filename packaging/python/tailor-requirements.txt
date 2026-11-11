@@ -28,16 +28,17 @@ attrs==26.1.0
     #   aiohttp
     #   jsonschema
     #   referencing
-boto3==1.43.108
+boto3==1.44.0
     # via litellm
-botocore==1.43.108
+botocore==1.44.0
     # via
     #   boto3
     #   s3transfer
-certifi==2026.7.22
+certifi==2026.10.23
     # via
     #   httpcore
     #   httpx
+    #   litellm
     #   requests
 charset-normalizer==3.5.2
     # via requests
@@ -162,7 +163,7 @@ langgraph-sdk==0.4.5
     # via langgraph
 langsmith==0.14.4
     # via langchain-core
-litellm==1.104.0
+litellm==1.108.4
     # via resume-ops-api (server/tailor/pyproject.toml)
 markdown-it-py==4.2.0
     # via rich
@@ -295,6 +296,7 @@ typing-extensions==4.16.0
     #   langchain-core
     #   langchain-protocol
     #   langsmith
+    #   litellm
     #   openai
     #   opentelemetry-api
     #   pydantic
