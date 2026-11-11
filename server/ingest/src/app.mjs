@@ -1655,6 +1655,7 @@ export function buildApp({
           .prepare(
             `SELECT 
               j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+              j.repost_status, j.repost_confidence,
               COALESCE(uj.fit_score, j.fit_score) as fit_score,
               COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
               COALESCE(uj.status, j.status) as status,

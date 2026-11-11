@@ -98,7 +98,7 @@ export interface RepostStatus {
 }
 
 export function parseRepostStatus(raw?: string | null): RepostStatus {
-  if (!raw || !raw.trim()) return {};
+  if (!raw?.trim()) return {};
   try {
     const parsed = JSON.parse(raw);
     if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {

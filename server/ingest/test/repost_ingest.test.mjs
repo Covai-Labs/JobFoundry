@@ -145,8 +145,10 @@ test('ingest respects configurable repost_threshold_days via system_settings', a
   assert.equal(singleRes.statusCode, 200);
   const { job } = singleRes.json();
 
-  // With a 90-day threshold, a 60-day span with only 1 match is not high confidence
+  // With a 90-day threshold, a 60-day span with only 1 match is not high confidence and isRepost is false
   assert.notEqual(job.repost_confidence, 'high');
+  const parsed = JSON.parse(job.repost_status);
+  assert.equal(parsed.isRepost, false);
 
   await app.close();
 });
