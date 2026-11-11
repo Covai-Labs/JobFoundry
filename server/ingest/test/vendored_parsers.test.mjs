@@ -1,9 +1,18 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
+import { readFileSync, existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { atsVendorOf, KNOWN_ATS_VENDORS } from '../src/vendored/ats-vendor.mjs';
 import { normalizeUrl, isAggregatorUrl, aggregatorPostingId } from '../src/vendored/url-key.mjs';
 import { extractSkills, canonicalize } from '../src/vendored/skill-extract.mjs';
 import { buildTitleFilter } from '../src/vendored/title-keywords.mjs';
+import {
+  validatePayloadShape,
+  foldCompetencies,
+  lintPayload,
+} from '../src/vendored/ats-payload.mjs';
+import { flagValue, hasFlag, safeIntFlag } from '../src/vendored/lib/cli-flags.mjs';
 import { normalizeJob } from '../src/jobs/normalize.mjs';
 import { heuristicParseJd } from '../src/jobs/parse-jd.mjs';
 import { analyzeRepost } from '../src/jobs/detect-reposts.mjs';
@@ -188,4 +197,79 @@ test('analyzeRepost skips clustering across multi-employer aggregators', () => {
   const analysis = analyzeRepost(current, history);
   assert.equal(analysis.isRepost, false);
   assert.equal(analysis.confidence, 'none');
+});
+
+test('vendor-career-ops sync script verifies zero drift in --check mode', () => {
+  const rootDir = resolve(import.meta.dirname, '../../..');
+  const careerOpsPath = resolve(rootDir, '../Scratch/career-ops');
+  if (existsSync(careerOpsPath)) {
+    const stdout = execFileSync(
+      process.execPath,
+      ['scripts/vendor-career-ops.mjs', '--from', careerOpsPath, '--check'],
+      { cwd: rootDir, encoding: 'utf8' }
+    );
+    assert.ok(stdout.includes('Sync check passed'));
+  }
+});
+
+test('ats-payload validates payload shape, folds competencies idempotently, and lints', () => {
+  const valid = {
+    skills: [{ category: 'Languages', items: ['TypeScript', 'Go'] }],
+    experience: [{ company: 'Acme', role: 'Engineer' }],
+    competencies: ['Distributed Systems', 'Cloud'],
+  };
+  const errors = validatePayloadShape(valid);
+  assert.deepEqual(errors, []);
+
+  // Fold competencies
+  const { payload: folded, transform } = foldCompetencies(valid);
+  assert.equal(transform.applied, true);
+  const compCat = folded.skills.find((s) => s.category === 'Core Competencies');
+  assert.ok(compCat);
+  assert.ok(compCat.items.includes('Distributed Systems'));
+
+  // Idempotence: folding twice produces identical payload
+  const { payload: doubleFolded, transform: secondTransform } = foldCompetencies(folded);
+  assert.equal(secondTransform.applied, false);
+  assert.deepEqual(doubleFolded.skills, folded.skills);
+
+  // Linting findings
+  const trickyPayload = {
+    experience: [{ company: 'Acme (Cloud Division)', role: 'Senior Developer at Acme' }],
+  };
+  const findings = lintPayload(trickyPayload);
+  assert.ok(findings.some((f) => f.code === 'parenthetical-in-company'));
+  assert.ok(findings.some((f) => f.code === 'employer-in-role'));
+});
+
+test('cli-flags handles flag values, boolean presence, and safe integers', () => {
+  assert.equal(flagValue(['--file', 'cv.json'], '--file'), 'cv.json');
+  assert.equal(flagValue(['--file=cv.json'], '--file'), 'cv.json');
+  assert.equal(flagValue(['--other'], '--file'), undefined);
+
+  assert.equal(hasFlag(['--yes'], '--yes'), true);
+  assert.equal(hasFlag(['--file=test'], '--file'), true);
+  assert.equal(hasFlag(['--dry-run'], '--yes'), false);
+
+  assert.equal(safeIntFlag('42', 10), 42);
+  assert.equal(safeIntFlag('-5', 10), 10);
+  assert.equal(safeIntFlag('not-a-number', 10), 10);
+  assert.equal(safeIntFlag(undefined, 10), 10);
+});
+
+test('ATS template and machine-readable rules exist and have valid structure', () => {
+  const rootDir = resolve(import.meta.dirname, '../../..');
+  const templateHtml = resolve(rootDir, 'templates/ats/cv-template.ats.html');
+  const rulesYml = resolve(rootDir, 'templates/ats-rules.yml');
+
+  assert.ok(existsSync(templateHtml), 'cv-template.ats.html must exist');
+  assert.ok(existsSync(rulesYml), 'ats-rules.yml must exist');
+
+  const htmlContent = readFileSync(templateHtml, 'utf8');
+  assert.ok(htmlContent.includes('{{NAME}}'));
+  assert.ok(htmlContent.includes('ATS Friendly'));
+
+  const rulesContent = readFileSync(rulesYml, 'utf8');
+  assert.ok(rulesContent.includes('rules:'));
+  assert.ok(rulesContent.includes('single-column-layout'));
 });

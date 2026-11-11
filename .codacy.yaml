@@ -1,0 +1,6 @@
+---
+exclude_paths:
+  - 'extension/src/background/providers/**'
+  - 'extension/scripts/ports/**'
+  - 'server/ingest/src/vendored/**'
+  - 'templates/**'
