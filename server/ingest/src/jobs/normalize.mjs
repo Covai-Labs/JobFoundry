@@ -43,6 +43,8 @@ export function normalizeJob(raw) {
     fit_notes: null,
     status: 'new',
     tailored_resume_id: null,
+    repost_status: typeof raw.repost_status === 'string' ? raw.repost_status : null,
+    repost_confidence: typeof raw.repost_confidence === 'string' ? raw.repost_confidence : 'none',
     created_at: now,
     updated_at: now,
   };

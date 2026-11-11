@@ -8,10 +8,12 @@ const INSERT_SQL = `
   INSERT INTO jobs (
     id, title, company, location, url, source, posted_at, description,
     fingerprint, liveness, fit_score, fit_notes, status, tailored_resume_id,
+    repost_status, repost_confidence,
     created_at, updated_at
   ) VALUES (
     @id, @title, @company, @location, @url, @source, @posted_at, @description,
     @fingerprint, @liveness, @fit_score, @fit_notes, @status, @tailored_resume_id,
+    @repost_status, @repost_confidence,
     @created_at, @updated_at
   ) ON CONFLICT(url) DO NOTHING
 `;
@@ -38,9 +40,15 @@ export function insertIfNew(db, row) {
     return { id: existing.id, deduped: true };
   }
 
+  const rowToInsert = {
+    repost_status: null,
+    repost_confidence: 'none',
+    ...row,
+  };
+
   let res;
   try {
-    res = db.prepare(INSERT_SQL).run(row);
+    res = db.prepare(INSERT_SQL).run(rowToInsert);
   } catch (err) {
     if (err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY' || err.code === 'SQLITE_CONSTRAINT_UNIQUE') {
       const found = db

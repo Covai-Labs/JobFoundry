@@ -33,6 +33,8 @@ export interface Job {
   fit_notes?: string | null;
   status: JobStatus;
   tailored_resume_id?: string | null;
+  repost_status?: string | null;
+  repost_confidence?: 'high' | 'medium' | 'none' | null;
   created_at: number;
   updated_at: number;
 }
