@@ -29,8 +29,8 @@ Instead:
    `ssrf_guard.py`, the second DB access layer, the loopback bridge (#150).
 3. Fix the ingest server's dual-schema query duplication and settings ambiguity
    (#147, #148).
-4. Treat container size as an **unmeasured hypothesis** until it is measured, and
-   act on the measurement rather than on the proposal's arithmetic (#146, #154).
+4. Measure container size before acting on it, rather than trusting the
+   proposal's arithmetic (#146, #154).
 
 ## Evidence
 
@@ -40,7 +40,7 @@ All figures below were measured in-repo. Commands are reproducible.
 
 | Area | LOC | Notes |
 | --- | ---: | --- |
-| `extension/src` (non-test) | 35,297 | includes 116 provider adapters (~26,757 LOC) |
+| `extension/src` (non-test) | 35,297 | includes 104 provider adapters (~26,757 LOC) |
 | `extension/src` (tests) | 30,963 | |
 | `server/web/src` | 21,533 | React 19 SPA |
 | `server/ingest/src` | 6,892 | Fastify API |
@@ -51,9 +51,17 @@ All figures below were measured in-repo. Commands are reproducible.
 
 The proposal reported an extension size of 7,847 LOC and a 42,819 LOC total.
 Both undercount: `extension/src` alone is 66,260 LOC including tests. The
-TypeScript surface is therefore *more* dominant than claimed (~93% of source
-LOC), which is the strongest argument for the proposal — and, as below, the
-weakest reason to act on it.
+TypeScript surface is therefore more dominant than claimed — 69,734 non-test
+source LOC against 6,547 of Python, or **91.4%** of non-test source. That is the
+strongest argument for the proposal, and, as below, the weakest reason to act
+on it.
+
+"104 provider adapters" counts providers, not files: the directory holds 121
+entries — 116 `.mjs` files, of which 11 are `_`-prefixed helpers, plus
+`helpers.mjs` (a test helper), `_types.js`, `index.js`, two Markdown files and
+`tests/`. The generated registry
+(`extension/src/background/providers/index.js`) maps exactly 104 provider IDs,
+one per module, and agrees.
 
 ### Process topology and duplication
 
@@ -63,36 +71,45 @@ weakest reason to act on it.
 | `ssrf_guard.py` duplicated | `server/scorer/src/ssrf_guard.py` and `server/tailor/src/resume_ops_api/services/ssrf_guard.py` are byte-identical (258 lines each; `diff` returns no output) |
 | Two DB access layers | tailor: `sqlalchemy.ext.asyncio` + `aiosqlite`; scorer: raw `sqlite3` with `check_same_thread=False` (`store.py`, 548 LOC) |
 | Split-schema churn | `app.mjs` is 3,088 LOC; the `legacy-admin` / `dev-user` dual-table fork appears 16× |
-| Schema is shared and small | `server/ingest/src/db/schema.sql` — 93 lines, read by both runtimes |
+| Schema is shared and small | `server/ingest/src/db/schema.sql` — 93 lines, read by both runtimes (the *database* schema; the resume schema is a separate story, below) |
 
 ## Reasoning
 
-### 1. The image-size premise does not survive arithmetic
+### 1. The image-size premise does not survive measurement
 
 The PDF path requires Chromium. `Dockerfile` installs
 `chromium chromium-sandbox fonts-liberation fonts-noto-color-emoji` plus
 `puppeteer` and `resumed`; `packaging/appimage/build-appimage.sh` pins
 `chrome-headless-shell` 153.0.8010.36.
 
-Chromium and its font/shared-library dependencies are ~400–450 MB. **A Node-only
-image that can still render resumes lands around 500–700 MB, not 150 MB.**
-Deleting every line of Python does not move that number, because Python is not
-what dominates the image.
+Measured on 2026-11-11 (`docker build`, podman 5.8.9, amd64), the image is
+**1.92 GB**:
+
+| Layer / path | Size |
+| --- | ---: |
+| `apt-get install chromium … nodejs` + global npm | 1.08 GB |
+| `uv pip install` (scorer) | 509 MB |
+| `uv pip install -e` (tailor) | 125 MB |
+| `/usr/lib/chromium` (inside the image) | 381 MB |
+| `/root/.cache` — uv build cache, shipped to production | 339 MB |
+| `/usr/local/lib` (site-packages) | 336 MB |
+
+Deleting every line of Python removes roughly **450 MB** (site-packages, the
+`uv` binary, and the interpreter share), which leaves ~1.47 GB. Deleting the uv
+cache as well leaves ~1.13 GB. **A Node-only image that can still render resumes
+lands near 1.1–1.2 GB, not 150 MB.** Python is not what dominates the image;
+Chromium and a leftover build cache are.
 
 The 150 MB figure is only reachable by removing PDF rendering altogether — a
 separate decision with its own trade-offs (#154), not a consequence of changing
-language.
-
-> Image size itself has **not** been measured. #146 owns the measurement,
-> including a per-layer breakdown. No size claim should be repeated as fact
-> until that lands.
+language. The 339 MB cache is recoverable today with no feature change at all.
 
 ### 2. LOC is not value
 
 The Python 6,547 LOC are the differentiating logic: the LangGraph truthfulness
 graph with three execution modes, merge semantics (`merge.py`, 259 LOC), the
 final-check critic, per-section model routing across 11 model settings, and
-ATS/PDF rendering. The ~100k TypeScript LOC are the integration surface: 116
+ATS/PDF rendering. The ~100k TypeScript LOC are the integration surface: 104
 provider adapters, a Kanban dashboard, an MV3 extension.
 
 Wide-and-shallow code (providers, UI, CRUD) is cheap to rewrite and cheap to
@@ -125,11 +142,17 @@ Recorded so the record is trustworthy when either side is quoted later.
   `server/ingest/src/jobs/parse-jd.mjs` already calls an LLM from inside
   Fastify. Event-loop starvation is not the argument.
 - **Wrong (for the rewrite):** "one Zod schema across extension, server and
-  LLM." Zod appears in exactly one file (`server/mcp/src/tools.mjs`). JSON
-  Resume is already validated from **one** JSON Schema by `ajv` (Node) and
-  `jsonschema` (Python) against **one** `schema.sql`. The drift is real but
-  narrow — Pydantic response models vs TypeScript interfaces — and does not
-  require a rewrite.
+  LLM." Zod appears in exactly one file (`server/mcp/src/tools.mjs`). The
+  *database* schema is genuinely single-source (`schema.sql`).
+- **Wrong (for the rewrite, in the other direction):** "JSON Resume is validated
+  from one schema by both runtimes." It is not. There are **three copies**:
+  `server/ingest/src/resumes/resume-schema.json` and
+  `server/web/src/features/resume/resume-schema.json` (byte-identical,
+  draft-04, `additionalProperties: false`) and
+  `server/tailor/src/resume_ops_api/resources/resume_schema.json` (draft-07,
+  `additionalProperties: true`). The two runtimes already accept different
+  documents. That is a real drift defect worth fixing — by generating the copies
+  from one source — and it is still not a reason to port the runtime.
 
 ### 5. The genuine friction, recorded fairly
 
@@ -153,8 +176,10 @@ do not use it to justify porting the tailoring graph.
 **Positive**
 
 - ~6,000 LOC of tested truthfulness logic and its evals stay intact.
-- The largest structural win (two processes instead of three, one DB layer, one
-  `ssrf_guard`) is achieved in days, not weeks.
+- The largest structural win — two processes instead of three, one DB layer, one
+  `ssrf_guard` — is small enough to land in days. It is **planned**, tracked in
+  #150; it has not happened yet, so `supervisord.conf` still starts three
+  programs until that PR merges.
 - Effort goes to user-visible work (repost detection already written but
   unwired, #149) instead of a port.
 
@@ -167,7 +192,9 @@ do not use it to justify porting the tailoring graph.
 
 **Neutral**
 
-- Image size remains what it is until #146 measures it and #154 decides.
+- Image size is **1.92 GB** as measured (2026-11-11); 339 MB of that is an
+  unused `uv` build cache. Reducing it is a separate, data-driven decision
+  (#154), not a consequence of this ADR.
 
 ## Reopen conditions
 

@@ -114,9 +114,10 @@ the candidate's credibility.
 Resumes, job records, scores, and artifacts live in a local SQLite file
 (`data/jobfoundry.db`) or a self-hosted database. No telemetry, and no cloud
 sync that compromises ownership. The schema supports multiple accounts
-(`users`, `user_jobs`, `user_settings`); on a self-hosted instance, who may
-create one is controlled by `REGISTRATION_MODE` (default `open`). API keys
-stay on the backend and
+(`users`, `user_jobs`, `user_settings`); whether sign-ups are allowed depends on
+**both** `REGISTRATION_MODE` (default `open`; `disabled` locks it) **and** the
+admin setting `system_settings.registration_open` — either one can close
+registration, so reopening requires both. API keys stay on the backend and
 are never exposed to the extension. Git history of the repo is the
 versioning system for code; your data directory is yours to back up, move,
 or delete.
