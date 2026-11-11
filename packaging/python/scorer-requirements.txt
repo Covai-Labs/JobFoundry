@@ -57,7 +57,7 @@ fastapi==0.142.2
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 fastuuid==0.14.0
     # via litellm
-filelock==3.32.7
+filelock==4.2.1
     # via
     #   huggingface-hub
     #   litellm
@@ -136,7 +136,7 @@ openai==2.54.0
     # via
     #   instructor
     #   litellm
-opentelemetry-api==1.45.0
+opentelemetry-api==1.45.1
     # via fastapi
 packaging==26.3
     # via
