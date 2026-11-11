@@ -238,8 +238,9 @@ export function buildApp({
   app.get('/health', async () => ({ ok: true }));
 
   // GET /api/v1/diagnostics - Health & system telemetry
-  // codeql[js/missing-rate-limiting] rate limited by checkRateLimit() below;
-  // the query only recognises third-party limiter middleware.
+  // Rate limited via checkRateLimit() below. CodeQL's
+  // js/missing-rate-limiting query only recognises third-party limiter
+  // middleware, so its alert for this route is dismissed as a false positive.
   app.get('/api/v1/diagnostics', async (request, reply) => {
     if (!checkRateLimit(request, reply, 30)) return;
     if (!requireAdmin(request, reply)) return;
