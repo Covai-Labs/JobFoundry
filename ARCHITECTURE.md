@@ -112,8 +112,12 @@ the candidate's credibility.
 ### 4. Local-first storage
 
 Resumes, job records, scores, and artifacts live in a local SQLite file
-(`data/jobfoundry.db`) or a self-hosted database. No accounts, no telemetry,
-no cloud sync that compromises ownership. API keys stay on the backend and
+(`data/jobfoundry.db`) or a self-hosted database. No telemetry, and no cloud
+sync that compromises ownership. The schema supports multiple accounts
+(`users`, `user_jobs`, `user_settings`); whether sign-ups are allowed depends on
+**both** `REGISTRATION_MODE` (default `open`; `disabled` locks it) **and** the
+admin setting `system_settings.registration_open` — either one can close
+registration, so reopening requires both. API keys stay on the backend and
 are never exposed to the extension. Git history of the repo is the
 versioning system for code; your data directory is yours to back up, move,
 or delete.
@@ -165,12 +169,19 @@ server/ingest/    Fastify API, SQLite, auth, SimHash dedup, relay queue
 server/scorer/    FastAPI fit screener + worker daemon (LiteLLM)
 server/tailor/    LangGraph resume engine + folio-export PDF bridge
 server/web/       React 19 dashboard (Kanban, feed, resume manager)
-site/             Astro docs site source (builds to docs/ for Pages)
-docs/             Built static site — do not edit by hand
+site/             Astro docs site source (builds to site/dist/ for Pages)
+docs/             Hand-written project docs (ADRs, MCP, self-hosting)
+docs/adr/         Architecture decision records — read before re-proposing a stack change
 scripts/          healthcheck, metadata checks, career-ops import
 test/             Multi-service E2E + metadata assertions
 packaging/        Docker container (default, CI-built); AppImage (Linux), MSIX (Windows), macOS Homebrew/tarball convenience builders
 ```
+
+## Architecture decisions
+
+Decisions that constrain the design above are recorded in [`docs/adr/`](docs/adr/).
+Start with [ADR 0001](docs/adr/0001-single-runtime-rewrite-rejected.md), which
+records why the stack is not being ported to a single runtime.
 
 For AI-agent-specific constraints (port map, SSRF rules, PDF toolchain
 gotchas, pre-commit commands), see [.agents/AGENTS.md](.agents/AGENTS.md).
