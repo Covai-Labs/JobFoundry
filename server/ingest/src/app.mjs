@@ -24,6 +24,7 @@ try {
 import { randomUUID } from 'node:crypto';
 import { normalizeJob } from './jobs/normalize.mjs';
 import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
+import { analyzeRepost, normalizeCompany } from './jobs/detect-reposts.mjs';
 import { parseJobDescription } from './jobs/parse-jd.mjs';
 import { parseResumeText } from './resume/parse-resume.mjs';
 import { renderResumeMarkdown } from './resumes/resume-markdown.mjs';
@@ -1140,11 +1141,33 @@ export function buildApp({
     const ids = [];
     const userId = request.user.id;
     const now = Date.now();
+    const repostThresholdDays = getEffectiveSetting(db, 'repost_threshold_days') ?? 45;
 
     db.transaction(() => {
       for (const row of rows) {
         const needsFetch = row._needsFetch;
         delete row._needsFetch;
+
+        const normComp = normalizeCompany(row.company);
+        const candidates = normComp
+          ? db
+              .prepare(
+                'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company LIKE ? OR company = ? COLLATE NOCASE'
+              )
+              .all(`${normComp}%`, row.company)
+          : db
+              .prepare(
+                'SELECT id, title, company, posted_at, created_at, url FROM jobs WHERE company = ? COLLATE NOCASE'
+              )
+              .all(row.company);
+
+        const companyHistory = normComp
+          ? candidates.filter((c) => normalizeCompany(c.company) === normComp)
+          : candidates;
+
+        const analysis = analyzeRepost(row, companyHistory, { repostThresholdDays });
+        row.repost_status = JSON.stringify(analysis);
+        row.repost_confidence = analysis.confidence || 'none';
 
         const { id, deduped: dup } = insertIfNew(db, row);
         ids.push(id);
@@ -1203,6 +1226,7 @@ export function buildApp({
       query = `
         SELECT 
           j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+          j.repost_status, j.repost_confidence,
           COALESCE(uj.fit_score, j.fit_score) as fit_score,
           COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
           COALESCE(uj.status, j.status) as status,
@@ -1281,6 +1305,7 @@ export function buildApp({
         .prepare(
           `SELECT 
             j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+            j.repost_status, j.repost_confidence,
             COALESCE(uj.fit_score, j.fit_score) as fit_score,
             COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
             COALESCE(uj.status, j.status) as status,
@@ -1641,6 +1666,7 @@ export function buildApp({
           .prepare(
             `SELECT 
               j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+              j.repost_status, j.repost_confidence,
               COALESCE(uj.fit_score, j.fit_score) as fit_score,
               COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
               COALESCE(uj.status, j.status) as status,
@@ -1757,6 +1783,7 @@ export function buildApp({
         .prepare(
           `SELECT 
             j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+            j.repost_status, j.repost_confidence,
             COALESCE(uj.fit_score, j.fit_score) as fit_score,
             COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
             COALESCE(uj.status, j.status) as status,
@@ -2092,6 +2119,7 @@ export function buildApp({
           .prepare(
             `SELECT 
             j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+            j.repost_status, j.repost_confidence,
             COALESCE(uj.fit_score, j.fit_score) as fit_score,
             COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
             COALESCE(uj.status, j.status) as status,

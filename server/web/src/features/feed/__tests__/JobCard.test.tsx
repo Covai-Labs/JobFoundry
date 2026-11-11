@@ -80,4 +80,39 @@ describe('JobCard Component', () => {
     select = screen.getByRole('combobox', { name: /Job Status/i });
     expect(select).toHaveValue('invalid_job');
   });
+
+  it('renders repost badge only when repost_confidence is high', () => {
+    const highRepostJob: Job = {
+      ...mockJob,
+      repost_confidence: 'high',
+      repost_status: JSON.stringify({
+        isRepost: true,
+        count: 2,
+        daysSpan: 60,
+        confidence: 'high',
+        reason: 'Seen 2 matching role(s) over 60 days at Antigravity Systems',
+      }),
+    };
+
+    const { rerender } = render(<JobCard job={highRepostJob} onSelect={vi.fn()} />);
+    const badge = screen.getByText(/Repost/i);
+    expect(badge).toBeInTheDocument();
+    expect(badge).toHaveAttribute(
+      'title',
+      'Seen 2 matching role(s) over 60 days at Antigravity Systems'
+    );
+
+    // Medium confidence: should not display badge
+    rerender(
+      <JobCard
+        job={{ ...mockJob, repost_confidence: 'medium', repost_status: 'Seen 1 matching role' }}
+        onSelect={vi.fn()}
+      />
+    );
+    expect(screen.queryByText(/Repost/i)).not.toBeInTheDocument();
+
+    // None confidence: should not display badge
+    rerender(<JobCard job={{ ...mockJob, repost_confidence: 'none' }} onSelect={vi.fn()} />);
+    expect(screen.queryByText(/Repost/i)).not.toBeInTheDocument();
+  });
 });

@@ -88,3 +88,24 @@ export function parseFitNotes(raw?: string | null): FitNotes {
     return { reasoning: raw };
   }
 }
+
+export interface RepostStatus {
+  isRepost?: boolean;
+  count?: number;
+  daysSpan?: number;
+  confidence?: 'high' | 'medium' | 'none';
+  reason?: string;
+}
+
+export function parseRepostStatus(raw?: string | null): RepostStatus {
+  if (!raw?.trim()) return {};
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)) {
+      return parsed as RepostStatus;
+    }
+    return { reason: raw };
+  } catch {
+    return { reason: raw };
+  }
+}

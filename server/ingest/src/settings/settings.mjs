@@ -117,6 +117,11 @@ export const SETTINGS_METADATA = {
     default: 75,
     type: 'number',
   },
+  repost_threshold_days: {
+    env: 'REPOST_THRESHOLD_DAYS',
+    default: 45,
+    type: 'number',
+  },
   worker_enabled: {
     env: 'WORKER_ENABLED',
     default: true,

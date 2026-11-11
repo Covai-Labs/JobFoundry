@@ -1,6 +1,6 @@
 import React from 'react';
 import { Job, JobStatus } from '../../types/job';
-import { getScoreCategory, parseFitNotes } from '../filters/filterUtils';
+import { getScoreCategory, parseFitNotes, parseRepostStatus } from '../filters/filterUtils';
 import { TailorButton } from '../tailor/TailorButton';
 import { MapPin, Check } from 'lucide-react';
 
@@ -20,6 +20,7 @@ export const JobCard: React.FC<JobCardProps> = ({
   onStatusChange,
 }) => {
   const fitNotes = parseFitNotes(job.fit_notes);
+  const repostInfo = parseRepostStatus(job.repost_status);
   const scoreCat = getScoreCategory(job.fit_score, threshold);
 
   return (
@@ -60,6 +61,20 @@ export const JobCard: React.FC<JobCardProps> = ({
           >
             {job.status.replace(/_/g, ' ')}
           </span>
+          {job.repost_confidence === 'high' && (
+            <span
+              className="badge badge-amber"
+              title={repostInfo.reason ?? 'Likely recycled or ghost repost'}
+              style={{
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#f59e0b',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+                cursor: 'help',
+              }}
+            >
+              ⚠️ Repost
+            </span>
+          )}
         </div>
 
         {/* Skills Chips Snippet */}
