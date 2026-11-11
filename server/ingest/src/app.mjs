@@ -239,6 +239,7 @@ export function buildApp({
 
   // GET /api/v1/diagnostics - Health & system telemetry
   app.get('/api/v1/diagnostics', async (request, reply) => {
+    if (!checkRateLimit(request, reply, 30)) return;
     if (!requireAdmin(request, reply)) return;
 
     const jobStats = db
