@@ -32,6 +32,8 @@ test('GET /api/v1/diagnostics requires admin authentication', async () => {
     url: '/api/v1/diagnostics',
   });
   assert.equal(unauthRes.statusCode, 401);
+  assert.equal(JSON.parse(unauthRes.body).database, undefined);
+  assert.doesNotMatch(unauthRes.body, /totalUsers|totalResumes/);
 
   // 2. Authenticated non-admin -> 403
   const nonAdminRes = await app.inject({
@@ -40,6 +42,8 @@ test('GET /api/v1/diagnostics requires admin authentication', async () => {
     headers: { authorization: `Bearer ${member.apiKey}` },
   });
   assert.equal(nonAdminRes.statusCode, 403);
+  assert.equal(JSON.parse(nonAdminRes.body).database, undefined);
+  assert.doesNotMatch(nonAdminRes.body, /totalUsers|totalResumes/);
 
   // 3. Authenticated admin -> 200 with diagnostics payload
   const adminRes = await app.inject({
