@@ -7,10 +7,12 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
+  # No paths-ignore for pull_request: the `main` ruleset requires the
+  # "Node lint + test", "Python scorer tests" and "Resume tailor tests"
+  # checks. Any paths-ignore here makes those checks unpassable for
+  # documentation-only PRs, which blocks them from ever merging
+  # (#155 hit exactly this). Docs PRs run the full suite instead.
   pull_request:
-    paths-ignore:
-      - 'docs/**'
-      - '**.md'
 
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
