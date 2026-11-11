@@ -4,6 +4,7 @@
  */
 
 import { safeFetch } from '../security/ssrf.mjs';
+import { extractSkills, canonicalize } from '../vendored/skill-extract.mjs';
 
 function cleanText(text) {
   if (!text || typeof text !== 'string') return '';
@@ -111,6 +112,7 @@ export function heuristicParseJd({ text, url = '' }) {
             : null),
     description: text,
     requirements: requirements.slice(0, 15),
+    skills: Array.from(extractSkills(text)),
     url: url || '',
   };
 }
@@ -198,6 +200,17 @@ ${text.slice(0, 20000)}
     requirements: Array.isArray(parsed.requirements)
       ? parsed.requirements.map(cleanText).filter(Boolean)
       : [],
+    skills:
+      Array.isArray(parsed.skills) && parsed.skills.length > 0
+        ? Array.from(
+            new Set(
+              parsed.skills
+                .map(cleanText)
+                .filter(Boolean)
+                .map((s) => canonicalize(s) || s)
+            )
+          )
+        : Array.from(extractSkills(parsed.description || text)),
   };
 }
 

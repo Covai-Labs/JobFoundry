@@ -6,6 +6,8 @@
  * roles that are repeatedly renewed without active hiring.
  */
 
+import { isAggregatorUrl } from '../vendored/url-key.mjs';
+
 const TITLE_STOP_WORDS = new Set([
   'senior',
   'sr',
@@ -82,6 +84,9 @@ export function analyzeRepost(job, history = [], { repostThresholdDays = 45 } = 
 
   for (const prev of history) {
     if (prev.url === currentUrl) continue; // Same job listing
+
+    // Multi-employer aggregator listings shouldn't be clustered as single-employer reposts
+    if (isAggregatorUrl(currentUrl) || isAggregatorUrl(prev.url)) continue;
 
     const prevComp = normalizeCompany(prev.company);
     if (prevComp !== normComp) continue;

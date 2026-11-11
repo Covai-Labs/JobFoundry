@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto';
+import { atsVendorOf, KNOWN_ATS_VENDORS } from '../vendored/ats-vendor.mjs';
+import { normalizeUrl } from '../vendored/url-key.mjs';
 
 const URL_RE = /^https?:\/\/\S+$/i;
 
@@ -18,14 +20,26 @@ function postedAtMs(postedAt) {
   return Number.isNaN(ms) ? null : ms;
 }
 
+function resolveSource(rawSource, url) {
+  if (typeof rawSource === 'string' && rawSource !== '' && rawSource !== 'unknown') {
+    return rawSource;
+  }
+  const vendor = atsVendorOf(url);
+  if (vendor && KNOWN_ATS_VENDORS.includes(vendor)) {
+    return vendor;
+  }
+  return typeof rawSource === 'string' && rawSource !== '' ? rawSource : 'unknown';
+}
+
 export function normalizeJob(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new TypeError('job must be an object');
   }
-  const url = raw.url;
-  if (typeof url !== 'string' || !URL_RE.test(url)) {
-    throw new Error(`invalid url: ${String(url)}`);
+  const rawUrl = raw.url;
+  if (typeof rawUrl !== 'string' || !URL_RE.test(rawUrl)) {
+    throw new Error(`invalid url: ${String(rawUrl)}`);
   }
+  const url = normalizeUrl(rawUrl) || rawUrl;
   const fingerprint = typeof raw.fingerprint === 'string' ? raw.fingerprint : '';
   const now = Date.now();
   return {
@@ -34,7 +48,7 @@ export function normalizeJob(raw) {
     company: typeof raw.company === 'string' ? raw.company : '',
     location: typeof raw.location === 'string' && raw.location !== '' ? raw.location : null,
     url,
-    source: typeof raw.source === 'string' && raw.source !== '' ? raw.source : 'unknown',
+    source: resolveSource(raw.source, url),
     posted_at: postedAtMs(raw.postedAt),
     description: typeof raw.description === 'string' ? raw.description : '',
     fingerprint,
