@@ -1,0 +1,25 @@
+# Keep the build context small. Without this file the context includes
+# node_modules (450 MB), .git, the local database, and generated artifacts.
+.git
+.github
+.gitignore
+node_modules
+**/node_modules
+data
+graphify-out
+Scratch
+dist
+dist-extension
+site/dist
+*.AppImage
+*.db
+*.sqlite3
+.env
+coverage
+htmlcov
+**/__pycache__
+**/*.pyc
+**/.venv
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
