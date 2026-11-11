@@ -24,6 +24,7 @@ const RATE_LIMITED_ROUTES = [
   { method: 'GET', url: '/api/v1/jobs/job-1/artifacts/resume.txt', max: 60 },
   { method: 'GET', url: '/api/v1/pipeline/stats', max: 60 },
   { method: 'GET', url: '/api/v1/pipeline/jobs', max: 60 },
+  { method: 'GET', url: '/api/v1/diagnostics', max: 30 },
 ];
 
 test('security rate limits protect every newly shielded endpoint', async () => {
