@@ -19,11 +19,23 @@ export interface RegistrationStatus {
   userCount?: number;
 }
 
+export type FactCategory = 'preference' | 'constraint' | 'context' | 'style' | 'compensation';
+
 export interface UserResume {
   id: string;
   userId: string;
   title: string;
   resume: Record<string, any>;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface UserFact {
+  id: string;
+  userId: string;
+  category: FactCategory;
+  factText: string;
   isActive: boolean;
   createdAt: number;
   updatedAt: number;
@@ -230,11 +242,59 @@ export class ApiClient {
     return res.ok;
   }
 
+  async patchResume(
+    id: string,
+    payload: { title?: string; resumeJson?: Record<string, unknown> }
+  ): Promise<UserResume> {
+    const res = await this.request<{ resume: UserResume }>(`/api/v1/resumes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return res.resume;
+  }
+
+  // --- Candidate Facts Endpoints ---
+  async getFacts(options?: { activeOnly?: boolean }): Promise<UserFact[]> {
+    const query = options?.activeOnly ? '?active=true' : '';
+    const res = await this.request<{ facts: UserFact[] }>(`/api/v1/facts${query}`);
+    return res.facts;
+  }
+
+  async createFact(payload: {
+    category?: FactCategory;
+    factText: string;
+    isActive?: boolean;
+  }): Promise<UserFact> {
+    const res = await this.request<{ fact: UserFact }>('/api/v1/facts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.fact;
+  }
+
+  async patchFact(
+    id: string,
+    payload: { category?: FactCategory; factText?: string; isActive?: boolean }
+  ): Promise<UserFact> {
+    const res = await this.request<{ fact: UserFact }>(`/api/v1/facts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return res.fact;
+  }
+
+  async deleteFact(id: string): Promise<boolean> {
+    const res = await this.request<{ ok: boolean }>(`/api/v1/facts/${id}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  }
+
   async parseResumeRaw(payload: { text: string }): Promise<{
     ok: boolean;
-    resumeJson: Record<string, any>;
+    resumeJson: Record<string, unknown>;
   }> {
-    return this.request<{ ok: boolean; resumeJson: Record<string, any> }>(
+    return this.request<{ ok: boolean; resumeJson: Record<string, unknown> }>(
       '/api/v1/resumes/parse-raw',
       {
         method: 'POST',

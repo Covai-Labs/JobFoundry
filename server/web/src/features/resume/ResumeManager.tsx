@@ -1,10 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import Ajv from 'ajv';
+import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
-import { Sparkles, AlertCircle, RefreshCw, Tag } from 'lucide-react';
+import {
+  Sparkles,
+  AlertCircle,
+  RefreshCw,
+  Tag,
+  FileEdit,
+  Code2,
+  Save,
+  PlusCircle,
+} from 'lucide-react';
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
+import { ResumeFormEditor, ResumeData, SkillItem } from './ResumeFormEditor';
+import { CandidateFactsPanel } from './CandidateFactsPanel';
 
 const AjvClass = (Ajv as any).default || Ajv;
 const addFormatsFn = (addFormats as any).default || addFormats;
@@ -25,8 +36,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
   const [success, setSuccess] = useState<string | null>(null);
 
   // Editor states
+  const [editorMode, setEditorMode] = useState<'form' | 'json'>('form');
   const [title, setTitle] = useState<string>('Master Resume');
   const [jsonText, setJsonText] = useState<string>('');
+  const [parsedResume, setParsedResume] = useState<Record<string, unknown>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -47,8 +60,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       onActiveResumeChange?.(Boolean(active));
       if (active) {
         setTitle(active.title);
-        setJsonText(JSON.stringify(active.resume, null, 2));
-        validateJson(JSON.stringify(active.resume, null, 2));
+        setParsedResume(active.resume);
+        const formatted = JSON.stringify(active.resume, null, 2);
+        setJsonText(formatted);
+        validateJson(formatted);
       } else {
         // Starter template conforming to JSON Resume v1.0.0
         const starter = {
@@ -79,19 +94,21 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
           ],
         };
         setTitle('Master Resume');
+        setParsedResume(starter);
         const formatted = JSON.stringify(starter, null, 2);
         setJsonText(formatted);
         validateJson(formatted);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load resumes');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to load resumes');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchResumes();
+    void fetchResumes();
   }, []);
 
   const validateJson = (text: string): boolean => {
@@ -100,22 +117,37 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       const isValid = schemaValidator(parsed);
       if (!isValid && schemaValidator.errors) {
         const errors = schemaValidator.errors.map(
-          (err: any) => `${err.instancePath || '/'} ${err.message}`
+          (schemaErr: ErrorObject) => `${schemaErr.instancePath || '/'} ${schemaErr.message}`
         );
         setValidationErrors(errors);
         return false;
       }
       setValidationErrors([]);
       return true;
-    } catch (e: any) {
-      setValidationErrors([`JSON Syntax Error: ${e.message}`]);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
+      setValidationErrors([`JSON Syntax Error: ${msg}`]);
       return false;
     }
   };
 
   const handleJsonChange = (text: string) => {
     setJsonText(text);
-    validateJson(text);
+    const isValid = validateJson(text);
+    if (isValid) {
+      try {
+        setParsedResume(JSON.parse(text));
+      } catch {
+        // syntax error handled in validateJson
+      }
+    }
+  };
+
+  const handleFormChange = (updated: Record<string, unknown>) => {
+    setParsedResume(updated);
+    const formatted = JSON.stringify(updated, null, 2);
+    setJsonText(formatted);
+    validateJson(formatted);
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -155,10 +187,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       const res = await api.parseResumeRaw({ text: rawResumeText.trim() });
       if (res.ok && res.resumeJson) {
-        const formatted = JSON.stringify(res.resumeJson, null, 2);
-        handleJsonChange(formatted);
-        if (res.resumeJson.basics?.name) {
-          setTitle(`${res.resumeJson.basics.name} Resume`);
+        const parsedResume = res.resumeJson as ResumeData;
+        handleFormChange(parsedResume);
+        if (parsedResume.basics?.name) {
+          setTitle(`${parsedResume.basics.name} Resume`);
         }
         setShowAiConvertModal(false);
         setRawResumeText('');
@@ -168,16 +200,28 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       } else {
         setConvertError('Failed to convert resume. Please check your AI Gateway configuration.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       setConvertError(
-        err.message || 'AI conversion failed. Please ensure your AI Gateway model is connected.'
+        msg || 'AI conversion failed. Please ensure your AI Gateway model is connected.'
       );
     } finally {
       setConvertingRaw(false);
     }
   };
 
-  const handleSave = async () => {
+  const handleSwitchToForm = () => {
+    if (validationErrors.length > 0) {
+      setError(
+        'Cannot switch to form editor while JSON has syntax or schema errors. Please resolve them first.'
+      );
+      return;
+    }
+    setError(null);
+    setEditorMode('form');
+  };
+
+  const handleSave = async (asNew: boolean = false) => {
     const isValid = validateJson(jsonText);
     if (!isValid) return;
 
@@ -187,16 +231,28 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       setError(null);
       setSuccess(null);
 
-      await api.uploadResume({
-        title: title.trim() || 'Master Resume',
-        resumeJson: parsed,
-        setActive: true,
-      });
+      if (activeResume?.id && !asNew) {
+        await api.patchResume(activeResume.id, {
+          title: title.trim() || 'Master Resume',
+          resumeJson: parsed,
+        });
+        if (!activeResume.isActive) {
+          await api.setActiveResume(activeResume.id);
+        }
+        setSuccess('Resume updated in-place successfully!');
+      } else {
+        await api.uploadResume({
+          title: title.trim() || 'Master Resume',
+          resumeJson: parsed,
+          setActive: true,
+        });
+        setSuccess('Resume saved and set as active master profile!');
+      }
 
-      setSuccess('Resume saved and verified against JSON Resume v1.0.0 schema!');
       await fetchResumes();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save resume');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to save resume');
     } finally {
       setSaving(false);
     }
@@ -206,8 +262,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       await api.setActiveResume(id);
       await fetchResumes();
-    } catch (err: any) {
-      setError(err.message || 'Failed to switch active resume');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to switch active resume');
     }
   };
 
@@ -216,22 +273,24 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       await api.deleteResume(id);
       await fetchResumes();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete resume');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to delete resume');
     }
   };
 
-  const parsedActive = activeResume?.resume;
+  const parsedActive = (activeResume?.resume ?? parsedResume) as ResumeData;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      {/* Top Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
           <h2 style={{ fontSize: '1.5rem', fontWeight: 700, margin: 0 }}>
-            Master Profile & JSON Resume
+            Master Profile & Candidate Hub
           </h2>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-            Validated against the canonical{' '}
+            Built on the canonical{' '}
             <a
               href="https://jsonresume.org/schema/"
               target="_blank"
@@ -240,7 +299,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
             >
               JSON Resume v1.0.0 Specification
             </a>
-            .
+            . Visual form editing for easy updates without touching raw JSON.
           </p>
         </div>
 
@@ -299,351 +358,389 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
-        {/* Left column: Active Profile Preview */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>
-              Active Profile Preview
-            </h3>
-            {activeResume && <span className="badge badge-success">Active Master</span>}
-          </div>
-
-          {loading ? (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              Loading profile...
+      {/* Main Dual Grid: Active Preview / Versions + Visual Editor */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))',
+          gap: '1.5rem',
+          alignItems: 'start',
+        }}
+      >
+        {/* Left Column: Active Profile Overview & Versions */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1.05rem', fontWeight: 600, margin: 0 }}>Active Profile</h3>
+              {activeResume && <span className="badge badge-success">Active Master</span>}
             </div>
-          ) : parsedActive ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              <div>
-                <div style={{ fontSize: '1.25rem', fontWeight: 700 }}>
-                  {parsedActive.basics?.name || 'Unnamed Candidate'}
-                </div>
-                <div style={{ color: 'var(--color-primary-light, #818cf8)', fontWeight: 500 }}>
-                  {parsedActive.basics?.label || 'No title'}
-                </div>
-                <div
-                  style={{ color: 'var(--text-muted)', fontSize: '0.85rem', marginTop: '0.25rem' }}
-                >
-                  {parsedActive.basics?.email}{' '}
-                  {parsedActive.basics?.location?.city
-                    ? `• ${parsedActive.basics.location.city}`
-                    : ''}
-                </div>
+
+            {loading ? (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                Loading profile...
               </div>
-
-              {parsedActive.basics?.summary && (
-                <div
-                  style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}
-                >
-                  {parsedActive.basics.summary}
-                </div>
-              )}
-
-              {/* Extracted Role Keywords */}
-              {(() => {
-                const keywords = extractKeywordsFromResume(parsedActive);
-                if (keywords.length === 0) return null;
-                return (
+            ) : Object.keys(parsedActive).length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
+                    {parsedActive.basics?.name ?? 'Unnamed Candidate'}
+                  </div>
                   <div
                     style={{
-                      background: 'rgba(99, 102, 241, 0.08)',
-                      border: '1px solid rgba(99, 102, 241, 0.2)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '0.75rem 0.9rem',
+                      color: 'var(--color-primary-light, #818cf8)',
+                      fontWeight: 500,
+                      fontSize: '0.9rem',
                     }}
                   >
+                    {parsedActive.basics?.label ?? 'No title'}
+                  </div>
+                  <div
+                    style={{
+                      color: 'var(--text-muted)',
+                      fontSize: '0.82rem',
+                      marginTop: '0.25rem',
+                    }}
+                  >
+                    {parsedActive.basics?.email}{' '}
+                    {parsedActive.basics?.location?.city
+                      ? `• ${parsedActive.basics.location.city}`
+                      : ''}
+                  </div>
+                </div>
+
+                {parsedActive.basics?.summary && (
+                  <div
+                    style={{
+                      fontSize: '0.82rem',
+                      color: 'var(--text-secondary)',
+                      lineHeight: 1.45,
+                    }}
+                  >
+                    {parsedActive.basics.summary}
+                  </div>
+                )}
+
+                {/* Extracted Role Keywords */}
+                {(() => {
+                  const keywords = extractKeywordsFromResume(parsedActive);
+                  if (keywords.length === 0) return null;
+                  return (
                     <div
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.35rem',
-                        fontSize: '0.8rem',
+                        background: 'rgba(99, 102, 241, 0.08)',
+                        border: '1px solid rgba(99, 102, 241, 0.2)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '0.75rem 0.85rem',
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          fontSize: '0.78rem',
+                          fontWeight: 600,
+                          color: 'var(--accent-primary)',
+                          marginBottom: '0.45rem',
+                        }}
+                      >
+                        <Tag size={13} /> Role Keywords ({keywords.length})
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                        {keywords.map((kw, idx) => (
+                          <span
+                            key={idx}
+                            className="badge"
+                            style={{
+                              fontSize: '0.72rem',
+                              background: 'rgba(99, 102, 241, 0.15)',
+                              color: '#e0e7ff',
+                              border: '1px solid rgba(99, 102, 241, 0.3)',
+                            }}
+                          >
+                            {kw}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* Skills Preview */}
+                {Array.isArray(parsedActive.skills) && parsedActive.skills.length > 0 && (
+                  <div>
+                    <div
+                      style={{
+                        fontSize: '0.78rem',
                         fontWeight: 600,
-                        color: 'var(--accent-primary)',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
                         marginBottom: '0.45rem',
                       }}
                     >
-                      <Tag size={13} /> Auto-Extracted Role Keywords ({keywords.length})
+                      Top Skills
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                      {keywords.map((kw, idx) => (
-                        <span
-                          key={idx}
-                          className="badge"
-                          style={{
-                            fontSize: '0.72rem',
-                            background: 'rgba(99, 102, 241, 0.15)',
-                            color: '#e0e7ff',
-                            border: '1px solid rgba(99, 102, 241, 0.3)',
-                          }}
-                        >
-                          {kw}
-                        </span>
-                      ))}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: '0.72rem',
-                        color: 'var(--text-muted)',
-                        marginTop: '0.45rem',
-                      }}
-                    >
-                      These terms can be imported into your{' '}
-                      <strong>Search Filters & Scrapers</strong> with 1-click.
-                    </div>
-                  </div>
-                );
-              })()}
-
-              {/* Skills */}
-              {Array.isArray(parsedActive.skills) && parsedActive.skills.length > 0 && (
-                <div>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      color: 'var(--text-muted)',
-                      textTransform: 'uppercase',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    Identified Skills
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                    {parsedActive.skills
-                      .flatMap((s: any) => (Array.isArray(s.keywords) ? s.keywords : [s.name]))
-                      .map((skill: string, idx: number) => (
-                        <span
-                          key={idx}
-                          className="badge badge-neutral"
-                          style={{ fontSize: '0.75rem' }}
-                        >
-                          {skill}
-                        </span>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Work Experience */}
-              {Array.isArray(parsedActive.work) && parsedActive.work.length > 0 && (
-                <div>
-                  <div
-                    style={{
-                      fontSize: '0.8rem',
-                      fontWeight: 600,
-                      color: 'var(--text-muted)',
-                      textTransform: 'uppercase',
-                      marginBottom: '0.5rem',
-                    }}
-                  >
-                    Experience Summary
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    {parsedActive.work.map((w: any, idx: number) => (
-                      <div
-                        key={idx}
-                        style={{
-                          background: 'var(--bg-card-inner, rgba(255,255,255,0.03))',
-                          padding: '0.6rem 0.8rem',
-                          borderRadius: 'var(--radius-sm)',
-                        }}
-                      >
-                        <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                          {w.position}{' '}
-                          <span style={{ color: 'var(--text-muted)' }}>@ {w.name}</span>
-                        </div>
-                        {w.highlights && w.highlights[0] && (
-                          <div
-                            style={{
-                              fontSize: '0.8rem',
-                              color: 'var(--text-muted)',
-                              marginTop: '0.2rem',
-                            }}
+                      {parsedActive.skills
+                        .flatMap((s: SkillItem) =>
+                          Array.isArray(s.keywords) ? s.keywords : s.name ? [s.name] : []
+                        )
+                        .slice(0, 15)
+                        .map((skill: string, idx: number) => (
+                          <span
+                            key={idx}
+                            className="badge badge-neutral"
+                            style={{ fontSize: '0.72rem' }}
                           >
-                            • {w.highlights[0]}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                            {skill}
+                          </span>
+                        ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-              No master resume uploaded yet. Save the template on the right to get started!
-            </div>
-          )}
+                )}
+              </div>
+            ) : (
+              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                No master resume uploaded yet. Save the template on the right to get started!
+              </div>
+            )}
 
-          {/* Saved versions list */}
-          {resumes.length > 1 && (
-            <div
-              style={{
-                borderTop: '1px solid rgba(255,255,255,0.08)',
-                paddingTop: '1rem',
-                marginTop: '0.5rem',
-              }}
-            >
+            {/* Saved versions list */}
+            {resumes.length > 0 && (
               <div
                 style={{
-                  fontSize: '0.8rem',
-                  fontWeight: 600,
-                  color: 'var(--text-muted)',
-                  marginBottom: '0.5rem',
+                  borderTop: '1px solid rgba(255,255,255,0.08)',
+                  paddingTop: '0.85rem',
+                  marginTop: '0.25rem',
                 }}
               >
-                Saved Profiles ({resumes.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                {resumes.map((r) => (
-                  <div
-                    key={r.id}
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      padding: '0.4rem 0.6rem',
-                      background: r.isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                      borderRadius: 'var(--radius-sm)',
-                    }}
-                  >
-                    <span style={{ fontSize: '0.85rem' }}>{r.title}</span>
-                    <div style={{ display: 'flex', gap: '0.4rem' }}>
-                      {!r.isActive && (
+                <div
+                  style={{
+                    fontSize: '0.78rem',
+                    fontWeight: 600,
+                    color: 'var(--text-muted)',
+                    marginBottom: '0.5rem',
+                  }}
+                >
+                  Saved Profiles ({resumes.length})
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                  {resumes.map((r) => (
+                    <div
+                      key={r.id}
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        padding: '0.4rem 0.6rem',
+                        background: r.isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
+                        borderRadius: 'var(--radius-sm)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: '0.82rem',
+                          fontWeight: r.isActive ? 600 : 400,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                          maxWidth: '180px',
+                        }}
+                      >
+                        {r.title}
+                      </span>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        {!r.isActive && (
+                          <button
+                            type="button"
+                            onClick={() => handleSwitchActive(r.id)}
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
+                          >
+                            Activate
+                          </button>
+                        )}
                         <button
                           type="button"
-                          onClick={() => handleSwitchActive(r.id)}
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                          onClick={() => handleDelete(r.id)}
+                          className="btn btn-danger btn-sm"
+                          style={{ padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
                         >
-                          Make Active
+                          ✕
                         </button>
-                      )}
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(r.id)}
-                        className="btn btn-danger btn-sm"
-                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
-                      >
-                        ✕
-                      </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-
-        {/* Right column: JSON Resume Editor */}
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0 }}>JSON Resume Editor</h3>
-            {validationErrors.length > 0 ? (
-              <span className="badge badge-danger" style={{ fontSize: '0.75rem' }}>
-                ❌ {validationErrors.length} Schema Error(s)
-              </span>
-            ) : (
-              <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
-                ✓ JSON Resume v1.0.0 Valid
-              </span>
             )}
           </div>
+        </div>
 
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                marginBottom: '0.35rem',
-              }}
-            >
-              Profile / Resume Title
-            </label>
-            <input
-              type="text"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="e.g. Senior Backend Engineer"
-              className="input-text"
-            />
-          </div>
+        {/* Right Column: Visual Form Editor / JSON Editor */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Tab Header & Title */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  onClick={handleSwitchToForm}
+                  className={`btn btn-sm ${editorMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <FileEdit size={14} /> Form Editor
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditorMode('json');
+                  }}
+                  className={`btn btn-sm ${editorMode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Code2 size={14} /> Raw JSON
+                </button>
+              </div>
 
-          <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                marginBottom: '0.35rem',
-              }}
-            >
-              JSON Schema Content
-            </label>
-            <textarea
-              value={jsonText}
-              onChange={(e) => handleJsonChange(e.target.value)}
-              className="input-text"
-              rows={16}
-              style={{
-                fontFamily: 'monospace',
-                fontSize: '0.8rem',
-                lineHeight: 1.4,
-                resize: 'vertical',
-                whiteSpace: 'pre',
-                tabSize: 2,
-              }}
-              spellCheck={false}
-            />
-          </div>
+              <div>
+                {validationErrors.length > 0 ? (
+                  <span className="badge badge-danger" style={{ fontSize: '0.75rem' }}>
+                    ❌ {validationErrors.length} Schema Error(s)
+                  </span>
+                ) : (
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                    ✓ JSON Resume v1.0.0 Valid
+                  </span>
+                )}
+              </div>
+            </div>
 
-          {validationErrors.length > 0 && (
+            {/* Resume Title Input */}
+            <div>
+              <label
+                style={{
+                  display: 'block',
+                  fontSize: '0.82rem',
+                  fontWeight: 500,
+                  marginBottom: '0.3rem',
+                }}
+              >
+                Profile / Resume Title
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                placeholder="e.g. Senior Backend Engineer"
+                className="input-text"
+                style={{ height: '36px', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            {/* Mode-specific Editor */}
+            {editorMode === 'form' ? (
+              <ResumeFormEditor resume={parsedResume} onChange={handleFormChange} />
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <textarea
+                  aria-label="Raw JSON Schema Content"
+                  value={jsonText}
+                  onChange={(e) => handleJsonChange(e.target.value)}
+                  className="input-text"
+                  rows={20}
+                  style={{
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                    lineHeight: 1.4,
+                    resize: 'vertical',
+                    whiteSpace: 'pre',
+                    tabSize: 2,
+                  }}
+                  spellCheck={false}
+                />
+              </div>
+            )}
+
+            {validationErrors.length > 0 && (
+              <div
+                style={{
+                  background: 'rgba(239, 68, 68, 0.1)',
+                  border: '1px solid rgba(239, 68, 68, 0.25)',
+                  borderRadius: 'var(--radius-sm)',
+                  padding: '0.6rem 0.8rem',
+                  fontSize: '0.8rem',
+                  color: '#fca5a5',
+                  maxHeight: '120px',
+                  overflowY: 'auto',
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                  Schema Validation Issues:
+                </div>
+                <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                  {validationErrors.map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Action Buttons */}
             <div
               style={{
-                background: 'rgba(239, 68, 68, 0.1)',
-                border: '1px solid rgba(239, 68, 68, 0.25)',
-                borderRadius: 'var(--radius-sm)',
-                padding: '0.6rem 0.8rem',
-                fontSize: '0.8rem',
-                color: '#fca5a5',
-                maxHeight: '120px',
-                overflowY: 'auto',
+                display: 'flex',
+                justifyContent: 'flex-end',
+                alignItems: 'center',
+                gap: '0.6rem',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+                paddingTop: '0.85rem',
               }}
             >
-              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                Schema Validation Issues:
-              </div>
-              <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-                {validationErrors.map((err, idx) => (
-                  <li key={idx}>{err}</li>
-                ))}
-              </ul>
+              {activeResume && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    void handleSave(true);
+                  }}
+                  disabled={validationErrors.length > 0 || saving}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <PlusCircle size={14} /> Save as New Profile
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => {
+                  void handleSave(false);
+                }}
+                disabled={validationErrors.length > 0 || saving}
+                className="btn btn-primary"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.55rem 1.25rem',
+                }}
+              >
+                <Save size={15} />
+                {saving
+                  ? 'Saving...'
+                  : activeResume
+                    ? 'Save Changes'
+                    : 'Save & Activate Master Resume'}
+              </button>
             </div>
-          )}
-
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'flex-end',
-              gap: '0.5rem',
-              marginTop: '0.5rem',
-            }}
-          >
-            <button
-              type="button"
-              onClick={handleSave}
-              disabled={validationErrors.length > 0 || saving}
-              className="btn btn-primary"
-              style={{ padding: '0.6rem 1.25rem' }}
-            >
-              {saving ? 'Saving...' : '💾 Save & Activate Master Resume'}
-            </button>
           </div>
         </div>
       </div>
+
+      {/* Candidate Facts Knowledge Store Panel */}
+      <CandidateFactsPanel />
 
       {/* AI Convert Raw Resume Modal */}
       {showAiConvertModal && (
