@@ -971,7 +971,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={() => handleJsonChange(initialJsonText)}
+            onClick={() => {
+              handleJsonChange(initialJsonText);
+            }}
           >
             Revert
           </button>

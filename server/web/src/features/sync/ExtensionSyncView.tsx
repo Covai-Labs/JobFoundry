@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import { loadSettings } from '../../lib/auth';
 
 export interface ExtensionSyncViewProps {
-  onPairingChange?: (paired: boolean) => void;
+  onPairingChange?: (_paired: boolean) => void;
 }
 
 export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingChange }) => {
