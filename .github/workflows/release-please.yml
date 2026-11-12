@@ -27,6 +27,8 @@ jobs:
           TAG_NAME: ${{ steps.release.outputs.tag_name }}
         run: |
           echo "Release created: $TAG_NAME. Triggering release pipelines..."
-          gh workflow run release-server.yml    --repo "${{ github.repository }}" --ref "$TAG_NAME"
-          gh workflow run ghcr.yml              --repo "${{ github.repository }}" --ref "$TAG_NAME"
-          gh workflow run release-extension.yml --repo "${{ github.repository }}" --ref "$TAG_NAME"
+          status=0
+          gh workflow run release-server.yml    --repo "${{ github.repository }}" --ref "$TAG_NAME" || status=1
+          gh workflow run ghcr.yml              --repo "${{ github.repository }}" --ref "$TAG_NAME" || status=1
+          gh workflow run release-extension.yml --repo "${{ github.repository }}" --ref "$TAG_NAME" || status=1
+          exit "$status"
