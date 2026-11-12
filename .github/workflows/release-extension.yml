@@ -3,18 +3,17 @@ name: Release Extension
 on:
   push:
     tags:
-      - 'ext-v*'
-      - 'extension-v*'
+      - 'v*'
   workflow_dispatch:
     inputs:
       target:
-        description: 'Select store target to publish (or build only)'
+        description: 'Select store(s) to publish to'
         required: true
-        default: 'all'
+        default: 'none'
         type: choice
         options:
-          - all
           - none
+          - all
           - chrome
           - edge
           - firefox
@@ -46,11 +45,11 @@ jobs:
         run: npm ci
 
       - name: Stamp extension version from release tag
-        # Single source of truth for the extension release version is the git tag
-        # (e.g. ext-v0.4.1 or extension-v0.4.1). WXT inherits the manifest version
-        # from extension/package.json. The script fails fast on prerelease tags
-        # (Chrome/Edge manifests reject non-integer versions).
-        if: startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v')
+        # The extension manifest version is stamped from the unified project tag
+        # (e.g. v0.6.0). Extension and server always share the same version number.
+        # stamp-version-from-tag.mjs handles v*, ext-v*, and extension-v* formats
+        # and fails fast on prerelease suffixes (Chrome/Edge reject non-integer versions).
+        if: startsWith(github.ref, 'refs/tags/')
         run: node extension/scripts/stamp-version-from-tag.mjs
 
       - name: Run lint and extension tests
@@ -91,18 +90,20 @@ jobs:
           generate_release_notes: true
 
   # -- Browser store publishing -----------------------------------------------
-  # Firefox (AMO) is LIVE: every extension tag auto-submits to the listed channel
-  # when AMO credentials are present.
-  # Chrome Web Store + Edge Add-ons run when their IDs/credentials are configured,
-  # otherwise they skip gracefully so CI does not break.
+  # Store publishing is intentionally manual-only (workflow_dispatch).
+  # Every v* release attaches extension ZIPs to the GitHub Release above, but
+  # submissions to Chrome Web Store, Edge Add-ons, and Firefox AMO are only
+  # triggered when you run this workflow manually and select a store target.
+  # This decouples backend releases from extension store review cycles.
 
   publish-firefox:
     name: Publish to Firefox Add-ons (AMO)
     needs: build-and-package
     runs-on: ubuntu-latest
-    if: |
-      (startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v') ||
-       (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'firefox')))
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'tag' &&
+      (inputs.target == 'all' || inputs.target == 'firefox')
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -117,7 +118,7 @@ jobs:
         run: npm ci
 
       - name: Stamp extension version from release tag
-        if: startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v')
+        if: startsWith(github.ref, 'refs/tags/')
         run: node extension/scripts/stamp-version-from-tag.mjs
 
       - name: Build Firefox extension with WXT
@@ -148,9 +149,10 @@ jobs:
     name: Publish to Microsoft Edge Add-ons
     needs: build-and-package
     runs-on: ubuntu-latest
-    if: |
-      (startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v') ||
-       (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'edge')))
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'tag' &&
+      (inputs.target == 'all' || inputs.target == 'edge')
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -173,9 +175,10 @@ jobs:
     name: Publish to Chrome Web Store
     needs: build-and-package
     runs-on: ubuntu-latest
-    if: |
-      (startsWith(github.ref, 'refs/tags/ext-v') || startsWith(github.ref, 'refs/tags/extension-v') ||
-       (github.event_name == 'workflow_dispatch' && (inputs.target == 'all' || inputs.target == 'chrome')))
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'tag' &&
+      (inputs.target == 'all' || inputs.target == 'chrome')
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
