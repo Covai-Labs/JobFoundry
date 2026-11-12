@@ -36,6 +36,7 @@ class TailorBridge:
         model: str | None = None,
         api_key: str | None = None,
         api_base: str | None = None,
+        custom_instructions: str | None = None,
     ) -> TailorResult | None:
         """
         Send a job description and master resume to resume-ops for tailoring.
@@ -54,7 +55,7 @@ class TailorBridge:
         except Exception as e:
             logger.error("Tailor bridge destination blocked by SSRF guard: %s (%s)", url, e)
             return None
-        payload = {
+        payload: dict[str, Any] = {
             "job_description": job.get("description", ""),
             "resume": master_resume,
             "theme": theme,
@@ -65,6 +66,9 @@ class TailorBridge:
             payload["api_key"] = api_key
         if api_base:
             payload["api_base"] = api_base
+        if custom_instructions:
+            payload["custom_instructions"] = custom_instructions
+
 
         try:
             if self._client:

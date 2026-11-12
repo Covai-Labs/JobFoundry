@@ -90,7 +90,11 @@ export function migrate(db) {
       );
       CREATE INDEX IF NOT EXISTS idx_user_facts_user ON user_facts(user_id);
     `);
-  } catch {}
+  } catch (err) {
+    if (!String(err?.message || err).includes('already exists')) {
+      throw err;
+    }
+  }
 
   db.exec(
     `UPDATE users

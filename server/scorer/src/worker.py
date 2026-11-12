@@ -113,6 +113,18 @@ async def process_unscored_user_jobs(
                     # Tailoring uses the user's tailor_* settings (own key only),
                     # not the scorer settings used for scoring.
                     tailor_llm = store.get_user_effective_tailor(user_id, fallback=user_llm)
+                    custom_instructions = None
+                    if user_facts:
+                        facts_lines = [
+                            f"- [{f.get('category', 'general').upper()}] {f.get('fact_text', '')}"
+                            for f in user_facts
+                            if f.get("fact_text")
+                        ]
+                        if facts_lines:
+                            custom_instructions = (
+                                "CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES:\n"
+                                + "\n".join(facts_lines)
+                            )
                     try:
                         tailor_res = await tailor_bridge.tailor(
                             job=job_dict,
@@ -121,6 +133,7 @@ async def process_unscored_user_jobs(
                             model=tailor_llm.get("model"),
                             api_key=tailor_llm.get("api_key"),
                             api_base=tailor_llm.get("api_base"),
+                            custom_instructions=custom_instructions,
                         )
                         concise_res = await tailor_bridge.tailor(
                             job=job_dict,
@@ -129,6 +142,7 @@ async def process_unscored_user_jobs(
                             model=tailor_llm.get("model"),
                             api_key=tailor_llm.get("api_key"),
                             api_base=tailor_llm.get("api_base"),
+                            custom_instructions=custom_instructions,
                         )
 
                         if tailor_res and tailor_res.status == "completed":

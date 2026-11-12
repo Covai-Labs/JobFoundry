@@ -547,19 +547,26 @@ class JobStore:
     def get_user_facts(self, user_id: str, active_only: bool = True) -> list[dict[str, Any]]:
         """Retrieve candidate facts for a user from user_facts table."""
         try:
-            query = (
-                "SELECT id, user_id, category, fact_text, is_active "
-                "FROM user_facts WHERE user_id = ? "
-            )
             if active_only:
-                query += "AND is_active = 1 "
-            query += "ORDER BY created_at ASC"
+                query = (
+                    "SELECT id, user_id, category, fact_text, is_active "
+                    "FROM user_facts WHERE user_id = ? AND is_active = 1 "
+                    "ORDER BY created_at ASC"
+                )
+            else:
+                query = (
+                    "SELECT id, user_id, category, fact_text, is_active "
+                    "FROM user_facts WHERE user_id = ? "
+                    "ORDER BY created_at ASC"
+                )
             cursor = self.conn.execute(query, (user_id,))
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
-        except sqlite3.OperationalError:
-            # Table might not exist in old test databases
-            return []
+        except sqlite3.OperationalError as exc:
+            # Re-raise if error is not the expected missing-table scenario
+            if "no such table" in str(exc).lower():
+                return []
+            raise
 
     def close(self) -> None:
         self.conn.close()

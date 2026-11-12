@@ -111,6 +111,7 @@ class MockTailorBridge(TailorBridge):
         model: str | None = None,
         api_key: str | None = None,
         api_base: str | None = None,
+        **kwargs,
     ):
         self.calls.append(
             {
@@ -119,6 +120,7 @@ class MockTailorBridge(TailorBridge):
                 "api_key": api_key,
                 "api_base": api_base,
                 "user_id": master_resume.get("basics", {}).get("name", ""),
+                **kwargs,
             }
         )
         return TailorResult(

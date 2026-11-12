@@ -161,6 +161,7 @@ class MockTailorBridge(TailorBridge):
         model=None,
         api_key=None,
         api_base=None,
+        **kwargs,
     ):
         sample_pdf = b"%PDF-1.4 Tailored Resume for " + master_resume["basics"]["name"].encode()
         return TailorResult(
