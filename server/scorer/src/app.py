@@ -78,6 +78,8 @@ def create_app(
             "threshold": getattr(config, "scorer_threshold", 75) if config else 75,
             "opik_enabled": bool(getattr(config, "opik_api_key", None) or getattr(config, "opik_url_override", None)) if config else False,
             "opik_project": getattr(config, "opik_project_name", "jobfoundry") if config else "jobfoundry",
+            "langfuse_enabled": bool(getattr(config, "langfuse_public_key", None) and getattr(config, "langfuse_secret_key", None)) if config else False,
+            "langsmith_enabled": bool(getattr(config, "langsmith_api_key", None)) if config else False,
             "worker": daemon.get_status() if daemon else {"running": False, "enabled": False},
         }
 

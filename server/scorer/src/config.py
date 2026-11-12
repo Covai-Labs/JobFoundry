@@ -21,16 +21,33 @@ class ScorerConfig:
     opik_workspace: str | None = None
     opik_project_name: str = "jobfoundry"
     opik_url_override: str | None = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
+    langsmith_api_key: str | None = None
+    langsmith_project: str | None = None
+    langsmith_endpoint: str | None = None
     worker_enabled: bool = True
     worker_poll_interval_seconds: float = 10.0
 
+
+
+def _resolve_db_path() -> str:
+    if os.getenv("DB_PATH"):
+        return os.getenv("DB_PATH").strip()
+    return "/data/jobfoundry.db" if os.path.exists("/data") else "./jobs.db"
+
+
+def _resolve_artifacts_dir() -> str:
+    if os.getenv("ARTIFACTS_DIR"):
+        return os.getenv("ARTIFACTS_DIR").strip()
+    return "/data/artifacts" if os.path.exists("/data") else "./data/artifacts"
 
 
 def load_config() -> ScorerConfig:
     """Load scorer configuration from environment variables."""
 
     scorer_model = os.getenv("SCORER_MODEL", "gpt-4o-mini")
-
 
     scorer_provider = os.getenv("SCORER_PROVIDER")
     raw_threshold = os.getenv("SCORER_THRESHOLD", "75")
@@ -43,22 +60,12 @@ def load_config() -> ScorerConfig:
     if scorer_threshold < 0 or scorer_threshold > 100:
         raise ValueError(f"Threshold must be between 0 and 100, got: {scorer_threshold}")
 
-    if os.getenv("DB_PATH"):
-        db_path = os.getenv("DB_PATH").strip()
-    elif os.path.exists("/data"):
-        db_path = "/data/jobfoundry.db"
-    else:
-        db_path = "./jobs.db"
+    db_path = _resolve_db_path()
 
     tailor_port = os.getenv("TAILOR_PORT") or "8081"
     resume_ops_url = f"http://127.0.0.1:{tailor_port}"
 
-    if os.getenv("ARTIFACTS_DIR"):
-        artifacts_dir = os.getenv("ARTIFACTS_DIR").strip()
-    elif os.path.exists("/data"):
-        artifacts_dir = "/data/artifacts"
-    else:
-        artifacts_dir = "./data/artifacts"
+    artifacts_dir = _resolve_artifacts_dir()
     scorer_api_key = (
         os.getenv("OPENROUTER_API_KEY")
         or os.getenv("SCORER_API_KEY")
@@ -82,6 +89,14 @@ def load_config() -> ScorerConfig:
     opik_workspace = os.getenv("OPIK_WORKSPACE")
     opik_project_name = os.getenv("OPIK_PROJECT_NAME", "jobfoundry")
     opik_url_override = os.getenv("OPIK_URL_OVERRIDE")
+
+    langfuse_public_key = os.getenv("LANGFUSE_PUBLIC_KEY")
+    langfuse_secret_key = os.getenv("LANGFUSE_SECRET_KEY")
+    langfuse_host = os.getenv("LANGFUSE_HOST", "https://cloud.langfuse.com")
+
+    langsmith_api_key = os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY")
+    langsmith_project = os.getenv("LANGSMITH_PROJECT", "jobfoundry")
+    langsmith_endpoint = os.getenv("LANGSMITH_ENDPOINT", "https://api.smith.langchain.com")
 
     worker_enabled = os.getenv("WORKER_ENABLED", "true").lower() in ("1", "true", "yes")
     raw_poll_interval = os.getenv("WORKER_POLL_INTERVAL_SECONDS", "10")
@@ -112,6 +127,12 @@ def load_config() -> ScorerConfig:
         opik_workspace=opik_workspace,
         opik_project_name=opik_project_name,
         opik_url_override=opik_url_override,
+        langfuse_public_key=langfuse_public_key,
+        langfuse_secret_key=langfuse_secret_key,
+        langfuse_host=langfuse_host,
+        langsmith_api_key=langsmith_api_key,
+        langsmith_project=langsmith_project,
+        langsmith_endpoint=langsmith_endpoint,
         worker_enabled=worker_enabled,
         worker_poll_interval_seconds=worker_poll_interval_seconds,
     )

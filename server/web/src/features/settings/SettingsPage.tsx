@@ -196,11 +196,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     copilot_outreach_prompt_template: '',
     copilot_qa_prompt_template: '',
     copilot_cover_letter_prompt_template: '',
+    observability_provider: 'opik',
     opik_enabled: false,
     opik_project_name: 'jobfoundry',
     opik_api_key: '',
     opik_workspace: '',
     opik_url_override: '',
+    langfuse_enabled: false,
+    langfuse_public_key: '',
+    langfuse_secret_key: '',
+    langfuse_host: 'https://cloud.langfuse.com',
+    langsmith_enabled: false,
+    langsmith_api_key: '',
+    langsmith_project: 'jobfoundry',
+    langsmith_endpoint: 'https://api.smith.langchain.com',
     theme_color_mode: colorMode,
     theme_accent: accentTheme,
   });
@@ -219,6 +228,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [newTailorKey, setNewTailorKey] = useState('');
   const [editingOpikKey, setEditingOpikKey] = useState(false);
   const [newOpikKey, setNewOpikKey] = useState('');
+  const [editingLangfusePubKey, setEditingLangfusePubKey] = useState(false);
+  const [newLangfusePubKey, setNewLangfusePubKey] = useState('');
+  const [editingLangfuseSecKey, setEditingLangfuseSecKey] = useState(false);
+  const [newLangfuseSecKey, setNewLangfuseSecKey] = useState('');
+  const [editingLangsmithKey, setEditingLangsmithKey] = useState(false);
+  const [newLangsmithKey, setNewLangsmithKey] = useState('');
+  const [activeObservabilityProvider, setActiveObservabilityProvider] = useState<
+    'opik' | 'langfuse' | 'langsmith'
+  >('opik');
 
   // Default Gateway State
   const [selectedDefaultProvider, setSelectedDefaultProvider] = useState<string>(() => {
@@ -358,6 +376,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           }
           if (backendSettings.copilot_api_base) {
             setShowCopilotEndpointOverride(true);
+          }
+          if (backendSettings.observability_provider) {
+            setActiveObservabilityProvider(
+              backendSettings.observability_provider as 'opik' | 'langfuse' | 'langsmith'
+            );
+          } else if (backendSettings.langfuse_enabled) {
+            setActiveObservabilityProvider('langfuse');
+          } else if (backendSettings.langsmith_enabled) {
+            setActiveObservabilityProvider('langsmith');
           }
 
           const hasLlmKey = Boolean(
@@ -631,6 +658,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       if (editingOpikKey && newOpikKey.trim()) {
         payload.opik_api_key = newOpikKey.trim();
       }
+      if (editingLangfusePubKey && newLangfusePubKey.trim()) {
+        payload.langfuse_public_key = newLangfusePubKey.trim();
+      }
+      if (editingLangfuseSecKey && newLangfuseSecKey.trim()) {
+        payload.langfuse_secret_key = newLangfuseSecKey.trim();
+      }
+      if (editingLangsmithKey && newLangsmithKey.trim()) {
+        payload.langsmith_api_key = newLangsmithKey.trim();
+      }
+      payload.observability_provider = activeObservabilityProvider;
 
       const res = await api.updateSettings(payload);
       if (res.settings) {
@@ -649,6 +686,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         setNewCopilotKey('');
         setEditingOpikKey(false);
         setNewOpikKey('');
+        setEditingLangfusePubKey(false);
+        setNewLangfusePubKey('');
+        setEditingLangfuseSecKey(false);
+        setNewLangfuseSecKey('');
+        setEditingLangsmithKey(false);
+        setNewLangsmithKey('');
       }
 
       // Also persist extension/scraper config if it was modified
@@ -694,8 +737,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       tailor_model: 'openrouter/openrouter/free',
       tailor_theme: 'jsonresume-theme-folio',
       tailor_timeout_seconds: 900,
+      observability_provider: 'opik',
       opik_enabled: false,
+      langfuse_enabled: false,
+      langsmith_enabled: false,
     }));
+    setActiveObservabilityProvider('opik');
     setApiUrl(DEFAULT_SETTINGS.apiUrl);
     setTempColorMode('system');
     setTempAccentTheme('indigo');
@@ -1186,7 +1233,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               onClick={() => handleTabChange('observability')}
               className={`settings-nav-item ${activeTab === 'observability' ? 'active' : ''}`}
             >
-              <Activity size={16} /> Observability (Opik)
+              <Activity size={16} /> Observability &amp; Tracing
             </button>
           </div>
 
@@ -2134,7 +2181,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             className="btn btn-secondary btn-sm"
                             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
                           >
-                            <Activity size={14} /> Open Opik Observability Tab
+                            <Activity size={14} /> Open Observability &amp; Tracing Tab
                           </button>
                         </div>
                       </div>
@@ -4748,204 +4795,716 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         }}
                       >
                         <Activity size={18} style={{ color: 'var(--accent-primary)' }} />
-                        LLM Observability & Opik Tracing
+                        LLM Observability &amp; Tracing
                       </h3>
-                      {renderSourceBadge('opik_project_name')}
+                      {(() => {
+                        let sourceBadgeKey: keyof SystemSettings = 'opik_project_name';
+                        if (activeObservabilityProvider === 'langfuse')
+                          sourceBadgeKey = 'langfuse_host';
+                        else if (activeObservabilityProvider === 'langsmith')
+                          sourceBadgeKey = 'langsmith_project';
+                        return renderSourceBadge(sourceBadgeKey);
+                      })()}
                     </div>
                     <p
                       style={{
                         fontSize: '0.85rem',
                         color: 'var(--text-secondary)',
-                        marginBottom: '1.25rem',
+                        marginBottom: '0.75rem',
                       }}
                     >
-                      Stream prompt tokens, model latency, and evaluation traces to Comet Opik Cloud
-                      or your self-hosted Opik instance.
+                      Stream prompt tokens, model latencies, cost tracking, and evaluation traces to
+                      your preferred LLM observability platform via LiteLLM callbacks.
                     </p>
-
-                    {/* Opik Enabled Toggle */}
                     <div
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.75rem',
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-card-subtle)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '0.8rem',
+                        color: 'var(--text-muted)',
                         marginBottom: '1.25rem',
+                        lineHeight: 1.4,
                       }}
                     >
-                      <input
-                        type="checkbox"
-                        id="opik_enabled"
-                        checked={formSettings.opik_enabled}
-                        onChange={(e) => handleFieldChange('opik_enabled', e.target.checked)}
-                        style={{
-                          width: '18px',
-                          height: '18px',
-                          accentColor: 'var(--accent-primary)',
-                        }}
-                      />
-                      <label
-                        htmlFor="opik_enabled"
-                        style={{ fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer' }}
-                      >
-                        Enable Opik Tracing Callbacks
-                      </label>
+                      <strong>Note:</strong> Observability settings apply to this JobFoundry server
+                      instance and its backend services. LLM trace data is captured at the instance
+                      level.
                     </div>
 
-                    {/* Project Name */}
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <label
+                    {/* Observability Provider Switcher */}
+                    <div style={{ marginBottom: '1.5rem' }}>
+                      <span
                         style={{
                           display: 'block',
                           fontSize: '0.85rem',
-                          fontWeight: 500,
-                          marginBottom: '0.35rem',
+                          fontWeight: 600,
+                          marginBottom: '0.5rem',
                         }}
                       >
-                        Opik Project Name
-                      </label>
-                      <input
-                        type="text"
-                        value={formSettings.opik_project_name}
-                        onChange={(e) => handleFieldChange('opik_project_name', e.target.value)}
-                        className="input-text"
-                        placeholder="jobfoundry"
-                      />
-                    </div>
-
-                    {/* Opik Workspace */}
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: '0.85rem',
-                          fontWeight: 500,
-                          marginBottom: '0.35rem',
-                        }}
-                      >
-                        Opik Workspace (Optional)
-                      </label>
-                      <input
-                        type="text"
-                        value={formSettings.opik_workspace}
-                        onChange={(e) => handleFieldChange('opik_workspace', e.target.value)}
-                        className="input-text"
-                        placeholder="my-workspace"
-                      />
-                    </div>
-
-                    {/* Opik API Key */}
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '0.35rem',
-                        }}
-                      >
-                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>Opik API Key</label>
-                        {renderSourceBadge('opik_api_key')}
+                        Observability Platform
+                      </span>
+                      <div className="mode-selector-group" style={{ maxWidth: '480px' }}>
+                        <button
+                          type="button"
+                          className={`mode-selector-btn ${activeObservabilityProvider === 'opik' ? 'active' : ''}`}
+                          onClick={() => {
+                            setActiveObservabilityProvider('opik');
+                            handleFieldChange('observability_provider', 'opik');
+                          }}
+                        >
+                          Comet Opik
+                        </button>
+                        <button
+                          type="button"
+                          className={`mode-selector-btn ${activeObservabilityProvider === 'langfuse' ? 'active' : ''}`}
+                          onClick={() => {
+                            setActiveObservabilityProvider('langfuse');
+                            handleFieldChange('observability_provider', 'langfuse');
+                          }}
+                        >
+                          Langfuse
+                        </button>
+                        <button
+                          type="button"
+                          className={`mode-selector-btn ${activeObservabilityProvider === 'langsmith' ? 'active' : ''}`}
+                          onClick={() => {
+                            setActiveObservabilityProvider('langsmith');
+                            handleFieldChange('observability_provider', 'langsmith');
+                          }}
+                        >
+                          LangSmith
+                        </button>
                       </div>
+                    </div>
 
-                      {!editingOpikKey ? (
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                    {/* PROVIDER 1: COMET OPIK */}
+                    {activeObservabilityProvider === 'opik' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            id="opik_enabled"
+                            checked={Boolean(formSettings.opik_enabled)}
+                            onChange={(e) => handleFieldChange('opik_enabled', e.target.checked)}
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: 'var(--accent-primary)',
+                            }}
+                          />
+                          <label
+                            htmlFor="opik_enabled"
+                            style={{ fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer' }}
+                          >
+                            Enable Opik Tracing Callbacks
+                          </label>
+                        </div>
+
+                        {/* Project Name */}
+                        <div>
+                          <label
+                            htmlFor="opik_project_name"
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            Opik Project Name
+                          </label>
+                          <input
+                            id="opik_project_name"
+                            type="text"
+                            value={formSettings.opik_project_name || ''}
+                            onChange={(e) => handleFieldChange('opik_project_name', e.target.value)}
+                            className="input-text"
+                            placeholder="jobfoundry"
+                          />
+                        </div>
+
+                        {/* Opik Workspace */}
+                        <div>
+                          <label
+                            htmlFor="opik_workspace"
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            Opik Workspace (Optional)
+                          </label>
+                          <input
+                            id="opik_workspace"
+                            type="text"
+                            value={formSettings.opik_workspace || ''}
+                            onChange={(e) => handleFieldChange('opik_workspace', e.target.value)}
+                            className="input-text"
+                            placeholder="my-workspace"
+                          />
+                        </div>
+
+                        {/* Opik API Key */}
+                        <div>
                           <div
                             style={{
-                              flex: 1,
-                              padding: '0.55rem 0.75rem',
-                              borderRadius: 'var(--radius-md)',
-                              background: 'var(--bg-input)',
-                              border: '1px solid var(--border-subtle)',
-                              fontFamily: 'monospace',
-                              fontSize: '0.85rem',
-                              color: formSettings.opik_api_key
-                                ? 'var(--text-primary)'
-                                : 'var(--text-muted)',
                               display: 'flex',
+                              justifyContent: 'space-between',
                               alignItems: 'center',
-                              gap: '0.5rem',
+                              marginBottom: '0.35rem',
                             }}
                           >
-                            <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                            {formSettings.opik_api_key || 'No Opik key configured'}
+                            <label
+                              htmlFor="opik_api_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
+                              Opik API Key
+                            </label>
+                            {renderSourceBadge('opik_api_key')}
                           </div>
-                          <button
-                            type="button"
-                            onClick={() => setEditingOpikKey(true)}
-                            className="btn btn-secondary btn-sm"
-                            style={{ whiteSpace: 'nowrap' }}
-                          >
-                            <Unlock size={14} /> Change Key
-                          </button>
+
+                          {!editingOpikKey ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  padding: '0.55rem 0.75rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: 'var(--bg-input)',
+                                  border: '1px solid var(--border-subtle)',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.85rem',
+                                  color: formSettings.opik_api_key
+                                    ? 'var(--text-primary)'
+                                    : 'var(--text-muted)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
+                                {formSettings.opik_api_key || 'No Opik key configured'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingOpikKey(true)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ whiteSpace: 'nowrap' }}
+                              >
+                                <Unlock size={14} /> Change Key
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <input
+                                id="opik_api_key_input"
+                                type="password"
+                                value={newOpikKey}
+                                onChange={(e) => {
+                                  setNewOpikKey(e.target.value);
+                                  setIsDirty(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newOpikKey.trim() && !saving) {
+                                    e.preventDefault();
+                                    void handleSaveAll();
+                                  }
+                                }}
+                                className="input-text"
+                                placeholder="Enter Opik API Key"
+                                style={{ flex: 1 }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
+                                disabled={saving || !newOpikKey.trim()}
+                                className="btn btn-primary btn-sm"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingOpikKey(false);
+                                  setNewOpikKey('');
+                                }}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                         </div>
-                      ) : (
-                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+
+                        {/* Opik Self-Hosted URL */}
+                        <div>
+                          <label
+                            htmlFor="opik_url_override"
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            Opik Custom URL Override (For Self-Hosted Opik)
+                          </label>
                           <input
-                            type="password"
-                            value={newOpikKey}
-                            onChange={(e) => {
-                              setNewOpikKey(e.target.value);
-                              setIsDirty(true);
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' && newOpikKey.trim() && !saving) {
-                                e.preventDefault();
-                                handleSaveAll();
-                              }
-                            }}
+                            id="opik_url_override"
+                            type="text"
+                            value={formSettings.opik_url_override || ''}
+                            onChange={(e) => handleFieldChange('opik_url_override', e.target.value)}
                             className="input-text"
-                            placeholder="Enter Opik API Key"
-                            style={{ flex: 1 }}
-                            autoFocus
+                            placeholder="http://localhost:5173/api"
                           />
-                          <button
-                            type="button"
-                            onClick={() => handleSaveAll()}
-                            disabled={saving || !newOpikKey.trim()}
-                            className="btn btn-primary btn-sm"
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROVIDER 2: LANGFUSE */}
+                    {activeObservabilityProvider === 'langfuse' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            id="langfuse_enabled"
+                            checked={Boolean(formSettings.langfuse_enabled)}
+                            onChange={(e) =>
+                              handleFieldChange('langfuse_enabled', e.target.checked)
+                            }
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: 'var(--accent-primary)',
+                            }}
+                          />
+                          <label
+                            htmlFor="langfuse_enabled"
+                            style={{ fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer' }}
+                          >
+                            Enable Langfuse Tracing Callbacks
+                          </label>
+                        </div>
+
+                        {/* Langfuse Host URL */}
+                        <div>
+                          <label
+                            htmlFor="langfuse_host"
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            Langfuse Host URL
+                          </label>
+                          <input
+                            id="langfuse_host"
+                            type="text"
+                            value={formSettings.langfuse_host || ''}
+                            onChange={(e) => handleFieldChange('langfuse_host', e.target.value)}
+                            className="input-text"
+                            placeholder="https://cloud.langfuse.com (or self-hosted http://localhost:3000)"
+                          />
+                        </div>
+
+                        {/* Langfuse Public Key */}
+                        <div>
+                          <div
                             style={{
                               display: 'flex',
+                              justifyContent: 'space-between',
                               alignItems: 'center',
-                              gap: '0.35rem',
-                              whiteSpace: 'nowrap',
+                              marginBottom: '0.35rem',
                             }}
                           >
-                            <Check size={14} /> {saving ? 'Saving...' : 'Save'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingOpikKey(false);
-                              setNewOpikKey('');
-                            }}
-                            className="btn btn-secondary btn-sm"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                            <label
+                              htmlFor="langfuse_public_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
+                              Langfuse Public Key
+                            </label>
+                            {renderSourceBadge('langfuse_public_key')}
+                          </div>
 
-                    {/* Opik Self-Hosted URL */}
-                    <div>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: '0.85rem',
-                          fontWeight: 500,
-                          marginBottom: '0.35rem',
-                        }}
-                      >
-                        Opik Custom URL Override (For Self-Hosted Opik)
-                      </label>
-                      <input
-                        type="text"
-                        value={formSettings.opik_url_override}
-                        onChange={(e) => handleFieldChange('opik_url_override', e.target.value)}
-                        className="input-text"
-                        placeholder="http://localhost:5173/api"
-                      />
-                    </div>
+                          {!editingLangfusePubKey ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  padding: '0.55rem 0.75rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: 'var(--bg-input)',
+                                  border: '1px solid var(--border-subtle)',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.85rem',
+                                  color: formSettings.langfuse_public_key
+                                    ? 'var(--text-primary)'
+                                    : 'var(--text-muted)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
+                                {formSettings.langfuse_public_key ||
+                                  'No Langfuse public key configured'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingLangfusePubKey(true)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ whiteSpace: 'nowrap' }}
+                              >
+                                <Unlock size={14} /> Change Key
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <input
+                                id="langfuse_public_key_input"
+                                type="text"
+                                value={newLangfusePubKey}
+                                onChange={(e) => {
+                                  setNewLangfusePubKey(e.target.value);
+                                  setIsDirty(true);
+                                }}
+                                className="input-text"
+                                placeholder="pk-lf-..."
+                                style={{ flex: 1 }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
+                                disabled={saving || !newLangfusePubKey.trim()}
+                                className="btn btn-primary btn-sm"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingLangfusePubKey(false);
+                                  setNewLangfusePubKey('');
+                                }}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Langfuse Secret Key */}
+                        <div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            <label
+                              htmlFor="langfuse_secret_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
+                              Langfuse Secret Key
+                            </label>
+                            {renderSourceBadge('langfuse_secret_key')}
+                          </div>
+
+                          {!editingLangfuseSecKey ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  padding: '0.55rem 0.75rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: 'var(--bg-input)',
+                                  border: '1px solid var(--border-subtle)',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.85rem',
+                                  color: formSettings.langfuse_secret_key
+                                    ? 'var(--text-primary)'
+                                    : 'var(--text-muted)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
+                                {formSettings.langfuse_secret_key ||
+                                  'No Langfuse secret key configured'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingLangfuseSecKey(true)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ whiteSpace: 'nowrap' }}
+                              >
+                                <Unlock size={14} /> Change Key
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <input
+                                id="langfuse_secret_key_input"
+                                type="password"
+                                value={newLangfuseSecKey}
+                                onChange={(e) => {
+                                  setNewLangfuseSecKey(e.target.value);
+                                  setIsDirty(true);
+                                }}
+                                className="input-text"
+                                placeholder="sk-lf-..."
+                                style={{ flex: 1 }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
+                                disabled={saving || !newLangfuseSecKey.trim()}
+                                className="btn btn-primary btn-sm"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingLangfuseSecKey(false);
+                                  setNewLangfuseSecKey('');
+                                }}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* PROVIDER 3: LANGSMITH */}
+                    {activeObservabilityProvider === 'langsmith' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            id="langsmith_enabled"
+                            checked={Boolean(formSettings.langsmith_enabled)}
+                            onChange={(e) =>
+                              handleFieldChange('langsmith_enabled', e.target.checked)
+                            }
+                            style={{
+                              width: '18px',
+                              height: '18px',
+                              accentColor: 'var(--accent-primary)',
+                            }}
+                          />
+                          <label
+                            htmlFor="langsmith_enabled"
+                            style={{ fontSize: '0.9rem', fontWeight: 500, cursor: 'pointer' }}
+                          >
+                            Enable LangSmith Tracing Callbacks
+                          </label>
+                        </div>
+
+                        {/* LangSmith Project Name */}
+                        <div>
+                          <label
+                            htmlFor="langsmith_project"
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            LangSmith Project Name
+                          </label>
+                          <input
+                            id="langsmith_project"
+                            type="text"
+                            value={formSettings.langsmith_project || ''}
+                            onChange={(e) => handleFieldChange('langsmith_project', e.target.value)}
+                            className="input-text"
+                            placeholder="jobfoundry"
+                          />
+                        </div>
+
+                        {/* LangSmith API Key */}
+                        <div>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            <label
+                              htmlFor="langsmith_api_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
+                              LangSmith API Key
+                            </label>
+                            {renderSourceBadge('langsmith_api_key')}
+                          </div>
+
+                          {!editingLangsmithKey ? (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <div
+                                style={{
+                                  flex: 1,
+                                  padding: '0.55rem 0.75rem',
+                                  borderRadius: 'var(--radius-md)',
+                                  background: 'var(--bg-input)',
+                                  border: '1px solid var(--border-subtle)',
+                                  fontFamily: 'monospace',
+                                  fontSize: '0.85rem',
+                                  color: formSettings.langsmith_api_key
+                                    ? 'var(--text-primary)'
+                                    : 'var(--text-muted)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                }}
+                              >
+                                <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
+                                {formSettings.langsmith_api_key || 'No LangSmith key configured'}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => setEditingLangsmithKey(true)}
+                                className="btn btn-secondary btn-sm"
+                                style={{ whiteSpace: 'nowrap' }}
+                              >
+                                <Unlock size={14} /> Change Key
+                              </button>
+                            </div>
+                          ) : (
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                              <input
+                                id="langsmith_api_key_input"
+                                type="password"
+                                value={newLangsmithKey}
+                                onChange={(e) => {
+                                  setNewLangsmithKey(e.target.value);
+                                  setIsDirty(true);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter' && newLangsmithKey.trim() && !saving) {
+                                    e.preventDefault();
+                                    void handleSaveAll();
+                                  }
+                                }}
+                                className="input-text"
+                                placeholder="lsv2_pt_..."
+                                style={{ flex: 1 }}
+                              />
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
+                                disabled={saving || !newLangsmithKey.trim()}
+                                className="btn btn-primary btn-sm"
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  whiteSpace: 'nowrap',
+                                }}
+                              >
+                                <Check size={14} /> {saving ? 'Saving...' : 'Save'}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingLangsmithKey(false);
+                                  setNewLangsmithKey('');
+                                }}
+                                className="btn btn-secondary btn-sm"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* LangSmith Endpoint */}
+                        <div>
+                          <label
+                            htmlFor="langsmith_endpoint"
+                            style={{
+                              display: 'block',
+                              fontSize: '0.85rem',
+                              fontWeight: 500,
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            LangSmith Endpoint URL
+                          </label>
+                          <input
+                            id="langsmith_endpoint"
+                            type="text"
+                            value={formSettings.langsmith_endpoint || ''}
+                            onChange={(e) =>
+                              handleFieldChange('langsmith_endpoint', e.target.value)
+                            }
+                            className="input-text"
+                            placeholder="https://api.smith.langchain.com"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

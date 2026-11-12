@@ -127,9 +127,17 @@ class Settings(BaseSettings):
 
     # Tracing & Evaluation Configuration
     enable_tracing: bool = False
+    observability_provider: str | None = None
     opik_api_key: str | None = None
     opik_project_name: str = "resume-ops"
     opik_workspace: str | None = None
+    opik_url_override: str | None = None
+    langfuse_public_key: str | None = None
+    langfuse_secret_key: str | None = None
+    langfuse_host: str | None = None
+    langsmith_api_key: str | None = None
+    langsmith_project: str | None = None
+    langsmith_endpoint: str | None = None
     eval_model: str | None = None
 
     @field_validator("tailor_sections", mode="before")
