@@ -39,7 +39,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
   const [editorMode, setEditorMode] = useState<'form' | 'json'>('form');
   const [title, setTitle] = useState<string>('Master Resume');
   const [jsonText, setJsonText] = useState<string>('');
-  const [parsedResume, setParsedResume] = useState<Record<string, any>>({});
+  const [parsedResume, setParsedResume] = useState<Record<string, unknown>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
 
@@ -60,7 +60,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       onActiveResumeChange?.(Boolean(active));
       if (active) {
         setTitle(active.title);
-        setParsedResume(active.resume || {});
+        setParsedResume(active.resume);
         const formatted = JSON.stringify(active.resume, null, 2);
         setJsonText(formatted);
         validateJson(formatted);
@@ -143,7 +143,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     }
   };
 
-  const handleFormChange = (updated: Record<string, any>) => {
+  const handleFormChange = (updated: Record<string, unknown>) => {
     setParsedResume(updated);
     const formatted = JSON.stringify(updated, null, 2);
     setJsonText(formatted);
@@ -278,7 +278,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     }
   };
 
-  const parsedActive = activeResume?.resume || parsedResume;
+  const parsedActive = (activeResume?.resume ?? parsedResume) as Record<string, any>;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -381,7 +381,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
                 Loading profile...
               </div>
-            ) : parsedActive ? (
+            ) : Object.keys(parsedActive).length > 0 ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
@@ -593,7 +593,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditorMode('json')}
+                  onClick={() => {
+                    setEditorMode('json');
+                  }}
                   className={`btn btn-sm ${editorMode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                 >
@@ -698,7 +700,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               {activeResume && (
                 <button
                   type="button"
-                  onClick={() => handleSave(true)}
+                  onClick={() => {
+                    void handleSave(true);
+                  }}
                   disabled={validationErrors.length > 0 || saving}
                   className="btn btn-secondary btn-sm"
                   style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
@@ -708,7 +712,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               )}
               <button
                 type="button"
-                onClick={() => handleSave(false)}
+                onClick={() => {
+                  void handleSave(false);
+                }}
                 disabled={validationErrors.length > 0 || saving}
                 className="btn btn-primary"
                 style={{

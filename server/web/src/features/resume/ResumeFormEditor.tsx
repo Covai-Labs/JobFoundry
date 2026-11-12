@@ -89,7 +89,7 @@ export interface ResumeData {
 
 export interface ResumeFormEditorProps {
   resume: ResumeData;
-  onChange: (updatedResume: ResumeData) => void;
+  onChange: (_updatedResume: ResumeData) => void;
 }
 
 interface CollapsibleSectionProps {
@@ -192,7 +192,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     });
   };
 
-  const updateResume = (updater: (prev: ResumeData) => ResumeData) => {
+  const updateResume = (updater: (_prev: ResumeData) => ResumeData) => {
     const updated = updater(resume ?? {});
     onChange(updated);
   };
@@ -1008,7 +1008,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 const SocialProfileItem: React.FC<{
   profile: ProfileItem;
   index: number;
-  onUpdate: (field: ProfileField, val: string) => void;
+  onUpdate: (_field: ProfileField, _val: string) => void;
   onRemove: () => void;
 }> = ({ profile, index, onUpdate, onRemove }) => (
   <div
@@ -1085,9 +1085,9 @@ const SocialProfileItem: React.FC<{
 const SkillGroupItem: React.FC<{
   group: SkillItem;
   groupIndex: number;
-  onUpdateName: (name: string) => void;
-  onAddKeyword: (kw: string) => void;
-  onRemoveKeyword: (kIdx: number) => void;
+  onUpdateName: (_name: string) => void;
+  onAddKeyword: (_kw: string) => void;
+  onRemoveKeyword: (_kIdx: number) => void;
   onRemoveGroup: () => void;
 }> = ({ group, groupIndex, onUpdateName, onAddKeyword, onRemoveKeyword, onRemoveGroup }) => {
   const [newKeyword, setNewKeyword] = useState('');
@@ -1238,11 +1238,11 @@ const SkillGroupItem: React.FC<{
 const WorkExperienceItem: React.FC<{
   work: WorkItem;
   workIndex: number;
-  onUpdate: (field: WorkField, val: string) => void;
+  onUpdate: (_field: WorkField, _val: string) => void;
   onRemove: () => void;
-  onAddHighlight: (text: string) => void;
-  onUpdateHighlight: (hIdx: number, text: string) => void;
-  onRemoveHighlight: (hIdx: number) => void;
+  onAddHighlight: (_text: string) => void;
+  onUpdateHighlight: (_hIdx: number, _text: string) => void;
+  onRemoveHighlight: (_hIdx: number) => void;
 }> = ({
   work,
   workIndex,
@@ -1496,7 +1496,7 @@ const WorkExperienceItem: React.FC<{
 const EducationEntryItem: React.FC<{
   education: EducationItem;
   index: number;
-  onUpdate: (field: EducationField, val: string) => void;
+  onUpdate: (_field: EducationField, _val: string) => void;
   onRemove: () => void;
 }> = ({ education, index, onUpdate, onRemove }) => (
   <div
@@ -1634,7 +1634,7 @@ const EducationEntryItem: React.FC<{
 const ProjectEntryItem: React.FC<{
   project: ProjectItem;
   index: number;
-  onUpdate: (field: ProjectField, val: string) => void;
+  onUpdate: (_field: ProjectField, _val: string) => void;
   onRemove: () => void;
 }> = ({ project, index, onUpdate, onRemove }) => (
   <div
