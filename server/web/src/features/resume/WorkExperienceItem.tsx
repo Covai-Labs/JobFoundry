@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { WorkItem } from './resumeTypes';
@@ -7,11 +8,11 @@ export type WorkField = 'name' | 'position' | 'startDate' | 'endDate' | 'summary
 export interface WorkExperienceItemProps {
   work: WorkItem;
   workIndex: number;
-  onUpdate: (_field: WorkField, _val: string) => void;
+  onUpdate: (field: WorkField, val: string) => void;
   onRemove: () => void;
-  onAddHighlight: (_text: string) => void;
-  onUpdateHighlight: (_highlightIndex: number, _text: string) => void;
-  onRemoveHighlight: (_highlightIndex: number) => void;
+  onAddHighlight: (text: string) => void;
+  onUpdateHighlight: (highlightIndex: number, text: string) => void;
+  onRemoveHighlight: (highlightIndex: number) => void;
 }
 
 export const WorkExperienceItem: React.FC<WorkExperienceItemProps> = ({

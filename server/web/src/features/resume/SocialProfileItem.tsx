@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { ProfileItem } from './resumeTypes';
@@ -7,7 +8,7 @@ export type ProfileField = 'network' | 'username' | 'url';
 export interface SocialProfileItemProps {
   profile: ProfileItem;
   index: number;
-  onUpdate: (_field: ProfileField, _val: string) => void;
+  onUpdate: (field: ProfileField, val: string) => void;
   onRemove: () => void;
 }
 

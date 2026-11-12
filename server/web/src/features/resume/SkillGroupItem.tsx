@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import { SkillItem } from './resumeTypes';
@@ -5,9 +6,9 @@ import { SkillItem } from './resumeTypes';
 export interface SkillGroupItemProps {
   group: SkillItem;
   groupIndex: number;
-  onUpdateName: (_name: string) => void;
-  onAddKeyword: (_keyword: string) => void;
-  onRemoveKeyword: (_keywordIndex: number) => void;
+  onUpdateName: (name: string) => void;
+  onAddKeyword: (keyword: string) => void;
+  onRemoveKeyword: (keywordIndex: number) => void;
   onRemoveGroup: () => void;
 }
 

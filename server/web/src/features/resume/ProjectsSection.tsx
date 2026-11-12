@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { FolderGit2, Plus } from 'lucide-react';
 import { ProjectItem } from './resumeTypes';
@@ -9,8 +10,8 @@ export interface ProjectsSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   onAddProject: () => void;
-  onUpdateProject: (_index: number, _field: ProjectField, _val: string) => void;
-  onRemoveProject: (_index: number) => void;
+  onUpdateProject: (index: number, field: ProjectField, val: string) => void;
+  onRemoveProject: (index: number) => void;
 }
 
 export const ProjectsSection: React.FC<ProjectsSectionProps> = ({

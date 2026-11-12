@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { User, Plus } from 'lucide-react';
 import { BasicsItem, ProfileItem } from './resumeTypes';
@@ -11,11 +12,11 @@ export interface BasicsFormSectionProps {
   basics: BasicsItem;
   isOpen: boolean;
   onToggle: () => void;
-  onUpdateBasics: (_field: BasicField, _value: string) => void;
-  onUpdateLocation: (_field: LocationField, _value: string) => void;
+  onUpdateBasics: (field: BasicField, value: string) => void;
+  onUpdateLocation: (field: LocationField, value: string) => void;
   onAddProfile: () => void;
-  onUpdateProfile: (_index: number, _field: ProfileField, _value: string) => void;
-  onRemoveProfile: (_index: number) => void;
+  onUpdateProfile: (index: number, field: ProfileField, value: string) => void;
+  onRemoveProfile: (index: number) => void;
 }
 
 export const BasicsFormSection: React.FC<BasicsFormSectionProps> = ({

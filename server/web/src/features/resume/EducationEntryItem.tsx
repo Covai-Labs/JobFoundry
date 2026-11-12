@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { EducationItem } from './resumeTypes';
@@ -8,7 +9,7 @@ export type EducationField =
 export interface EducationEntryItemProps {
   education: EducationItem;
   index: number;
-  onUpdate: (_field: EducationField, _val: string) => void;
+  onUpdate: (field: EducationField, val: string) => void;
   onRemove: () => void;
 }
 

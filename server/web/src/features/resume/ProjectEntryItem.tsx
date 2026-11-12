@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { Trash2 } from 'lucide-react';
 import { ProjectItem } from './resumeTypes';
@@ -7,7 +8,7 @@ export type ProjectField = 'name' | 'url' | 'description';
 export interface ProjectEntryItemProps {
   project: ProjectItem;
   index: number;
-  onUpdate: (_field: ProjectField, _val: string) => void;
+  onUpdate: (field: ProjectField, val: string) => void;
   onRemove: () => void;
 }
 

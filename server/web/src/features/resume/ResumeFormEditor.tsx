@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { Code, Plus } from 'lucide-react';
 import {
@@ -27,7 +28,7 @@ type SectionKey = 'basics' | 'skills' | 'work' | 'education' | 'projects';
 
 export interface ResumeFormEditorProps {
   resume: ResumeData;
-  onChange: (_updatedResume: ResumeData) => void;
+  onChange: (updatedResume: ResumeData) => void;
 }
 
 export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onChange }) => {
