@@ -19,6 +19,8 @@ export interface RegistrationStatus {
   userCount?: number;
 }
 
+export type FactCategory = 'preference' | 'constraint' | 'context' | 'style' | 'compensation';
+
 export interface UserResume {
   id: string;
   userId: string;
@@ -32,7 +34,7 @@ export interface UserResume {
 export interface UserFact {
   id: string;
   userId: string;
-  category: string;
+  category: FactCategory;
   factText: string;
   isActive: boolean;
   createdAt: number;
@@ -259,7 +261,7 @@ export class ApiClient {
   }
 
   async createFact(payload: {
-    category?: string;
+    category?: FactCategory;
     factText: string;
     isActive?: boolean;
   }): Promise<UserFact> {
@@ -272,7 +274,7 @@ export class ApiClient {
 
   async patchFact(
     id: string,
-    payload: { category?: string; factText?: string; isActive?: boolean }
+    payload: { category?: FactCategory; factText?: string; isActive?: boolean }
   ): Promise<UserFact> {
     const res = await this.request<{ fact: UserFact }>(`/api/v1/facts/${id}`, {
       method: 'PATCH',

@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Plus, Trash2, CheckCircle2, XCircle, Info, Lock } from 'lucide-react';
-import { api, UserFact } from '../../api/client';
+import { api, UserFact, FactCategory } from '../../api/client';
 
-export const CATEGORY_CONFIG: Record<
-  string,
-  { label: string; color: string; bg: string; border: string; placeholder: string }
-> = {
+export interface CategoryStyle {
+  label: string;
+  color: string;
+  bg: string;
+  border: string;
+  placeholder: string;
+}
+
+export const CATEGORY_CONFIG: Record<FactCategory, CategoryStyle> = {
   preference: {
     label: 'Preference',
     color: '#a78bfa',
@@ -43,6 +48,36 @@ export const CATEGORY_CONFIG: Record<
   },
 };
 
+export function getCategoryStyle(category: string): CategoryStyle {
+  switch (category) {
+    case 'preference':
+      return CATEGORY_CONFIG.preference;
+    case 'constraint':
+      return CATEGORY_CONFIG.constraint;
+    case 'context':
+      return CATEGORY_CONFIG.context;
+    case 'style':
+      return CATEGORY_CONFIG.style;
+    case 'compensation':
+      return CATEGORY_CONFIG.compensation;
+    default:
+      return {
+        label: category,
+        color: '#94a3b8',
+        bg: 'rgba(148, 163, 184, 0.1)',
+        border: 'rgba(148, 163, 184, 0.25)',
+        placeholder: 'Enter candidate preference or constraint...',
+      };
+  }
+}
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  if (err instanceof Error) {
+    return err.message;
+  }
+  return fallback;
+}
+
 export const CandidateFactsPanel: React.FC = () => {
   const [facts, setFacts] = useState<UserFact[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
@@ -50,7 +85,7 @@ export const CandidateFactsPanel: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   // New fact form
-  const [newCategory, setNewCategory] = useState<string>('preference');
+  const [newCategory, setNewCategory] = useState<FactCategory>('preference');
   const [newFactText, setNewFactText] = useState<string>('');
 
   const loadFacts = async () => {
@@ -60,7 +95,7 @@ export const CandidateFactsPanel: React.FC = () => {
       const data = await api.getFacts();
       setFacts(data);
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to load candidate facts');
+      setError(getErrorMessage(err, 'Failed to load candidate facts'));
     } finally {
       setLoading(false);
     }
@@ -70,8 +105,7 @@ export const CandidateFactsPanel: React.FC = () => {
     void loadFacts();
   }, []);
 
-  const handleAddFact = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddFact = async () => {
     if (!newFactText.trim()) return;
 
     try {
@@ -85,7 +119,7 @@ export const CandidateFactsPanel: React.FC = () => {
       setFacts((prev) => [...prev, created]);
       setNewFactText('');
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to add fact');
+      setError(getErrorMessage(err, 'Failed to add fact'));
     } finally {
       setSaving(false);
     }
@@ -96,7 +130,7 @@ export const CandidateFactsPanel: React.FC = () => {
       const updated = await api.patchFact(fact.id, { isActive: !fact.isActive });
       setFacts((prev) => prev.map((f) => (f.id === fact.id ? updated : f)));
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to update fact');
+      setError(getErrorMessage(err, 'Failed to update fact'));
     }
   };
 
@@ -105,7 +139,7 @@ export const CandidateFactsPanel: React.FC = () => {
       await api.deleteFact(id);
       setFacts((prev) => prev.filter((f) => f.id !== id));
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to delete fact');
+      setError(getErrorMessage(err, 'Failed to delete fact'));
     }
   };
 
@@ -141,8 +175,9 @@ export const CandidateFactsPanel: React.FC = () => {
               margin: '0.25rem 0 0 0',
             }}
           >
-            Facts stored here guide job fit scoring and role tailoring, but are strictly{' '}
-            <strong>never rendered on your public CV, PDF, or outreach drafts</strong>.
+            Facts stored here guide job fit scoring, role tailoring, and outreach drafts. Generation
+            instructions ask the model not to copy them into public CV text or outreach drafts, but
+            this is not enforced. Pause or delete any fact you do not want used.
           </p>
         </div>
         <span
@@ -178,7 +213,10 @@ export const CandidateFactsPanel: React.FC = () => {
 
       {/* Add Fact Form */}
       <form
-        onSubmit={handleAddFact}
+        onSubmit={(e) => {
+          e.preventDefault();
+          void handleAddFact();
+        }}
         style={{
           display: 'grid',
           gridTemplateColumns: '160px 1fr auto',
@@ -190,36 +228,43 @@ export const CandidateFactsPanel: React.FC = () => {
           border: '1px dashed var(--border-subtle, rgba(255,255,255,0.12))',
         }}
       >
+        <label htmlFor="fact-category-select" style={{ display: 'none' }}>
+          Category
+        </label>
         <select
+          id="fact-category-select"
+          aria-label="Fact category"
           value={newCategory}
-          onChange={(e) => setNewCategory(e.target.value)}
+          onChange={(e) => setNewCategory(e.target.value as FactCategory)}
           className="input-text"
           style={{ height: '38px', padding: '0 0.5rem', fontSize: '0.85rem' }}
-          disabled={saving}
+          disabled={loading || saving}
         >
-          {Object.entries(CATEGORY_CONFIG).map(([key, config]) => (
+          {(Object.keys(CATEGORY_CONFIG) as FactCategory[]).map((key) => (
             <option key={key} value={key}>
-              {config.label}
+              {CATEGORY_CONFIG[key].label}
             </option>
           ))}
         </select>
 
+        <label htmlFor="new-fact-text" style={{ display: 'none' }}>
+          Fact description
+        </label>
         <input
+          id="new-fact-text"
+          aria-label="Fact description"
           type="text"
           value={newFactText}
           onChange={(e) => setNewFactText(e.target.value)}
-          placeholder={
-            CATEGORY_CONFIG[newCategory]?.placeholder ||
-            'Enter candidate preference or constraint...'
-          }
+          placeholder={getCategoryStyle(newCategory).placeholder}
           className="input-text"
           style={{ height: '38px', fontSize: '0.85rem' }}
-          disabled={saving}
+          disabled={loading || saving}
         />
 
         <button
           type="submit"
-          disabled={saving || !newFactText.trim()}
+          disabled={loading || saving || !newFactText.trim()}
           className="btn btn-primary btn-sm"
           style={{
             height: '38px',
@@ -257,12 +302,7 @@ export const CandidateFactsPanel: React.FC = () => {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
           {facts.map((fact) => {
-            const conf = CATEGORY_CONFIG[fact.category] || {
-              label: fact.category,
-              color: '#94a3b8',
-              bg: 'rgba(148, 163, 184, 0.1)',
-              border: 'rgba(148, 163, 184, 0.25)',
-            };
+            const conf = getCategoryStyle(fact.category);
             return (
               <div
                 key={fact.id}
@@ -322,7 +362,9 @@ export const CandidateFactsPanel: React.FC = () => {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                   <button
                     type="button"
-                    onClick={() => handleToggleActive(fact)}
+                    onClick={() => {
+                      void handleToggleActive(fact);
+                    }}
                     className="btn btn-secondary btn-sm"
                     style={{
                       padding: '0.2rem 0.5rem',
@@ -332,6 +374,11 @@ export const CandidateFactsPanel: React.FC = () => {
                       gap: '0.3rem',
                     }}
                     title={fact.isActive ? 'Disable fact' : 'Enable fact'}
+                    aria-label={
+                      fact.isActive
+                        ? `Pause fact: ${fact.factText}`
+                        : `Activate fact: ${fact.factText}`
+                    }
                   >
                     {fact.isActive ? (
                       <>
@@ -346,10 +393,13 @@ export const CandidateFactsPanel: React.FC = () => {
 
                   <button
                     type="button"
-                    onClick={() => handleDeleteFact(fact.id)}
+                    onClick={() => {
+                      void handleDeleteFact(fact.id);
+                    }}
                     className="btn btn-danger btn-sm"
                     style={{ padding: '0.25rem 0.45rem', fontSize: '0.75rem' }}
                     title="Delete fact"
+                    aria-label={`Delete fact: ${fact.factText}`}
                   >
                     <Trash2 size={13} />
                   </button>

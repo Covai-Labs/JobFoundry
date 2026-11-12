@@ -100,7 +100,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         validateJson(formatted);
       }
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to load resumes');
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to load resumes');
     } finally {
       setLoading(false);
     }
@@ -124,7 +125,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       setValidationErrors([]);
       return true;
     } catch (e: unknown) {
-      setValidationErrors([`JSON Syntax Error: ${(e as Error)?.message}`]);
+      const msg = e instanceof Error ? e.message : String(e);
+      setValidationErrors([`JSON Syntax Error: ${msg}`]);
       return false;
     }
   };
@@ -198,13 +200,24 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         setConvertError('Failed to convert resume. Please check your AI Gateway configuration.');
       }
     } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
       setConvertError(
-        (err as Error)?.message ||
-          'AI conversion failed. Please ensure your AI Gateway model is connected.'
+        msg || 'AI conversion failed. Please ensure your AI Gateway model is connected.'
       );
     } finally {
       setConvertingRaw(false);
     }
+  };
+
+  const handleSwitchToForm = () => {
+    if (validationErrors.length > 0) {
+      setError(
+        'Cannot switch to form editor while JSON has syntax or schema errors. Please resolve them first.'
+      );
+      return;
+    }
+    setError(null);
+    setEditorMode('form');
   };
 
   const handleSave = async (asNew: boolean = false) => {
@@ -222,6 +235,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
           title: title.trim() || 'Master Resume',
           resumeJson: parsed,
         });
+        if (!activeResume.isActive) {
+          await api.setActiveResume(activeResume.id);
+        }
         setSuccess('Resume updated in-place successfully!');
       } else {
         await api.uploadResume({
@@ -234,7 +250,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
 
       await fetchResumes();
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to save resume');
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to save resume');
     } finally {
       setSaving(false);
     }
@@ -245,7 +262,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       await api.setActiveResume(id);
       await fetchResumes();
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to switch active resume');
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to switch active resume');
     }
   };
 
@@ -255,7 +273,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       await api.deleteResume(id);
       await fetchResumes();
     } catch (err: unknown) {
-      setError((err as Error)?.message || 'Failed to delete resume');
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to delete resume');
     }
   };
 
@@ -342,7 +361,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       <div
         style={{
           display: 'grid',
-          gridTemplateColumns: '360px 1fr',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))',
           gap: '1.5rem',
           alignItems: 'start',
         }}
@@ -487,7 +506,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
             )}
 
             {/* Saved versions list */}
-            {resumes.length > 1 && (
+            {resumes.length > 0 && (
               <div
                 style={{
                   borderTop: '1px solid rgba(255,255,255,0.08)',
@@ -566,7 +585,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                 <button
                   type="button"
-                  onClick={() => setEditorMode('form')}
+                  onClick={handleSwitchToForm}
                   className={`btn btn-sm ${editorMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                 >

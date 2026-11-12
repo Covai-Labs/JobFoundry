@@ -33,6 +33,7 @@ export interface SkillItem {
 export interface WorkItem {
   name?: string;
   position?: string;
+  url?: string;
   startDate?: string;
   endDate?: string;
   summary?: string;
@@ -56,10 +57,112 @@ export interface ProjectItem {
   keywords?: string[];
 }
 
-export interface ResumeFormEditorProps {
-  resume: Record<string, any>;
-  onChange: (updatedResume: Record<string, any>) => void;
+export interface LocationItem {
+  address?: string;
+  postalCode?: string;
+  city?: string;
+  countryCode?: string;
+  region?: string;
 }
+
+export interface BasicsItem {
+  name?: string;
+  label?: string;
+  image?: string;
+  email?: string;
+  phone?: string;
+  url?: string;
+  summary?: string;
+  location?: LocationItem;
+  profiles?: ProfileItem[];
+}
+
+export interface ResumeData {
+  $schema?: string;
+  basics?: BasicsItem;
+  skills?: SkillItem[];
+  work?: WorkItem[];
+  education?: EducationItem[];
+  projects?: ProjectItem[];
+  [key: string]: unknown;
+}
+
+export interface ResumeFormEditorProps {
+  resume: ResumeData;
+  onChange: (updatedResume: ResumeData) => void;
+}
+
+interface CollapsibleSectionProps {
+  id: string;
+  title: string;
+  countBadge?: string;
+  icon: React.ReactNode;
+  isOpen: boolean;
+  onToggle: () => void;
+  children: React.ReactNode;
+}
+
+const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
+  id,
+  title,
+  countBadge,
+  icon,
+  isOpen,
+  onToggle,
+  children,
+}) => (
+  <div
+    className="card"
+    style={{
+      padding: '1rem',
+      border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
+    }}
+  >
+    <button
+      id={`section-btn-${id}`}
+      type="button"
+      onClick={onToggle}
+      aria-expanded={isOpen}
+      aria-controls={`section-content-${id}`}
+      style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        width: '100%',
+        background: 'none',
+        border: 'none',
+        color: 'inherit',
+        cursor: 'pointer',
+        padding: 0,
+        textAlign: 'left',
+      }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        {icon}
+        <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
+          {title} {countBadge && <span style={{ opacity: 0.75 }}>({countBadge})</span>}
+        </h4>
+      </div>
+      {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+    </button>
+
+    {isOpen && (
+      <div
+        id={`section-content-${id}`}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '1rem',
+          marginTop: '1rem',
+          borderTop: '1px solid rgba(255,255,255,0.06)',
+          paddingTop: '0.85rem',
+        }}
+      >
+        {children}
+      </div>
+    )}
+  </div>
+);
 
 export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onChange }) => {
   const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
@@ -71,77 +174,113 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   });
 
   const toggleSection = (section: SectionKey) => {
-    setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
+    setOpenSections((prev) => {
+      switch (section) {
+        case 'basics':
+          return { ...prev, basics: !prev.basics };
+        case 'skills':
+          return { ...prev, skills: !prev.skills };
+        case 'work':
+          return { ...prev, work: !prev.work };
+        case 'education':
+          return { ...prev, education: !prev.education };
+        case 'projects':
+          return { ...prev, projects: !prev.projects };
+      }
+    });
   };
 
-  // Helper updater
-  const updateResume = (updater: (prevResume: Record<string, any>) => Record<string, any>) => {
+  const updateResume = (updater: (prev: ResumeData) => ResumeData) => {
     const updated = updater(resume || {});
     onChange(updated);
   };
 
   // --- Basics Handlers ---
   const updateBasics = (field: BasicField, value: string) => {
-    updateResume((prev) => ({
-      ...prev,
-      basics: {
-        ...(prev.basics || {}),
-        [field]: value,
-      },
-    }));
+    updateResume((prev) => {
+      const basics: BasicsItem = { ...(prev.basics || {}) };
+      const trimmed = value.trim();
+      switch (field) {
+        case 'name':
+          basics.name = value;
+          break;
+        case 'label':
+          basics.label = value;
+          break;
+        case 'email':
+          if (trimmed) basics.email = trimmed;
+          else delete basics.email;
+          break;
+        case 'phone':
+          basics.phone = value;
+          break;
+        case 'url':
+          if (trimmed) basics.url = trimmed;
+          else delete basics.url;
+          break;
+        case 'summary':
+          basics.summary = value;
+          break;
+      }
+      return { ...prev, basics };
+    });
   };
 
   const updateLocation = (field: LocationField, value: string) => {
-    updateResume((prev) => ({
-      ...prev,
-      basics: {
-        ...(prev.basics || {}),
-        location: {
-          ...(prev.basics?.location || {}),
-          [field]: value,
-        },
-      },
-    }));
+    updateResume((prev) => {
+      const basics: BasicsItem = { ...(prev.basics || {}) };
+      const location: LocationItem = { ...(basics.location || {}) };
+      switch (field) {
+        case 'city':
+          location.city = value;
+          break;
+        case 'region':
+          location.region = value;
+          break;
+      }
+      basics.location = location;
+      return { ...prev, basics };
+    });
   };
 
   // --- Profiles Handlers ---
   const addProfile = () => {
     updateResume((prev) => {
-      const profiles = [...(prev.basics?.profiles || []), { network: '', username: '', url: '' }];
-      return {
-        ...prev,
-        basics: {
-          ...(prev.basics || {}),
-          profiles,
-        },
-      };
+      const basics: BasicsItem = { ...(prev.basics || {}) };
+      basics.profiles = [...(basics.profiles || []), { network: '', username: '' }];
+      return { ...prev, basics };
     });
   };
 
   const updateProfile = (index: number, field: ProfileField, value: string) => {
     updateResume((prev) => {
-      const profiles = [...(prev.basics?.profiles || [])];
-      profiles[index] = { ...profiles[index], [field]: value };
-      return {
-        ...prev,
-        basics: {
-          ...(prev.basics || {}),
-          profiles,
-        },
-      };
+      const basics: BasicsItem = { ...(prev.basics || {}) };
+      const profiles = [...(basics.profiles || [])];
+      const item: ProfileItem = { ...(profiles[index] || {}) };
+      const trimmed = value.trim();
+      switch (field) {
+        case 'network':
+          item.network = value;
+          break;
+        case 'username':
+          item.username = value;
+          break;
+        case 'url':
+          if (trimmed) item.url = trimmed;
+          else delete item.url;
+          break;
+      }
+      profiles[index] = item;
+      basics.profiles = profiles;
+      return { ...prev, basics };
     });
   };
 
   const removeProfile = (index: number) => {
     updateResume((prev) => {
-      const profiles = (prev.basics?.profiles || []).filter((_: unknown, i: number) => i !== index);
-      return {
-        ...prev,
-        basics: {
-          ...(prev.basics || {}),
-          profiles,
-        },
-      };
+      const basics: BasicsItem = { ...(prev.basics || {}) };
+      basics.profiles = (basics.profiles || []).filter((_: unknown, i: number) => i !== index);
+      return { ...prev, basics };
     });
   };
 
@@ -205,7 +344,6 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
           name: '',
           position: '',
           startDate: '',
-          endDate: '',
           summary: '',
           highlights: [],
         },
@@ -216,7 +354,31 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const updateWork = (index: number, field: WorkField, value: string) => {
     updateResume((prev) => {
       const work = [...(prev.work || [])];
-      work[index] = { ...work[index], [field]: value };
+      const item: WorkItem = { ...(work[index] || {}) };
+      const trimmed = value.trim();
+      switch (field) {
+        case 'name':
+          item.name = value;
+          break;
+        case 'position':
+          item.position = value;
+          break;
+        case 'startDate':
+          if (trimmed) item.startDate = trimmed;
+          else delete item.startDate;
+          break;
+        case 'endDate':
+          if (trimmed && trimmed.toLowerCase() !== 'present') {
+            item.endDate = trimmed;
+          } else {
+            delete item.endDate;
+          }
+          break;
+        case 'summary':
+          item.summary = value;
+          break;
+      }
+      work[index] = item;
       return { ...prev, work };
     });
   };
@@ -268,11 +430,9 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
         ...(prev.education || []),
         {
           institution: '',
-          area: '',
           studyType: '',
+          area: '',
           startDate: '',
-          endDate: '',
-          score: '',
         },
       ],
     }));
@@ -281,7 +441,35 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const updateEducation = (index: number, field: EducationField, value: string) => {
     updateResume((prev) => {
       const education = [...(prev.education || [])];
-      education[index] = { ...education[index], [field]: value };
+      const item: EducationItem = { ...(education[index] || {}) };
+      const trimmed = value.trim();
+      switch (field) {
+        case 'institution':
+          item.institution = value;
+          break;
+        case 'area':
+          item.area = value;
+          break;
+        case 'studyType':
+          item.studyType = value;
+          break;
+        case 'startDate':
+          if (trimmed) item.startDate = trimmed;
+          else delete item.startDate;
+          break;
+        case 'endDate':
+          if (trimmed && trimmed.toLowerCase() !== 'present') {
+            item.endDate = trimmed;
+          } else {
+            delete item.endDate;
+          }
+          break;
+        case 'score':
+          if (trimmed) item.score = trimmed;
+          else delete item.score;
+          break;
+      }
+      education[index] = item;
       return { ...prev, education };
     });
   };
@@ -302,9 +490,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
         {
           name: '',
           description: '',
-          url: '',
           highlights: [],
-          keywords: [],
         },
       ],
     }));
@@ -313,7 +499,21 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const updateProject = (index: number, field: ProjectField, value: string) => {
     updateResume((prev) => {
       const projects = [...(prev.projects || [])];
-      projects[index] = { ...projects[index], [field]: value };
+      const item: ProjectItem = { ...(projects[index] || {}) };
+      const trimmed = value.trim();
+      switch (field) {
+        case 'name':
+          item.name = value;
+          break;
+        case 'description':
+          item.description = value;
+          break;
+        case 'url':
+          if (trimmed) item.url = trimmed;
+          else delete item.url;
+          break;
+      }
+      projects[index] = item;
       return { ...prev, projects };
     });
   };
@@ -326,6 +526,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   };
 
   const basics = resume.basics || {};
+  const profiles = Array.isArray(basics.profiles) ? basics.profiles : [];
   const skills = Array.isArray(resume.skills) ? resume.skills : [];
   const work = Array.isArray(resume.work) ? resume.work : [];
   const education = Array.isArray(resume.education) ? resume.education : [];
@@ -334,741 +535,452 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* 1. Basics & Contact */}
-      <div
-        className="card"
-        style={{
-          padding: '1rem',
-          border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-        }}
+      <CollapsibleSection
+        id="basics"
+        title="Basics & Contact"
+        icon={<User size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+        isOpen={openSections.basics}
+        onToggle={() => toggleSection('basics')}
       >
-        <button
-          type="button"
-          onClick={() => toggleSection('basics')}
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            width: '100%',
-            background: 'none',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            padding: 0,
-            textAlign: 'left',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <User size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />
-            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>Basics & Contact</h4>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div>
+            <label
+              htmlFor="basics-name"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 500,
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Full Name
+            </label>
+            <input
+              id="basics-name"
+              type="text"
+              value={basics.name || ''}
+              onChange={(e) => updateBasics('name', e.target.value)}
+              placeholder="e.g. Jane Doe"
+              className="input-text"
+            />
           </div>
-          {openSections.basics ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
-        </button>
+          <div>
+            <label
+              htmlFor="basics-label"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 500,
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Professional Headline / Title
+            </label>
+            <input
+              id="basics-label"
+              type="text"
+              value={basics.label || ''}
+              onChange={(e) => updateBasics('label', e.target.value)}
+              placeholder="e.g. Lead Staff Systems Engineer"
+              className="input-text"
+            />
+          </div>
+        </div>
 
-        {openSections.basics && (
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+          <div>
+            <label
+              htmlFor="basics-email"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 500,
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Email Address
+            </label>
+            <input
+              id="basics-email"
+              type="email"
+              value={basics.email || ''}
+              onChange={(e) => updateBasics('email', e.target.value)}
+              placeholder="jane@example.com"
+              className="input-text"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="basics-phone"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 500,
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Phone Number
+            </label>
+            <input
+              id="basics-phone"
+              type="tel"
+              value={basics.phone || ''}
+              onChange={(e) => updateBasics('phone', e.target.value)}
+              placeholder="+1 555-0199"
+              className="input-text"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="basics-url"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 500,
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Personal Website / Portfolio
+            </label>
+            <input
+              id="basics-url"
+              type="url"
+              value={basics.url || ''}
+              onChange={(e) => updateBasics('url', e.target.value)}
+              placeholder="https://janedoe.dev"
+              className="input-text"
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+          <div>
+            <label
+              htmlFor="basics-city"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 500,
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
+              City
+            </label>
+            <input
+              id="basics-city"
+              type="text"
+              value={basics.location?.city || ''}
+              onChange={(e) => updateLocation('city', e.target.value)}
+              placeholder="San Francisco"
+              className="input-text"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="basics-region"
+              style={{
+                fontSize: '0.78rem',
+                fontWeight: 500,
+                display: 'block',
+                marginBottom: '0.25rem',
+              }}
+            >
+              Region / State / Country
+            </label>
+            <input
+              id="basics-region"
+              type="text"
+              value={basics.location?.region || ''}
+              onChange={(e) => updateLocation('region', e.target.value)}
+              placeholder="California, USA"
+              className="input-text"
+            />
+          </div>
+        </div>
+
+        <div>
+          <label
+            htmlFor="basics-summary"
+            style={{
+              fontSize: '0.78rem',
+              fontWeight: 500,
+              display: 'block',
+              marginBottom: '0.25rem',
+            }}
+          >
+            Professional Summary / Bio
+          </label>
+          <textarea
+            id="basics-summary"
+            value={basics.summary || ''}
+            onChange={(e) => updateBasics('summary', e.target.value)}
+            placeholder="Seasoned engineer with 8+ years building distributed platforms..."
+            rows={3}
+            className="input-text"
+            style={{ resize: 'vertical' }}
+          />
+        </div>
+
+        {/* Social Profiles */}
+        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
           <div
             style={{
               display: 'flex',
-              flexDirection: 'column',
-              gap: '0.85rem',
-              marginTop: '1rem',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              paddingTop: '0.85rem',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.5rem',
             }}
           >
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    display: 'block',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Full Name
-                </label>
-                <input
-                  type="text"
-                  value={basics.name || ''}
-                  onChange={(e) => updateBasics('name', e.target.value)}
-                  placeholder="e.g. Jane Doe"
-                  className="input-text"
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    display: 'block',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Headline / Role Title
-                </label>
-                <input
-                  type="text"
-                  value={basics.label || ''}
-                  onChange={(e) => updateBasics('label', e.target.value)}
-                  placeholder="e.g. Senior Distributed Systems Engineer"
-                  className="input-text"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-              <div>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    display: 'block',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Email
-                </label>
-                <input
-                  type="email"
-                  value={basics.email || ''}
-                  onChange={(e) => updateBasics('email', e.target.value)}
-                  placeholder="jane@example.com"
-                  className="input-text"
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    display: 'block',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Phone
-                </label>
-                <input
-                  type="text"
-                  value={basics.phone || ''}
-                  onChange={(e) => updateBasics('phone', e.target.value)}
-                  placeholder="+1 (555) 012-3456"
-                  className="input-text"
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    display: 'block',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Portfolio / Website URL
-                </label>
-                <input
-                  type="url"
-                  value={basics.url || ''}
-                  onChange={(e) => updateBasics('url', e.target.value)}
-                  placeholder="https://janedoe.dev"
-                  className="input-text"
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-              <div>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    display: 'block',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  City
-                </label>
-                <input
-                  type="text"
-                  value={basics.location?.city || ''}
-                  onChange={(e) => updateLocation('city', e.target.value)}
-                  placeholder="San Francisco"
-                  className="input-text"
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 500,
-                    display: 'block',
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Region / State / Country
-                </label>
-                <input
-                  type="text"
-                  value={basics.location?.region || ''}
-                  onChange={(e) => updateLocation('region', e.target.value)}
-                  placeholder="CA, United States"
-                  className="input-text"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label
-                style={{
-                  fontSize: '0.78rem',
-                  fontWeight: 500,
-                  display: 'block',
-                  marginBottom: '0.25rem',
-                }}
-              >
-                Professional Summary
-              </label>
-              <textarea
-                value={basics.summary || ''}
-                onChange={(e) => updateBasics('summary', e.target.value)}
-                placeholder="High-impact technical overview emphasizing your core competencies and accomplishments..."
-                rows={3}
-                className="input-text"
-                style={{ resize: 'vertical', fontSize: '0.82rem' }}
-              />
-            </div>
-
-            {/* Profiles / Links */}
-            <div>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.4rem',
-                }}
-              >
-                <label style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-muted)' }}>
-                  Social & Web Profiles
-                </label>
-                <button
-                  type="button"
-                  onClick={addProfile}
-                  className="btn btn-secondary btn-sm"
-                  style={{ fontSize: '0.72rem', padding: '0.15rem 0.5rem' }}
-                >
-                  <Plus size={12} /> Add Link
-                </button>
-              </div>
-
-              {(basics.profiles || []).map((prof: ProfileItem, pIdx: number) => (
-                <div
-                  key={pIdx}
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: '120px 140px 1fr auto',
-                    gap: '0.5rem',
-                    alignItems: 'center',
-                    marginBottom: '0.4rem',
-                  }}
-                >
-                  <input
-                    type="text"
-                    value={prof.network || ''}
-                    onChange={(e) => updateProfile(pIdx, 'network', e.target.value)}
-                    placeholder="e.g. GitHub"
-                    className="input-text"
-                    style={{ fontSize: '0.8rem' }}
-                  />
-                  <input
-                    type="text"
-                    value={prof.username || ''}
-                    onChange={(e) => updateProfile(pIdx, 'username', e.target.value)}
-                    placeholder="Username"
-                    className="input-text"
-                    style={{ fontSize: '0.8rem' }}
-                  />
-                  <input
-                    type="url"
-                    value={prof.url || ''}
-                    onChange={(e) => updateProfile(pIdx, 'url', e.target.value)}
-                    placeholder="https://..."
-                    className="input-text"
-                    style={{ fontSize: '0.8rem' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => removeProfile(pIdx)}
-                    className="btn btn-danger btn-sm"
-                    style={{ padding: '0.2rem 0.4rem' }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
+            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
+              Social & Professional Profiles ({profiles.length})
+            </span>
+            <button
+              type="button"
+              onClick={addProfile}
+              className="btn btn-secondary btn-sm"
+              style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
+            >
+              <Plus size={12} /> Add Profile
+            </button>
           </div>
-        )}
-      </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+            {profiles.map((prof: ProfileItem, pIdx: number) => (
+              <SocialProfileItem
+                key={pIdx}
+                profile={prof}
+                index={pIdx}
+                onUpdate={(field, val) => updateProfile(pIdx, field, val)}
+                onRemove={() => removeProfile(pIdx)}
+              />
+            ))}
+          </div>
+        </div>
+      </CollapsibleSection>
 
       {/* 2. Skills & Tag Chips */}
-      <div
-        className="card"
-        style={{
-          padding: '1rem',
-          border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-        }}
+      <CollapsibleSection
+        id="skills"
+        title="Skills & Competencies"
+        countBadge={`${skills.length} categories`}
+        icon={<Code size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+        isOpen={openSections.skills}
+        onToggle={() => toggleSection('skills')}
       >
+        {skills.map((group: SkillItem, gIdx: number) => (
+          <SkillGroupItem
+            key={gIdx}
+            group={group}
+            groupIndex={gIdx}
+            onUpdateName={(name) => updateSkillName(gIdx, name)}
+            onAddKeyword={(kw) => addSkillKeyword(gIdx, kw)}
+            onRemoveKeyword={(kIdx) => removeSkillKeyword(gIdx, kIdx)}
+            onRemoveGroup={() => removeSkillGroup(gIdx)}
+          />
+        ))}
+
         <button
           type="button"
-          onClick={() => toggleSection('skills')}
+          onClick={addSkillGroup}
+          className="btn btn-secondary btn-sm"
           style={{
+            alignSelf: 'flex-start',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            width: '100%',
-            background: 'none',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            padding: 0,
-            textAlign: 'left',
+            gap: '0.35rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Code size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />
-            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-              Skills & Competencies ({skills.length} categories)
-            </h4>
-          </div>
-          {openSections.skills ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <Plus size={14} /> Add Skill Category
         </button>
-
-        {openSections.skills && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              marginTop: '1rem',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              paddingTop: '0.85rem',
-            }}
-          >
-            {skills.map((group: SkillItem, gIdx: number) => (
-              <SkillGroupItem
-                key={gIdx}
-                group={group}
-                onUpdateName={(name) => updateSkillName(gIdx, name)}
-                onAddKeyword={(kw) => addSkillKeyword(gIdx, kw)}
-                onRemoveKeyword={(kIdx) => removeSkillKeyword(gIdx, kIdx)}
-                onRemoveGroup={() => removeSkillGroup(gIdx)}
-              />
-            ))}
-
-            <button
-              type="button"
-              onClick={addSkillGroup}
-              className="btn btn-secondary btn-sm"
-              style={{
-                alignSelf: 'flex-start',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Plus size={14} /> Add Skill Category
-            </button>
-          </div>
-        )}
-      </div>
+      </CollapsibleSection>
 
       {/* 3. Work Experience */}
-      <div
-        className="card"
-        style={{
-          padding: '1rem',
-          border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-        }}
+      <CollapsibleSection
+        id="work"
+        title="Work Experience"
+        countBadge={`${work.length} roles`}
+        icon={<Briefcase size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+        isOpen={openSections.work}
+        onToggle={() => toggleSection('work')}
       >
+        {work.map((w: WorkItem, wIdx: number) => (
+          <WorkExperienceItem
+            key={wIdx}
+            work={w}
+            workIndex={wIdx}
+            onUpdate={(field, val) => updateWork(wIdx, field, val)}
+            onRemove={() => removeWork(wIdx)}
+            onAddHighlight={(text) => addWorkHighlight(wIdx, text)}
+            onUpdateHighlight={(hIdx, text) => updateWorkHighlight(wIdx, hIdx, text)}
+            onRemoveHighlight={(hIdx) => removeWorkHighlight(wIdx, hIdx)}
+          />
+        ))}
+
         <button
           type="button"
-          onClick={() => toggleSection('work')}
+          onClick={addWork}
+          className="btn btn-secondary btn-sm"
           style={{
+            alignSelf: 'flex-start',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            width: '100%',
-            background: 'none',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            padding: 0,
-            textAlign: 'left',
+            gap: '0.35rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Briefcase size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />
-            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-              Work Experience ({work.length} roles)
-            </h4>
-          </div>
-          {openSections.work ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <Plus size={14} /> Add Role Experience
         </button>
-
-        {openSections.work && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              marginTop: '1rem',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              paddingTop: '0.85rem',
-            }}
-          >
-            {work.map((w: WorkItem, wIdx: number) => (
-              <WorkExperienceItem
-                key={wIdx}
-                work={w}
-                workIndex={wIdx}
-                onUpdate={(field, val) => updateWork(wIdx, field, val)}
-                onRemove={() => removeWork(wIdx)}
-                onAddHighlight={(text) => addWorkHighlight(wIdx, text)}
-                onUpdateHighlight={(hIdx, text) => updateWorkHighlight(wIdx, hIdx, text)}
-                onRemoveHighlight={(hIdx) => removeWorkHighlight(wIdx, hIdx)}
-              />
-            ))}
-
-            <button
-              type="button"
-              onClick={addWork}
-              className="btn btn-secondary btn-sm"
-              style={{
-                alignSelf: 'flex-start',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Plus size={14} /> Add Role Experience
-            </button>
-          </div>
-        )}
-      </div>
+      </CollapsibleSection>
 
       {/* 4. Education */}
-      <div
-        className="card"
-        style={{
-          padding: '1rem',
-          border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-        }}
+      <CollapsibleSection
+        id="education"
+        title="Education"
+        countBadge={`${education.length}`}
+        icon={<GraduationCap size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+        isOpen={openSections.education}
+        onToggle={() => toggleSection('education')}
       >
+        {education.map((edu: EducationItem, eIdx: number) => (
+          <EducationEntryItem
+            key={eIdx}
+            education={edu}
+            index={eIdx}
+            onUpdate={(field, val) => updateEducation(eIdx, field, val)}
+            onRemove={() => removeEducation(eIdx)}
+          />
+        ))}
+
         <button
           type="button"
-          onClick={() => toggleSection('education')}
+          onClick={addEducation}
+          className="btn btn-secondary btn-sm"
           style={{
+            alignSelf: 'flex-start',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            width: '100%',
-            background: 'none',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            padding: 0,
-            textAlign: 'left',
+            gap: '0.35rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <GraduationCap size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />
-            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-              Education ({education.length})
-            </h4>
-          </div>
-          {openSections.education ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <Plus size={14} /> Add Education
         </button>
-
-        {openSections.education && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              marginTop: '1rem',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              paddingTop: '0.85rem',
-            }}
-          >
-            {education.map((edu: EducationItem, eIdx: number) => (
-              <div
-                key={eIdx}
-                style={{
-                  background: 'var(--bg-card-inner, rgba(255,255,255,0.02))',
-                  padding: '0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.6rem',
-                }}
-              >
-                <div
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                    {edu.institution || `Education Entry #${eIdx + 1}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeEducation(eIdx)}
-                    className="btn btn-danger btn-sm"
-                    style={{ padding: '0.2rem 0.4rem' }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Institution
-                    </label>
-                    <input
-                      type="text"
-                      value={edu.institution || ''}
-                      onChange={(e) => updateEducation(eIdx, 'institution', e.target.value)}
-                      placeholder="e.g. Stanford University"
-                      className="input-text"
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Degree / Study Type
-                    </label>
-                    <input
-                      type="text"
-                      value={edu.studyType || ''}
-                      onChange={(e) => updateEducation(eIdx, 'studyType', e.target.value)}
-                      placeholder="e.g. Bachelor of Science"
-                      className="input-text"
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                  </div>
-                </div>
-
-                <div
-                  style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px', gap: '0.6rem' }}
-                >
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Field of Study / Major
-                    </label>
-                    <input
-                      type="text"
-                      value={edu.area || ''}
-                      onChange={(e) => updateEducation(eIdx, 'area', e.target.value)}
-                      placeholder="Computer Science"
-                      className="input-text"
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Start Date
-                    </label>
-                    <input
-                      type="text"
-                      value={edu.startDate || ''}
-                      onChange={(e) => updateEducation(eIdx, 'startDate', e.target.value)}
-                      placeholder="2018-09"
-                      className="input-text"
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      End Date
-                    </label>
-                    <input
-                      type="text"
-                      value={edu.endDate || ''}
-                      onChange={(e) => updateEducation(eIdx, 'endDate', e.target.value)}
-                      placeholder="2022-06"
-                      className="input-text"
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-
-            <button
-              type="button"
-              onClick={addEducation}
-              className="btn btn-secondary btn-sm"
-              style={{
-                alignSelf: 'flex-start',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Plus size={14} /> Add Education
-            </button>
-          </div>
-        )}
-      </div>
+      </CollapsibleSection>
 
       {/* 5. Projects */}
-      <div
-        className="card"
-        style={{
-          padding: '1rem',
-          border: '1px solid var(--border-subtle, rgba(255,255,255,0.08))',
-        }}
+      <CollapsibleSection
+        id="projects"
+        title="Projects"
+        countBadge={`${projects.length}`}
+        icon={<FolderGit2 size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+        isOpen={openSections.projects}
+        onToggle={() => toggleSection('projects')}
       >
+        {projects.map((proj: ProjectItem, pIdx: number) => (
+          <ProjectEntryItem
+            key={pIdx}
+            project={proj}
+            index={pIdx}
+            onUpdate={(field, val) => updateProject(pIdx, field, val)}
+            onRemove={() => removeProject(pIdx)}
+          />
+        ))}
+
         <button
           type="button"
-          onClick={() => toggleSection('projects')}
+          onClick={addProject}
+          className="btn btn-secondary btn-sm"
           style={{
+            alignSelf: 'flex-start',
             display: 'flex',
-            justifyContent: 'space-between',
             alignItems: 'center',
-            width: '100%',
-            background: 'none',
-            border: 'none',
-            color: 'inherit',
-            cursor: 'pointer',
-            padding: 0,
-            textAlign: 'left',
+            gap: '0.35rem',
           }}
         >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <FolderGit2 size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />
-            <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 600 }}>
-              Projects ({projects.length})
-            </h4>
-          </div>
-          {openSections.projects ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          <Plus size={14} /> Add Project
         </button>
-
-        {openSections.projects && (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1rem',
-              marginTop: '1rem',
-              borderTop: '1px solid rgba(255,255,255,0.06)',
-              paddingTop: '0.85rem',
-            }}
-          >
-            {projects.map((proj: ProjectItem, pIdx: number) => (
-              <div
-                key={pIdx}
-                style={{
-                  background: 'var(--bg-card-inner, rgba(255,255,255,0.02))',
-                  padding: '0.85rem',
-                  borderRadius: 'var(--radius-sm)',
-                  border: '1px solid rgba(255,255,255,0.06)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '0.6rem',
-                }}
-              >
-                <div
-                  style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-                >
-                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-                    {proj.name || `Project #${pIdx + 1}`}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => removeProject(pIdx)}
-                    className="btn btn-danger btn-sm"
-                    style={{ padding: '0.2rem 0.4rem' }}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Project Name
-                    </label>
-                    <input
-                      type="text"
-                      value={proj.name || ''}
-                      onChange={(e) => updateProject(pIdx, 'name', e.target.value)}
-                      placeholder="e.g. Distributed Consensus Engine"
-                      className="input-text"
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                  </div>
-                  <div>
-                    <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                      Project URL
-                    </label>
-                    <input
-                      type="url"
-                      value={proj.url || ''}
-                      onChange={(e) => updateProject(pIdx, 'url', e.target.value)}
-                      placeholder="https://github.com/..."
-                      className="input-text"
-                      style={{ fontSize: '0.82rem' }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    Description
-                  </label>
-                  <textarea
-                    value={proj.description || ''}
-                    onChange={(e) => updateProject(pIdx, 'description', e.target.value)}
-                    placeholder="Short description of the problem solved and technologies used..."
-                    rows={2}
-                    className="input-text"
-                    style={{ resize: 'vertical', fontSize: '0.82rem' }}
-                  />
-                </div>
-              </div>
-            ))}
-
-            <button
-              type="button"
-              onClick={addProject}
-              className="btn btn-secondary btn-sm"
-              style={{
-                alignSelf: 'flex-start',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-              }}
-            >
-              <Plus size={14} /> Add Project
-            </button>
-          </div>
-        )}
-      </div>
+      </CollapsibleSection>
     </div>
   );
 };
 
-// --- Subcomponents for Clean Rendering ---
+// --- Subcomponents for Clean Rendering & High Reusability ---
+
+const SocialProfileItem: React.FC<{
+  profile: ProfileItem;
+  index: number;
+  onUpdate: (field: ProfileField, val: string) => void;
+  onRemove: () => void;
+}> = ({ profile, index, onUpdate, onRemove }) => (
+  <div
+    style={{
+      display: 'grid',
+      gridTemplateColumns: '120px 140px 1fr auto',
+      gap: '0.45rem',
+      alignItems: 'center',
+    }}
+  >
+    <label htmlFor={`profile-${index}-network`} style={{ display: 'none' }}>
+      Platform / Network
+    </label>
+    <input
+      id={`profile-${index}-network`}
+      aria-label="Platform / Network"
+      type="text"
+      value={profile.network || ''}
+      onChange={(e) => onUpdate('network', e.target.value)}
+      placeholder="e.g. GitHub"
+      className="input-text"
+      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+    />
+
+    <label htmlFor={`profile-${index}-username`} style={{ display: 'none' }}>
+      Username / Handle
+    </label>
+    <input
+      id={`profile-${index}-username`}
+      aria-label="Username / Handle"
+      type="text"
+      value={profile.username || ''}
+      onChange={(e) => onUpdate('username', e.target.value)}
+      placeholder="Username"
+      className="input-text"
+      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+    />
+
+    <label htmlFor={`profile-${index}-url`} style={{ display: 'none' }}>
+      Profile URL
+    </label>
+    <input
+      id={`profile-${index}-url`}
+      aria-label="Profile URL"
+      type="url"
+      value={profile.url || ''}
+      onChange={(e) => onUpdate('url', e.target.value)}
+      placeholder="https://github.com/..."
+      className="input-text"
+      style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
+    />
+
+    <button
+      type="button"
+      onClick={onRemove}
+      className="btn btn-danger btn-sm"
+      style={{ padding: '0.2rem 0.4rem' }}
+      title="Delete profile"
+      aria-label={`Delete profile ${profile.network || index + 1}`}
+    >
+      <Trash2 size={12} />
+    </button>
+  </div>
+);
 
 const SkillGroupItem: React.FC<{
   group: SkillItem;
+  groupIndex: number;
   onUpdateName: (name: string) => void;
   onAddKeyword: (kw: string) => void;
   onRemoveKeyword: (kIdx: number) => void;
   onRemoveGroup: () => void;
-}> = ({ group, onUpdateName, onAddKeyword, onRemoveKeyword, onRemoveGroup }) => {
+}> = ({ group, groupIndex, onUpdateName, onAddKeyword, onRemoveKeyword, onRemoveGroup }) => {
   const [newKeyword, setNewKeyword] = useState('');
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -1106,7 +1018,12 @@ const SkillGroupItem: React.FC<{
           alignItems: 'center',
         }}
       >
+        <label htmlFor={`skill-group-${groupIndex}-name`} style={{ display: 'none' }}>
+          Category Name
+        </label>
         <input
+          id={`skill-group-${groupIndex}-name`}
+          aria-label="Category Name"
           type="text"
           value={group.name || ''}
           onChange={(e) => onUpdateName(e.target.value)}
@@ -1120,6 +1037,7 @@ const SkillGroupItem: React.FC<{
           className="btn btn-danger btn-sm"
           style={{ padding: '0.2rem 0.4rem' }}
           title="Delete category"
+          aria-label={`Delete skill category ${group.name || groupIndex + 1}`}
         >
           <Trash2 size={12} />
         </button>
@@ -1155,6 +1073,7 @@ const SkillGroupItem: React.FC<{
                 fontSize: '0.75rem',
                 lineHeight: 1,
               }}
+              aria-label={`Remove skill tag ${kw}`}
             >
               ✕
             </button>
@@ -1162,7 +1081,12 @@ const SkillGroupItem: React.FC<{
         ))}
 
         <div style={{ display: 'inline-flex', gap: '0.3rem', alignItems: 'center' }}>
+          <label htmlFor={`skill-group-${groupIndex}-add-keyword`} style={{ display: 'none' }}>
+            Add skill tag
+          </label>
           <input
+            id={`skill-group-${groupIndex}-add-keyword`}
+            aria-label="Add skill tag"
             type="text"
             value={newKeyword}
             onChange={(e) => setNewKeyword(e.target.value)}
@@ -1243,6 +1167,7 @@ const WorkExperienceItem: React.FC<{
           className="btn btn-danger btn-sm"
           style={{ padding: '0.2rem 0.4rem' }}
           title="Delete role"
+          aria-label={`Delete role at ${work.name || workIndex + 1}`}
         >
           <Trash2 size={12} />
         </button>
@@ -1250,8 +1175,14 @@ const WorkExperienceItem: React.FC<{
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
         <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Company Name</label>
+          <label
+            htmlFor={`work-${workIndex}-name`}
+            style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+          >
+            Company Name
+          </label>
           <input
+            id={`work-${workIndex}-name`}
             type="text"
             value={work.name || ''}
             onChange={(e) => onUpdate('name', e.target.value)}
@@ -1261,8 +1192,14 @@ const WorkExperienceItem: React.FC<{
           />
         </div>
         <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Role / Title</label>
+          <label
+            htmlFor={`work-${workIndex}-position`}
+            style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+          >
+            Role / Title
+          </label>
           <input
+            id={`work-${workIndex}-position`}
             type="text"
             value={work.position || ''}
             onChange={(e) => onUpdate('position', e.target.value)}
@@ -1275,8 +1212,14 @@ const WorkExperienceItem: React.FC<{
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
         <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Start Date</label>
+          <label
+            htmlFor={`work-${workIndex}-start-date`}
+            style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+          >
+            Start Date
+          </label>
           <input
+            id={`work-${workIndex}-start-date`}
             type="text"
             value={work.startDate || ''}
             onChange={(e) => onUpdate('startDate', e.target.value)}
@@ -1286,10 +1229,14 @@ const WorkExperienceItem: React.FC<{
           />
         </div>
         <div>
-          <label style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+          <label
+            htmlFor={`work-${workIndex}-end-date`}
+            style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+          >
             End Date (leave blank or 'Present' if current)
           </label>
           <input
+            id={`work-${workIndex}-end-date`}
             type="text"
             value={work.endDate || ''}
             onChange={(e) => onUpdate('endDate', e.target.value)}
@@ -1298,6 +1245,24 @@ const WorkExperienceItem: React.FC<{
             style={{ fontSize: '0.82rem' }}
           />
         </div>
+      </div>
+
+      <div>
+        <label
+          htmlFor={`work-${workIndex}-summary`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          Role Summary
+        </label>
+        <textarea
+          id={`work-${workIndex}-summary`}
+          value={work.summary || ''}
+          onChange={(e) => onUpdate('summary', e.target.value)}
+          placeholder="Brief overview of role responsibilities and team scope..."
+          rows={2}
+          className="input-text"
+          style={{ resize: 'vertical', fontSize: '0.82rem' }}
+        />
       </div>
 
       {/* Highlights / Accomplishment Bullets */}
@@ -1333,6 +1298,8 @@ const WorkExperienceItem: React.FC<{
             >
               <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>•</span>
               <input
+                id={`work-${workIndex}-bullet-${hIdx}`}
+                aria-label={`Achievement bullet ${hIdx + 1}`}
                 type="text"
                 value={bullet}
                 onChange={(e) => onUpdateHighlight(hIdx, e.target.value)}
@@ -1344,6 +1311,7 @@ const WorkExperienceItem: React.FC<{
                 onClick={() => onRemoveHighlight(hIdx)}
                 className="btn btn-danger btn-sm"
                 style={{ padding: '0.2rem 0.35rem' }}
+                aria-label={`Delete bullet ${hIdx + 1}`}
               >
                 ✕
               </button>
@@ -1352,7 +1320,12 @@ const WorkExperienceItem: React.FC<{
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: '0.4rem' }}>
+          <label htmlFor={`work-${workIndex}-new-bullet`} style={{ display: 'none' }}>
+            Add achievement bullet
+          </label>
           <input
+            id={`work-${workIndex}-new-bullet`}
+            aria-label="Add achievement bullet"
             type="text"
             value={newHighlight}
             onChange={(e) => setNewHighlight(e.target.value)}
@@ -1380,3 +1353,219 @@ const WorkExperienceItem: React.FC<{
     </div>
   );
 };
+
+const EducationEntryItem: React.FC<{
+  education: EducationItem;
+  index: number;
+  onUpdate: (field: EducationField, val: string) => void;
+  onRemove: () => void;
+}> = ({ education, index, onUpdate, onRemove }) => (
+  <div
+    style={{
+      background: 'var(--bg-card-inner, rgba(255,255,255,0.02))',
+      padding: '0.85rem',
+      borderRadius: 'var(--radius-sm)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.6rem',
+    }}
+  >
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+        {education.institution || `Education Entry #${index + 1}`}
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="btn btn-danger btn-sm"
+        style={{ padding: '0.2rem 0.4rem' }}
+        title="Delete education"
+        aria-label={`Delete education at ${education.institution || index + 1}`}
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+      <div>
+        <label
+          htmlFor={`edu-${index}-institution`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          Institution
+        </label>
+        <input
+          id={`edu-${index}-institution`}
+          type="text"
+          value={education.institution || ''}
+          onChange={(e) => onUpdate('institution', e.target.value)}
+          placeholder="e.g. Stanford University"
+          className="input-text"
+          style={{ fontSize: '0.82rem' }}
+        />
+      </div>
+      <div>
+        <label
+          htmlFor={`edu-${index}-degree`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          Degree / Study Type
+        </label>
+        <input
+          id={`edu-${index}-degree`}
+          type="text"
+          value={education.studyType || ''}
+          onChange={(e) => onUpdate('studyType', e.target.value)}
+          placeholder="e.g. Bachelor of Science"
+          className="input-text"
+          style={{ fontSize: '0.82rem' }}
+        />
+      </div>
+    </div>
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 120px 120px', gap: '0.6rem' }}>
+      <div>
+        <label
+          htmlFor={`edu-${index}-area`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          Field of Study / Major
+        </label>
+        <input
+          id={`edu-${index}-area`}
+          type="text"
+          value={education.area || ''}
+          onChange={(e) => onUpdate('area', e.target.value)}
+          placeholder="Computer Science"
+          className="input-text"
+          style={{ fontSize: '0.82rem' }}
+        />
+      </div>
+      <div>
+        <label
+          htmlFor={`edu-${index}-start-date`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          Start Date
+        </label>
+        <input
+          id={`edu-${index}-start-date`}
+          type="text"
+          value={education.startDate || ''}
+          onChange={(e) => onUpdate('startDate', e.target.value)}
+          placeholder="2018-09"
+          className="input-text"
+          style={{ fontSize: '0.82rem' }}
+        />
+      </div>
+      <div>
+        <label
+          htmlFor={`edu-${index}-end-date`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          End Date
+        </label>
+        <input
+          id={`edu-${index}-end-date`}
+          type="text"
+          value={education.endDate || ''}
+          onChange={(e) => onUpdate('endDate', e.target.value)}
+          placeholder="2022-06"
+          className="input-text"
+          style={{ fontSize: '0.82rem' }}
+        />
+      </div>
+    </div>
+  </div>
+);
+
+const ProjectEntryItem: React.FC<{
+  project: ProjectItem;
+  index: number;
+  onUpdate: (field: ProjectField, val: string) => void;
+  onRemove: () => void;
+}> = ({ project, index, onUpdate, onRemove }) => (
+  <div
+    style={{
+      background: 'var(--bg-card-inner, rgba(255,255,255,0.02))',
+      padding: '0.85rem',
+      borderRadius: 'var(--radius-sm)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.6rem',
+    }}
+  >
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
+        {project.name || `Project #${index + 1}`}
+      </span>
+      <button
+        type="button"
+        onClick={onRemove}
+        className="btn btn-danger btn-sm"
+        style={{ padding: '0.2rem 0.4rem' }}
+        title="Delete project"
+        aria-label={`Delete project ${project.name || index + 1}`}
+      >
+        <Trash2 size={12} />
+      </button>
+    </div>
+
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem' }}>
+      <div>
+        <label
+          htmlFor={`project-${index}-name`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          Project Name
+        </label>
+        <input
+          id={`project-${index}-name`}
+          type="text"
+          value={project.name || ''}
+          onChange={(e) => onUpdate('name', e.target.value)}
+          placeholder="e.g. Distributed Consensus Engine"
+          className="input-text"
+          style={{ fontSize: '0.82rem' }}
+        />
+      </div>
+      <div>
+        <label
+          htmlFor={`project-${index}-url`}
+          style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+        >
+          Project URL
+        </label>
+        <input
+          id={`project-${index}-url`}
+          type="url"
+          value={project.url || ''}
+          onChange={(e) => onUpdate('url', e.target.value)}
+          placeholder="https://github.com/..."
+          className="input-text"
+          style={{ fontSize: '0.82rem' }}
+        />
+      </div>
+    </div>
+
+    <div>
+      <label
+        htmlFor={`project-${index}-description`}
+        style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}
+      >
+        Description
+      </label>
+      <textarea
+        id={`project-${index}-description`}
+        value={project.description || ''}
+        onChange={(e) => onUpdate('description', e.target.value)}
+        placeholder="Short description of the problem solved and technologies used..."
+        rows={2}
+        className="input-text"
+        style={{ resize: 'vertical', fontSize: '0.82rem' }}
+      />
+    </div>
+  </div>
+);
