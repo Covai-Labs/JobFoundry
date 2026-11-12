@@ -59,15 +59,15 @@ export const CandidateFactsPanel: React.FC = () => {
       setError(null);
       const data = await api.getFacts();
       setFacts(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load candidate facts');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to load candidate facts');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadFacts();
+    void loadFacts();
   }, []);
 
   const handleAddFact = async (e: React.FormEvent) => {
@@ -84,8 +84,8 @@ export const CandidateFactsPanel: React.FC = () => {
       });
       setFacts((prev) => [...prev, created]);
       setNewFactText('');
-    } catch (err: any) {
-      setError(err.message || 'Failed to add fact');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to add fact');
     } finally {
       setSaving(false);
     }
@@ -95,8 +95,8 @@ export const CandidateFactsPanel: React.FC = () => {
     try {
       const updated = await api.patchFact(fact.id, { isActive: !fact.isActive });
       setFacts((prev) => prev.map((f) => (f.id === fact.id ? updated : f)));
-    } catch (err: any) {
-      setError(err.message || 'Failed to update fact');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to update fact');
     }
   };
 
@@ -104,8 +104,8 @@ export const CandidateFactsPanel: React.FC = () => {
     try {
       await api.deleteFact(id);
       setFacts((prev) => prev.filter((f) => f.id !== id));
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete fact');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to delete fact');
     }
   };
 

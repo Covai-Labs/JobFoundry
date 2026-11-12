@@ -32,7 +32,7 @@ export interface UserResume {
 export interface UserFact {
   id: string;
   userId: string;
-  category: 'preference' | 'constraint' | 'context' | 'style' | 'compensation' | string;
+  category: string;
   factText: string;
   isActive: boolean;
   createdAt: number;
@@ -242,7 +242,7 @@ export class ApiClient {
 
   async patchResume(
     id: string,
-    payload: { title?: string; resumeJson?: Record<string, any> }
+    payload: { title?: string; resumeJson?: Record<string, unknown> }
   ): Promise<UserResume> {
     const res = await this.request<{ resume: UserResume }>(`/api/v1/resumes/${id}`, {
       method: 'PATCH',

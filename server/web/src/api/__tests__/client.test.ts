@@ -354,7 +354,7 @@ describe('ApiClient', () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ resume: mockResume }),
+      json: () => Promise.resolve({ resume: mockResume }),
     });
     global.fetch = fetchMock;
 
@@ -384,7 +384,7 @@ describe('ApiClient', () => {
     let fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ facts: [mockFact] }),
+      json: () => Promise.resolve({ facts: [mockFact] }),
     });
     global.fetch = fetchMock;
     const facts = await client.getFacts({ activeOnly: true });
@@ -398,7 +398,7 @@ describe('ApiClient', () => {
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 201,
-      json: async () => ({ fact: mockFact }),
+      json: () => Promise.resolve({ fact: mockFact }),
     });
     global.fetch = fetchMock;
     const created = await client.createFact({ category: 'preference', factText: 'Remote only' });
@@ -415,7 +415,7 @@ describe('ApiClient', () => {
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ fact: { ...mockFact, isActive: false } }),
+      json: () => Promise.resolve({ fact: { ...mockFact, isActive: false } }),
     });
     global.fetch = fetchMock;
     const patched = await client.patchFact('f-1', { isActive: false });
@@ -432,7 +432,7 @@ describe('ApiClient', () => {
     fetchMock = vi.fn().mockResolvedValue({
       ok: true,
       status: 200,
-      json: async () => ({ ok: true }),
+      json: () => Promise.resolve({ ok: true }),
     });
     global.fetch = fetchMock;
     const deleted = await client.deleteFact('f-1');

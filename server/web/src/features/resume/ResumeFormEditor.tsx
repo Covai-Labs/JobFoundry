@@ -11,13 +11,58 @@ import {
   ChevronUp,
 } from 'lucide-react';
 
+type SectionKey = 'basics' | 'skills' | 'work' | 'education' | 'projects';
+type BasicField = 'name' | 'label' | 'email' | 'phone' | 'url' | 'summary';
+type LocationField = 'city' | 'region';
+type ProfileField = 'network' | 'username' | 'url';
+type WorkField = 'name' | 'position' | 'startDate' | 'endDate' | 'summary';
+type EducationField = 'institution' | 'studyType' | 'area' | 'startDate' | 'endDate' | 'score';
+type ProjectField = 'name' | 'url' | 'description';
+
+export interface ProfileItem {
+  network?: string;
+  username?: string;
+  url?: string;
+}
+
+export interface SkillItem {
+  name?: string;
+  keywords?: string[];
+}
+
+export interface WorkItem {
+  name?: string;
+  position?: string;
+  startDate?: string;
+  endDate?: string;
+  summary?: string;
+  highlights?: string[];
+}
+
+export interface EducationItem {
+  institution?: string;
+  area?: string;
+  studyType?: string;
+  startDate?: string;
+  endDate?: string;
+  score?: string;
+}
+
+export interface ProjectItem {
+  name?: string;
+  description?: string;
+  url?: string;
+  highlights?: string[];
+  keywords?: string[];
+}
+
 export interface ResumeFormEditorProps {
   resume: Record<string, any>;
   onChange: (updatedResume: Record<string, any>) => void;
 }
 
 export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onChange }) => {
-  const [openSections, setOpenSections] = useState<Record<string, boolean>>({
+  const [openSections, setOpenSections] = useState<Record<SectionKey, boolean>>({
     basics: true,
     skills: true,
     work: true,
@@ -25,18 +70,18 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     projects: false,
   });
 
-  const toggleSection = (section: string) => {
+  const toggleSection = (section: SectionKey) => {
     setOpenSections((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
   // Helper updater
-  const updateResume = (updater: (prev: Record<string, any>) => Record<string, any>) => {
+  const updateResume = (updater: (prevResume: Record<string, any>) => Record<string, any>) => {
     const updated = updater(resume || {});
     onChange(updated);
   };
 
   // --- Basics Handlers ---
-  const updateBasics = (field: string, value: any) => {
+  const updateBasics = (field: BasicField, value: string) => {
     updateResume((prev) => ({
       ...prev,
       basics: {
@@ -46,7 +91,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     }));
   };
 
-  const updateLocation = (field: string, value: any) => {
+  const updateLocation = (field: LocationField, value: string) => {
     updateResume((prev) => ({
       ...prev,
       basics: {
@@ -73,7 +118,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     });
   };
 
-  const updateProfile = (index: number, field: string, value: string) => {
+  const updateProfile = (index: number, field: ProfileField, value: string) => {
     updateResume((prev) => {
       const profiles = [...(prev.basics?.profiles || [])];
       profiles[index] = { ...profiles[index], [field]: value };
@@ -89,7 +134,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 
   const removeProfile = (index: number) => {
     updateResume((prev) => {
-      const profiles = (prev.basics?.profiles || []).filter((_: any, i: number) => i !== index);
+      const profiles = (prev.basics?.profiles || []).filter((_: unknown, i: number) => i !== index);
       return {
         ...prev,
         basics: {
@@ -146,7 +191,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeSkillGroup = (groupIndex: number) => {
     updateResume((prev) => ({
       ...prev,
-      skills: (prev.skills || []).filter((_: any, i: number) => i !== groupIndex),
+      skills: (prev.skills || []).filter((_: unknown, i: number) => i !== groupIndex),
     }));
   };
 
@@ -168,7 +213,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     }));
   };
 
-  const updateWork = (index: number, field: string, value: any) => {
+  const updateWork = (index: number, field: WorkField, value: string) => {
     updateResume((prev) => {
       const work = [...(prev.work || [])];
       work[index] = { ...work[index], [field]: value };
@@ -179,7 +224,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeWork = (index: number) => {
     updateResume((prev) => ({
       ...prev,
-      work: (prev.work || []).filter((_: any, i: number) => i !== index),
+      work: (prev.work || []).filter((_: unknown, i: number) => i !== index),
     }));
   };
 
@@ -233,7 +278,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     }));
   };
 
-  const updateEducation = (index: number, field: string, value: any) => {
+  const updateEducation = (index: number, field: EducationField, value: string) => {
     updateResume((prev) => {
       const education = [...(prev.education || [])];
       education[index] = { ...education[index], [field]: value };
@@ -244,7 +289,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeEducation = (index: number) => {
     updateResume((prev) => ({
       ...prev,
-      education: (prev.education || []).filter((_: any, i: number) => i !== index),
+      education: (prev.education || []).filter((_: unknown, i: number) => i !== index),
     }));
   };
 
@@ -265,7 +310,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     }));
   };
 
-  const updateProject = (index: number, field: string, value: any) => {
+  const updateProject = (index: number, field: ProjectField, value: string) => {
     updateResume((prev) => {
       const projects = [...(prev.projects || [])];
       projects[index] = { ...projects[index], [field]: value };
@@ -276,7 +321,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeProject = (index: number) => {
     updateResume((prev) => ({
       ...prev,
-      projects: (prev.projects || []).filter((_: any, i: number) => i !== index),
+      projects: (prev.projects || []).filter((_: unknown, i: number) => i !== index),
     }));
   };
 
@@ -516,7 +561,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
                 </button>
               </div>
 
-              {(basics.profiles || []).map((prof: any, pIdx: number) => (
+              {(basics.profiles || []).map((prof: ProfileItem, pIdx: number) => (
                 <div
                   key={pIdx}
                   style={{
@@ -610,7 +655,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
               paddingTop: '0.85rem',
             }}
           >
-            {skills.map((group: any, gIdx: number) => (
+            {skills.map((group: SkillItem, gIdx: number) => (
               <SkillGroupItem
                 key={gIdx}
                 group={group}
@@ -682,7 +727,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
               paddingTop: '0.85rem',
             }}
           >
-            {work.map((w: any, wIdx: number) => (
+            {work.map((w: WorkItem, wIdx: number) => (
               <WorkExperienceItem
                 key={wIdx}
                 work={w}
@@ -756,7 +801,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
               paddingTop: '0.85rem',
             }}
           >
-            {education.map((edu: any, eIdx: number) => (
+            {education.map((edu: EducationItem, eIdx: number) => (
               <div
                 key={eIdx}
                 style={{
@@ -921,7 +966,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
               paddingTop: '0.85rem',
             }}
           >
-            {projects.map((proj: any, pIdx: number) => (
+            {projects.map((proj: ProjectItem, pIdx: number) => (
               <div
                 key={pIdx}
                 style={{
@@ -1018,7 +1063,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 // --- Subcomponents for Clean Rendering ---
 
 const SkillGroupItem: React.FC<{
-  group: any;
+  group: SkillItem;
   onUpdateName: (name: string) => void;
   onAddKeyword: (kw: string) => void;
   onRemoveKeyword: (kIdx: number) => void;
@@ -1148,9 +1193,9 @@ const SkillGroupItem: React.FC<{
 };
 
 const WorkExperienceItem: React.FC<{
-  work: any;
+  work: WorkItem;
   workIndex: number;
-  onUpdate: (field: string, val: any) => void;
+  onUpdate: (field: WorkField, val: string) => void;
   onRemove: () => void;
   onAddHighlight: (text: string) => void;
   onUpdateHighlight: (hIdx: number, text: string) => void;

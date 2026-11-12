@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import Ajv from 'ajv';
+import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 import {
   Sparkles,
@@ -99,15 +99,15 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         setJsonText(formatted);
         validateJson(formatted);
       }
-    } catch (err: any) {
-      setError(err.message || 'Failed to load resumes');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to load resumes');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchResumes();
+    void fetchResumes();
   }, []);
 
   const validateJson = (text: string): boolean => {
@@ -116,15 +116,15 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       const isValid = schemaValidator(parsed);
       if (!isValid && schemaValidator.errors) {
         const errors = schemaValidator.errors.map(
-          (err: any) => `${err.instancePath || '/'} ${err.message}`
+          (schemaErr: ErrorObject) => `${schemaErr.instancePath || '/'} ${schemaErr.message}`
         );
         setValidationErrors(errors);
         return false;
       }
       setValidationErrors([]);
       return true;
-    } catch (e: any) {
-      setValidationErrors([`JSON Syntax Error: ${e.message}`]);
+    } catch (e: unknown) {
+      setValidationErrors([`JSON Syntax Error: ${(e as Error)?.message}`]);
       return false;
     }
   };
@@ -197,9 +197,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       } else {
         setConvertError('Failed to convert resume. Please check your AI Gateway configuration.');
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       setConvertError(
-        err.message || 'AI conversion failed. Please ensure your AI Gateway model is connected.'
+        (err as Error)?.message ||
+          'AI conversion failed. Please ensure your AI Gateway model is connected.'
       );
     } finally {
       setConvertingRaw(false);
@@ -232,8 +233,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       }
 
       await fetchResumes();
-    } catch (err: any) {
-      setError(err.message || 'Failed to save resume');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to save resume');
     } finally {
       setSaving(false);
     }
@@ -243,8 +244,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       await api.setActiveResume(id);
       await fetchResumes();
-    } catch (err: any) {
-      setError(err.message || 'Failed to switch active resume');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to switch active resume');
     }
   };
 
@@ -253,8 +254,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       await api.deleteResume(id);
       await fetchResumes();
-    } catch (err: any) {
-      setError(err.message || 'Failed to delete resume');
+    } catch (err: unknown) {
+      setError((err as Error)?.message || 'Failed to delete resume');
     }
   };
 
