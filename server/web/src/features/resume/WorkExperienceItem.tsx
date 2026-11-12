@@ -7,11 +7,11 @@ export type WorkField = 'name' | 'position' | 'startDate' | 'endDate' | 'summary
 export interface WorkExperienceItemProps {
   work: WorkItem;
   workIndex: number;
-  onUpdate(field: WorkField, val: string): void;
-  onRemove(): void;
-  onAddHighlight(text: string): void;
-  onUpdateHighlight(highlightIndex: number, text: string): void;
-  onRemoveHighlight(highlightIndex: number): void;
+  onUpdate: (field: WorkField, val: string) => void;
+  onRemove: () => void;
+  onAddHighlight: (text: string) => void;
+  onUpdateHighlight: (highlightIndex: number, text: string) => void;
+  onRemoveHighlight: (highlightIndex: number) => void;
 }
 
 export const WorkExperienceItem: React.FC<WorkExperienceItemProps> = ({

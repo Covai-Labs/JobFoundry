@@ -7,8 +7,8 @@ export type ProjectField = 'name' | 'url' | 'description';
 export interface ProjectEntryItemProps {
   project: ProjectItem;
   index: number;
-  onUpdate(field: ProjectField, val: string): void;
-  onRemove(): void;
+  onUpdate: (field: ProjectField, val: string) => void;
+  onRemove: () => void;
 }
 
 export const ProjectEntryItem: React.FC<ProjectEntryItemProps> = ({

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { User, Briefcase, GraduationCap, Code, FolderGit2, Plus } from 'lucide-react';
+import { Code, Plus } from 'lucide-react';
 import {
   ResumeData,
   BasicsItem,
@@ -10,21 +10,24 @@ import {
   ProjectItem,
 } from './resumeTypes';
 import { CollapsibleSection } from './CollapsibleSection';
-import { SocialProfileItem, ProfileField } from './SocialProfileItem';
+import { BasicsFormSection, BasicField, LocationField } from './BasicsFormSection';
+import { ProfileField } from './SocialProfileItem';
 import { SkillGroupItem } from './SkillGroupItem';
-import { WorkExperienceItem, WorkField } from './WorkExperienceItem';
-import { EducationEntryItem, EducationField } from './EducationEntryItem';
-import { ProjectEntryItem, ProjectField } from './ProjectEntryItem';
+import { WorkExperienceSection } from './WorkExperienceSection';
+import { WorkField } from './WorkExperienceItem';
+import { EducationSection } from './EducationSection';
+import { EducationField } from './EducationEntryItem';
+import { ProjectsSection } from './ProjectsSection';
+import { ProjectField } from './ProjectEntryItem';
 
 export * from './resumeTypes';
+export type { BasicField, LocationField } from './BasicsFormSection';
 
 type SectionKey = 'basics' | 'skills' | 'work' | 'education' | 'projects';
-type BasicField = 'name' | 'label' | 'email' | 'phone' | 'url' | 'summary';
-type LocationField = 'city' | 'region';
 
 export interface ResumeFormEditorProps {
   resume: ResumeData;
-  onChange(updatedResume: ResumeData): void;
+  onChange: (updatedResume: ResumeData) => void;
 }
 
 export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onChange }) => {
@@ -373,7 +376,6 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   };
 
   const basics = resume.basics ?? {};
-  const profiles = Array.isArray(basics.profiles) ? basics.profiles : [];
   const skills = Array.isArray(resume.skills) ? resume.skills : [];
   const work = Array.isArray(resume.work) ? resume.work : [];
   const education = Array.isArray(resume.education) ? resume.education : [];
@@ -382,252 +384,18 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
       {/* 1. Basics & Contact */}
-      <CollapsibleSection
-        id="basics"
-        title="Basics & Contact"
-        icon={<User size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+      <BasicsFormSection
+        basics={basics}
         isOpen={openSections.basics}
         onToggle={() => {
           toggleSection('basics');
         }}
-      >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-          <div>
-            <label
-              htmlFor="basics-name"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                display: 'block',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Full Name
-            </label>
-            <input
-              id="basics-name"
-              type="text"
-              value={basics.name ?? ''}
-              onChange={(e) => {
-                updateBasics('name', e.target.value);
-              }}
-              placeholder="e.g. Jane Doe"
-              className="input-text"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="basics-label"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                display: 'block',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Professional Headline / Title
-            </label>
-            <input
-              id="basics-label"
-              type="text"
-              value={basics.label ?? ''}
-              onChange={(e) => {
-                updateBasics('label', e.target.value);
-              }}
-              placeholder="e.g. Lead Staff Systems Engineer"
-              className="input-text"
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
-          <div>
-            <label
-              htmlFor="basics-email"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                display: 'block',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Email Address
-            </label>
-            <input
-              id="basics-email"
-              type="email"
-              value={basics.email ?? ''}
-              onChange={(e) => {
-                updateBasics('email', e.target.value);
-              }}
-              placeholder="jane@example.com"
-              className="input-text"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="basics-phone"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                display: 'block',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Phone Number
-            </label>
-            <input
-              id="basics-phone"
-              type="tel"
-              value={basics.phone ?? ''}
-              onChange={(e) => {
-                updateBasics('phone', e.target.value);
-              }}
-              placeholder="+1 555-0199"
-              className="input-text"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="basics-url"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                display: 'block',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Personal Website / Portfolio
-            </label>
-            <input
-              id="basics-url"
-              type="url"
-              value={basics.url ?? ''}
-              onChange={(e) => {
-                updateBasics('url', e.target.value);
-              }}
-              placeholder="https://janedoe.dev"
-              className="input-text"
-            />
-          </div>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-          <div>
-            <label
-              htmlFor="basics-city"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                display: 'block',
-                marginBottom: '0.25rem',
-              }}
-            >
-              City
-            </label>
-            <input
-              id="basics-city"
-              type="text"
-              value={basics.location?.city ?? ''}
-              onChange={(e) => {
-                updateLocation('city', e.target.value);
-              }}
-              placeholder="San Francisco"
-              className="input-text"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="basics-region"
-              style={{
-                fontSize: '0.78rem',
-                fontWeight: 500,
-                display: 'block',
-                marginBottom: '0.25rem',
-              }}
-            >
-              Region / State / Country
-            </label>
-            <input
-              id="basics-region"
-              type="text"
-              value={basics.location?.region ?? ''}
-              onChange={(e) => {
-                updateLocation('region', e.target.value);
-              }}
-              placeholder="California, USA"
-              className="input-text"
-            />
-          </div>
-        </div>
-
-        <div>
-          <label
-            htmlFor="basics-summary"
-            style={{
-              fontSize: '0.78rem',
-              fontWeight: 500,
-              display: 'block',
-              marginBottom: '0.25rem',
-            }}
-          >
-            Professional Summary / Bio
-          </label>
-          <textarea
-            id="basics-summary"
-            value={basics.summary ?? ''}
-            onChange={(e) => {
-              updateBasics('summary', e.target.value);
-            }}
-            placeholder="Seasoned engineer with 8+ years building distributed platforms..."
-            rows={3}
-            className="input-text"
-            style={{ resize: 'vertical' }}
-          />
-        </div>
-
-        {/* Social Profiles */}
-        <div style={{ borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.75rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.5rem',
-            }}
-          >
-            <span style={{ fontSize: '0.8rem', fontWeight: 600 }}>
-              Social & Professional Profiles ({profiles.length})
-            </span>
-            <button
-              type="button"
-              onClick={() => {
-                addProfile();
-              }}
-              className="btn btn-secondary btn-sm"
-              style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
-            >
-              <Plus size={12} /> Add Profile
-            </button>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            {profiles.map((prof: ProfileItem, pIdx: number) => (
-              <SocialProfileItem
-                key={pIdx}
-                profile={prof}
-                index={pIdx}
-                onUpdate={(field, val) => {
-                  updateProfile(pIdx, field, val);
-                }}
-                onRemove={() => {
-                  removeProfile(pIdx);
-                }}
-              />
-            ))}
-          </div>
-        </div>
-      </CollapsibleSection>
+        onUpdateBasics={updateBasics}
+        onUpdateLocation={updateLocation}
+        onAddProfile={addProfile}
+        onUpdateProfile={updateProfile}
+        onRemoveProfile={removeProfile}
+      />
 
       {/* 2. Skills & Tag Chips */}
       <CollapsibleSection
@@ -678,139 +446,43 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
       </CollapsibleSection>
 
       {/* 3. Work Experience */}
-      <CollapsibleSection
-        id="work"
-        title="Work Experience"
-        countBadge={`${work.length} roles`}
-        icon={<Briefcase size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+      <WorkExperienceSection
+        work={work}
         isOpen={openSections.work}
         onToggle={() => {
           toggleSection('work');
         }}
-      >
-        {work.map((w, wIdx: number) => (
-          <WorkExperienceItem
-            key={wIdx}
-            work={w}
-            workIndex={wIdx}
-            onUpdate={(field, val) => {
-              updateWork(wIdx, field, val);
-            }}
-            onRemove={() => {
-              removeWork(wIdx);
-            }}
-            onAddHighlight={(text) => {
-              addWorkHighlight(wIdx, text);
-            }}
-            onUpdateHighlight={(hIdx, text) => {
-              updateWorkHighlight(wIdx, hIdx, text);
-            }}
-            onRemoveHighlight={(hIdx) => {
-              removeWorkHighlight(wIdx, hIdx);
-            }}
-          />
-        ))}
-
-        <button
-          type="button"
-          onClick={() => {
-            addWork();
-          }}
-          className="btn btn-secondary btn-sm"
-          style={{
-            alignSelf: 'flex-start',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-          }}
-        >
-          <Plus size={14} /> Add Role Experience
-        </button>
-      </CollapsibleSection>
+        onAddWork={addWork}
+        onUpdateWork={updateWork}
+        onRemoveWork={removeWork}
+        onAddHighlight={addWorkHighlight}
+        onUpdateHighlight={updateWorkHighlight}
+        onRemoveHighlight={removeWorkHighlight}
+      />
 
       {/* 4. Education */}
-      <CollapsibleSection
-        id="education"
-        title="Education"
-        countBadge={`${education.length}`}
-        icon={<GraduationCap size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+      <EducationSection
+        education={education}
         isOpen={openSections.education}
         onToggle={() => {
           toggleSection('education');
         }}
-      >
-        {education.map((edu, eIdx: number) => (
-          <EducationEntryItem
-            key={eIdx}
-            education={edu}
-            index={eIdx}
-            onUpdate={(field, val) => {
-              updateEducation(eIdx, field, val);
-            }}
-            onRemove={() => {
-              removeEducation(eIdx);
-            }}
-          />
-        ))}
-
-        <button
-          type="button"
-          onClick={() => {
-            addEducation();
-          }}
-          className="btn btn-secondary btn-sm"
-          style={{
-            alignSelf: 'flex-start',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-          }}
-        >
-          <Plus size={14} /> Add Education
-        </button>
-      </CollapsibleSection>
+        onAddEducation={addEducation}
+        onUpdateEducation={updateEducation}
+        onRemoveEducation={removeEducation}
+      />
 
       {/* 5. Projects */}
-      <CollapsibleSection
-        id="projects"
-        title="Projects"
-        countBadge={`${projects.length}`}
-        icon={<FolderGit2 size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
+      <ProjectsSection
+        projects={projects}
         isOpen={openSections.projects}
         onToggle={() => {
           toggleSection('projects');
         }}
-      >
-        {projects.map((proj, pIdx: number) => (
-          <ProjectEntryItem
-            key={pIdx}
-            project={proj}
-            index={pIdx}
-            onUpdate={(field, val) => {
-              updateProject(pIdx, field, val);
-            }}
-            onRemove={() => {
-              removeProject(pIdx);
-            }}
-          />
-        ))}
-
-        <button
-          type="button"
-          onClick={() => {
-            addProject();
-          }}
-          className="btn btn-secondary btn-sm"
-          style={{
-            alignSelf: 'flex-start',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.35rem',
-          }}
-        >
-          <Plus size={14} /> Add Project
-        </button>
-      </CollapsibleSection>
+        onAddProject={addProject}
+        onUpdateProject={updateProject}
+        onRemoveProject={removeProject}
+      />
     </div>
   );
 };

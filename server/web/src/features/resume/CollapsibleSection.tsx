@@ -7,7 +7,7 @@ export interface CollapsibleSectionProps {
   countBadge?: string;
   icon: React.ReactNode;
   isOpen: boolean;
-  onToggle(): void;
+  onToggle: () => void;
   children: React.ReactNode;
 }
 

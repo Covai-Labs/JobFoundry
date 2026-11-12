@@ -79,12 +79,12 @@ describe('ResumeManager', () => {
     fireEvent.click(screen.getByText('Raw JSON'));
 
     // Should find textarea with JSON content
-    const rawJsonHtml = (screen.getByLabelText('Raw JSON Schema Content') as HTMLTextAreaElement)
+    const rawJsonString = (screen.getByLabelText('Raw JSON Schema Content') as HTMLTextAreaElement)
       .value;
-    expect(rawJsonHtml).toContain('Alex Mercer');
+    expect(rawJsonString).toContain('Alex Mercer');
 
     // Edit JSON content
-    const updatedJson = JSON.parse(rawJsonHtml);
+    const updatedJson = JSON.parse(rawJsonString);
     updatedJson.basics.name = 'Alexandra Mercer';
     fireEvent.change(screen.getByLabelText('Raw JSON Schema Content'), {
       target: { value: JSON.stringify(updatedJson, null, 2) },

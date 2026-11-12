@@ -7,8 +7,8 @@ export type ProfileField = 'network' | 'username' | 'url';
 export interface SocialProfileItemProps {
   profile: ProfileItem;
   index: number;
-  onUpdate(field: ProfileField, val: string): void;
-  onRemove(): void;
+  onUpdate: (field: ProfileField, val: string) => void;
+  onRemove: () => void;
 }
 
 export const SocialProfileItem: React.FC<SocialProfileItemProps> = ({

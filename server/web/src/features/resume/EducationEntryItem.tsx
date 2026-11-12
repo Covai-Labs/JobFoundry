@@ -8,8 +8,8 @@ export type EducationField =
 export interface EducationEntryItemProps {
   education: EducationItem;
   index: number;
-  onUpdate(field: EducationField, val: string): void;
-  onRemove(): void;
+  onUpdate: (field: EducationField, val: string) => void;
+  onRemove: () => void;
 }
 
 export const EducationEntryItem: React.FC<EducationEntryItemProps> = ({

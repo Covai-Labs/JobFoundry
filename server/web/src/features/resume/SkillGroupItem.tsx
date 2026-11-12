@@ -5,10 +5,10 @@ import { SkillItem } from './resumeTypes';
 export interface SkillGroupItemProps {
   group: SkillItem;
   groupIndex: number;
-  onUpdateName(name: string): void;
-  onAddKeyword(keyword: string): void;
-  onRemoveKeyword(keywordIndex: number): void;
-  onRemoveGroup(): void;
+  onUpdateName: (name: string) => void;
+  onAddKeyword: (keyword: string) => void;
+  onRemoveKeyword: (keywordIndex: number) => void;
+  onRemoveGroup: () => void;
 }
 
 export const SkillGroupItem: React.FC<SkillGroupItemProps> = ({
