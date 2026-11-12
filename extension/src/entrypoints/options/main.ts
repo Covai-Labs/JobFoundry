@@ -67,32 +67,6 @@ async function hydrate() {
   if ($('#passive-mode')) $('#passive-mode').checked = Boolean(currentConfig.passiveMode);
   if ($('#active-mode')) $('#active-mode').checked = Boolean(currentConfig.activeMode);
 
-  // Populate search boards checkboxes
-  const boards = currentConfig.searchBoards || {};
-  const boardIds = [
-    'linkedin',
-    'indeed',
-    'glassdoor',
-    'hiringcafe',
-    'adzuna',
-    'ziprecruiter',
-    'google',
-    'naukri',
-  ];
-  for (const bid of boardIds) {
-    const el = $(`#board-${bid}`);
-    if (el)
-      el.checked =
-        boards[bid] !== undefined
-          ? Boolean(boards[bid])
-          : bid === 'linkedin' || bid === 'indeed' || bid === 'glassdoor' || bid === 'hiringcafe';
-  }
-
-  // Populate Adzuna fields
-  if ($('#adzuna-app-id')) $('#adzuna-app-id').value = currentConfig.adzunaAppId || '';
-  if ($('#adzuna-app-key')) $('#adzuna-app-key').value = currentConfig.adzunaAppKey || '';
-  if ($('#adzuna-country')) $('#adzuna-country').value = currentConfig.adzunaCountry || 'us';
-
   updateConnectionBadge();
 }
 
@@ -230,74 +204,13 @@ export function init() {
     }
   });
 
-  $('#save-search-settings-btn')?.addEventListener('click', async () => {
-    const status = $('#search-settings-status');
-    try {
-      const searchBoards: Record<string, boolean> = {};
-      const boardIds = [
-        'linkedin',
-        'indeed',
-        'glassdoor',
-        'hiringcafe',
-        'adzuna',
-        'ziprecruiter',
-        'google',
-        'naukri',
-      ];
-      for (const bid of boardIds) {
-        const el = $(`#board-${bid}`);
-        if (el) searchBoards[bid] = Boolean(el.checked);
-      }
-
-      const patch: Partial<Config> = {
-        searchBoards,
-        adzunaAppId: $('#adzuna-app-id')?.value.trim() || null,
-        adzunaAppKey: $('#adzuna-app-key')?.value.trim() || null,
-        adzunaCountry: $('#adzuna-country')?.value.trim().toLowerCase() || 'us',
-      };
-
-      await setConfig(patch);
-      // Push to dashboard so it stays single source of truth (best-effort).
-      let syncNote = '';
-      try {
-        const cfg = await getConfig();
-        if (cfg.serverUrl && cfg.apiKey) {
-          const res = await fetch(`${cfg.serverUrl.replace(/\/+$/, '')}/api/v1/extension/config`, {
-            method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${cfg.apiKey}`,
-              'x-api-key': cfg.apiKey,
-            },
-            body: JSON.stringify(patch),
-          });
-          syncNote = res.ok
-            ? ' & synced to dashboard!'
-            : ` but dashboard sync failed (HTTP ${res.status}) — saved locally.`;
-        } else {
-          syncNote = ' — saved locally (not synced: no server connection).';
-        }
-      } catch (err: any) {
-        syncNote = ` — saved locally (dashboard sync failed: ${err?.message || err}).`;
-      }
-      if (status) {
-        status.textContent = `Search settings saved${syncNote}`;
-        status.style.color =
-          syncNote.includes('failed') || syncNote.includes('not synced')
-            ? 'var(--amber, #f59e0b)'
-            : 'var(--green)';
-        setTimeout(() => {
-          if (status) status.textContent = '';
-        }, 5000);
-      }
-      await hydrate();
-    } catch (err: any) {
-      if (status) {
-        status.textContent = `Save error: ${err?.message || err}`;
-        status.style.color = 'var(--red)';
-      }
-    }
-  });
+  const openScraperSettings = (e?: Event) => {
+    if (e) e.preventDefault();
+    const targetUrl = getWebSettingsUrl(currentConfig);
+    openWebSettings(targetUrl);
+  };
+  $('#manage-search-settings-btn')?.addEventListener('click', openScraperSettings);
+  $('#manage-search-settings-link')?.addEventListener('click', openScraperSettings);
 
   $('#manual-config-form')?.addEventListener('submit', async (e: Event) => {
     e.preventDefault();

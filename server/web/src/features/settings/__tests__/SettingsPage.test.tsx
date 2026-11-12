@@ -37,11 +37,20 @@ describe('SettingsPage', () => {
         tailor_api_base: '',
         tailor_theme: 'jsonresume-theme-folio',
         tailor_timeout_seconds: 900,
+        observability_provider: 'opik',
         opik_enabled: false,
         opik_project_name: 'jobfoundry',
         opik_api_key: '',
         opik_workspace: '',
         opik_url_override: '',
+        langfuse_enabled: false,
+        langfuse_public_key: '',
+        langfuse_secret_key: '',
+        langfuse_host: 'https://cloud.langfuse.com',
+        langsmith_enabled: false,
+        langsmith_api_key: '',
+        langsmith_project: 'jobfoundry',
+        langsmith_endpoint: 'https://api.smith.langchain.com',
         theme_color_mode: 'system',
         theme_accent: 'indigo',
       },
@@ -616,5 +625,31 @@ describe('SettingsPage', () => {
       expect(screen.getByRole('option', { name: /Principal Engineer — DataCorp/i })).toBeVisible();
     });
     expect(api.getTailoredJobs).toHaveBeenCalledTimes(2);
+  });
+
+  it('switches between observability providers (Opik, Langfuse, LangSmith) and edits keys', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Observability & Tracing/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/LLM Observability & Tracing/i)).toBeInTheDocument();
+      expect(screen.getByText(/Enable Opik Tracing Callbacks/i)).toBeInTheDocument();
+    });
+
+    // Switch to Langfuse
+    fireEvent.click(screen.getByRole('button', { name: 'Langfuse' }));
+    expect(screen.getByText(/Enable Langfuse Tracing Callbacks/i)).toBeInTheDocument();
+    expect(screen.getByText(/No Langfuse public key configured/i)).toBeInTheDocument();
+
+    // Switch to LangSmith
+    fireEvent.click(screen.getByRole('button', { name: 'LangSmith' }));
+    expect(screen.getByText(/Enable LangSmith Tracing Callbacks/i)).toBeInTheDocument();
+    expect(
+      screen.getByPlaceholderText(/https:\/\/api\.smith\.langchain\.com/i)
+    ).toBeInTheDocument();
   });
 });

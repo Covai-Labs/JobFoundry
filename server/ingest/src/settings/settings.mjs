@@ -9,6 +9,9 @@ export const SENSITIVE_KEYS = new Set([
   'tailor_api_key',
   'copilot_api_key',
   'opik_api_key',
+  'langfuse_public_key',
+  'langfuse_secret_key',
+  'langsmith_api_key',
 ]);
 
 export const DEFAULT_COPILOT_SYSTEM_PROMPT =
@@ -274,6 +277,11 @@ export const SETTINGS_METADATA = {
     default: DEFAULT_COVER_LETTER_PROMPT,
     type: 'string',
   },
+  observability_provider: {
+    env: 'OBSERVABILITY_PROVIDER',
+    default: 'opik',
+    type: 'string',
+  },
   opik_enabled: {
     env: null,
     default: false,
@@ -298,6 +306,49 @@ export const SETTINGS_METADATA = {
   opik_url_override: {
     env: 'OPIK_URL_OVERRIDE',
     default: '',
+    type: 'string',
+  },
+  langfuse_enabled: {
+    env: null,
+    default: false,
+    type: 'boolean',
+  },
+  langfuse_public_key: {
+    env: 'LANGFUSE_PUBLIC_KEY',
+    default: '',
+    type: 'string',
+    secret: true,
+  },
+  langfuse_secret_key: {
+    env: 'LANGFUSE_SECRET_KEY',
+    default: '',
+    type: 'string',
+    secret: true,
+  },
+  langfuse_host: {
+    env: 'LANGFUSE_HOST',
+    default: 'https://cloud.langfuse.com',
+    type: 'string',
+  },
+  langsmith_enabled: {
+    env: null,
+    default: false,
+    type: 'boolean',
+  },
+  langsmith_api_key: {
+    env: 'LANGSMITH_API_KEY',
+    default: '',
+    type: 'string',
+    secret: true,
+  },
+  langsmith_project: {
+    env: 'LANGSMITH_PROJECT',
+    default: 'jobfoundry',
+    type: 'string',
+  },
+  langsmith_endpoint: {
+    env: 'LANGSMITH_ENDPOINT',
+    default: 'https://api.smith.langchain.com',
     type: 'string',
   },
   theme_color_mode: {
