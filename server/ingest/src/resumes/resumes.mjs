@@ -131,14 +131,15 @@ export function updateUserResume(db, { userId, resumeId, title, resumeJson }) {
 
   if (!existing) return null;
 
-  let validated = null;
-  let jsonStr = existing.resume_json;
+  let validated;
+  let jsonStr;
 
   if (resumeJson !== undefined) {
     validated = validateResumeJson(resumeJson);
     jsonStr = JSON.stringify(validated);
   } else {
     validated = JSON.parse(existing.resume_json);
+    jsonStr = existing.resume_json;
   }
 
   const finalTitle = title !== undefined && typeof title === 'string' ? title.trim() || existing.title : existing.title;

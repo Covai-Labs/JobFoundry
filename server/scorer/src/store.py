@@ -557,7 +557,7 @@ class JobStore:
             cursor = self.conn.execute(query, (user_id,))
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
-        except Exception:
+        except sqlite3.OperationalError:
             # Table might not exist in old test databases
             return []
 
