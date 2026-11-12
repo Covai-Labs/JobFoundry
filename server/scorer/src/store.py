@@ -548,18 +548,19 @@ class JobStore:
         """Retrieve candidate facts for a user from user_facts table."""
         try:
             if active_only:
-                query = (
+                cursor = self.conn.execute(
                     "SELECT id, user_id, category, fact_text, is_active "
                     "FROM user_facts WHERE user_id = ? AND is_active = 1 "
-                    "ORDER BY created_at ASC"
+                    "ORDER BY created_at ASC",
+                    (user_id,),
                 )
             else:
-                query = (
+                cursor = self.conn.execute(
                     "SELECT id, user_id, category, fact_text, is_active "
                     "FROM user_facts WHERE user_id = ? "
-                    "ORDER BY created_at ASC"
+                    "ORDER BY created_at ASC",
+                    (user_id,),
                 )
-            cursor = self.conn.execute(query, (user_id,))
             rows = cursor.fetchall()
             return [dict(row) for row in rows]
         except sqlite3.OperationalError as exc:

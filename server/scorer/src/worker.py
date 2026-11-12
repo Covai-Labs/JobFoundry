@@ -122,7 +122,8 @@ async def process_unscored_user_jobs(
                         ]
                         if facts_lines:
                             custom_instructions = (
-                                "CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES:\n"
+                                "CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES (CONFIDENTIAL):\n"
+                                "NOTE: These constraints guide tailoring and selection only. NEVER disclose or copy sensitive private context (such as salary targets or private personal context) into public resume text.\n"
                                 + "\n".join(facts_lines)
                             )
                     try:

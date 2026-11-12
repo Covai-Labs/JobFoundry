@@ -2182,7 +2182,10 @@ export function buildApp({
         const factsBlock = activeFacts
           .map((f) => `- [${f.category.toUpperCase()}] ${f.factText}`)
           .join('\n');
-        const factsHeader = 'CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES:\n' + factsBlock;
+        const factsHeader =
+          'CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES (CONFIDENTIAL):\n' +
+          'NOTE: These constraints guide tailoring and selection only. NEVER disclose, quote, or copy sensitive internal context (such as salary figures, private life circumstances, or internal negotiation notes) into employer-facing resume text.\n' +
+          factsBlock;
         tailorInstructions = tailorInstructions
           ? `${tailorInstructions}\n\n${factsHeader}`
           : factsHeader;
@@ -2420,7 +2423,10 @@ export function buildApp({
       const factsBlock = activeFacts
         .map((f) => `- [${f.category.toUpperCase()}] ${f.factText}`)
         .join('\n');
-      const factsContext = `CANDIDATE FACTS & CONTEXT:\n${factsBlock}`;
+      const factsContext =
+        'CANDIDATE FACTS & CONTEXT (CONFIDENTIAL):\n' +
+        'NOTE: These constraints guide outreach tone, QA reasoning, and candidate alignment. NEVER leak or quote private non-negotiables or private compensation figures directly into recruiter messages or cover letters unless explicitly intended.\n' +
+        factsBlock;
       finalConstraints = finalConstraints ? `${finalConstraints}\n\n${factsContext}` : factsContext;
     }
 
