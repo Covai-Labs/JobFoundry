@@ -253,7 +253,6 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       }
 
       await fetchResumes();
-      setInitialJsonText(jsonText);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || 'Failed to save resume');
@@ -266,7 +265,6 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       await api.setActiveResume(id);
       await fetchResumes();
-      setInitialJsonText(jsonText);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || 'Failed to switch active resume');
@@ -278,7 +276,6 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       await api.deleteResume(id);
       await fetchResumes();
-      setInitialJsonText(jsonText);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       setError(msg || 'Failed to delete resume');
@@ -599,7 +596,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                 gap: '0.5rem',
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
+              >
                 <button
                   type="button"
                   onClick={handleSwitchToForm}
@@ -644,11 +643,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                 }}
               >
                 <Save size={14} />
-                {saving
-                  ? 'Saving...'
-                  : activeResume
-                    ? 'Save Changes'
-                    : 'Save & Activate'}
+                {saving ? 'Saving...' : activeResume ? 'Save Changes' : 'Save & Activate'}
               </button>
             </div>
 
@@ -952,7 +947,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       )}
 
       {/* Floating Save Action Pill for Long Form Scrolling */}
-      {Boolean(jsonText && initialJsonText && jsonText !== initialJsonText) && (
+      {Boolean(initialJsonText && jsonText !== initialJsonText) && (
         <div
           style={{
             position: 'fixed',
@@ -976,14 +971,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
           <button
             type="button"
             className="btn btn-secondary btn-sm"
-            onClick={() => {
-              setJsonText(initialJsonText);
-              try {
-                setParsedResume(JSON.parse(initialJsonText));
-              } catch {
-                // ignore
-              }
-            }}
+            onClick={() => handleJsonChange(initialJsonText)}
           >
             Revert
           </button>

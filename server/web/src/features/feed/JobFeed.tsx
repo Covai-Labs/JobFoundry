@@ -698,11 +698,19 @@ export const JobFeed: React.FC<JobFeedProps> = ({
                     </span>
                     <div className="onboarding-step-title">Capture Jobs as You Browse</div>
                     <div className="onboarding-step-desc">
-                      Your extension is paired. Browse LinkedIn, Indeed, Greenhouse, or Lever and click
-                      the JobFoundry extension icon to capture jobs. Or add a listing manually via + Add Job above.
+                      Your extension is paired. Browse LinkedIn, Indeed, Greenhouse, or Lever and
+                      click the JobFoundry extension icon to capture jobs. Or add a listing manually
+                      via + Add Job above.
                     </div>
                   </div>
-                  <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '0.6rem',
+                      marginTop: '0.5rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
                     <a
                       href="/settings?tab=sync"
                       className="btn btn-secondary btn-sm"
@@ -718,8 +726,8 @@ export const JobFeed: React.FC<JobFeedProps> = ({
                     <span className="onboarding-step-badge">Browser Extension</span>
                     <div className="onboarding-step-title">1-Click Live Capture</div>
                     <div className="onboarding-step-desc">
-                      Browse jobs naturally on LinkedIn, Indeed, Greenhouse, or Lever and capture in 1
-                      click.
+                      Browse jobs naturally on LinkedIn, Indeed, Greenhouse, or Lever and capture in
+                      1 click.
                     </div>
                   </div>
                   <a

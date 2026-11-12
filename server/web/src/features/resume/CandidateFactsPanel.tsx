@@ -213,12 +213,6 @@ export const CandidateFactsPanel: React.FC = () => {
 
       {/* Add Fact Form */}
       <div
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            void handleAddFact();
-          }
-        }}
         style={{
           display: 'grid',
           gridTemplateColumns: '160px 1fr auto',
@@ -261,6 +255,12 @@ export const CandidateFactsPanel: React.FC = () => {
           value={newFactText}
           onChange={(e) => {
             setNewFactText(e.target.value);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              void handleAddFact();
+            }
           }}
           placeholder={getCategoryStyle(newCategory).placeholder}
           className="input-text"

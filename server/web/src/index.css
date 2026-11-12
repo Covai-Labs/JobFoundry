@@ -274,7 +274,7 @@ h6 {
   padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-subtle);
   position: sticky;
-  top: 0;
+  top: 57px;
   z-index: 30;
   background: var(--bg-primary);
   backdrop-filter: blur(8px);

@@ -295,6 +295,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
 
   const [isDirty, setIsDirty] = useState(false);
   const [hasActiveResume, setHasActiveResume] = useState(false);
+  const [isExtensionPaired, setIsExtensionPaired] = useState(() => {
+    return typeof window !== 'undefined' && localStorage.getItem('jf_extension_paired') === 'true';
+  });
 
   // Fetch backend settings & telemetry once on mount
   useEffect(() => {
@@ -1000,10 +1003,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             number: 4,
             label: 'Extension Sync',
             sublabel: 'Pair & Hunt',
-            complete:
-              typeof window !== 'undefined' &&
-              (localStorage.getItem('jf_extension_paired') === 'true' ||
-                Boolean(extensionConfig?.lastSyncAt || extensionConfig?.updatedAt)),
+            complete: isExtensionPaired || Boolean(extensionConfig?.updatedAt),
           },
         ];
 
@@ -4998,7 +4998,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {/* TAB 5: EXTENSION & AUTH */}
               {activeTab === 'sync' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <ExtensionSyncView />
+                  <ExtensionSyncView onPairingChange={setIsExtensionPaired} />
                   {/* Previous Step Footer Navigation */}
                   <div
                     style={{
