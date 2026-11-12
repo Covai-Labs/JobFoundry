@@ -14,7 +14,7 @@ import {
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
-import { ResumeFormEditor } from './ResumeFormEditor';
+import { ResumeFormEditor, ResumeData, SkillItem } from './ResumeFormEditor';
 import { CandidateFactsPanel } from './CandidateFactsPanel';
 
 const AjvClass = (Ajv as any).default || Ajv;
@@ -278,7 +278,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     }
   };
 
-  const parsedActive = (activeResume?.resume ?? parsedResume) as Record<string, any>;
+  const parsedActive = (activeResume?.resume ?? parsedResume) as ResumeData;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -484,7 +484,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
                       {parsedActive.skills
-                        .flatMap((s: any) => (Array.isArray(s.keywords) ? s.keywords : [s.name]))
+                        .flatMap((s: SkillItem) =>
+                          Array.isArray(s.keywords) ? s.keywords : s.name ? [s.name] : []
+                        )
                         .slice(0, 15)
                         .map((skill: string, idx: number) => (
                           <span
