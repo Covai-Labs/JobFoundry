@@ -544,5 +544,22 @@ class JobStore:
         row = cursor.fetchone()
         return dict(row) if row else {}
 
+    def get_user_facts(self, user_id: str, active_only: bool = True) -> list[dict[str, Any]]:
+        """Retrieve candidate facts for a user from user_facts table."""
+        try:
+            query = (
+                "SELECT id, user_id, category, fact_text, is_active "
+                "FROM user_facts WHERE user_id = ? "
+            )
+            if active_only:
+                query += "AND is_active = 1 "
+            query += "ORDER BY created_at ASC"
+            cursor = self.conn.execute(query, (user_id,))
+            rows = cursor.fetchall()
+            return [dict(row) for row in rows]
+        except Exception:
+            # Table might not exist in old test databases
+            return []
+
     def close(self) -> None:
         self.conn.close()

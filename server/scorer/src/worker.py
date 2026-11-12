@@ -83,6 +83,11 @@ async def process_unscored_user_jobs(
                 scored_jobs.append(failed_uj)
                 continue
 
+            # Load active candidate facts for this user
+            user_facts = store.get_user_facts(user_id, active_only=True)
+            if user_facts:
+                user_llm["user_facts"] = user_facts
+
             result = await screener.score(job=job_dict, master_resume=resume, llm_settings=user_llm)
             updated_uj = store.score_user_job(user_job_id=user_job_id, result=result)
             processed += 1

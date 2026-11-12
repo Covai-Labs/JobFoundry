@@ -77,6 +77,21 @@ export function migrate(db) {
   } catch (err) {
     if (!String(err?.message || err).includes('duplicate column name')) throw err;
   }
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS user_facts (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        category TEXT NOT NULL DEFAULT 'general',
+        fact_text TEXT NOT NULL,
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_user_facts_user ON user_facts(user_id);
+    `);
+  } catch {}
+
   db.exec(
     `UPDATE users
      SET is_admin = 1

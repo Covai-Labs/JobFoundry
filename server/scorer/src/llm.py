@@ -160,21 +160,38 @@ class LiteLLMClient:
         api_base = settings.get("api_base") or self.api_base
         resume_str = format_resume_for_prompt(resume)
         timeout = float(settings.get("timeout", 90.0))
+
+        facts = settings.get("user_facts") or []
+        facts_block = ""
+        if facts:
+            facts_lines = [
+                f"- [{f.get('category', 'general').upper()}] {f.get('fact_text', '')}"
+                for f in facts
+                if f.get("fact_text")
+            ]
+            if facts_lines:
+                facts_block = (
+                    f"--- CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES ---\n"
+                    f"{chr(10).join(facts_lines)}\n\n"
+                )
+
         prompt = (
             f"You are an expert technical recruiter, resume screener, and job analyst.\n"
             f"Evaluate the candidate's master resume against the following job posting.\n"
             f"1. Check if this is a genuine job posting or non-job noise (e.g., social feed, notification counts like '0 notifications', user profile, cookie banner). Set `is_valid_job: false` if not a job posting.\n"
             f"2. If valid, provide a realistic fit score (0-100), concise reasoning, matching skills, and missing skills.\n"
-            f"3. Sanitize the job title into `clean_title` (e.g. fix '0 notifications' or bad scrapings) and `clean_company` if needed.\n"
-            f"4. Sanitize the job description into clean, well-structured Markdown (Role Overview, Responsibilities, Requirements) "
+            f"3. Take candidate private context and non-negotiables (e.g. location, visa, remote preference, constraints) into account when calculating fit.\n"
+            f"4. Sanitize the job title into `clean_title` (e.g. fix '0 notifications' or bad scrapings) and `clean_company` if needed.\n"
+            f"5. Sanitize the job description into clean, well-structured Markdown (Role Overview, Responsibilities, Requirements) "
             f"by stripping all corporate boilerplate, EEOC/diversity statements, and application links in `clean_description`.\n"
-            f"5. If the job description is visibly cut off, ends mid-sentence, or lacks actual requirements, set `is_truncated: true`.\n"
-            f"6. Reasoning must be crisp and evidence-backed: cite specific matched skills and gaps directly without generic corporate filler.\n\n"
+            f"6. If the job description is visibly cut off, ends mid-sentence, or lacks actual requirements, set `is_truncated: true`.\n"
+            f"7. Reasoning must be crisp and evidence-backed: cite specific matched skills and gaps directly without generic corporate filler.\n\n"
             f"--- JOB POSTING ---\n"
             f"Title: {job.get('title', '')}\n"
             f"Company: {job.get('company', '')}\n"
             f"Location: {job.get('location', '')}\n"
             f"Description:\n{job.get('description', '')}\n\n"
+            f"{facts_block}"
             f"--- MASTER RESUME (TOON format) ---\n"
             f"{resume_str}\n"
         )

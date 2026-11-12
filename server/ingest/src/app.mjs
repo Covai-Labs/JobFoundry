@@ -42,10 +42,17 @@ import {
   getUserResumes,
   getActiveResume,
   saveUserResume,
+  updateUserResume,
   setActiveResume,
   deleteUserResume,
   validateResumeJson,
 } from './resumes/resumes.mjs';
+import {
+  getUserFacts,
+  createUserFact,
+  updateUserFact,
+  deleteUserFact,
+} from './facts/facts.mjs';
 import {
   DEFAULT_EXTENSION_CONFIG,
   DEFAULT_PROMPT_TEMPLATES,
@@ -952,6 +959,104 @@ export function buildApp({
     }
     return { ok: true };
   });
+
+  // PATCH /api/v1/resumes/:id
+  app.patch('/api/v1/resumes/:id', async (request, reply) => {
+    if (!authenticate(request, reply)) return;
+    const { id } = request.params;
+    const { title, resumeJson } = request.body || {};
+
+    if (title === undefined && resumeJson === undefined) {
+      return reply.code(400).send({ error: 'Either title or resumeJson must be provided' });
+    }
+
+    try {
+      const updated = updateUserResume(db, {
+        userId: request.user.id,
+        resumeId: id,
+        title,
+        resumeJson,
+      });
+
+      if (!updated) {
+        return reply.code(404).send({ error: 'resume not found' });
+      }
+
+      return { resume: updated };
+    } catch (err) {
+      return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  // GET /api/v1/facts
+  app.get('/api/v1/facts', async (request, reply) => {
+    if (!authenticate(request, reply)) return;
+    const activeOnly = request.query?.active === 'true' || request.query?.active === '1';
+    const facts = getUserFacts(db, request.user.id, { activeOnly });
+    return { facts };
+  });
+
+  // POST /api/v1/facts
+  app.post('/api/v1/facts', async (request, reply) => {
+    if (!authenticate(request, reply)) return;
+    const { category, factText, isActive } = request.body || {};
+    if (!factText || typeof factText !== 'string' || !factText.trim()) {
+      return reply.code(400).send({ error: 'factText is required and must be non-empty' });
+    }
+
+    try {
+      const fact = createUserFact(db, {
+        userId: request.user.id,
+        category,
+        factText,
+        isActive: isActive !== false,
+      });
+      return reply.code(201).send({ fact });
+    } catch (err) {
+      return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  // PATCH /api/v1/facts/:id
+  app.patch('/api/v1/facts/:id', async (request, reply) => {
+    if (!authenticate(request, reply)) return;
+    const { id } = request.params;
+    const { category, factText, isActive } = request.body || {};
+
+    if (category === undefined && factText === undefined && isActive === undefined) {
+      return reply.code(400).send({ error: 'At least one field (category, factText, isActive) is required' });
+    }
+
+    try {
+      const updated = updateUserFact(db, {
+        userId: request.user.id,
+        factId: id,
+        category,
+        factText,
+        isActive,
+      });
+
+      if (!updated) {
+        return reply.code(404).send({ error: 'fact not found' });
+      }
+
+      return { fact: updated };
+    } catch (err) {
+      return reply.code(400).send({ error: err.message });
+    }
+  });
+
+  // DELETE /api/v1/facts/:id
+  app.delete('/api/v1/facts/:id', async (request, reply) => {
+    if (!authenticate(request, reply)) return;
+    const { id } = request.params;
+    const success = deleteUserFact(db, { userId: request.user.id, factId: id });
+    if (!success) {
+      return reply.code(404).send({ error: 'fact not found' });
+    }
+    return { ok: true };
+  });
+
 
   // POST /api/v1/resumes/parse-raw - AI-assisted raw text/markdown to JSON Resume v1.0.0
   app.post(
@@ -1996,8 +2101,21 @@ export function buildApp({
         getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
         '';
       const tailorStyle = getEffectiveSetting(db, 'tailor_style', process.env, userId);
-      const tailorInstructions =
+      const rawTailorInstructions =
         getEffectiveSetting(db, 'tailor_instructions', process.env, userId) || '';
+
+      // Merge active candidate facts with custom instructions
+      const activeFacts = userId ? getUserFacts(db, userId, { activeOnly: true }) : [];
+      let tailorInstructions = rawTailorInstructions;
+      if (activeFacts.length > 0) {
+        const factsBlock = activeFacts
+          .map((f) => `- [${f.category.toUpperCase()}] ${f.factText}`)
+          .join('\n');
+        const factsHeader = 'CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES:\n' + factsBlock;
+        tailorInstructions = tailorInstructions
+          ? `${tailorInstructions}\n\n${factsHeader}`
+          : factsHeader;
+      }
       const tailorPipelineMode =
         getEffectiveSetting(db, 'tailor_pipeline_mode', process.env, userId) || 'sequential';
       const tailorEnableFinalCheck = Boolean(
@@ -2225,12 +2343,24 @@ export function buildApp({
         getEffectiveSetting(db, 'scorer_api_base', process.env, userId);
     }
 
+    let finalConstraints = constraints;
+    const activeFacts = userId ? getUserFacts(db, userId, { activeOnly: true }) : [];
+    if (activeFacts.length > 0) {
+      const factsBlock = activeFacts
+        .map((f) => `- [${f.category.toUpperCase()}] ${f.factText}`)
+        .join('\n');
+      const factsContext = `CANDIDATE FACTS & CONTEXT:\n${factsBlock}`;
+      finalConstraints = finalConstraints
+        ? `${finalConstraints}\n\n${factsContext}`
+        : factsContext;
+    }
+
     return {
       model: copilotModel,
       apiKey: copilotKey,
       apiBase: copilotBase,
       stopSlop: Boolean(stopSlop),
-      constraints,
+      constraints: finalConstraints,
       systemPrompt,
       outreachPromptTemplate,
       qaPromptTemplate,
