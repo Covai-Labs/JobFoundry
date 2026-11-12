@@ -8,7 +8,7 @@ export type EducationField =
 export interface EducationEntryItemProps {
   education: EducationItem;
   index: number;
-  onUpdate: (field: EducationField, val: string) => void;
+  onUpdate: (_field: EducationField, _val: string) => void;
   onRemove: () => void;
 }
 

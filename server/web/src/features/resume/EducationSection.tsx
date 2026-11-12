@@ -9,8 +9,8 @@ export interface EducationSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   onAddEducation: () => void;
-  onUpdateEducation: (index: number, field: EducationField, val: string) => void;
-  onRemoveEducation: (index: number) => void;
+  onUpdateEducation: (_index: number, _field: EducationField, _val: string) => void;
+  onRemoveEducation: (_index: number) => void;
 }
 
 export const EducationSection: React.FC<EducationSectionProps> = ({

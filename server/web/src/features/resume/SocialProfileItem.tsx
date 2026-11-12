@@ -7,7 +7,7 @@ export type ProfileField = 'network' | 'username' | 'url';
 export interface SocialProfileItemProps {
   profile: ProfileItem;
   index: number;
-  onUpdate: (field: ProfileField, val: string) => void;
+  onUpdate: (_field: ProfileField, _val: string) => void;
   onRemove: () => void;
 }
 

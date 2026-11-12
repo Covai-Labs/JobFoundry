@@ -7,7 +7,7 @@ export type ProjectField = 'name' | 'url' | 'description';
 export interface ProjectEntryItemProps {
   project: ProjectItem;
   index: number;
-  onUpdate: (field: ProjectField, val: string) => void;
+  onUpdate: (_field: ProjectField, _val: string) => void;
   onRemove: () => void;
 }
 

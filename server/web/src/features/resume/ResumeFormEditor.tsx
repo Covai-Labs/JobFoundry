@@ -27,7 +27,7 @@ type SectionKey = 'basics' | 'skills' | 'work' | 'education' | 'projects';
 
 export interface ResumeFormEditorProps {
   resume: ResumeData;
-  onChange: (updatedResume: ResumeData) => void;
+  onChange: (_updatedResume: ResumeData) => void;
 }
 
 export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onChange }) => {

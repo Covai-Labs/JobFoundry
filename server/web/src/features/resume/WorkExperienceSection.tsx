@@ -9,11 +9,11 @@ export interface WorkExperienceSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   onAddWork: () => void;
-  onUpdateWork: (index: number, field: WorkField, val: string) => void;
-  onRemoveWork: (index: number) => void;
-  onAddHighlight: (workIndex: number, text: string) => void;
-  onUpdateHighlight: (workIndex: number, highlightIndex: number, text: string) => void;
-  onRemoveHighlight: (workIndex: number, highlightIndex: number) => void;
+  onUpdateWork: (_index: number, _field: WorkField, _val: string) => void;
+  onRemoveWork: (_index: number) => void;
+  onAddHighlight: (_workIndex: number, _text: string) => void;
+  onUpdateHighlight: (_workIndex: number, _highlightIndex: number, _text: string) => void;
+  onRemoveHighlight: (_workIndex: number, _highlightIndex: number) => void;
 }
 
 export const WorkExperienceSection: React.FC<WorkExperienceSectionProps> = ({

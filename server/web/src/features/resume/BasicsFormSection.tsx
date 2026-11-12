@@ -11,11 +11,11 @@ export interface BasicsFormSectionProps {
   basics: BasicsItem;
   isOpen: boolean;
   onToggle: () => void;
-  onUpdateBasics: (field: BasicField, value: string) => void;
-  onUpdateLocation: (field: LocationField, value: string) => void;
+  onUpdateBasics: (_field: BasicField, _value: string) => void;
+  onUpdateLocation: (_field: LocationField, _value: string) => void;
   onAddProfile: () => void;
-  onUpdateProfile: (index: number, field: ProfileField, value: string) => void;
-  onRemoveProfile: (index: number) => void;
+  onUpdateProfile: (_index: number, _field: ProfileField, _value: string) => void;
+  onRemoveProfile: (_index: number) => void;
 }
 
 export const BasicsFormSection: React.FC<BasicsFormSectionProps> = ({

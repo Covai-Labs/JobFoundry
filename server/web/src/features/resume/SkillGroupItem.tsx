@@ -5,9 +5,9 @@ import { SkillItem } from './resumeTypes';
 export interface SkillGroupItemProps {
   group: SkillItem;
   groupIndex: number;
-  onUpdateName: (name: string) => void;
-  onAddKeyword: (keyword: string) => void;
-  onRemoveKeyword: (keywordIndex: number) => void;
+  onUpdateName: (_name: string) => void;
+  onAddKeyword: (_keyword: string) => void;
+  onRemoveKeyword: (_keywordIndex: number) => void;
   onRemoveGroup: () => void;
 }
 

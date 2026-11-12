@@ -9,8 +9,8 @@ export interface ProjectsSectionProps {
   isOpen: boolean;
   onToggle: () => void;
   onAddProject: () => void;
-  onUpdateProject: (index: number, field: ProjectField, val: string) => void;
-  onRemoveProject: (index: number) => void;
+  onUpdateProject: (_index: number, _field: ProjectField, _val: string) => void;
+  onRemoveProject: (_index: number) => void;
 }
 
 export const ProjectsSection: React.FC<ProjectsSectionProps> = ({
