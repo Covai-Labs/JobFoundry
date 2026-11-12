@@ -292,9 +292,9 @@ export class ApiClient {
 
   async parseResumeRaw(payload: { text: string }): Promise<{
     ok: boolean;
-    resumeJson: Record<string, any>;
+    resumeJson: Record<string, unknown>;
   }> {
-    return this.request<{ ok: boolean; resumeJson: Record<string, any> }>(
+    return this.request<{ ok: boolean; resumeJson: Record<string, unknown> }>(
       '/api/v1/resumes/parse-raw',
       {
         method: 'POST',

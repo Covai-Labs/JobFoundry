@@ -187,9 +187,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       const res = await api.parseResumeRaw({ text: rawResumeText.trim() });
       if (res.ok && res.resumeJson) {
-        handleFormChange(res.resumeJson);
-        if (res.resumeJson.basics?.name) {
-          setTitle(`${res.resumeJson.basics.name} Resume`);
+        const parsedResume = res.resumeJson as ResumeData;
+        handleFormChange(parsedResume);
+        if (parsedResume.basics?.name) {
+          setTitle(`${parsedResume.basics.name} Resume`);
         }
         setShowAiConvertModal(false);
         setRawResumeText('');
