@@ -4998,7 +4998,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {/* TAB 5: EXTENSION & AUTH */}
               {activeTab === 'sync' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                  <ExtensionSyncView onPairingChange={setIsExtensionPaired} />
+                  <ExtensionSyncView
+                    onPairingChange={() => {
+                      setIsExtensionPaired(
+                        typeof window !== 'undefined' &&
+                          localStorage.getItem('jf_extension_paired') === 'true'
+                      );
+                    }}
+                  />
                   {/* Previous Step Footer Navigation */}
                   <div
                     style={{

@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import { loadSettings } from '../../lib/auth';
 
 export interface ExtensionSyncViewProps {
-  onPairingChange?: (_paired: boolean) => void;
+  onPairingChange?: () => void;
 }
 
 export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingChange }) => {
@@ -26,7 +26,7 @@ export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingC
     } else {
       localStorage.removeItem('jf_extension_paired');
     }
-    onPairingChange?.(next);
+    onPairingChange?.();
   };
 
   const handleCopyKey = () => {
