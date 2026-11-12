@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Download, ExternalLink } from 'lucide-react';
+import { Download, ExternalLink, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
 import { loadSettings } from '../../lib/auth';
@@ -10,6 +10,19 @@ export const ExtensionSyncView: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
   const [rotating, setRotating] = useState(false);
+  const [isPaired, setIsPaired] = useState(() => {
+    return typeof window !== 'undefined' && localStorage.getItem('jf_extension_paired') === 'true';
+  });
+
+  const handleTogglePaired = () => {
+    const next = !isPaired;
+    setIsPaired(next);
+    if (next) {
+      localStorage.setItem('jf_extension_paired', 'true');
+    } else {
+      localStorage.removeItem('jf_extension_paired');
+    }
+  };
 
   const handleCopyKey = () => {
     if (!user?.apiKey) return;
@@ -44,7 +57,7 @@ export const ExtensionSyncView: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '900px', margin: '0 auto', padding: '1rem 0 3rem' }}>
+    <div style={{ maxWidth: '100%', margin: '0 auto', padding: '1rem 0 3rem' }}>
       <div style={{ marginBottom: '2rem' }}>
         <h1
           style={{
@@ -60,6 +73,56 @@ export const ExtensionSyncView: React.FC = () => {
           Connect the JobFoundry browser extension to enable 1-click job capture, passive board
           scraping, and automated portal scanning.
         </p>
+      </div>
+
+      {/* Pairing State Bar */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+          marginBottom: '1.5rem',
+          padding: '0.85rem 1.25rem',
+          background: isPaired ? 'rgba(16, 185, 129, 0.1)' : 'var(--bg-card)',
+          border: `1px solid ${isPaired ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-subtle)'}`,
+          borderRadius: 'var(--radius-lg)',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          <div
+            style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: 'var(--radius-md)',
+              background: isPaired ? 'rgba(16, 185, 129, 0.2)' : 'rgba(99, 102, 241, 0.12)',
+              color: isPaired ? 'var(--color-green, #10b981)' : 'var(--accent-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            {isPaired ? <CheckCircle2 size={20} /> : <ShieldCheck size={20} />}
+          </div>
+          <div>
+            <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
+              {isPaired ? 'Browser Extension Paired & Active' : 'Extension Pairing Pending'}
+            </div>
+            <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              {isPaired
+                ? 'Your companion extension is paired with this JobFoundry workspace. 1-click capture and sync are enabled.'
+                : 'Follow the steps below to pair your browser extension, or click the button on the right once installed.'}
+            </div>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={handleTogglePaired}
+          className={`btn ${isPaired ? 'btn-secondary' : 'btn-primary'} btn-sm`}
+        >
+          {isPaired ? 'Mark as Unpaired' : '✓ Mark Extension as Paired'}
+        </button>
       </div>
 
       {/* Extension Download & Installation Banner */}

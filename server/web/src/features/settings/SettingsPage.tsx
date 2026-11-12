@@ -45,6 +45,7 @@ import {
   MessageSquare,
   ShieldCheck,
   Cpu,
+  Save,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -999,7 +1000,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             number: 4,
             label: 'Extension Sync',
             sublabel: 'Pair & Hunt',
-            complete: false,
+            complete:
+              typeof window !== 'undefined' &&
+              (localStorage.getItem('jf_extension_paired') === 'true' ||
+                Boolean(extensionConfig?.lastSyncAt || extensionConfig?.updatedAt)),
           },
         ];
 
@@ -1224,7 +1228,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               <span>Loading system configuration from backend...</span>
             </div>
           ) : (
-            <form onSubmit={handleSaveAll}>
+            <div className="settings-tab-content">
               {/* TAB 0: MASTER PROFILE */}
               {activeTab === 'profile' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
@@ -5318,10 +5322,61 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                   </div>
                 </div>
               )}
-            </form>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Floating Sticky Save Bar when settings are modified */}
+      {isDirty && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            right: '2rem',
+            zIndex: 50,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            background: 'var(--bg-card)',
+            border: '1px solid var(--accent-primary)',
+            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
+            padding: '0.65rem 1.25rem',
+            borderRadius: 'var(--radius-full)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <span
+            style={{
+              fontSize: '0.82rem',
+              color: 'var(--color-warning, #f59e0b)',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+          >
+            ● Unsaved Settings
+          </span>
+          <button
+            type="button"
+            onClick={handleResetToDefaults}
+            className="btn btn-secondary btn-sm"
+          >
+            Reset
+          </button>
+          <button
+            type="button"
+            onClick={handleSaveAll}
+            className="btn btn-primary btn-sm"
+            disabled={saving}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <Save size={14} />
+            {saving ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      )}
     </div>
   );
 };

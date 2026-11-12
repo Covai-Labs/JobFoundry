@@ -227,3 +227,23 @@ test('safeFetch re-validates every redirect hop', async () => {
     server.close();
   }
 });
+
+test('safeFetch resolves hostnames through pinnedAgent lookup without destructuring error', async () => {
+  const { createServer } = await import('node:http');
+
+  const server = createServer((req, res) => {
+    res.writeHead(200);
+    res.end('hostname-ok');
+  });
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const env = { ALLOWED_LLM_BASES: `http://localhost:${port}` };
+
+  try {
+    const resp = await safeFetch(`http://localhost:${port}/test`, {}, env);
+    assert.equal(resp.status, 200);
+    assert.equal(await resp.text(), 'hostname-ok');
+  } finally {
+    server.close();
+  }
+});

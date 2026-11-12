@@ -274,8 +274,12 @@ function getPinnedAgent(env = process.env) {
               }
             }
 
-            const { address, family } = list[0];
-            callback(null, { address, family });
+            if (_options && _options.all) {
+              callback(null, list);
+            } else {
+              const first = list[0] || {};
+              callback(null, first.address, first.family);
+            }
           })
           .catch((err) => callback(err));
       },

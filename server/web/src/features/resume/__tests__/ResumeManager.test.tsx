@@ -119,7 +119,7 @@ describe('ResumeManager', () => {
     fireEvent.change(titleInput, { target: { value: 'Principal Architect' } });
 
     // Click Save Changes
-    const saveBtn = screen.getByText('Save Changes');
+    const saveBtn = screen.getAllByText('Save Changes')[0];
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
