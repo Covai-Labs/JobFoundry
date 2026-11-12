@@ -102,6 +102,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'tag' &&
       (inputs.target == 'all' || inputs.target == 'firefox')
     steps:
       - name: Checkout
@@ -150,6 +151,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'tag' &&
       (inputs.target == 'all' || inputs.target == 'edge')
     steps:
       - name: Checkout
@@ -175,6 +177,7 @@ jobs:
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'workflow_dispatch' &&
+      github.ref_type == 'tag' &&
       (inputs.target == 'all' || inputs.target == 'chrome')
     steps:
       - name: Checkout
