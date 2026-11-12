@@ -60,6 +60,8 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   const tailoringJobIdRef = useRef<string | null>(null);
 
   const [hasActiveResume, setHasActiveResume] = useState<boolean | null>(null);
+  const isExtensionPaired =
+    typeof window !== 'undefined' && localStorage.getItem('jf_extension_paired') === 'true';
 
   useEffect(() => {
     if (jobs.length === 0) {
@@ -666,7 +668,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
           <div className="onboarding-hero">
             <div className="onboarding-hero-header">
               <div className="onboarding-hero-title">
-                <span>⚡</span> Master Profile Ready — Let's Ingest Jobs!
+                <span>⚡</span> Master Profile Ready — Let&apos;s Ingest Jobs!
               </div>
               <p className="onboarding-hero-subtitle">
                 Your Master Resume and AI Fit Scorer are ready. Ingest your first listings to start
@@ -675,23 +677,68 @@ export const JobFeed: React.FC<JobFeedProps> = ({
             </div>
 
             <div className="onboarding-steps">
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Browser Extension</span>
-                  <div className="onboarding-step-title">1-Click Live Capture</div>
-                  <div className="onboarding-step-desc">
-                    Browse jobs naturally on LinkedIn, Indeed, Greenhouse, or Lever and capture in 1
-                    click.
+              {isExtensionPaired ? (
+                <div
+                  className="onboarding-step-card"
+                  style={{
+                    background: 'rgba(16, 185, 129, 0.05)',
+                    border: '1px solid rgba(16, 185, 129, 0.3)',
+                  }}
+                >
+                  <div>
+                    <span
+                      className="onboarding-step-badge"
+                      style={{
+                        background: 'rgba(16, 185, 129, 0.15)',
+                        color: 'var(--color-green, #10b981)',
+                        borderColor: 'rgba(16, 185, 129, 0.3)',
+                      }}
+                    >
+                      ✓ Extension Paired & Ready
+                    </span>
+                    <div className="onboarding-step-title">Capture Jobs as You Browse</div>
+                    <div className="onboarding-step-desc">
+                      Your extension is paired. Browse LinkedIn, Indeed, Greenhouse, or Lever and
+                      click the JobFoundry extension icon to capture jobs. Or add a listing manually
+                      via + Add Job above.
+                    </div>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      gap: '0.6rem',
+                      marginTop: '0.5rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <a
+                      href="/settings?tab=sync"
+                      className="btn btn-secondary btn-sm"
+                      style={{ textDecoration: 'none', textAlign: 'center' }}
+                    >
+                      Extension Settings →
+                    </a>
                   </div>
                 </div>
-                <a
-                  href="/settings?tab=sync"
-                  className="btn btn-primary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Pair Extension →
-                </a>
-              </div>
+              ) : (
+                <div className="onboarding-step-card">
+                  <div>
+                    <span className="onboarding-step-badge">Browser Extension</span>
+                    <div className="onboarding-step-title">1-Click Live Capture</div>
+                    <div className="onboarding-step-desc">
+                      Browse jobs naturally on LinkedIn, Indeed, Greenhouse, or Lever and capture in
+                      1 click.
+                    </div>
+                  </div>
+                  <a
+                    href="/settings?tab=sync"
+                    className="btn btn-primary btn-sm"
+                    style={{ textDecoration: 'none', textAlign: 'center' }}
+                  >
+                    Pair Extension →
+                  </a>
+                </div>
+              )}
 
               <div className="onboarding-step-card">
                 <div>

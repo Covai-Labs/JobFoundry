@@ -222,10 +222,10 @@ h6 {
 
 .main-content {
   flex: 1;
-  max-width: 1400px;
+  max-width: 1720px;
   width: 100%;
   margin: 0 auto;
-  padding: 2rem;
+  padding: 1.5rem 2rem;
 }
 
 /* Stats Bar */
@@ -259,18 +259,25 @@ h6 {
 
 /* Settings 2-Column Vertical Layout */
 .settings-container {
-  max-width: 1200px;
+  max-width: 1720px;
+  width: 100%;
   margin: 0 auto;
-  padding: 1.5rem 1rem 4rem;
+  padding: 1rem 1rem 4rem;
 }
 
 .settings-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 1.75rem;
-  padding-bottom: 1.25rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-top: 0.75rem;
+  padding-bottom: 1rem;
   border-bottom: 1px solid var(--border-subtle);
+  position: sticky;
+  top: 57px;
+  z-index: 30;
+  background: var(--bg-primary);
+  backdrop-filter: blur(8px);
 }
 
 .settings-layout {
@@ -283,10 +290,26 @@ h6 {
   width: 240px;
   flex-shrink: 0;
   display: flex;
+  position: sticky;
+  top: 80px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
   flex-direction: column;
   gap: 1.5rem;
-  position: sticky;
-  top: 1.5rem;
+}
+
+/* Resume Manager Dual Grid Layout */
+.resume-dual-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 340px) 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .resume-dual-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .settings-nav-group {

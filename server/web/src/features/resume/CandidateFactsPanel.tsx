@@ -212,11 +212,7 @@ export const CandidateFactsPanel: React.FC = () => {
       )}
 
       {/* Add Fact Form */}
-      <form
-        onSubmit={(e) => {
-          e.preventDefault();
-          void handleAddFact();
-        }}
+      <div
         style={{
           display: 'grid',
           gridTemplateColumns: '160px 1fr auto',
@@ -260,6 +256,12 @@ export const CandidateFactsPanel: React.FC = () => {
           onChange={(e) => {
             setNewFactText(e.target.value);
           }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              void handleAddFact();
+            }
+          }}
           placeholder={getCategoryStyle(newCategory).placeholder}
           className="input-text"
           style={{ height: '38px', fontSize: '0.85rem' }}
@@ -267,7 +269,8 @@ export const CandidateFactsPanel: React.FC = () => {
         />
 
         <button
-          type="submit"
+          type="button"
+          onClick={() => void handleAddFact()}
           disabled={loading || saving || !newFactText.trim()}
           className="btn btn-primary btn-sm"
           style={{
@@ -280,7 +283,7 @@ export const CandidateFactsPanel: React.FC = () => {
         >
           <Plus size={15} /> Add Context Fact
         </button>
-      </form>
+      </div>
 
       {/* Facts List */}
       {loading ? (

@@ -39,6 +39,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
   const [editorMode, setEditorMode] = useState<'form' | 'json'>('form');
   const [title, setTitle] = useState<string>('Master Resume');
   const [jsonText, setJsonText] = useState<string>('');
+  const [initialJsonText, setInitialJsonText] = useState<string>('');
   const [parsedResume, setParsedResume] = useState<Record<string, unknown>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
@@ -63,6 +64,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         setParsedResume(active.resume);
         const formatted = JSON.stringify(active.resume, null, 2);
         setJsonText(formatted);
+        setInitialJsonText(formatted);
         validateJson(formatted);
       } else {
         // Starter template conforming to JSON Resume v1.0.0
@@ -97,6 +99,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         setParsedResume(starter);
         const formatted = JSON.stringify(starter, null, 2);
         setJsonText(formatted);
+        setInitialJsonText(formatted);
         validateJson(formatted);
       }
     } catch (err: unknown) {
@@ -359,14 +362,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
       )}
 
       {/* Main Dual Grid: Active Preview / Versions + Visual Editor */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 350px), 1fr))',
-          gap: '1.5rem',
-          alignItems: 'start',
-        }}
-      >
+      <div className="resume-dual-grid">
         {/* Left Column: Active Profile Overview & Versions */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div
@@ -584,8 +580,25 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
           <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {/* Tab Header & Title */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                position: 'sticky',
+                top: '72px',
+                zIndex: 10,
+                background: 'var(--bg-card)',
+                padding: '0.4rem 0',
+                borderBottom: '1px solid var(--border-subtle)',
+                marginBottom: '0.5rem',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
+              >
                 <button
                   type="button"
                   onClick={handleSwitchToForm}
@@ -604,9 +617,6 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                 >
                   <Code2 size={14} /> Raw JSON
                 </button>
-              </div>
-
-              <div>
                 {validationErrors.length > 0 ? (
                   <span className="badge badge-danger" style={{ fontSize: '0.75rem' }}>
                     ❌ {validationErrors.length} Schema Error(s)
@@ -617,6 +627,24 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                   </span>
                 )}
               </div>
+
+              <button
+                type="button"
+                onClick={() => void handleSave(false)}
+                disabled={saving || validationErrors.length > 0}
+                className="btn btn-primary btn-sm"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.4rem',
+                  padding: '0.4rem 0.9rem',
+                  fontWeight: 600,
+                  boxShadow: 'var(--shadow-sm)',
+                }}
+              >
+                <Save size={14} />
+                {saving ? 'Saving...' : activeResume ? 'Save Changes' : 'Save & Activate'}
+              </button>
             </div>
 
             {/* Resume Title Input */}
@@ -915,6 +943,49 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Floating Save Action Pill for Long Form Scrolling */}
+      {Boolean(initialJsonText && jsonText !== initialJsonText) && (
+        <div
+          style={{
+            position: 'fixed',
+            bottom: '1.5rem',
+            right: '2rem',
+            zIndex: 100,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--accent-primary)',
+            padding: '0.65rem 1rem',
+            borderRadius: 'var(--radius-full, 9999px)',
+            boxShadow: 'var(--shadow-lg, 0 10px 25px -5px rgba(0, 0, 0, 0.4))',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+            Unsaved Resume Changes
+          </span>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => {
+              handleJsonChange(initialJsonText);
+            }}
+          >
+            Revert
+          </button>
+          <button
+            type="button"
+            className="btn btn-primary btn-sm"
+            onClick={() => void handleSave(false)}
+            disabled={saving || validationErrors.length > 0}
+          >
+            {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}
+            Save Changes
+          </button>
         </div>
       )}
     </div>
