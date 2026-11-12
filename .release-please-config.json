@@ -13,6 +13,11 @@
         {
           "type": "generic",
           "path": "CITATION.cff"
+        },
+        {
+          "type": "json",
+          "path": "extension/package.json",
+          "jsonpath": "$.version"
         }
       ]
     }
