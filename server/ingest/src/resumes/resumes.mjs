@@ -126,7 +126,9 @@ export function setActiveResume(db, { userId, resumeId }) {
 
 export function updateUserResume(db, { userId, resumeId, title, resumeJson }) {
   const existing = db
-    .prepare('SELECT id, title, resume_json, is_active FROM user_resumes WHERE id = ? AND user_id = ?')
+    .prepare(
+      'SELECT id, title, resume_json, is_active FROM user_resumes WHERE id = ? AND user_id = ?'
+    )
     .get(resumeId, userId);
 
   if (!existing) return null;
@@ -142,7 +144,10 @@ export function updateUserResume(db, { userId, resumeId, title, resumeJson }) {
     jsonStr = existing.resume_json;
   }
 
-  const finalTitle = title !== undefined && typeof title === 'string' ? title.trim() || existing.title : existing.title;
+  const finalTitle =
+    title !== undefined && typeof title === 'string'
+      ? title.trim() || existing.title
+      : existing.title;
   const now = Date.now();
 
   db.prepare(

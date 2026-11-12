@@ -47,12 +47,7 @@ import {
   deleteUserResume,
   validateResumeJson,
 } from './resumes/resumes.mjs';
-import {
-  getUserFacts,
-  createUserFact,
-  updateUserFact,
-  deleteUserFact,
-} from './facts/facts.mjs';
+import { getUserFacts, createUserFact, updateUserFact, deleteUserFact } from './facts/facts.mjs';
 import {
   DEFAULT_EXTENSION_CONFIG,
   DEFAULT_PROMPT_TEMPLATES,
@@ -1083,7 +1078,9 @@ export function buildApp({
       const { category, factText, isActive } = request.body || {};
 
       if (category === undefined && factText === undefined && isActive === undefined) {
-        return reply.code(400).send({ error: 'At least one field (category, factText, isActive) is required' });
+        return reply
+          .code(400)
+          .send({ error: 'At least one field (category, factText, isActive) is required' });
       }
 
       try {
@@ -1131,8 +1128,6 @@ export function buildApp({
       return { ok: true };
     }
   );
-
-
 
   // POST /api/v1/resumes/parse-raw - AI-assisted raw text/markdown to JSON Resume v1.0.0
   app.post(
@@ -2426,9 +2421,7 @@ export function buildApp({
         .map((f) => `- [${f.category.toUpperCase()}] ${f.factText}`)
         .join('\n');
       const factsContext = `CANDIDATE FACTS & CONTEXT:\n${factsBlock}`;
-      finalConstraints = finalConstraints
-        ? `${finalConstraints}\n\n${factsContext}`
-        : factsContext;
+      finalConstraints = finalConstraints ? `${finalConstraints}\n\n${factsContext}` : factsContext;
     }
 
     return {

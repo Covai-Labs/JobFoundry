@@ -39,9 +39,10 @@ export function createUserFact(db, { userId, category = 'general', factText, isA
     throw new Error('factText is required and must be non-empty');
   }
 
-  const cleanCategory = typeof category === 'string' && ALLOWED_CATEGORIES.has(category.toLowerCase())
-    ? category.toLowerCase()
-    : 'general';
+  const cleanCategory =
+    typeof category === 'string' && ALLOWED_CATEGORIES.has(category.toLowerCase())
+      ? category.toLowerCase()
+      : 'general';
 
   const id = `fact_${randomUUID()}`;
   const now = Date.now();
@@ -69,7 +70,9 @@ export function createUserFact(db, { userId, category = 'general', factText, isA
  */
 export function updateUserFact(db, { userId, factId, category, factText, isActive }) {
   const existing = db
-    .prepare('SELECT id, user_id, category, fact_text, is_active FROM user_facts WHERE id = ? AND user_id = ?')
+    .prepare(
+      'SELECT id, user_id, category, fact_text, is_active FROM user_facts WHERE id = ? AND user_id = ?'
+    )
     .get(factId, userId);
 
   if (!existing) return null;
@@ -112,8 +115,6 @@ export function updateUserFact(db, { userId, factId, category, factText, isActiv
  * Delete a user fact.
  */
 export function deleteUserFact(db, { userId, factId }) {
-  const res = db
-    .prepare('DELETE FROM user_facts WHERE id = ? AND user_id = ?')
-    .run(factId, userId);
+  const res = db.prepare('DELETE FROM user_facts WHERE id = ? AND user_id = ?').run(factId, userId);
   return res.changes > 0;
 }

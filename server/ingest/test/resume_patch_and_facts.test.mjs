@@ -10,9 +10,7 @@ const SAMPLE_RESUME = {
     email: 'alice@example.com',
     summary: 'Distributed systems architect with 10+ years experience.',
   },
-  skills: [
-    { name: 'Distributed Systems', keywords: ['Raft', 'Paxos', 'Kafka'] },
-  ],
+  skills: [{ name: 'Distributed Systems', keywords: ['Raft', 'Paxos', 'Kafka'] }],
 };
 
 test('PATCH /api/v1/resumes/:id updates title and resume_json in place', async () => {
@@ -152,7 +150,11 @@ test('user_facts API: CRUD, categories, active filtering, and isolation', async 
   const listAll = await app.inject({ method: 'GET', url: '/api/v1/facts', headers: u1Headers });
   assert.equal(JSON.parse(listAll.body).facts.length, 2);
 
-  const listActive = await app.inject({ method: 'GET', url: '/api/v1/facts?active=true', headers: u1Headers });
+  const listActive = await app.inject({
+    method: 'GET',
+    url: '/api/v1/facts?active=true',
+    headers: u1Headers,
+  });
   const activeFacts = JSON.parse(listActive.body).facts;
   assert.equal(activeFacts.length, 1);
   assert.equal(activeFacts[0].id, f1.id);
@@ -188,6 +190,10 @@ test('user_facts API: CRUD, categories, active filtering, and isolation', async 
   });
   assert.equal(delRes.statusCode, 200);
 
-  const listAfterDel = await app.inject({ method: 'GET', url: '/api/v1/facts', headers: u1Headers });
+  const listAfterDel = await app.inject({
+    method: 'GET',
+    url: '/api/v1/facts',
+    headers: u1Headers,
+  });
   assert.equal(JSON.parse(listAfterDel.body).facts.length, 1);
 });
