@@ -385,7 +385,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                 <div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                    {parsedActive.basics?.name || 'Unnamed Candidate'}
+                    {parsedActive.basics?.name ?? 'Unnamed Candidate'}
                   </div>
                   <div
                     style={{
@@ -394,7 +394,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                       fontSize: '0.9rem',
                     }}
                   >
-                    {parsedActive.basics?.label || 'No title'}
+                    {parsedActive.basics?.label ?? 'No title'}
                   </div>
                   <div
                     style={{
