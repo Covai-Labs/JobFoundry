@@ -83,6 +83,11 @@ async def process_unscored_user_jobs(
                 scored_jobs.append(failed_uj)
                 continue
 
+            # Load active candidate facts for this user
+            user_facts = store.get_user_facts(user_id, active_only=True)
+            if user_facts:
+                user_llm["user_facts"] = user_facts
+
             result = await screener.score(job=job_dict, master_resume=resume, llm_settings=user_llm)
             updated_uj = store.score_user_job(user_job_id=user_job_id, result=result)
             processed += 1
@@ -108,6 +113,19 @@ async def process_unscored_user_jobs(
                     # Tailoring uses the user's tailor_* settings (own key only),
                     # not the scorer settings used for scoring.
                     tailor_llm = store.get_user_effective_tailor(user_id, fallback=user_llm)
+                    custom_instructions = None
+                    if user_facts:
+                        facts_lines = [
+                            f"- [{f.get('category', 'general').upper()}] {f.get('fact_text', '')}"
+                            for f in user_facts
+                            if f.get("fact_text")
+                        ]
+                        if facts_lines:
+                            custom_instructions = (
+                                "CANDIDATE PRIVATE CONTEXT & NON-NEGOTIABLES (CONFIDENTIAL):\n"
+                                "NOTE: These constraints guide tailoring and selection only. NEVER disclose or copy sensitive private context (such as salary targets or private personal context) into public resume text.\n"
+                                + "\n".join(facts_lines)
+                            )
                     try:
                         tailor_res = await tailor_bridge.tailor(
                             job=job_dict,
@@ -116,6 +134,7 @@ async def process_unscored_user_jobs(
                             model=tailor_llm.get("model"),
                             api_key=tailor_llm.get("api_key"),
                             api_base=tailor_llm.get("api_base"),
+                            custom_instructions=custom_instructions,
                         )
                         concise_res = await tailor_bridge.tailor(
                             job=job_dict,
@@ -124,6 +143,7 @@ async def process_unscored_user_jobs(
                             model=tailor_llm.get("model"),
                             api_key=tailor_llm.get("api_key"),
                             api_base=tailor_llm.get("api_base"),
+                            custom_instructions=custom_instructions,
                         )
 
                         if tailor_res and tailor_res.status == "completed":
