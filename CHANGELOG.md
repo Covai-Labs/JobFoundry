@@ -4,6 +4,14 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.7.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.6.0...v0.7.0) (2026-11-12)
+
+
+### Features
+
+* **ingest,scorer:** add user_facts store and in-place resume patch API ([#166](https://github.com/Covai-Labs/JobFoundry/issues/166)) ([aac0fb2](https://github.com/Covai-Labs/JobFoundry/commit/aac0fb2a334c8a618d61e13ed29dc7ef37767ea8))
+* **web:** add visual resume form editor and candidate facts manager ([#168](https://github.com/Covai-Labs/JobFoundry/issues/168)) ([5db913d](https://github.com/Covai-Labs/JobFoundry/commit/5db913dfa27c0420d87a42bf930079c91a89c97e))
+
 ## [0.6.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.5.1...v0.6.0) (2026-11-11)
 
 
