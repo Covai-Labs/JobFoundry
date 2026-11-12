@@ -121,7 +121,9 @@ const CollapsibleSection: React.FC<CollapsibleSectionProps> = ({
     <button
       id={`section-btn-${id}`}
       type="button"
-      onClick={onToggle}
+      onClick={() => {
+        onToggle();
+      }}
       aria-expanded={isOpen}
       aria-controls={`section-content-${id}`}
       style={{
@@ -191,14 +193,14 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   };
 
   const updateResume = (updater: (prev: ResumeData) => ResumeData) => {
-    const updated = updater(resume || {});
+    const updated = updater(resume ?? {});
     onChange(updated);
   };
 
   // --- Basics Handlers ---
   const updateBasics = (field: BasicField, value: string) => {
     updateResume((prev) => {
-      const basics: BasicsItem = { ...(prev.basics || {}) };
+      const basics: BasicsItem = { ...(prev.basics ?? {}) };
       const trimmed = value.trim();
       switch (field) {
         case 'name':
@@ -208,15 +210,21 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
           basics.label = value;
           break;
         case 'email':
-          if (trimmed) basics.email = trimmed;
-          else delete basics.email;
+          if (trimmed) {
+            basics.email = trimmed;
+          } else {
+            delete basics.email;
+          }
           break;
         case 'phone':
           basics.phone = value;
           break;
         case 'url':
-          if (trimmed) basics.url = trimmed;
-          else delete basics.url;
+          if (trimmed) {
+            basics.url = trimmed;
+          } else {
+            delete basics.url;
+          }
           break;
         case 'summary':
           basics.summary = value;
@@ -228,8 +236,8 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 
   const updateLocation = (field: LocationField, value: string) => {
     updateResume((prev) => {
-      const basics: BasicsItem = { ...(prev.basics || {}) };
-      const location: LocationItem = { ...(basics.location || {}) };
+      const basics: BasicsItem = { ...(prev.basics ?? {}) };
+      const location: LocationItem = { ...(basics.location ?? {}) };
       switch (field) {
         case 'city':
           location.city = value;
@@ -246,31 +254,36 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   // --- Profiles Handlers ---
   const addProfile = () => {
     updateResume((prev) => {
-      const basics: BasicsItem = { ...(prev.basics || {}) };
-      basics.profiles = [...(basics.profiles || []), { network: '', username: '' }];
+      const basics: BasicsItem = { ...(prev.basics ?? {}) };
+      basics.profiles = [...(basics.profiles ?? []), { network: '', username: '' }];
       return { ...prev, basics };
     });
   };
 
   const updateProfile = (index: number, field: ProfileField, value: string) => {
     updateResume((prev) => {
-      const basics: BasicsItem = { ...(prev.basics || {}) };
-      const profiles = [...(basics.profiles || [])];
-      const item: ProfileItem = { ...(profiles[index] || {}) };
-      const trimmed = value.trim();
-      switch (field) {
-        case 'network':
-          item.network = value;
-          break;
-        case 'username':
-          item.username = value;
-          break;
-        case 'url':
-          if (trimmed) item.url = trimmed;
-          else delete item.url;
-          break;
-      }
-      profiles[index] = item;
+      const basics: BasicsItem = { ...(prev.basics ?? {}) };
+      const profiles = (basics.profiles ?? []).map((item, idx) => {
+        if (idx !== index) return item;
+        const updated: ProfileItem = { ...item };
+        const trimmed = value.trim();
+        switch (field) {
+          case 'network':
+            updated.network = value;
+            break;
+          case 'username':
+            updated.username = value;
+            break;
+          case 'url':
+            if (trimmed) {
+              updated.url = trimmed;
+            } else {
+              delete updated.url;
+            }
+            break;
+        }
+        return updated;
+      });
       basics.profiles = profiles;
       return { ...prev, basics };
     });
@@ -278,8 +291,8 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 
   const removeProfile = (index: number) => {
     updateResume((prev) => {
-      const basics: BasicsItem = { ...(prev.basics || {}) };
-      basics.profiles = (basics.profiles || []).filter((_: unknown, i: number) => i !== index);
+      const basics: BasicsItem = { ...(prev.basics ?? {}) };
+      basics.profiles = (basics.profiles ?? []).filter((_: unknown, i: number) => i !== index);
       return { ...prev, basics };
     });
   };
@@ -288,14 +301,13 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const addSkillGroup = () => {
     updateResume((prev) => ({
       ...prev,
-      skills: [...(prev.skills || []), { name: 'New Category', keywords: [] }],
+      skills: [...(prev.skills ?? []), { name: 'New Category', keywords: [] }],
     }));
   };
 
   const updateSkillName = (groupIndex: number, name: string) => {
     updateResume((prev) => {
-      const skills = [...(prev.skills || [])];
-      skills[groupIndex] = { ...skills[groupIndex], name };
+      const skills = (prev.skills ?? []).map((s, idx) => (idx === groupIndex ? { ...s, name } : s));
       return { ...prev, skills };
     });
   };
@@ -304,25 +316,25 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     const trimmed = keyword.trim();
     if (!trimmed) return;
     updateResume((prev) => {
-      const skills = [...(prev.skills || [])];
-      const existing = skills[groupIndex]?.keywords || [];
-      if (!existing.includes(trimmed)) {
-        skills[groupIndex] = {
-          ...skills[groupIndex],
-          keywords: [...existing, trimmed],
-        };
-      }
+      const skills = (prev.skills ?? []).map((s, idx) => {
+        if (idx !== groupIndex) return s;
+        const existing = s.keywords ?? [];
+        if (existing.includes(trimmed)) return s;
+        return { ...s, keywords: [...existing, trimmed] };
+      });
       return { ...prev, skills };
     });
   };
 
   const removeSkillKeyword = (groupIndex: number, keywordIndex: number) => {
     updateResume((prev) => {
-      const skills = [...(prev.skills || [])];
-      const keywords = (skills[groupIndex]?.keywords || []).filter(
-        (_: string, i: number) => i !== keywordIndex
-      );
-      skills[groupIndex] = { ...skills[groupIndex], keywords };
+      const skills = (prev.skills ?? []).map((s, idx) => {
+        if (idx !== groupIndex) return s;
+        const keywords = (s.keywords ?? []).filter(
+          (_: string, kIdx: number) => kIdx !== keywordIndex
+        );
+        return { ...s, keywords };
+      });
       return { ...prev, skills };
     });
   };
@@ -330,7 +342,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeSkillGroup = (groupIndex: number) => {
     updateResume((prev) => ({
       ...prev,
-      skills: (prev.skills || []).filter((_: unknown, i: number) => i !== groupIndex),
+      skills: (prev.skills ?? []).filter((_: unknown, i: number) => i !== groupIndex),
     }));
   };
 
@@ -339,7 +351,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     updateResume((prev) => ({
       ...prev,
       work: [
-        ...(prev.work || []),
+        ...(prev.work ?? []),
         {
           name: '',
           position: '',
@@ -353,32 +365,37 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 
   const updateWork = (index: number, field: WorkField, value: string) => {
     updateResume((prev) => {
-      const work = [...(prev.work || [])];
-      const item: WorkItem = { ...(work[index] || {}) };
-      const trimmed = value.trim();
-      switch (field) {
-        case 'name':
-          item.name = value;
-          break;
-        case 'position':
-          item.position = value;
-          break;
-        case 'startDate':
-          if (trimmed) item.startDate = trimmed;
-          else delete item.startDate;
-          break;
-        case 'endDate':
-          if (trimmed && trimmed.toLowerCase() !== 'present') {
-            item.endDate = trimmed;
-          } else {
-            delete item.endDate;
-          }
-          break;
-        case 'summary':
-          item.summary = value;
-          break;
-      }
-      work[index] = item;
+      const work = (prev.work ?? []).map((item, idx) => {
+        if (idx !== index) return item;
+        const updated: WorkItem = { ...item };
+        const trimmed = value.trim();
+        switch (field) {
+          case 'name':
+            updated.name = value;
+            break;
+          case 'position':
+            updated.position = value;
+            break;
+          case 'startDate':
+            if (trimmed) {
+              updated.startDate = trimmed;
+            } else {
+              delete updated.startDate;
+            }
+            break;
+          case 'endDate':
+            if (trimmed && trimmed.toLowerCase() !== 'present') {
+              updated.endDate = trimmed;
+            } else {
+              delete updated.endDate;
+            }
+            break;
+          case 'summary':
+            updated.summary = value;
+            break;
+        }
+        return updated;
+      });
       return { ...prev, work };
     });
   };
@@ -386,7 +403,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeWork = (index: number) => {
     updateResume((prev) => ({
       ...prev,
-      work: (prev.work || []).filter((_: unknown, i: number) => i !== index),
+      work: (prev.work ?? []).filter((_: unknown, i: number) => i !== index),
     }));
   };
 
@@ -394,30 +411,35 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     const trimmed = bulletText.trim();
     if (!trimmed) return;
     updateResume((prev) => {
-      const work = [...(prev.work || [])];
-      const highlights = [...(work[workIndex]?.highlights || []), trimmed];
-      work[workIndex] = { ...work[workIndex], highlights };
+      const work = (prev.work ?? []).map((w, idx) => {
+        if (idx !== workIndex) return w;
+        const highlights = [...(w.highlights ?? []), trimmed];
+        return { ...w, highlights };
+      });
       return { ...prev, work };
     });
   };
 
   const updateWorkHighlight = (workIndex: number, highlightIndex: number, value: string) => {
     updateResume((prev) => {
-      const work = [...(prev.work || [])];
-      const highlights = [...(work[workIndex]?.highlights || [])];
-      highlights[highlightIndex] = value;
-      work[workIndex] = { ...work[workIndex], highlights };
+      const work = (prev.work ?? []).map((w, idx) => {
+        if (idx !== workIndex) return w;
+        const highlights = (w.highlights ?? []).map((h, hIdx) =>
+          hIdx === highlightIndex ? value : h
+        );
+        return { ...w, highlights };
+      });
       return { ...prev, work };
     });
   };
 
   const removeWorkHighlight = (workIndex: number, highlightIndex: number) => {
     updateResume((prev) => {
-      const work = [...(prev.work || [])];
-      const highlights = (work[workIndex]?.highlights || []).filter(
-        (_: string, i: number) => i !== highlightIndex
-      );
-      work[workIndex] = { ...work[workIndex], highlights };
+      const work = (prev.work ?? []).map((w, idx) => {
+        if (idx !== workIndex) return w;
+        const highlights = (w.highlights ?? []).filter((_, hIdx) => hIdx !== highlightIndex);
+        return { ...w, highlights };
+      });
       return { ...prev, work };
     });
   };
@@ -427,7 +449,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     updateResume((prev) => ({
       ...prev,
       education: [
-        ...(prev.education || []),
+        ...(prev.education ?? []),
         {
           institution: '',
           studyType: '',
@@ -440,36 +462,44 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 
   const updateEducation = (index: number, field: EducationField, value: string) => {
     updateResume((prev) => {
-      const education = [...(prev.education || [])];
-      const item: EducationItem = { ...(education[index] || {}) };
-      const trimmed = value.trim();
-      switch (field) {
-        case 'institution':
-          item.institution = value;
-          break;
-        case 'area':
-          item.area = value;
-          break;
-        case 'studyType':
-          item.studyType = value;
-          break;
-        case 'startDate':
-          if (trimmed) item.startDate = trimmed;
-          else delete item.startDate;
-          break;
-        case 'endDate':
-          if (trimmed && trimmed.toLowerCase() !== 'present') {
-            item.endDate = trimmed;
-          } else {
-            delete item.endDate;
-          }
-          break;
-        case 'score':
-          if (trimmed) item.score = trimmed;
-          else delete item.score;
-          break;
-      }
-      education[index] = item;
+      const education = (prev.education ?? []).map((item, idx) => {
+        if (idx !== index) return item;
+        const updated: EducationItem = { ...item };
+        const trimmed = value.trim();
+        switch (field) {
+          case 'institution':
+            updated.institution = value;
+            break;
+          case 'area':
+            updated.area = value;
+            break;
+          case 'studyType':
+            updated.studyType = value;
+            break;
+          case 'startDate':
+            if (trimmed) {
+              updated.startDate = trimmed;
+            } else {
+              delete updated.startDate;
+            }
+            break;
+          case 'endDate':
+            if (trimmed && trimmed.toLowerCase() !== 'present') {
+              updated.endDate = trimmed;
+            } else {
+              delete updated.endDate;
+            }
+            break;
+          case 'score':
+            if (trimmed) {
+              updated.score = trimmed;
+            } else {
+              delete updated.score;
+            }
+            break;
+        }
+        return updated;
+      });
       return { ...prev, education };
     });
   };
@@ -477,7 +507,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeEducation = (index: number) => {
     updateResume((prev) => ({
       ...prev,
-      education: (prev.education || []).filter((_: unknown, i: number) => i !== index),
+      education: (prev.education ?? []).filter((_: unknown, i: number) => i !== index),
     }));
   };
 
@@ -486,7 +516,7 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
     updateResume((prev) => ({
       ...prev,
       projects: [
-        ...(prev.projects || []),
+        ...(prev.projects ?? []),
         {
           name: '',
           description: '',
@@ -498,22 +528,27 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
 
   const updateProject = (index: number, field: ProjectField, value: string) => {
     updateResume((prev) => {
-      const projects = [...(prev.projects || [])];
-      const item: ProjectItem = { ...(projects[index] || {}) };
-      const trimmed = value.trim();
-      switch (field) {
-        case 'name':
-          item.name = value;
-          break;
-        case 'description':
-          item.description = value;
-          break;
-        case 'url':
-          if (trimmed) item.url = trimmed;
-          else delete item.url;
-          break;
-      }
-      projects[index] = item;
+      const projects = (prev.projects ?? []).map((item, idx) => {
+        if (idx !== index) return item;
+        const updated: ProjectItem = { ...item };
+        const trimmed = value.trim();
+        switch (field) {
+          case 'name':
+            updated.name = value;
+            break;
+          case 'description':
+            updated.description = value;
+            break;
+          case 'url':
+            if (trimmed) {
+              updated.url = trimmed;
+            } else {
+              delete updated.url;
+            }
+            break;
+        }
+        return updated;
+      });
       return { ...prev, projects };
     });
   };
@@ -521,11 +556,11 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
   const removeProject = (index: number) => {
     updateResume((prev) => ({
       ...prev,
-      projects: (prev.projects || []).filter((_: unknown, i: number) => i !== index),
+      projects: (prev.projects ?? []).filter((_: unknown, i: number) => i !== index),
     }));
   };
 
-  const basics = resume.basics || {};
+  const basics = resume.basics ?? {};
   const profiles = Array.isArray(basics.profiles) ? basics.profiles : [];
   const skills = Array.isArray(resume.skills) ? resume.skills : [];
   const work = Array.isArray(resume.work) ? resume.work : [];
@@ -540,7 +575,9 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
         title="Basics & Contact"
         icon={<User size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
         isOpen={openSections.basics}
-        onToggle={() => toggleSection('basics')}
+        onToggle={() => {
+          toggleSection('basics');
+        }}
       >
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
           <div>
@@ -558,8 +595,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             <input
               id="basics-name"
               type="text"
-              value={basics.name || ''}
-              onChange={(e) => updateBasics('name', e.target.value)}
+              value={basics.name ?? ''}
+              onChange={(e) => {
+                updateBasics('name', e.target.value);
+              }}
               placeholder="e.g. Jane Doe"
               className="input-text"
             />
@@ -579,8 +618,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             <input
               id="basics-label"
               type="text"
-              value={basics.label || ''}
-              onChange={(e) => updateBasics('label', e.target.value)}
+              value={basics.label ?? ''}
+              onChange={(e) => {
+                updateBasics('label', e.target.value);
+              }}
               placeholder="e.g. Lead Staff Systems Engineer"
               className="input-text"
             />
@@ -603,8 +644,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             <input
               id="basics-email"
               type="email"
-              value={basics.email || ''}
-              onChange={(e) => updateBasics('email', e.target.value)}
+              value={basics.email ?? ''}
+              onChange={(e) => {
+                updateBasics('email', e.target.value);
+              }}
               placeholder="jane@example.com"
               className="input-text"
             />
@@ -624,8 +667,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             <input
               id="basics-phone"
               type="tel"
-              value={basics.phone || ''}
-              onChange={(e) => updateBasics('phone', e.target.value)}
+              value={basics.phone ?? ''}
+              onChange={(e) => {
+                updateBasics('phone', e.target.value);
+              }}
               placeholder="+1 555-0199"
               className="input-text"
             />
@@ -645,8 +690,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             <input
               id="basics-url"
               type="url"
-              value={basics.url || ''}
-              onChange={(e) => updateBasics('url', e.target.value)}
+              value={basics.url ?? ''}
+              onChange={(e) => {
+                updateBasics('url', e.target.value);
+              }}
               placeholder="https://janedoe.dev"
               className="input-text"
             />
@@ -669,8 +716,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             <input
               id="basics-city"
               type="text"
-              value={basics.location?.city || ''}
-              onChange={(e) => updateLocation('city', e.target.value)}
+              value={basics.location?.city ?? ''}
+              onChange={(e) => {
+                updateLocation('city', e.target.value);
+              }}
               placeholder="San Francisco"
               className="input-text"
             />
@@ -690,8 +739,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             <input
               id="basics-region"
               type="text"
-              value={basics.location?.region || ''}
-              onChange={(e) => updateLocation('region', e.target.value)}
+              value={basics.location?.region ?? ''}
+              onChange={(e) => {
+                updateLocation('region', e.target.value);
+              }}
               placeholder="California, USA"
               className="input-text"
             />
@@ -712,8 +763,10 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
           </label>
           <textarea
             id="basics-summary"
-            value={basics.summary || ''}
-            onChange={(e) => updateBasics('summary', e.target.value)}
+            value={basics.summary ?? ''}
+            onChange={(e) => {
+              updateBasics('summary', e.target.value);
+            }}
             placeholder="Seasoned engineer with 8+ years building distributed platforms..."
             rows={3}
             className="input-text"
@@ -736,7 +789,9 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
             </span>
             <button
               type="button"
-              onClick={addProfile}
+              onClick={() => {
+                addProfile();
+              }}
               className="btn btn-secondary btn-sm"
               style={{ fontSize: '0.72rem', padding: '0.2rem 0.5rem' }}
             >
@@ -750,8 +805,12 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
                 key={pIdx}
                 profile={prof}
                 index={pIdx}
-                onUpdate={(field, val) => updateProfile(pIdx, field, val)}
-                onRemove={() => removeProfile(pIdx)}
+                onUpdate={(field, val) => {
+                  updateProfile(pIdx, field, val);
+                }}
+                onRemove={() => {
+                  removeProfile(pIdx);
+                }}
               />
             ))}
           </div>
@@ -765,23 +824,35 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
         countBadge={`${skills.length} categories`}
         icon={<Code size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
         isOpen={openSections.skills}
-        onToggle={() => toggleSection('skills')}
+        onToggle={() => {
+          toggleSection('skills');
+        }}
       >
         {skills.map((group: SkillItem, gIdx: number) => (
           <SkillGroupItem
             key={gIdx}
             group={group}
             groupIndex={gIdx}
-            onUpdateName={(name) => updateSkillName(gIdx, name)}
-            onAddKeyword={(kw) => addSkillKeyword(gIdx, kw)}
-            onRemoveKeyword={(kIdx) => removeSkillKeyword(gIdx, kIdx)}
-            onRemoveGroup={() => removeSkillGroup(gIdx)}
+            onUpdateName={(name) => {
+              updateSkillName(gIdx, name);
+            }}
+            onAddKeyword={(kw) => {
+              addSkillKeyword(gIdx, kw);
+            }}
+            onRemoveKeyword={(kIdx) => {
+              removeSkillKeyword(gIdx, kIdx);
+            }}
+            onRemoveGroup={() => {
+              removeSkillGroup(gIdx);
+            }}
           />
         ))}
 
         <button
           type="button"
-          onClick={addSkillGroup}
+          onClick={() => {
+            addSkillGroup();
+          }}
           className="btn btn-secondary btn-sm"
           style={{
             alignSelf: 'flex-start',
@@ -801,24 +872,38 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
         countBadge={`${work.length} roles`}
         icon={<Briefcase size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
         isOpen={openSections.work}
-        onToggle={() => toggleSection('work')}
+        onToggle={() => {
+          toggleSection('work');
+        }}
       >
         {work.map((w: WorkItem, wIdx: number) => (
           <WorkExperienceItem
             key={wIdx}
             work={w}
             workIndex={wIdx}
-            onUpdate={(field, val) => updateWork(wIdx, field, val)}
-            onRemove={() => removeWork(wIdx)}
-            onAddHighlight={(text) => addWorkHighlight(wIdx, text)}
-            onUpdateHighlight={(hIdx, text) => updateWorkHighlight(wIdx, hIdx, text)}
-            onRemoveHighlight={(hIdx) => removeWorkHighlight(wIdx, hIdx)}
+            onUpdate={(field, val) => {
+              updateWork(wIdx, field, val);
+            }}
+            onRemove={() => {
+              removeWork(wIdx);
+            }}
+            onAddHighlight={(text) => {
+              addWorkHighlight(wIdx, text);
+            }}
+            onUpdateHighlight={(hIdx, text) => {
+              updateWorkHighlight(wIdx, hIdx, text);
+            }}
+            onRemoveHighlight={(hIdx) => {
+              removeWorkHighlight(wIdx, hIdx);
+            }}
           />
         ))}
 
         <button
           type="button"
-          onClick={addWork}
+          onClick={() => {
+            addWork();
+          }}
           className="btn btn-secondary btn-sm"
           style={{
             alignSelf: 'flex-start',
@@ -838,21 +923,29 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
         countBadge={`${education.length}`}
         icon={<GraduationCap size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
         isOpen={openSections.education}
-        onToggle={() => toggleSection('education')}
+        onToggle={() => {
+          toggleSection('education');
+        }}
       >
         {education.map((edu: EducationItem, eIdx: number) => (
           <EducationEntryItem
             key={eIdx}
             education={edu}
             index={eIdx}
-            onUpdate={(field, val) => updateEducation(eIdx, field, val)}
-            onRemove={() => removeEducation(eIdx)}
+            onUpdate={(field, val) => {
+              updateEducation(eIdx, field, val);
+            }}
+            onRemove={() => {
+              removeEducation(eIdx);
+            }}
           />
         ))}
 
         <button
           type="button"
-          onClick={addEducation}
+          onClick={() => {
+            addEducation();
+          }}
           className="btn btn-secondary btn-sm"
           style={{
             alignSelf: 'flex-start',
@@ -872,21 +965,29 @@ export const ResumeFormEditor: React.FC<ResumeFormEditorProps> = ({ resume, onCh
         countBadge={`${projects.length}`}
         icon={<FolderGit2 size={18} style={{ color: 'var(--accent-primary, #818cf8)' }} />}
         isOpen={openSections.projects}
-        onToggle={() => toggleSection('projects')}
+        onToggle={() => {
+          toggleSection('projects');
+        }}
       >
         {projects.map((proj: ProjectItem, pIdx: number) => (
           <ProjectEntryItem
             key={pIdx}
             project={proj}
             index={pIdx}
-            onUpdate={(field, val) => updateProject(pIdx, field, val)}
-            onRemove={() => removeProject(pIdx)}
+            onUpdate={(field, val) => {
+              updateProject(pIdx, field, val);
+            }}
+            onRemove={() => {
+              removeProject(pIdx);
+            }}
           />
         ))}
 
         <button
           type="button"
-          onClick={addProject}
+          onClick={() => {
+            addProject();
+          }}
           className="btn btn-secondary btn-sm"
           style={{
             alignSelf: 'flex-start',
@@ -925,8 +1026,10 @@ const SocialProfileItem: React.FC<{
       id={`profile-${index}-network`}
       aria-label="Platform / Network"
       type="text"
-      value={profile.network || ''}
-      onChange={(e) => onUpdate('network', e.target.value)}
+      value={profile.network ?? ''}
+      onChange={(e) => {
+        onUpdate('network', e.target.value);
+      }}
       placeholder="e.g. GitHub"
       className="input-text"
       style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
@@ -939,8 +1042,10 @@ const SocialProfileItem: React.FC<{
       id={`profile-${index}-username`}
       aria-label="Username / Handle"
       type="text"
-      value={profile.username || ''}
-      onChange={(e) => onUpdate('username', e.target.value)}
+      value={profile.username ?? ''}
+      onChange={(e) => {
+        onUpdate('username', e.target.value);
+      }}
       placeholder="Username"
       className="input-text"
       style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
@@ -953,8 +1058,10 @@ const SocialProfileItem: React.FC<{
       id={`profile-${index}-url`}
       aria-label="Profile URL"
       type="url"
-      value={profile.url || ''}
-      onChange={(e) => onUpdate('url', e.target.value)}
+      value={profile.url ?? ''}
+      onChange={(e) => {
+        onUpdate('url', e.target.value);
+      }}
       placeholder="https://github.com/..."
       className="input-text"
       style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
@@ -962,11 +1069,13 @@ const SocialProfileItem: React.FC<{
 
     <button
       type="button"
-      onClick={onRemove}
+      onClick={() => {
+        onRemove();
+      }}
       className="btn btn-danger btn-sm"
       style={{ padding: '0.2rem 0.4rem' }}
       title="Delete profile"
-      aria-label={`Delete profile ${profile.network || index + 1}`}
+      aria-label={`Delete profile ${profile.network ?? index + 1}`}
     >
       <Trash2 size={12} />
     </button>
@@ -1025,19 +1134,23 @@ const SkillGroupItem: React.FC<{
           id={`skill-group-${groupIndex}-name`}
           aria-label="Category Name"
           type="text"
-          value={group.name || ''}
-          onChange={(e) => onUpdateName(e.target.value)}
+          value={group.name ?? ''}
+          onChange={(e) => {
+            onUpdateName(e.target.value);
+          }}
           placeholder="Category name (e.g. Languages, Cloud & DevOps, Databases)"
           className="input-text"
           style={{ fontWeight: 600, fontSize: '0.88rem' }}
         />
         <button
           type="button"
-          onClick={onRemoveGroup}
+          onClick={() => {
+            onRemoveGroup();
+          }}
           className="btn btn-danger btn-sm"
           style={{ padding: '0.2rem 0.4rem' }}
           title="Delete category"
-          aria-label={`Delete skill category ${group.name || groupIndex + 1}`}
+          aria-label={`Delete skill category ${group.name ?? groupIndex + 1}`}
         >
           <Trash2 size={12} />
         </button>
@@ -1063,7 +1176,9 @@ const SkillGroupItem: React.FC<{
             {kw}
             <button
               type="button"
-              onClick={() => onRemoveKeyword(kIdx)}
+              onClick={() => {
+                onRemoveKeyword(kIdx);
+              }}
               style={{
                 background: 'none',
                 border: 'none',
@@ -1089,7 +1204,9 @@ const SkillGroupItem: React.FC<{
             aria-label="Add skill tag"
             type="text"
             value={newKeyword}
-            onChange={(e) => setNewKeyword(e.target.value)}
+            onChange={(e) => {
+              setNewKeyword(e.target.value);
+            }}
             onKeyDown={handleKeyDown}
             placeholder="+ Add skill tag"
             className="input-text"
@@ -1103,7 +1220,9 @@ const SkillGroupItem: React.FC<{
           {newKeyword.trim() && (
             <button
               type="button"
-              onClick={handleAddClick}
+              onClick={() => {
+                handleAddClick();
+              }}
               className="btn btn-secondary btn-sm"
               style={{ fontSize: '0.7rem', padding: '0.1rem 0.4rem', height: '26px' }}
             >
@@ -1158,16 +1277,18 @@ const WorkExperienceItem: React.FC<{
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <span style={{ fontWeight: 600, fontSize: '0.88rem' }}>
           {work.position
-            ? `${work.position} @ ${work.name || 'Company'}`
+            ? `${work.position} @ ${work.name ?? 'Company'}`
             : `Work Entry #${workIndex + 1}`}
         </span>
         <button
           type="button"
-          onClick={onRemove}
+          onClick={() => {
+            onRemove();
+          }}
           className="btn btn-danger btn-sm"
           style={{ padding: '0.2rem 0.4rem' }}
           title="Delete role"
-          aria-label={`Delete role at ${work.name || workIndex + 1}`}
+          aria-label={`Delete role at ${work.name ?? workIndex + 1}`}
         >
           <Trash2 size={12} />
         </button>
@@ -1184,8 +1305,10 @@ const WorkExperienceItem: React.FC<{
           <input
             id={`work-${workIndex}-name`}
             type="text"
-            value={work.name || ''}
-            onChange={(e) => onUpdate('name', e.target.value)}
+            value={work.name ?? ''}
+            onChange={(e) => {
+              onUpdate('name', e.target.value);
+            }}
             placeholder="e.g. Acme Corp"
             className="input-text"
             style={{ fontSize: '0.82rem' }}
@@ -1201,8 +1324,10 @@ const WorkExperienceItem: React.FC<{
           <input
             id={`work-${workIndex}-position`}
             type="text"
-            value={work.position || ''}
-            onChange={(e) => onUpdate('position', e.target.value)}
+            value={work.position ?? ''}
+            onChange={(e) => {
+              onUpdate('position', e.target.value);
+            }}
             placeholder="e.g. Senior Software Engineer"
             className="input-text"
             style={{ fontSize: '0.82rem' }}
@@ -1221,8 +1346,10 @@ const WorkExperienceItem: React.FC<{
           <input
             id={`work-${workIndex}-start-date`}
             type="text"
-            value={work.startDate || ''}
-            onChange={(e) => onUpdate('startDate', e.target.value)}
+            value={work.startDate ?? ''}
+            onChange={(e) => {
+              onUpdate('startDate', e.target.value);
+            }}
             placeholder="YYYY-MM (e.g. 2021-03)"
             className="input-text"
             style={{ fontSize: '0.82rem' }}
@@ -1238,8 +1365,10 @@ const WorkExperienceItem: React.FC<{
           <input
             id={`work-${workIndex}-end-date`}
             type="text"
-            value={work.endDate || ''}
-            onChange={(e) => onUpdate('endDate', e.target.value)}
+            value={work.endDate ?? ''}
+            onChange={(e) => {
+              onUpdate('endDate', e.target.value);
+            }}
             placeholder="YYYY-MM or Present"
             className="input-text"
             style={{ fontSize: '0.82rem' }}
@@ -1256,8 +1385,10 @@ const WorkExperienceItem: React.FC<{
         </label>
         <textarea
           id={`work-${workIndex}-summary`}
-          value={work.summary || ''}
-          onChange={(e) => onUpdate('summary', e.target.value)}
+          value={work.summary ?? ''}
+          onChange={(e) => {
+            onUpdate('summary', e.target.value);
+          }}
           placeholder="Brief overview of role responsibilities and team scope..."
           rows={2}
           className="input-text"
@@ -1302,13 +1433,17 @@ const WorkExperienceItem: React.FC<{
                 aria-label={`Achievement bullet ${hIdx + 1}`}
                 type="text"
                 value={bullet}
-                onChange={(e) => onUpdateHighlight(hIdx, e.target.value)}
+                onChange={(e) => {
+                  onUpdateHighlight(hIdx, e.target.value);
+                }}
                 className="input-text"
                 style={{ fontSize: '0.8rem', padding: '0.25rem 0.5rem' }}
               />
               <button
                 type="button"
-                onClick={() => onRemoveHighlight(hIdx)}
+                onClick={() => {
+                  onRemoveHighlight(hIdx);
+                }}
                 className="btn btn-danger btn-sm"
                 style={{ padding: '0.2rem 0.35rem' }}
                 aria-label={`Delete bullet ${hIdx + 1}`}
@@ -1328,7 +1463,9 @@ const WorkExperienceItem: React.FC<{
             aria-label="Add achievement bullet"
             type="text"
             value={newHighlight}
-            onChange={(e) => setNewHighlight(e.target.value)}
+            onChange={(e) => {
+              setNewHighlight(e.target.value);
+            }}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
                 e.preventDefault();
@@ -1341,7 +1478,9 @@ const WorkExperienceItem: React.FC<{
           />
           <button
             type="button"
-            onClick={handleAddBullet}
+            onClick={() => {
+              handleAddBullet();
+            }}
             disabled={!newHighlight.trim()}
             className="btn btn-secondary btn-sm"
             style={{ fontSize: '0.75rem' }}
@@ -1373,15 +1512,17 @@ const EducationEntryItem: React.FC<{
   >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-        {education.institution || `Education Entry #${index + 1}`}
+        {education.institution ?? `Education Entry #${index + 1}`}
       </span>
       <button
         type="button"
-        onClick={onRemove}
+        onClick={() => {
+          onRemove();
+        }}
         className="btn btn-danger btn-sm"
         style={{ padding: '0.2rem 0.4rem' }}
         title="Delete education"
-        aria-label={`Delete education at ${education.institution || index + 1}`}
+        aria-label={`Delete education at ${education.institution ?? index + 1}`}
       >
         <Trash2 size={12} />
       </button>
@@ -1398,8 +1539,10 @@ const EducationEntryItem: React.FC<{
         <input
           id={`edu-${index}-institution`}
           type="text"
-          value={education.institution || ''}
-          onChange={(e) => onUpdate('institution', e.target.value)}
+          value={education.institution ?? ''}
+          onChange={(e) => {
+            onUpdate('institution', e.target.value);
+          }}
           placeholder="e.g. Stanford University"
           className="input-text"
           style={{ fontSize: '0.82rem' }}
@@ -1415,8 +1558,10 @@ const EducationEntryItem: React.FC<{
         <input
           id={`edu-${index}-degree`}
           type="text"
-          value={education.studyType || ''}
-          onChange={(e) => onUpdate('studyType', e.target.value)}
+          value={education.studyType ?? ''}
+          onChange={(e) => {
+            onUpdate('studyType', e.target.value);
+          }}
           placeholder="e.g. Bachelor of Science"
           className="input-text"
           style={{ fontSize: '0.82rem' }}
@@ -1435,8 +1580,10 @@ const EducationEntryItem: React.FC<{
         <input
           id={`edu-${index}-area`}
           type="text"
-          value={education.area || ''}
-          onChange={(e) => onUpdate('area', e.target.value)}
+          value={education.area ?? ''}
+          onChange={(e) => {
+            onUpdate('area', e.target.value);
+          }}
           placeholder="Computer Science"
           className="input-text"
           style={{ fontSize: '0.82rem' }}
@@ -1452,8 +1599,10 @@ const EducationEntryItem: React.FC<{
         <input
           id={`edu-${index}-start-date`}
           type="text"
-          value={education.startDate || ''}
-          onChange={(e) => onUpdate('startDate', e.target.value)}
+          value={education.startDate ?? ''}
+          onChange={(e) => {
+            onUpdate('startDate', e.target.value);
+          }}
           placeholder="2018-09"
           className="input-text"
           style={{ fontSize: '0.82rem' }}
@@ -1469,8 +1618,10 @@ const EducationEntryItem: React.FC<{
         <input
           id={`edu-${index}-end-date`}
           type="text"
-          value={education.endDate || ''}
-          onChange={(e) => onUpdate('endDate', e.target.value)}
+          value={education.endDate ?? ''}
+          onChange={(e) => {
+            onUpdate('endDate', e.target.value);
+          }}
           placeholder="2022-06"
           className="input-text"
           style={{ fontSize: '0.82rem' }}
@@ -1499,15 +1650,17 @@ const ProjectEntryItem: React.FC<{
   >
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>
-        {project.name || `Project #${index + 1}`}
+        {project.name ?? `Project #${index + 1}`}
       </span>
       <button
         type="button"
-        onClick={onRemove}
+        onClick={() => {
+          onRemove();
+        }}
         className="btn btn-danger btn-sm"
         style={{ padding: '0.2rem 0.4rem' }}
         title="Delete project"
-        aria-label={`Delete project ${project.name || index + 1}`}
+        aria-label={`Delete project ${project.name ?? index + 1}`}
       >
         <Trash2 size={12} />
       </button>
@@ -1524,8 +1677,10 @@ const ProjectEntryItem: React.FC<{
         <input
           id={`project-${index}-name`}
           type="text"
-          value={project.name || ''}
-          onChange={(e) => onUpdate('name', e.target.value)}
+          value={project.name ?? ''}
+          onChange={(e) => {
+            onUpdate('name', e.target.value);
+          }}
           placeholder="e.g. Distributed Consensus Engine"
           className="input-text"
           style={{ fontSize: '0.82rem' }}
@@ -1541,8 +1696,10 @@ const ProjectEntryItem: React.FC<{
         <input
           id={`project-${index}-url`}
           type="url"
-          value={project.url || ''}
-          onChange={(e) => onUpdate('url', e.target.value)}
+          value={project.url ?? ''}
+          onChange={(e) => {
+            onUpdate('url', e.target.value);
+          }}
           placeholder="https://github.com/..."
           className="input-text"
           style={{ fontSize: '0.82rem' }}
@@ -1559,8 +1716,10 @@ const ProjectEntryItem: React.FC<{
       </label>
       <textarea
         id={`project-${index}-description`}
-        value={project.description || ''}
-        onChange={(e) => onUpdate('description', e.target.value)}
+        value={project.description ?? ''}
+        onChange={(e) => {
+          onUpdate('description', e.target.value);
+        }}
         placeholder="Short description of the problem solved and technologies used..."
         rows={2}
         className="input-text"

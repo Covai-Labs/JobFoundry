@@ -235,14 +235,16 @@ export const CandidateFactsPanel: React.FC = () => {
           id="fact-category-select"
           aria-label="Fact category"
           value={newCategory}
-          onChange={(e) => setNewCategory(e.target.value as FactCategory)}
+          onChange={(e) => {
+            setNewCategory(e.target.value as FactCategory);
+          }}
           className="input-text"
           style={{ height: '38px', padding: '0 0.5rem', fontSize: '0.85rem' }}
           disabled={loading || saving}
         >
-          {(Object.keys(CATEGORY_CONFIG) as FactCategory[]).map((key) => (
-            <option key={key} value={key}>
-              {CATEGORY_CONFIG[key].label}
+          {Object.entries(CATEGORY_CONFIG).map(([catKey, conf]) => (
+            <option key={catKey} value={catKey}>
+              {conf.label}
             </option>
           ))}
         </select>
@@ -255,7 +257,9 @@ export const CandidateFactsPanel: React.FC = () => {
           aria-label="Fact description"
           type="text"
           value={newFactText}
-          onChange={(e) => setNewFactText(e.target.value)}
+          onChange={(e) => {
+            setNewFactText(e.target.value);
+          }}
           placeholder={getCategoryStyle(newCategory).placeholder}
           className="input-text"
           style={{ height: '38px', fontSize: '0.85rem' }}
