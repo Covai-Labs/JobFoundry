@@ -648,8 +648,6 @@ describe('SettingsPage', () => {
     // Switch to LangSmith
     fireEvent.click(screen.getByRole('button', { name: 'LangSmith' }));
     expect(screen.getByText(/Enable LangSmith Tracing Callbacks/i)).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText(/https:\/\/api\.smith\.langchain\.com/i)
-    ).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('https://api.smith.langchain.com')).toBeInTheDocument();
   });
 });

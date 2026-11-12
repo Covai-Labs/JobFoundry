@@ -737,8 +737,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       tailor_model: 'openrouter/openrouter/free',
       tailor_theme: 'jsonresume-theme-folio',
       tailor_timeout_seconds: 900,
+      observability_provider: 'opik',
       opik_enabled: false,
+      langfuse_enabled: false,
+      langsmith_enabled: false,
     }));
+    setActiveObservabilityProvider('opik');
     setApiUrl(DEFAULT_SETTINGS.apiUrl);
     setTempColorMode('system');
     setTempAccentTheme('indigo');
@@ -4793,28 +4797,45 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         <Activity size={18} style={{ color: 'var(--accent-primary)' }} />
                         LLM Observability &amp; Tracing
                       </h3>
-                      {renderSourceBadge(
-                        activeObservabilityProvider === 'opik'
-                          ? 'opik_project_name'
-                          : activeObservabilityProvider === 'langfuse'
-                            ? 'langfuse_host'
-                            : 'langsmith_project'
-                      )}
+                      {(() => {
+                        let sourceBadgeKey: keyof SystemSettings = 'opik_project_name';
+                        if (activeObservabilityProvider === 'langfuse')
+                          sourceBadgeKey = 'langfuse_host';
+                        else if (activeObservabilityProvider === 'langsmith')
+                          sourceBadgeKey = 'langsmith_project';
+                        return renderSourceBadge(sourceBadgeKey);
+                      })()}
                     </div>
                     <p
                       style={{
                         fontSize: '0.85rem',
                         color: 'var(--text-secondary)',
-                        marginBottom: '1.25rem',
+                        marginBottom: '0.75rem',
                       }}
                     >
                       Stream prompt tokens, model latencies, cost tracking, and evaluation traces to
                       your preferred LLM observability platform via LiteLLM callbacks.
                     </p>
+                    <div
+                      style={{
+                        padding: '0.65rem 0.85rem',
+                        borderRadius: 'var(--radius-md)',
+                        background: 'var(--bg-card-subtle)',
+                        border: '1px solid var(--border-subtle)',
+                        fontSize: '0.8rem',
+                        color: 'var(--text-muted)',
+                        marginBottom: '1.25rem',
+                        lineHeight: 1.4,
+                      }}
+                    >
+                      <strong>Note:</strong> Observability settings apply to this JobFoundry server
+                      instance and its backend services. LLM trace data is captured at the instance
+                      level.
+                    </div>
 
                     {/* Observability Provider Switcher */}
                     <div style={{ marginBottom: '1.5rem' }}>
-                      <label
+                      <span
                         style={{
                           display: 'block',
                           fontSize: '0.85rem',
@@ -4823,7 +4844,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         }}
                       >
                         Observability Platform
-                      </label>
+                      </span>
                       <div className="mode-selector-group" style={{ maxWidth: '480px' }}>
                         <button
                           type="button"
@@ -4890,6 +4911,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         {/* Project Name */}
                         <div>
                           <label
+                            htmlFor="opik_project_name"
                             style={{
                               display: 'block',
                               fontSize: '0.85rem',
@@ -4900,6 +4922,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             Opik Project Name
                           </label>
                           <input
+                            id="opik_project_name"
                             type="text"
                             value={formSettings.opik_project_name || ''}
                             onChange={(e) => handleFieldChange('opik_project_name', e.target.value)}
@@ -4911,6 +4934,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         {/* Opik Workspace */}
                         <div>
                           <label
+                            htmlFor="opik_workspace"
                             style={{
                               display: 'block',
                               fontSize: '0.85rem',
@@ -4921,6 +4945,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             Opik Workspace (Optional)
                           </label>
                           <input
+                            id="opik_workspace"
                             type="text"
                             value={formSettings.opik_workspace || ''}
                             onChange={(e) => handleFieldChange('opik_workspace', e.target.value)}
@@ -4939,7 +4964,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               marginBottom: '0.35rem',
                             }}
                           >
-                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                            <label
+                              htmlFor="opik_api_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
                               Opik API Key
                             </label>
                             {renderSourceBadge('opik_api_key')}
@@ -4979,6 +5007,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           ) : (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <input
+                                id="opik_api_key_input"
                                 type="password"
                                 value={newOpikKey}
                                 onChange={(e) => {
@@ -4988,17 +5017,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && newOpikKey.trim() && !saving) {
                                     e.preventDefault();
-                                    handleSaveAll();
+                                    void handleSaveAll();
                                   }
                                 }}
                                 className="input-text"
                                 placeholder="Enter Opik API Key"
                                 style={{ flex: 1 }}
-                                autoFocus
                               />
                               <button
                                 type="button"
-                                onClick={() => handleSaveAll()}
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
                                 disabled={saving || !newOpikKey.trim()}
                                 className="btn btn-primary btn-sm"
                                 style={{
@@ -5027,6 +5057,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         {/* Opik Self-Hosted URL */}
                         <div>
                           <label
+                            htmlFor="opik_url_override"
                             style={{
                               display: 'block',
                               fontSize: '0.85rem',
@@ -5037,6 +5068,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             Opik Custom URL Override (For Self-Hosted Opik)
                           </label>
                           <input
+                            id="opik_url_override"
                             type="text"
                             value={formSettings.opik_url_override || ''}
                             onChange={(e) => handleFieldChange('opik_url_override', e.target.value)}
@@ -5081,6 +5113,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         {/* Langfuse Host URL */}
                         <div>
                           <label
+                            htmlFor="langfuse_host"
                             style={{
                               display: 'block',
                               fontSize: '0.85rem',
@@ -5091,6 +5124,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             Langfuse Host URL
                           </label>
                           <input
+                            id="langfuse_host"
                             type="text"
                             value={formSettings.langfuse_host || ''}
                             onChange={(e) => handleFieldChange('langfuse_host', e.target.value)}
@@ -5109,7 +5143,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               marginBottom: '0.35rem',
                             }}
                           >
-                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                            <label
+                              htmlFor="langfuse_public_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
                               Langfuse Public Key
                             </label>
                             {renderSourceBadge('langfuse_public_key')}
@@ -5150,6 +5187,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           ) : (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <input
+                                id="langfuse_public_key_input"
                                 type="text"
                                 value={newLangfusePubKey}
                                 onChange={(e) => {
@@ -5159,11 +5197,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 className="input-text"
                                 placeholder="pk-lf-..."
                                 style={{ flex: 1 }}
-                                autoFocus
                               />
                               <button
                                 type="button"
-                                onClick={() => handleSaveAll()}
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
                                 disabled={saving || !newLangfusePubKey.trim()}
                                 className="btn btn-primary btn-sm"
                                 style={{
@@ -5199,7 +5238,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               marginBottom: '0.35rem',
                             }}
                           >
-                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                            <label
+                              htmlFor="langfuse_secret_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
                               Langfuse Secret Key
                             </label>
                             {renderSourceBadge('langfuse_secret_key')}
@@ -5240,6 +5282,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           ) : (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <input
+                                id="langfuse_secret_key_input"
                                 type="password"
                                 value={newLangfuseSecKey}
                                 onChange={(e) => {
@@ -5249,11 +5292,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 className="input-text"
                                 placeholder="sk-lf-..."
                                 style={{ flex: 1 }}
-                                autoFocus
                               />
                               <button
                                 type="button"
-                                onClick={() => handleSaveAll()}
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
                                 disabled={saving || !newLangfuseSecKey.trim()}
                                 className="btn btn-primary btn-sm"
                                 style={{
@@ -5315,6 +5359,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         {/* LangSmith Project Name */}
                         <div>
                           <label
+                            htmlFor="langsmith_project"
                             style={{
                               display: 'block',
                               fontSize: '0.85rem',
@@ -5325,6 +5370,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             LangSmith Project Name
                           </label>
                           <input
+                            id="langsmith_project"
                             type="text"
                             value={formSettings.langsmith_project || ''}
                             onChange={(e) => handleFieldChange('langsmith_project', e.target.value)}
@@ -5343,7 +5389,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               marginBottom: '0.35rem',
                             }}
                           >
-                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                            <label
+                              htmlFor="langsmith_api_key_input"
+                              style={{ fontSize: '0.85rem', fontWeight: 500 }}
+                            >
                               LangSmith API Key
                             </label>
                             {renderSourceBadge('langsmith_api_key')}
@@ -5383,6 +5432,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           ) : (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <input
+                                id="langsmith_api_key_input"
                                 type="password"
                                 value={newLangsmithKey}
                                 onChange={(e) => {
@@ -5392,17 +5442,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && newLangsmithKey.trim() && !saving) {
                                     e.preventDefault();
-                                    handleSaveAll();
+                                    void handleSaveAll();
                                   }
                                 }}
                                 className="input-text"
                                 placeholder="lsv2_pt_..."
                                 style={{ flex: 1 }}
-                                autoFocus
                               />
                               <button
                                 type="button"
-                                onClick={() => handleSaveAll()}
+                                onClick={() => {
+                                  void handleSaveAll();
+                                }}
                                 disabled={saving || !newLangsmithKey.trim()}
                                 className="btn btn-primary btn-sm"
                                 style={{
@@ -5431,6 +5482,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         {/* LangSmith Endpoint */}
                         <div>
                           <label
+                            htmlFor="langsmith_endpoint"
                             style={{
                               display: 'block',
                               fontSize: '0.85rem',
@@ -5441,6 +5493,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             LangSmith Endpoint URL
                           </label>
                           <input
+                            id="langsmith_endpoint"
                             type="text"
                             value={formSettings.langsmith_endpoint || ''}
                             onChange={(e) =>

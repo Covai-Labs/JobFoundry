@@ -32,11 +32,22 @@ class ScorerConfig:
 
 
 
+def _resolve_db_path() -> str:
+    if os.getenv("DB_PATH"):
+        return os.getenv("DB_PATH").strip()
+    return "/data/jobfoundry.db" if os.path.exists("/data") else "./jobs.db"
+
+
+def _resolve_artifacts_dir() -> str:
+    if os.getenv("ARTIFACTS_DIR"):
+        return os.getenv("ARTIFACTS_DIR").strip()
+    return "/data/artifacts" if os.path.exists("/data") else "./data/artifacts"
+
+
 def load_config() -> ScorerConfig:
     """Load scorer configuration from environment variables."""
 
     scorer_model = os.getenv("SCORER_MODEL", "gpt-4o-mini")
-
 
     scorer_provider = os.getenv("SCORER_PROVIDER")
     raw_threshold = os.getenv("SCORER_THRESHOLD", "75")
@@ -49,22 +60,12 @@ def load_config() -> ScorerConfig:
     if scorer_threshold < 0 or scorer_threshold > 100:
         raise ValueError(f"Threshold must be between 0 and 100, got: {scorer_threshold}")
 
-    if os.getenv("DB_PATH"):
-        db_path = os.getenv("DB_PATH").strip()
-    elif os.path.exists("/data"):
-        db_path = "/data/jobfoundry.db"
-    else:
-        db_path = "./jobs.db"
+    db_path = _resolve_db_path()
 
     tailor_port = os.getenv("TAILOR_PORT") or "8081"
     resume_ops_url = f"http://127.0.0.1:{tailor_port}"
 
-    if os.getenv("ARTIFACTS_DIR"):
-        artifacts_dir = os.getenv("ARTIFACTS_DIR").strip()
-    elif os.path.exists("/data"):
-        artifacts_dir = "/data/artifacts"
-    else:
-        artifacts_dir = "./data/artifacts"
+    artifacts_dir = _resolve_artifacts_dir()
     scorer_api_key = (
         os.getenv("OPENROUTER_API_KEY")
         or os.getenv("SCORER_API_KEY")

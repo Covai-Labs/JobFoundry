@@ -29,39 +29,30 @@ def format_resume_for_prompt(resume: dict[str, Any]) -> str:
         return str(resume)
 
 
+def _register_callback(name: str, enabled: bool, success_cb: list[Any], failure_cb: list[Any]) -> None:
+    if not enabled:
+        return
+    if name not in success_cb:
+        success_cb.append(name)
+    if name not in failure_cb:
+        failure_cb.append(name)
+    logger.info("%s LLM tracing activated via LiteLLM callbacks", name.title())
+
+
 def setup_observability():
     current_success = list(getattr(litellm, "success_callback", []) or [])
     current_failure = list(getattr(litellm, "failure_callback", []) or [])
 
-    # Opik tracing
-    opik_api_key = os.getenv("OPIK_API_KEY")
-    opik_url_override = os.getenv("OPIK_URL_OVERRIDE")
-    if opik_api_key or opik_url_override:
-        if "opik" not in current_success:
-            current_success.append("opik")
-        if "opik" not in current_failure:
-            current_failure.append("opik")
-        logger.info("Opik LLM tracing activated via LiteLLM callbacks")
+    opik_enabled = bool(os.getenv("OPIK_API_KEY") or os.getenv("OPIK_URL_OVERRIDE"))
+    _register_callback("opik", opik_enabled, current_success, current_failure)
 
-    # Langfuse tracing
-    langfuse_public = os.getenv("LANGFUSE_PUBLIC_KEY")
-    langfuse_secret = os.getenv("LANGFUSE_SECRET_KEY")
-    if langfuse_public and langfuse_secret:
-        if "langfuse" not in current_success:
-            current_success.append("langfuse")
-        if "langfuse" not in current_failure:
-            current_failure.append("langfuse")
-        logger.info("Langfuse LLM tracing activated via LiteLLM callbacks")
+    langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
+    _register_callback("langfuse", langfuse_enabled, current_success, current_failure)
 
-    # LangSmith tracing
     langsmith_key = os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY")
     if langsmith_key:
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
-        if "langsmith" not in current_success:
-            current_success.append("langsmith")
-        if "langsmith" not in current_failure:
-            current_failure.append("langsmith")
-        logger.info("LangSmith LLM tracing activated via LiteLLM callbacks")
+    _register_callback("langsmith", bool(langsmith_key), current_success, current_failure)
 
     litellm.success_callback = current_success
     litellm.failure_callback = current_failure
