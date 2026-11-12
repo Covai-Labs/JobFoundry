@@ -340,4 +340,106 @@ describe('ApiClient', () => {
 
     await expect(client.downloadExport('json-resume')).rejects.toThrow('No master resume found');
   });
+
+  it('patchResume sends PATCH with updated fields', async () => {
+    const mockResume = {
+      id: 'res-1',
+      userId: 'u1',
+      title: 'Updated Title',
+      resume: { basics: { name: 'Alice' } },
+      isActive: true,
+      createdAt: 1000,
+      updatedAt: 2000,
+    };
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ resume: mockResume }),
+    });
+    global.fetch = fetchMock;
+
+    const res = await client.patchResume('res-1', { title: 'Updated Title' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/resumes/res-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ title: 'Updated Title' }),
+      })
+    );
+    expect(res).toEqual(mockResume);
+  });
+
+  it('getFacts, createFact, patchFact, and deleteFact send correct requests', async () => {
+    const mockFact = {
+      id: 'f-1',
+      userId: 'u1',
+      category: 'preference',
+      factText: 'Remote only',
+      isActive: true,
+      createdAt: 1000,
+      updatedAt: 1000,
+    };
+
+    // getFacts
+    let fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ facts: [mockFact] }),
+    });
+    global.fetch = fetchMock;
+    const facts = await client.getFacts({ activeOnly: true });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/facts?active=true',
+      expect.any(Object)
+    );
+    expect(facts).toEqual([mockFact]);
+
+    // createFact
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: async () => ({ fact: mockFact }),
+    });
+    global.fetch = fetchMock;
+    const created = await client.createFact({ category: 'preference', factText: 'Remote only' });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/facts',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ category: 'preference', factText: 'Remote only' }),
+      })
+    );
+    expect(created).toEqual(mockFact);
+
+    // patchFact
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ fact: { ...mockFact, isActive: false } }),
+    });
+    global.fetch = fetchMock;
+    const patched = await client.patchFact('f-1', { isActive: false });
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/facts/f-1',
+      expect.objectContaining({
+        method: 'PATCH',
+        body: JSON.stringify({ isActive: false }),
+      })
+    );
+    expect(patched.isActive).toBe(false);
+
+    // deleteFact
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ ok: true }),
+    });
+    global.fetch = fetchMock;
+    const deleted = await client.deleteFact('f-1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/facts/f-1',
+      expect.objectContaining({ method: 'DELETE' })
+    );
+    expect(deleted).toBe(true);
+  });
 });

@@ -29,6 +29,16 @@ export interface UserResume {
   updatedAt: number;
 }
 
+export interface UserFact {
+  id: string;
+  userId: string;
+  category: 'preference' | 'constraint' | 'context' | 'style' | 'compensation' | string;
+  factText: string;
+  isActive: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
 export type ExportFormat = 'json-resume' | 'csv' | 'archive';
 
 export interface TailoredJob {
@@ -225,6 +235,54 @@ export class ApiClient {
 
   async deleteResume(id: string): Promise<boolean> {
     const res = await this.request<{ ok: boolean }>(`/api/v1/resumes/${id}`, {
+      method: 'DELETE',
+    });
+    return res.ok;
+  }
+
+  async patchResume(
+    id: string,
+    payload: { title?: string; resumeJson?: Record<string, any> }
+  ): Promise<UserResume> {
+    const res = await this.request<{ resume: UserResume }>(`/api/v1/resumes/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return res.resume;
+  }
+
+  // --- Candidate Facts Endpoints ---
+  async getFacts(options?: { activeOnly?: boolean }): Promise<UserFact[]> {
+    const query = options?.activeOnly ? '?active=true' : '';
+    const res = await this.request<{ facts: UserFact[] }>(`/api/v1/facts${query}`);
+    return res.facts;
+  }
+
+  async createFact(payload: {
+    category?: string;
+    factText: string;
+    isActive?: boolean;
+  }): Promise<UserFact> {
+    const res = await this.request<{ fact: UserFact }>('/api/v1/facts', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+    return res.fact;
+  }
+
+  async patchFact(
+    id: string,
+    payload: { category?: string; factText?: string; isActive?: boolean }
+  ): Promise<UserFact> {
+    const res = await this.request<{ fact: UserFact }>(`/api/v1/facts/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    });
+    return res.fact;
+  }
+
+  async deleteFact(id: string): Promise<boolean> {
+    const res = await this.request<{ ok: boolean }>(`/api/v1/facts/${id}`, {
       method: 'DELETE',
     });
     return res.ok;
