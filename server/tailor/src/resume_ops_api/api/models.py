@@ -100,6 +100,17 @@ class TailorResponse(BaseModel):
     plain_text: str
 
 
+class RenderRequest(BaseModel):
+    resume: dict[str, Any] | None = None
+    theme: str | None = None
+
+
+class RenderResponse(BaseModel):
+    theme: str
+    pdf_base64: str
+    plain_text: str
+
+
 class QueuedTaskResponse(BaseModel):
     task_id: str
     status: str

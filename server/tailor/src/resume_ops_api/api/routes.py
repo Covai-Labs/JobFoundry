@@ -1,9 +1,12 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-
+import base64
+import tempfile
 import time
+from pathlib import Path
 from urllib.parse import urlparse
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from litellm import acompletion
 from resume_ops_api.api.deps import get_container
 from resume_ops_api.api.models import (
@@ -16,6 +19,8 @@ from resume_ops_api.api.models import (
     HealthResponse,
     MasterResumeStatus,
     QueuedTaskResponse,
+    RenderRequest,
+    RenderResponse,
     TailorRequest,
     TailorResponse,
     TaskError,
@@ -59,6 +64,48 @@ async def list_themes(container: ServiceContainer = Depends(get_container)) -> T
     return ThemeListResponse(
         default_theme=container.theme_service.default_theme,
         allowed_themes=container.theme_service.allowed_themes,
+    )
+
+
+@router.post(
+    "/api/v1/render",
+    response_model=RenderResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def render_resume(
+    payload: RenderRequest,
+    container: ServiceContainer = Depends(get_container),
+) -> RenderResponse:
+    """Render an existing resume to PDF with a chosen theme.
+
+    No LLM is involved, so a tailored resume can be re-styled or re-exported
+    after the fact without re-running the tailoring pipeline.
+    """
+    resume_data = payload.resume if payload.resume is not None else container.master_resume
+    if not resume_data:
+        raise HTTPException(
+            status_code=400,
+            detail="No resume provided and no master resume configured or valid",
+        )
+
+    theme = container.theme_service.resolve(payload.theme)
+    container.validator.validate(resume_data, context="render resume")
+
+    # Render into a scratch directory: ResumeRenderer writes both resume.json
+    # and output.pdf into the directory it is given, so it must never be pointed
+    # at a caller's artifact directory.
+    with tempfile.TemporaryDirectory(prefix="resume-render-") as scratch_dir:
+        pdf_path = await container.renderer.render(
+            resume=resume_data,
+            theme=theme,
+            output_dir=Path(scratch_dir),
+        )
+        pdf_base64 = base64.b64encode(Path(pdf_path).read_bytes()).decode("ascii")
+
+    return RenderResponse(
+        theme=theme,
+        pdf_base64=pdf_base64,
+        plain_text=json_to_ats_text(resume_data),
     )
 
 
