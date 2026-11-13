@@ -69,15 +69,17 @@ export function jdHtmlToText(html) {
     // Strip remaining tags
     .replace(/<[^>]+>/g, ' ');
 
-  return decodeEntities(decoded)
-    .replace(/[ \t\u00a0]+/g, ' ')
-    // Clean whitespace before newlines
-    .replace(/[ \t]+\n/g, '\n')
-    // Clean blank bullet remnants without regex backtracking
-    .replace(/\n-[ \t]*\n/g, '\n')
-    // Normalize excessive newlines to clean paragraph breaks (max 2)
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  return (
+    decodeEntities(decoded)
+      .replace(/[ \t\u00a0]+/g, ' ')
+      // Clean whitespace before newlines
+      .replace(/[ \t]+\n/g, '\n')
+      // Clean blank bullet remnants without regex backtracking
+      .replace(/\n-[ \t]*\n/g, '\n')
+      // Normalize excessive newlines to clean paragraph breaks (max 2)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }
 
 /**

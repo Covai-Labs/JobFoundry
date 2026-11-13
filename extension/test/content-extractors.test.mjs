@@ -170,7 +170,11 @@ test('LinkedIn: prunes UI noise elements from description and rejects whole-page
   assert.ok(!job.description.includes('LinkedIn Corporation'));
   // Confirm core text is clean
   assert.ok(job.description.includes('guide architecture across multi-cloud deployments'));
-  assert.ok(job.description.includes('- 12+ years experience building large scale distributed infrastructure'));
+  assert.ok(
+    job.description.includes(
+      '- 12+ years experience building large scale distributed infrastructure'
+    )
+  );
 });
 
 test('Indeed: extracts single job detail page', () => {
