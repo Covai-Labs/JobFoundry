@@ -26,7 +26,8 @@ export function createPassiveObserver({
       const currentLen = (j.description || '').trim().length;
       const prevLen = seenDescriptionLengths.get(j.url) || 0;
       const isNew = !seenUrls.has(j.url);
-      const isUpgraded = currentLen >= 100 && currentLen > prevLen;
+      const isUpgraded =
+        (prevLen === 0 && currentLen > 0) || (currentLen >= 100 && currentLen > prevLen);
       return isNew || isUpgraded;
     });
     if (fresh.length === 0) return;

@@ -29,14 +29,28 @@ export function insertIfNew(db, row) {
     const storedLength = (existing.description || '').trim().length;
     const incomingLength = (row.description || '').trim().length;
     if (incomingLength > storedLength) {
-      db.prepare(
-        'UPDATE jobs SET description = ?, fingerprint = ?, updated_at = ? WHERE id = ?'
-      ).run(row.description, row.fingerprint, row.updated_at, existing.id);
-
       try {
         db.prepare(
+          'UPDATE jobs SET description = ?, fingerprint = ?, updated_at = ? WHERE id = ?'
+        ).run(row.description, row.fingerprint, row.updated_at, existing.id);
+      } catch (err) {
+        if (err.code === 'SQLITE_CONSTRAINT_UNIQUE' || err.code === 'SQLITE_CONSTRAINT') {
+          // If fingerprint conflicts with an existing duplicate job, update description without the conflicting fingerprint
+          db.prepare('UPDATE jobs SET description = ?, updated_at = ? WHERE id = ?').run(
+            row.description,
+            row.updated_at,
+            existing.id
+          );
+        } else {
+          throw err;
+        }
+      }
+
+      try {
+        // Only reset unscored/in-triage jobs to 'new'; preserve user statuses (applied, saved, interview, etc.)
+        db.prepare(
           "UPDATE user_jobs SET status = 'new', attempt_count = 0, fit_score = NULL, fit_notes = NULL, updated_at = ?" +
-            ' WHERE job_id = ?'
+            " WHERE job_id = ? AND status IN ('new', 'queued', 'evaluating')"
         ).run(row.updated_at, existing.id);
       } catch {}
     }

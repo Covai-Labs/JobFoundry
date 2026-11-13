@@ -204,3 +204,53 @@ test('passive observer supports multi-stage hydration (stub -> partial -> full d
 
   observer.stop();
 });
+
+test('passive observer upgrades empty stub to concise description (< 100 chars)', async () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="root"></div></body></html>', {
+    url: 'https://www.linkedin.com/jobs/view/88888/',
+  });
+  const link = dom.window.document.createElement('link');
+  link.rel = 'canonical';
+  link.href = 'https://www.linkedin.com/jobs/view/88888/';
+  dom.window.document.head.appendChild(link);
+
+  const discovered = [];
+  const observer = createPassiveObserver({
+    doc: dom.window.document,
+    win: dom.window,
+    debounceMs: 10,
+    onJobsFound: (jobs) => {
+      discovered.push(...jobs);
+    },
+  });
+
+  observer.start();
+
+  const root = dom.window.document.getElementById('root');
+
+  // 1. Initial render with empty description
+  root.innerHTML = `
+    <div class="jobs-details__main-content">
+      <h1 class="job-details-jobs-unified-top-card__job-title">Contract Dev</h1>
+      <div class="job-details-jobs-unified-top-card__company-name">SoloCo</div>
+      <div id="job-details"></div>
+    </div>
+  `;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(discovered.length, 1);
+  assert.equal(discovered[0].description, '');
+
+  // 2. Hydrates with concise description (60 chars, below the 100 char threshold)
+  const shortDesc = 'Contract Astro developer needed for high-converting landing.';
+  root.querySelector('#job-details').innerHTML = `<p>${shortDesc}</p>`;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+
+  assert.equal(discovered.length, 2);
+  assert.equal(discovered[1].description, shortDesc);
+
+  // 3. Rescan with same description does not re-emit
+  observer.scan();
+  assert.equal(discovered.length, 2);
+
+  observer.stop();
+});
