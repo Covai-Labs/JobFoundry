@@ -17,23 +17,27 @@ export function createPassiveObserver({
   let timer = null;
   let observer = null;
   const seenUrls = new Set();
-  const seenWithDescription = new Set();
+  const seenDescriptionLengths = new Map();
 
   const notify = (jobs) => {
     if (!jobs || jobs.length === 0) return;
     const fresh = jobs.filter((j) => {
       if (!j?.url) return false;
-      const hasFullDesc = Boolean(j.description?.trim().length >= 100);
+      const currentLen = (j.description || '').trim().length;
+      const prevLen = seenDescriptionLengths.get(j.url) || 0;
       const isNew = !seenUrls.has(j.url);
-      const isUpgraded = !seenWithDescription.has(j.url) && hasFullDesc;
+      const isUpgraded =
+        (prevLen === 0 && currentLen > 0) || (currentLen >= 100 && currentLen > prevLen);
       return isNew || isUpgraded;
     });
     if (fresh.length === 0) return;
 
     for (const j of fresh) {
       seenUrls.add(j.url);
-      if (j.description?.trim().length >= 100) {
-        seenWithDescription.add(j.url);
+      const currentLen = (j.description || '').trim().length;
+      const prevLen = seenDescriptionLengths.get(j.url) || 0;
+      if (currentLen > prevLen) {
+        seenDescriptionLengths.set(j.url, currentLen);
       }
     }
 

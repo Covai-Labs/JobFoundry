@@ -207,9 +207,18 @@ export function extractLinkedInSearchCards(doc) {
 
 export function extractLinkedIn(doc) {
   const detail = extractLinkedInJobDetails(doc);
-  const cards = extractLinkedInSearchCards(doc);
+  const isSearchContainer = Boolean(
+    doc?.querySelector?.(
+      '.jobs-search-results-list, .jobs-search-results__list, .jobs-search-two-pane__wrapper, .scaffold-layout__list, .jobs-search__results-list'
+    ) ||
+    doc?.location?.pathname?.includes('/jobs/search') ||
+    doc?.location?.pathname?.includes('/jobs/collections') ||
+    doc?.location?.search?.includes('currentJobId=')
+  );
 
-  if (detail?.description && !isDescriptionIncomplete(detail.description)) {
+  const cards = isSearchContainer ? extractLinkedInSearchCards(doc) : [];
+
+  if (detail?.title && detail?.description?.trim()) {
     if (cards.length > 0) {
       // In LinkedIn two-pane search, emit the active detailed job alongside the search cards
       const detailBaseUrl = (detail.url || '').split('?')[0];
