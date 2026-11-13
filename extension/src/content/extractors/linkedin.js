@@ -15,7 +15,6 @@ import {
   expandTruncatedContent,
   isDescriptionIncomplete,
   cleanBoilerplate,
-  readSemanticDom,
   isNoiseTitle,
 } from './helpers.js';
 
@@ -210,7 +209,7 @@ export function extractLinkedIn(doc) {
   const detail = extractLinkedInJobDetails(doc);
   const cards = extractLinkedInSearchCards(doc);
 
-  if (detail && detail.description && !isDescriptionIncomplete(detail.description)) {
+  if (detail?.description && !isDescriptionIncomplete(detail.description)) {
     if (cards.length > 0) {
       // In LinkedIn two-pane search, emit the active detailed job alongside the search cards
       const detailBaseUrl = (detail.url || '').split('?')[0];

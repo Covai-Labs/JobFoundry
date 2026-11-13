@@ -22,8 +22,8 @@ export function createPassiveObserver({
   const notify = (jobs) => {
     if (!jobs || jobs.length === 0) return;
     const fresh = jobs.filter((j) => {
-      if (!j || !j.url) return false;
-      const hasFullDesc = Boolean(j.description && j.description.trim().length >= 100);
+      if (!j?.url) return false;
+      const hasFullDesc = Boolean(j.description?.trim().length >= 100);
       const isNew = !seenUrls.has(j.url);
       const isUpgraded = !seenWithDescription.has(j.url) && hasFullDesc;
       return isNew || isUpgraded;
@@ -32,7 +32,7 @@ export function createPassiveObserver({
 
     for (const j of fresh) {
       seenUrls.add(j.url);
-      if (j.description && j.description.trim().length >= 100) {
+      if (j.description?.trim().length >= 100) {
         seenWithDescription.add(j.url);
       }
     }

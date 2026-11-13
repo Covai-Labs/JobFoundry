@@ -53,7 +53,7 @@ export function jdHtmlToText(html) {
   if (typeof html !== 'string' || !html) return '';
   const decoded = decodeEntities(html)
     // Strip script and style blocks completely
-    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, '')
+    .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
     // Headings to distinct block sections with paragraph breaks
     .replace(/<h[1-6][^>]*>/gi, '\n\n')
     .replace(/<\/h[1-6]>/gi, '\n\n')
@@ -73,8 +73,8 @@ export function jdHtmlToText(html) {
     .replace(/[ \t\u00a0]+/g, ' ')
     // Clean whitespace before newlines
     .replace(/[ \t]+\n/g, '\n')
-    // Clean blank bullet remnants
-    .replace(/\n-\s*\n/g, '\n')
+    // Clean blank bullet remnants without regex backtracking
+    .replace(/\n-[ \t]*\n/g, '\n')
     // Normalize excessive newlines to clean paragraph breaks (max 2)
     .replace(/\n{3,}/g, '\n\n')
     .trim();
