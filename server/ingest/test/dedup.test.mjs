@@ -224,7 +224,7 @@ test('description enrichment preserves user-selected status (saved, applied) and
   try {
     // Insert test users to satisfy FK constraint
     db.prepare(
-      "INSERT INTO users (id, email, password_hash, api_key, created_at, updated_at) VALUES ('u1', 'u1@example.com', 'hash', 'key1', '2026-01-01', '2026-01-01'), ('u2', 'u2@example.com', 'hash', 'key2', '2026-01-01', '2026-01-01')"
+      "INSERT INTO users (id, email, password_hash, api_key, created_at, updated_at) VALUES ('u1', 'u1@example.com', 'hash', 'key1', '2026-01-01', '2026-01-01'), ('u2', 'u2@example.com', 'hash', 'key2', '2026-01-01', '2026-01-01'), ('u3', 'u3@example.com', 'hash', 'key3', '2026-01-01', '2026-01-01')"
     ).run();
 
     const job = normalizeJob({
@@ -247,6 +247,11 @@ test('description enrichment preserves user-selected status (saved, applied) and
       "INSERT INTO user_jobs (id, user_id, job_id, status, fit_score, created_at, updated_at) VALUES ('uj_2', 'u2', ?, 'new', 60, '2026-01-01', '2026-01-01')"
     ).run(id);
 
+    // Third user had preview auto-rejected by score
+    db.prepare(
+      "INSERT INTO user_jobs (id, user_id, job_id, status, fit_score, created_at, updated_at) VALUES ('uj_3', 'u3', ?, 'rejected_by_score', 25, '2026-01-01', '2026-01-01')"
+    ).run(id);
+
     // Enriched description arrives
     const enriched = normalizeJob({
       title: 'Senior Engineer',
@@ -265,6 +270,10 @@ test('description enrichment preserves user-selected status (saved, applied) and
     const uj2 = db.prepare("SELECT status, fit_score FROM user_jobs WHERE id = 'uj_2'").get();
     assert.equal(uj2.status, 'new'); // Reset for re-scoring
     assert.equal(uj2.fit_score, null);
+
+    const uj3 = db.prepare("SELECT status, fit_score FROM user_jobs WHERE id = 'uj_3'").get();
+    assert.equal(uj3.status, 'new'); // Auto-rejection reset for re-scoring with full description!
+    assert.equal(uj3.fit_score, null);
   } finally {
     db.close();
   }

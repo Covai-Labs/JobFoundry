@@ -47,10 +47,10 @@ export function insertIfNew(db, row) {
       }
 
       try {
-        // Only reset unscored/in-triage jobs to 'new'; preserve user statuses (applied, saved, interview, etc.)
+        // Only reset unscored/in-triage/auto-rejected jobs to 'new'; preserve user statuses (applied, saved, interview, etc.)
         db.prepare(
           "UPDATE user_jobs SET status = 'new', attempt_count = 0, fit_score = NULL, fit_notes = NULL, updated_at = ?" +
-            " WHERE job_id = ? AND status IN ('new', 'queued', 'evaluating')"
+            " WHERE job_id = ? AND status IN ('new', 'queued', 'evaluating', 'rejected_by_score', 'score_failed', 'invalid_job')"
         ).run(row.updated_at, existing.id);
       } catch {}
     }
