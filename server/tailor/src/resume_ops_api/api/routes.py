@@ -29,12 +29,14 @@ from resume_ops_api.api.models import (
     TestLlmResponse,
     ThemeListResponse,
 )
+from resume_ops_api.core.exceptions import AppError
 from resume_ops_api.services.ats_text import json_to_ats_text
 from resume_ops_api.services.container import ServiceContainer
 from resume_ops_api.services.ssrf_guard import assert_safe_url
 
 router = APIRouter()
 
+NO_RESUME_DETAIL = "No resume provided and no master resume configured or valid"
 
 
 @router.get("/healthz", response_model=HealthResponse)
@@ -82,11 +84,8 @@ async def render_resume(
     after the fact without re-running the tailoring pipeline.
     """
     resume_data = payload.resume if payload.resume is not None else container.master_resume
-    if not resume_data:
-        raise HTTPException(
-            status_code=400,
-            detail="No resume provided and no master resume configured or valid",
-        )
+    if resume_data is None:
+        raise AppError(NO_RESUME_DETAIL, code="resume_missing", status_code=400)
 
     theme = container.theme_service.resolve(payload.theme)
     container.validator.validate(resume_data, context="render resume")
@@ -94,13 +93,14 @@ async def render_resume(
     # Render into a scratch directory: ResumeRenderer writes both resume.json
     # and output.pdf into the directory it is given, so it must never be pointed
     # at a caller's artifact directory.
-    with tempfile.TemporaryDirectory(prefix="resume-render-") as scratch_dir:
-        pdf_path = await container.renderer.render(
-            resume=resume_data,
-            theme=theme,
-            output_dir=Path(scratch_dir),
-        )
-        pdf_base64 = base64.b64encode(Path(pdf_path).read_bytes()).decode("ascii")
+    async with container.render_semaphore:
+        with tempfile.TemporaryDirectory(prefix="resume-render-") as scratch_dir:
+            pdf_path = await container.renderer.render(
+                resume=resume_data,
+                theme=theme,
+                output_dir=Path(scratch_dir),
+            )
+            pdf_base64 = base64.b64encode(Path(pdf_path).read_bytes()).decode("ascii")
 
     return RenderResponse(
         theme=theme,
@@ -121,7 +121,7 @@ async def tailor_resume(
 ) -> TailorResponse | QueuedTaskResponse:
     if payload.resume is None:
         if not container.master_resume:
-            raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+            raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
         resume_data = container.master_resume
     else:
         resume_data = payload.resume
@@ -179,7 +179,7 @@ async def copilot_outreach(
 ) -> CopilotOutreachResponse:
     resume_data = payload.resume or container.master_resume
     if not resume_data:
-        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+        raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
 
     result = await container.copilot_service.generate_outreach(
         resume=resume_data,
@@ -215,7 +215,7 @@ async def copilot_qa(
 ) -> CopilotQAResponse:
     resume_data = payload.resume or container.master_resume
     if not resume_data:
-        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+        raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
 
     result = await container.copilot_service.generate_qa(
         question=payload.question,
@@ -253,7 +253,7 @@ async def copilot_cover_letter(
 ) -> CopilotCoverLetterResponse:
     resume_data = payload.resume or container.master_resume
     if not resume_data:
-        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+        raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
 
     result = await container.copilot_service.generate_cover_letter(
         resume=resume_data,

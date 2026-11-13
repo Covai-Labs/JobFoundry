@@ -88,8 +88,9 @@ HTML/CSS compile step:
 It returns `pdf_base64` plus `plain_text`. The ATS plain text is derived from
 the JSON alone, so it is identical regardless of theme. `theme` defaults to
 `DEFAULT_THEME` and must be listed in `ALLOWED_THEMES`; if `resume` is omitted
-the configured master resume is used. Rendering happens in a throwaway
-directory — the endpoint writes no artifacts to disk.
+the configured master resume is used. Rendering writes temporary files to a
+throwaway directory, which is deleted before the response returns, so no
+artifacts are left on disk.
 
 ## Endpoints
 
