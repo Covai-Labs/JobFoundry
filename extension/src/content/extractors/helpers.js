@@ -54,6 +54,9 @@ export function jdHtmlToText(html) {
   const decoded = decodeEntities(html)
     // Strip script and style blocks completely
     .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    // Normalize list items containing paragraphs so bullet markers are followed immediately by text
+    .replace(/<li\b([^>]*)>\s*<p\b[^>]*>/gi, '<li$1>')
+    .replace(/<\/p>\s*<\/li>/gi, '</li>')
     // Headings to distinct block sections with paragraph breaks
     .replace(/<h[1-6][^>]*>/gi, '\n\n')
     .replace(/<\/h[1-6]>/gi, '\n\n')
@@ -237,11 +240,13 @@ export function expandTruncatedContent(doc) {
     'span.show-more-less-html__button--more',
   ];
 
+  const clicked = new Set();
   for (const selector of selectors) {
     try {
       const buttons = doc.querySelectorAll(selector);
       for (const btn of buttons) {
-        if (typeof btn.click === 'function') {
+        if (typeof btn.click === 'function' && !clicked.has(btn)) {
+          clicked.add(btn);
           btn.click();
         }
       }

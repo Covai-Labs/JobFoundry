@@ -26,14 +26,17 @@ export function insertIfNew(db, row) {
     .get(row.url, row.id, row.fingerprint || null);
 
   if (existing) {
-    if ((!existing.description || existing.description === '') && row.description) {
+    const storedLength = (existing.description || '').trim().length;
+    const incomingLength = (row.description || '').trim().length;
+    if (incomingLength > storedLength) {
       db.prepare(
         'UPDATE jobs SET description = ?, fingerprint = ?, updated_at = ? WHERE id = ?'
       ).run(row.description, row.fingerprint, row.updated_at, existing.id);
 
       try {
         db.prepare(
-          "UPDATE user_jobs SET status = 'new', attempt_count = 0, fit_score = NULL, fit_notes = NULL, updated_at = ? WHERE job_id = ?"
+          "UPDATE user_jobs SET status = 'new', attempt_count = 0, fit_score = NULL, fit_notes = NULL, updated_at = ?" +
+            ' WHERE job_id = ?'
         ).run(row.updated_at, existing.id);
       } catch {}
     }

@@ -146,3 +146,61 @@ test('passive observer upgrades a stub job when full description hydrates', asyn
 
   observer.stop();
 });
+
+test('passive observer supports multi-stage hydration (stub -> partial -> full description)', async () => {
+  const dom = new JSDOM('<!DOCTYPE html><html><body><div id="root"></div></body></html>', {
+    url: 'https://www.linkedin.com/jobs/view/99999/',
+  });
+  const link = dom.window.document.createElement('link');
+  link.rel = 'canonical';
+  link.href = 'https://www.linkedin.com/jobs/view/99999/';
+  dom.window.document.head.appendChild(link);
+
+  const discovered = [];
+  const observer = createPassiveObserver({
+    doc: dom.window.document,
+    win: dom.window,
+    debounceMs: 10,
+    onJobsFound: (jobs) => {
+      discovered.push(...jobs);
+    },
+  });
+
+  observer.start();
+
+  const root = dom.window.document.getElementById('root');
+
+  // Stage 1: Card stub with empty description
+  root.innerHTML = `
+    <div class="jobs-details__main-content">
+      <h1 class="job-details-jobs-unified-top-card__job-title">Site Reliability Engineer</h1>
+      <div class="job-details-jobs-unified-top-card__company-name">DataGrid Corp</div>
+      <div id="job-details"></div>
+    </div>
+  `;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(discovered.length, 1);
+  assert.equal(discovered[0].description, '');
+
+  // Stage 2: Partial preview description (120 chars)
+  const partialText =
+    'DataGrid is hiring an SRE to manage multi-region Kubernetes clusters, Prometheus alerting, and edge networking systems.';
+  root.querySelector('#job-details').innerHTML = `<p>${partialText}</p>`;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(discovered.length, 2);
+  assert.equal(discovered[1].description, partialText);
+
+  // Stage 3: Same partial description does not re-emit
+  observer.scan();
+  assert.equal(discovered.length, 2);
+
+  // Stage 4: Full detailed description hydrates (500+ chars)
+  const fullText =
+    'DataGrid is hiring an SRE to manage multi-region Kubernetes clusters, Prometheus alerting, and edge networking systems across 12 datacenters worldwide. Responsibilities include building automated canary deploy pipelines, incident response rotation, SLO definition, disaster recovery drill orchestration, and kernel networking optimizations for eBPF routing.';
+  root.querySelector('#job-details').innerHTML = `<p>${fullText}</p>`;
+  await new Promise((resolve) => setTimeout(resolve, 30));
+  assert.equal(discovered.length, 3);
+  assert.equal(discovered[2].description, fullText);
+
+  observer.stop();
+});

@@ -183,3 +183,38 @@ test('existing job with empty description is enriched when re-ingested with full
     db.close();
   }
 });
+
+test('existing job with short stub description is enriched when re-ingested with fuller description', () => {
+  const db = openDb({ path: ':memory:' });
+  try {
+    const stubJob = normalizeJob({
+      title: 'Senior Engineer',
+      company: 'Acme',
+      url: 'https://acme.example/jobs/100',
+      source: 'linkedin',
+      description: 'Short preview text under 50 characters.',
+      fingerprint: fingerprintFor({ description: 'Short preview text under 50 characters.' }),
+    });
+    const { id: id1 } = insertIfNew(db, stubJob);
+
+    let saved = db.prepare('SELECT description FROM jobs WHERE id = ?').get(id1);
+    assert.equal(saved.description, 'Short preview text under 50 characters.');
+
+    const fullJob = normalizeJob({
+      title: 'Senior Engineer',
+      company: 'Acme',
+      url: 'https://acme.example/jobs/100',
+      source: 'linkedin',
+      description: JD_A,
+      fingerprint: fingerprintFor({ description: JD_A }),
+    });
+    const { id: id2 } = insertIfNew(db, fullJob);
+    assert.equal(id2, id1);
+
+    saved = db.prepare('SELECT description, fingerprint FROM jobs WHERE id = ?').get(id1);
+    assert.equal(saved.description, JD_A);
+    assert.equal(saved.fingerprint, fingerprintFor({ description: JD_A }));
+  } finally {
+    db.close();
+  }
+});

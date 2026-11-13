@@ -447,3 +447,70 @@ test('LinkedIn: rejects noise titles such as 0 notifications and notifications p
   const detail = extractLinkedInJobDetails(dom.window.document);
   assert.equal(detail, null);
 });
+
+test('jdHtmlToText: preserves bullets when list items contain paragraph tags', async () => {
+  const { jdHtmlToText } = await import('../src/content/extractors/helpers.js');
+  const input = `
+    <h3>Requirements:</h3>
+    <ul>
+      <li><p>5+ years building distributed backends</p></li>
+      <li><p>Strong experience with Go or Rust</p></li>
+      <li><p>Familiarity with Kubernetes</p></li>
+    </ul>
+  `;
+  const out = jdHtmlToText(input);
+  assert.ok(out.includes('- 5+ years building distributed backends'));
+  assert.ok(out.includes('- Strong experience with Go or Rust'));
+  assert.ok(out.includes('- Familiarity with Kubernetes'));
+});
+
+test('expandTruncatedContent clicks multi-selector buttons at most once', async () => {
+  const { expandTruncatedContent } = await import('../src/content/extractors/helpers.js');
+  const dom = new JSDOM(`
+    <div>
+      <button class="jobs-description__footer-button show-more-less-html__button--more" aria-label="Show more details">
+        Show more
+      </button>
+    </div>
+  `);
+  let clickCount = 0;
+  const btn = dom.window.document.querySelector('button');
+  btn.addEventListener('click', () => {
+    clickCount++;
+  });
+
+  expandTruncatedContent(dom.window.document);
+  assert.equal(clickCount, 1);
+});
+
+test('LinkedIn: retains short valid description and ignores recommendation cards on single job view', async () => {
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <title>Contract Developer at IndieCo</title>
+        <link rel="canonical" href="https://www.linkedin.com/jobs/view/55555/" />
+      </head>
+      <body>
+        <div class="jobs-details__main-content">
+          <h1 class="job-details-jobs-unified-top-card__job-title">Contract Developer</h1>
+          <div class="job-details-jobs-unified-top-card__company-name">IndieCo</div>
+          <div id="job-details">
+            <p>We need a contractor to build our marketing site in Astro.</p>
+          </div>
+        </div>
+        <div class="similar-jobs-container">
+          <div class="job-card-container">
+            <a class="job-card-list__title" href="https://www.linkedin.com/jobs/view/99999/">Unrelated Recommended Job</a>
+            <div class="job-card-container__primary-description">OtherCo</div>
+          </div>
+        </div>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://www.linkedin.com/jobs/view/55555/' });
+  const jobs = extractLinkedIn(dom.window.document);
+  assert.equal(jobs.length, 1);
+  assert.equal(jobs[0].title, 'Contract Developer');
+  assert.ok(jobs[0].description.includes('contractor to build our marketing site'));
+});
