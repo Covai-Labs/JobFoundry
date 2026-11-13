@@ -17,14 +17,24 @@ export function createPassiveObserver({
   let timer = null;
   let observer = null;
   const seenUrls = new Set();
+  const seenWithDescription = new Set();
 
   const notify = (jobs) => {
     if (!jobs || jobs.length === 0) return;
-    const fresh = jobs.filter((j) => j && j.url && !seenUrls.has(j.url));
+    const fresh = jobs.filter((j) => {
+      if (!j?.url) return false;
+      const hasFullDesc = Boolean(j.description?.trim().length >= 100);
+      const isNew = !seenUrls.has(j.url);
+      const isUpgraded = !seenWithDescription.has(j.url) && hasFullDesc;
+      return isNew || isUpgraded;
+    });
     if (fresh.length === 0) return;
 
     for (const j of fresh) {
       seenUrls.add(j.url);
+      if (j.description?.trim().length >= 100) {
+        seenWithDescription.add(j.url);
+      }
     }
 
     if (typeof onJobsFound === 'function') {

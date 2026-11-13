@@ -125,6 +125,58 @@ test('LinkedIn: extracts search results list cards', () => {
   assert.equal(jobs[1].url, 'https://www.linkedin.com/jobs/view/20002/?tracking=456');
 });
 
+test('LinkedIn: prunes UI noise elements from description and rejects whole-page semantic fallback', () => {
+  const html = `
+    <!doctype html>
+    <html>
+      <head>
+        <title>Principal Engineer at TechCorp</title>
+        <link rel="canonical" href="https://www.linkedin.com/jobs/view/88888/" />
+      </head>
+      <body>
+        <nav><a href="/feed">Feed</a><a href="/notifications">Notifications</a></nav>
+        <div class="jobs-details__main-content">
+          <h1 class="t-24 job-details-jobs-unified-top-card__job-title">Principal Engineer</h1>
+          <div class="job-details-jobs-unified-top-card__company-name">TechCorp</div>
+          <div id="job-details">
+            <h2>About the job</h2>
+            <p>TechCorp is seeking a Principal Engineer to guide architecture across multi-cloud deployments.</p>
+            <button class="jobs-description__footer-button">Show more</button>
+            <span class="visually-hidden">Hidden accessibility note</span>
+            <svg aria-hidden="true"><path d="M0 0h24v24H0z"/></svg>
+            <div class="jobs-description__details">Feedback widget</div>
+            <p>Core responsibilities include leading distributed architecture and mentoring staff engineers.</p>
+            <ul>
+              <li>12+ years experience building large scale distributed infrastructure</li>
+              <li>Strong background in Go, Kubernetes, and high availability consensus</li>
+            </ul>
+          </div>
+        </div>
+        <footer><p>LinkedIn Corporation 2026</p></footer>
+      </body>
+    </html>
+  `;
+  const dom = new JSDOM(html, { url: 'https://www.linkedin.com/jobs/view/88888/' });
+  const job = extractLinkedInJobDetails(dom.window.document);
+
+  assert.ok(job);
+  assert.equal(job.title, 'Principal Engineer');
+  assert.equal(job.company, 'TechCorp');
+  // Confirm UI noise was stripped
+  assert.ok(!job.description.includes('Show more'));
+  assert.ok(!job.description.includes('Hidden accessibility note'));
+  assert.ok(!job.description.includes('Feedback widget'));
+  assert.ok(!job.description.includes('About the job'));
+  assert.ok(!job.description.includes('LinkedIn Corporation'));
+  // Confirm core text is clean
+  assert.ok(job.description.includes('guide architecture across multi-cloud deployments'));
+  assert.ok(
+    job.description.includes(
+      '- 12+ years experience building large scale distributed infrastructure'
+    )
+  );
+});
+
 test('Indeed: extracts single job detail page', () => {
   const doc = loadFixtureDoc(
     'indeed-detail.html',

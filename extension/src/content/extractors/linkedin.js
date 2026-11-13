@@ -15,7 +15,6 @@ import {
   expandTruncatedContent,
   isDescriptionIncomplete,
   cleanBoilerplate,
-  readSemanticDom,
   isNoiseTitle,
 } from './helpers.js';
 
@@ -80,29 +79,55 @@ export function extractLinkedInJobDetails(doc) {
     doc.querySelector('.job-details-jobs-unified-top-card__primary-description-container span');
   const location = cleanText(locEl?.textContent) || null;
 
+  // Target dedicated JD content containers (JobSpy & modern authenticated LinkedIn views)
   const descEl =
     doc.querySelector('#job-details') ||
+    doc.querySelector('.show-more-less-html__markup') ||
     doc.querySelector('.jobs-description-content__text') ||
     doc.querySelector('.jobs-description__content') ||
-    doc.querySelector('.jobs-box__html-content') ||
-    doc.querySelector('.show-more-less-html__markup') ||
-    doc.querySelector('.jobs-search__job-details--container') ||
-    doc.querySelector('article');
+    doc.querySelector('.jobs-box__html-content');
 
-  let description = descEl ? jdHtmlToText(descEl.innerHTML || descEl.textContent || '') : '';
+  let description = '';
+  if (descEl) {
+    const clone = descEl.cloneNode(true);
+    // Strip LinkedIn UI artifacts and noise widgets from within the description container
+    const noiseSelectors = [
+      'button',
+      '.jobs-description__footer-button',
+      '.show-more-less-html__button--more',
+      '.show-more-less-html__button--less',
+      '.visually-hidden',
+      '[aria-hidden="true"]',
+      'svg',
+      '.jobs-description__details',
+      '.artdeco-button',
+    ];
+    for (const selector of noiseSelectors) {
+      try {
+        clone.querySelectorAll(selector).forEach((el) => el.remove());
+      } catch {
+        // Safe to ignore in test/JSDOM environments
+      }
+    }
+
+    // Prune redundant "About the job" header if present at the top
+    const firstH2 = clone.querySelector('h2');
+    if (firstH2 && /about the job/i.test(firstH2.textContent || '')) {
+      firstH2.remove();
+    }
+
+    description = jdHtmlToText(clone.innerHTML || clone.textContent || '');
+  }
 
   // Fallback to JSON-LD if DOM was incomplete
   if (isDescriptionIncomplete(description) && jsonLd?.description) {
     description = jsonLd.description;
   }
 
-  // Fallback to semantic DOM / decanter if still incomplete
-  if (isDescriptionIncomplete(description)) {
-    const semantic = readSemanticDom(doc);
-    if (semantic.description && semantic.description.length > description.length) {
-      description = semantic.description;
-    }
-  }
+  // NOTE: On LinkedIn, we strictly avoid falling back to readSemanticDom(doc).
+  // In LinkedIn's SPA, readSemanticDom grabs <main>/<body>, dumping navigation bars,
+  // search filters, left-rail job cards, and recruiter cards into the JD text.
+  // Dedicated parsers keep to their verified content containers.
 
   description = cleanBoilerplate(description);
 
@@ -182,10 +207,21 @@ export function extractLinkedInSearchCards(doc) {
 
 export function extractLinkedIn(doc) {
   const detail = extractLinkedInJobDetails(doc);
-  if (detail && detail.description) {
+  const cards = extractLinkedInSearchCards(doc);
+
+  if (detail?.description && !isDescriptionIncomplete(detail.description)) {
+    if (cards.length > 0) {
+      // In LinkedIn two-pane search, emit the active detailed job alongside the search cards
+      const detailBaseUrl = (detail.url || '').split('?')[0];
+      const remainingCards = cards.filter((c) => {
+        const cardBaseUrl = (c.url || '').split('?')[0];
+        return cardBaseUrl !== detailBaseUrl;
+      });
+      return [detail, ...remainingCards];
+    }
     return [detail];
   }
-  const cards = extractLinkedInSearchCards(doc);
+
   if (cards.length > 0) {
     return cards;
   }

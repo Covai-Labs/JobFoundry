@@ -45,22 +45,41 @@ const NON_CONTENT_RE =
   /<(script|style|nav|header|footer|noscript|svg|button|form|iframe|select|option)\b[^>]*>[\s\S]*?<\/\1\s*>/gi;
 
 /**
- * Description markup -> plain text, keeping block structure as newlines.
- * Lifted directly from career-ops browser-extract.mjs:jdHtmlToText.
+ * Description markup -> clean, readable text keeping block structure,
+ * paragraph spacing, bullet lists, and headings cleanly formatted.
+ * Adapted from JobSpy & career-ops DOM parsers.
  */
 export function jdHtmlToText(html) {
   if (typeof html !== 'string' || !html) return '';
-  const stripped = decodeEntities(html)
+  const decoded = decodeEntities(html)
+    // Strip script and style blocks completely
     .replace(/<(script|style)[^>]*>[\s\S]*?<\/\1>/gi, ' ')
+    // Headings to distinct block sections with paragraph breaks
+    .replace(/<h[1-6][^>]*>/gi, '\n\n')
+    .replace(/<\/h[1-6]>/gi, '\n\n')
+    // Line breaks and paragraph spacing
     .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<p[^>]*>/gi, '\n\n')
+    .replace(/<\/p>/gi, '\n\n')
+    // List items to bullet points
     .replace(/<li[^>]*>/gi, '\n- ')
+    .replace(/<\/li>/gi, '\n')
+    // Block endings
     .replace(BLOCK_END_RE, '\n')
+    // Strip remaining tags
     .replace(/<[^>]+>/g, ' ');
-  return decodeEntities(stripped)
-    .replace(/[ \t\u00a0]+/g, ' ')
-    .replace(/ *\n */g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+
+  return (
+    decodeEntities(decoded)
+      .replace(/[ \t\u00a0]+/g, ' ')
+      // Clean whitespace before newlines
+      .replace(/[ \t]+\n/g, '\n')
+      // Clean blank bullet remnants without regex backtracking
+      .replace(/\n-[ \t]*\n/g, '\n')
+      // Normalize excessive newlines to clean paragraph breaks (max 2)
+      .replace(/\n{3,}/g, '\n\n')
+      .trim()
+  );
 }
 
 /**
@@ -211,6 +230,9 @@ export function expandTruncatedContent(doc) {
     'button[aria-label*="Show more" i]',
     'button[aria-label*="Read more" i]',
     'button[aria-label*="View full" i]',
+    'button[aria-label*="see more" i]',
+    'button[aria-controls="job-details"]',
+    'button.jobs-description-content__footer-button',
     'button.read-more',
     'span.show-more-less-html__button--more',
   ];

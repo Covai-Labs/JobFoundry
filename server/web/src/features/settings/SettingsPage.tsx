@@ -4816,22 +4816,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       Stream prompt tokens, model latencies, cost tracking, and evaluation traces to
                       your preferred LLM observability platform via LiteLLM callbacks.
                     </p>
-                    <div
-                      style={{
-                        padding: '0.65rem 0.85rem',
-                        borderRadius: 'var(--radius-md)',
-                        background: 'var(--bg-card-subtle)',
-                        border: '1px solid var(--border-subtle)',
-                        fontSize: '0.8rem',
-                        color: 'var(--text-muted)',
-                        marginBottom: '1.25rem',
-                        lineHeight: 1.4,
-                      }}
-                    >
-                      <strong>Note:</strong> Observability settings apply to this JobFoundry server
-                      instance and its backend services. LLM trace data is captured at the instance
-                      level.
-                    </div>
 
                     {/* Observability Provider Switcher */}
                     <div style={{ marginBottom: '1.5rem' }}>
