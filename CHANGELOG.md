@@ -4,6 +4,20 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.8.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.7.0...v0.8.0) (2026-11-13)
+
+
+### Features
+
+* enhance light mode contrast, clean extension options, and add Langfuse & LangSmith observability ([#170](https://github.com/Covai-Labs/JobFoundry/issues/170)) ([c1ad5d3](https://github.com/Covai-Labs/JobFoundry/commit/c1ad5d3c46180d695eb6ceb651f8ae2fbaa92c6c))
+* **extension:** improve LinkedIn JD extraction, noise pruning, and formatting ([#173](https://github.com/Covai-Labs/JobFoundry/issues/173)) ([05ec695](https://github.com/Covai-Labs/JobFoundry/commit/05ec69541db64d0fcdfa5840e02ffb8ae2c8eee7))
+
+
+### Bug Fixes
+
+* **extension,ingest:** address CodeRabbit & Greptile review comments on JD hydration and extraction ([#174](https://github.com/Covai-Labs/JobFoundry/issues/174)) ([d931037](https://github.com/Covai-Labs/JobFoundry/commit/d9310379117ff8592f6015e2e53829cfc2b02536))
+* SSRF DNS lookup, nested form submission, sticky save controls, and extension pairing onboarding ([#169](https://github.com/Covai-Labs/JobFoundry/issues/169)) ([8b4720f](https://github.com/Covai-Labs/JobFoundry/commit/8b4720fdaf6a976d92352b10a632379943e8dd95))
+
 ## [0.7.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.6.0...v0.7.0) (2026-11-12)
 
 
