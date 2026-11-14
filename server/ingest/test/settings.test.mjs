@@ -34,6 +34,12 @@ test('getAllSettings returns defaults when DB and env are empty', () => {
   const { settings, meta } = getAllSettings(db, { env: {} });
   assert.equal(settings.scorer_model, 'openrouter/google/gemini-2.0-flash-exp:free');
   assert.equal(settings.scorer_threshold, 75);
+  assert.equal(settings.scorer_inherit_default, true);
+  assert.equal(settings.scorer_inherit_model, true);
+  assert.equal(settings.tailor_inherit_default, true);
+  assert.equal(settings.tailor_inherit_model, true);
+  assert.equal(settings.copilot_inherit_default, true);
+  assert.equal(settings.copilot_inherit_model, true);
   assert.equal(meta.scorer_model.source, 'default');
   assert.equal(meta.scorer_threshold.source, 'default');
 });

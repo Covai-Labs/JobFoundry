@@ -512,14 +512,23 @@ export function buildApp({
       } else {
         const inheritDefault =
           getEffectiveSetting(db, `${feature}_inherit_default`, process.env, userId) ?? true;
+        const inheritModel =
+          getEffectiveSetting(db, `${feature}_inherit_model`, process.env, userId) ?? true;
         if (inheritDefault) {
           keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
           if (!keySetting.value) {
             keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, { userId });
           }
-          modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
-          if (!modelSetting.value) {
+          if (inheritModel) {
+            modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
+            if (!modelSetting.value) {
+              modelSetting = getEffectiveSettingWithSource(db, `${feature}_model`, { userId });
+            }
+          } else {
             modelSetting = getEffectiveSettingWithSource(db, `${feature}_model`, { userId });
+            if (!modelSetting.value) {
+              modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
+            }
           }
           baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', { userId });
           if (!baseSetting.value) {
@@ -1226,6 +1235,8 @@ export function buildApp({
       const registered = isRegisteredUser(db, userId);
       const inherit =
         getEffectiveSetting(db, 'scorer_inherit_default', process.env, userId) ?? true;
+      const inheritModel =
+        getEffectiveSetting(db, 'scorer_inherit_model', process.env, userId) ?? true;
       let keySetting = inherit
         ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
         : getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
@@ -1241,7 +1252,9 @@ export function buildApp({
           : ''
         : keySetting.value;
       const model =
-        (inherit ? getEffectiveSetting(db, 'default_llm_model', process.env, userId) : null) ||
+        (inherit && inheritModel
+          ? getEffectiveSetting(db, 'default_llm_model', process.env, userId)
+          : null) ||
         getEffectiveSetting(db, 'scorer_model', process.env, userId) ||
         getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
         'openrouter/openrouter/free';
@@ -2079,6 +2092,8 @@ export function buildApp({
       // BYOK: a registered user may only tailor with their own key — never a shared one.
       const tailorInherit =
         getEffectiveSetting(db, 'tailor_inherit_default', process.env, userId) ?? true;
+      const tailorInheritModel =
+        getEffectiveSetting(db, 'tailor_inherit_model', process.env, userId) ?? true;
       let tailorKeySetting = tailorInherit
         ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
         : getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
@@ -2158,7 +2173,7 @@ export function buildApp({
         (Number(getEffectiveSetting(db, 'tailor_timeout_seconds', process.env, userId)) || 900) *
         1000;
       const tailorModel =
-        (tailorInherit
+        (tailorInherit && tailorInheritModel
           ? getEffectiveSetting(db, 'default_llm_model', process.env, userId)
           : null) ||
         getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
@@ -2334,7 +2349,8 @@ export function buildApp({
   // --- COPILOT ROUTES ---
 
   function resolveCopilotConfig(userId) {
-    const inherit = getEffectiveSetting(db, 'copilot_inherit_model', process.env, userId);
+    const inheritModel =
+      getEffectiveSetting(db, 'copilot_inherit_model', process.env, userId) ?? true;
     const stopSlop =
       getEffectiveSetting(db, 'copilot_stop_slop_enabled', process.env, userId) ?? true;
     const constraints = getEffectiveSetting(db, 'copilot_constraints', process.env, userId) || '';
@@ -2351,12 +2367,16 @@ export function buildApp({
 
     const inheritDefault =
       getEffectiveSetting(db, 'copilot_inherit_default', process.env, userId) ?? true;
-    let copilotModel = '';
-    let copilotKey = '';
-    let copilotBase = '';
+    let copilotModel;
+    let copilotKey;
+    let copilotBase;
 
     if (inheritDefault) {
-      copilotModel = getEffectiveSetting(db, 'default_llm_model', process.env, userId) || '';
+      copilotModel = inheritModel
+        ? getEffectiveSetting(db, 'default_llm_model', process.env, userId) || ''
+        : getEffectiveSetting(db, 'copilot_model', process.env, userId) ||
+          getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
+          '';
       const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', {
         userId,
       });
@@ -2366,7 +2386,7 @@ export function buildApp({
           : ''
         : defaultKeySetting.value;
       copilotBase = getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) || '';
-    } else if (!inherit) {
+    } else {
       copilotModel = getEffectiveSetting(db, 'copilot_model', process.env, userId) || '';
       const keySetting = getEffectiveSettingWithSource(db, 'copilot_api_key', { userId });
       copilotKey = isRegisteredUser(db, userId)

@@ -371,6 +371,60 @@ async def test_get_user_effective_tailor_partial_provider_never_mixes_keys(tmp_p
     assert full["api_key"] == "sk-tailor-full-3"
     assert full["has_user_tailor_key"] is True
 
+    # Split provider/model inheritance: inherit credentials from Default Gateway,
+    # but specify custom model without re-entering API key or Base URL.
+    store.conn.execute(
+        "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("u_split", "split@example.com", "hash", "Split", "key_split", now, now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "default_llm_api_key", "mock-gateway-key-123", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "default_llm_api_base", "https://openrouter.ai/api/v1", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "default_llm_model", "openrouter/default/model", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "scorer_inherit_default", "true", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "scorer_inherit_model", "false", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "scorer_model", "openrouter/google/gemini-2.5-flash", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "tailor_inherit_default", "true", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "tailor_inherit_model", "false", now),
+    )
+    store.conn.execute(
+        "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+        ("u_split", "tailor_model", "openrouter/deepseek/deepseek-r1", now),
+    )
+
+    split_scorer = store.get_user_effective_llm("u_split")
+    assert split_scorer["model"] == "openrouter/google/gemini-2.5-flash"
+    assert split_scorer["api_key"] == "mock-gateway-key-123"
+    assert split_scorer["api_base"] == "https://openrouter.ai/api/v1"
+
+    split_tailor = store.get_user_effective_tailor("u_split")
+    assert split_tailor["model"] == "openrouter/deepseek/deepseek-r1"
+    assert split_tailor["api_key"] == "mock-gateway-key-123"
+    assert split_tailor["api_base"] == "https://openrouter.ai/api/v1"
+    assert split_tailor["has_user_tailor_key"] is True
+
 
 @pytest.mark.asyncio
 async def test_multi_user_worker_no_key_failure_never_falls_back_to_legacy(tmp_path):

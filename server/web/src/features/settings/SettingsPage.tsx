@@ -96,6 +96,308 @@ function getInitialTab(): SettingsTab {
   return 'gateway';
 }
 
+interface InheritedCustomModelSectionProps {
+  id: string;
+  label: string;
+  placeholder: string;
+  value: string;
+  onChange: (val: string) => void;
+  preferredTier?: 'fast' | 'reasoning';
+  selectedDefaultProvider?: string;
+  datalistId: string;
+  featureName: string;
+  icon?: 'zap' | 'sparkles';
+}
+
+const InheritedCustomModelSection: React.FC<InheritedCustomModelSectionProps> = ({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  preferredTier,
+  selectedDefaultProvider,
+  datalistId,
+  featureName,
+  icon = 'zap',
+}) => {
+  const providerMeta =
+    LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider) || LLM_PROVIDERS[0];
+  const matchingTierModels = preferredTier
+    ? providerMeta.recommendedModels.filter((m) => m.tier === preferredTier)
+    : providerMeta.recommendedModels;
+  const modelsToShow =
+    matchingTierModels.length > 0 ? matchingTierModels : providerMeta.recommendedModels;
+
+  return (
+    <>
+      {modelsToShow.length > 0 && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            background: 'var(--bg-input, rgba(255,255,255,0.02))',
+            border: '1px dashed var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+          }}
+        >
+          <div
+            style={{
+              fontSize: '0.8rem',
+              fontWeight: 600,
+              color: 'var(--text-secondary)',
+              marginBottom: '0.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+          >
+            {icon === 'zap' ? (
+              <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
+            ) : (
+              <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
+            )}
+            Recommended {featureName} Models ({providerMeta.name}):
+          </div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+            {modelsToShow.map((m) => {
+              const isCurrent = value === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => onChange(m.id)}
+                  style={{
+                    padding: '0.35rem 0.65rem',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.78rem',
+                    border: isCurrent
+                      ? '1px solid var(--accent-primary)'
+                      : '1px solid var(--border-subtle)',
+                    background: isCurrent ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
+                    color: isCurrent ? 'var(--accent-primary)' : 'var(--text-primary)',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.35rem',
+                  }}
+                  title={m.description}
+                >
+                  <span>{m.name}</span>
+                  <span
+                    style={{
+                      fontSize: '0.7rem',
+                      padding: '0.1rem 0.35rem',
+                      borderRadius: '3px',
+                      background: isCurrent ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                      color: isCurrent ? '#fff' : 'var(--text-muted)',
+                    }}
+                  >
+                    {m.tier === 'fast' ? 'Fast' : 'Reasoning'}
+                  </span>
+                  {isCurrent && <Check size={12} />}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <label
+          htmlFor={id}
+          style={{
+            display: 'block',
+            fontSize: '0.85rem',
+            fontWeight: 500,
+            marginBottom: '0.35rem',
+          }}
+        >
+          {label}
+        </label>
+        <input
+          id={id}
+          type="text"
+          list={datalistId}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="input-text"
+          placeholder={placeholder}
+          required
+        />
+        <datalist id={datalistId}>
+          {providerMeta.recommendedModels.map((m) => (
+            <option key={m.id} value={m.id}>
+              {m.name} ({m.tier === 'fast' ? 'Fast' : 'Reasoning'})
+            </option>
+          ))}
+        </datalist>
+        <span
+          style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)',
+            marginTop: '0.25rem',
+            display: 'block',
+          }}
+        >
+          Enter any model available through your {providerMeta.name || 'Default Gateway'} account.
+        </span>
+      </div>
+    </>
+  );
+};
+
+interface InheritProviderSettingsBlockProps {
+  inheritDefault: boolean;
+  onToggleInheritDefault: (val: boolean) => void;
+  inheritModel: boolean;
+  onToggleInheritModel: (val: boolean) => void;
+  featureName: string;
+  defaultProviderName: string;
+  defaultModel?: string;
+  children?: React.ReactNode;
+}
+
+const InheritProviderSettingsBlock: React.FC<InheritProviderSettingsBlockProps> = ({
+  inheritDefault,
+  onToggleInheritDefault,
+  inheritModel,
+  onToggleInheritModel,
+  featureName,
+  defaultProviderName,
+  defaultModel,
+  children,
+}) => {
+  return (
+    <>
+      <div
+        style={{
+          marginBottom: '1.25rem',
+          padding: '0.85rem 1rem',
+          borderRadius: 'var(--radius-md)',
+          background: inheritDefault ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-input)',
+          border: '1px solid var(--border-subtle)',
+        }}
+      >
+        <label
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            cursor: 'pointer',
+            fontSize: '0.88rem',
+            fontWeight: 600,
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={inheritDefault}
+            onChange={(e) => onToggleInheritDefault(e.target.checked)}
+            style={{
+              accentColor: 'var(--accent-primary)',
+              width: '16px',
+              height: '16px',
+            }}
+          />
+          Inherit provider credentials from Default AI Gateway (Recommended)
+        </label>
+        <div
+          style={{
+            fontSize: '0.78rem',
+            color: 'var(--text-muted)',
+            marginTop: '0.35rem',
+            marginLeft: '1.65rem',
+          }}
+        >
+          {inheritDefault
+            ? `Uses ${defaultProviderName} API key and base URL.`
+            : `Configure a dedicated, independent LLM model and credentials specifically for ${featureName}.`}
+        </div>
+
+        {inheritDefault && (
+          <div
+            style={{
+              marginTop: '0.75rem',
+              paddingTop: '0.75rem',
+              borderTop: '1px solid var(--border-subtle)',
+              marginLeft: '1.65rem',
+            }}
+          >
+            <label
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                fontSize: '0.825rem',
+                fontWeight: 500,
+                cursor: 'pointer',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              <input
+                type="checkbox"
+                checked={inheritModel}
+                onChange={(e) => onToggleInheritModel(e.target.checked)}
+                style={{
+                  accentColor: 'var(--accent-primary)',
+                  width: '15px',
+                  height: '15px',
+                }}
+              />
+              Also inherit model from Default AI Gateway ({defaultModel || 'Default Model'})
+            </label>
+          </div>
+        )}
+      </div>
+
+      {inheritDefault && !inheritModel && (
+        <div
+          style={{
+            marginTop: '0.75rem',
+            marginBottom: '1.25rem',
+            padding: '1rem',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid var(--border-subtle)',
+            background: 'var(--bg-card)',
+          }}
+        >
+          <div style={{ marginBottom: '1rem' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.5rem',
+                marginBottom: '0.35rem',
+              }}
+            >
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.2rem 0.55rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(99, 102, 241, 0.12)',
+                  color: 'var(--accent-primary)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}
+              >
+                <Lock size={12} />
+                Provider: {defaultProviderName} (Inherited)
+              </span>
+              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                API credentials and base URL are automatically inherited.
+              </span>
+            </div>
+          </div>
+          {children}
+        </div>
+      )}
+    </>
+  );
+};
+
 export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSettings }) => {
   const { colorMode, setColorMode, accentTheme, setAccentTheme } = useTheme();
   const toast = useToast();
@@ -159,8 +461,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     default_llm_api_key: '',
     default_llm_api_base: '',
     scorer_inherit_default: true,
+    scorer_inherit_model: true,
     tailor_inherit_default: true,
+    tailor_inherit_model: true,
     copilot_inherit_default: true,
+    copilot_inherit_model: true,
     scorer_model: 'openrouter/openrouter/free',
     scorer_provider: 'openrouter',
     scorer_api_key: '',
@@ -185,7 +490,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     tailor_prompt_monolithic: '',
     tailor_prompt_final_check: '',
     tailor_timeout_seconds: 900,
-    copilot_inherit_model: true,
     copilot_model: 'openrouter/openrouter/free',
     copilot_provider: 'openrouter',
     copilot_api_key: '',
@@ -730,8 +1034,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       default_llm_model: 'openrouter/openrouter/free',
       default_llm_provider: 'openrouter',
       scorer_inherit_default: true,
+      scorer_inherit_model: true,
       tailor_inherit_default: true,
+      tailor_inherit_model: true,
       copilot_inherit_default: true,
+      copilot_inherit_model: true,
       scorer_model: 'openrouter/openrouter/free',
       scorer_threshold: 75,
       tailor_model: 'openrouter/openrouter/free',
@@ -786,8 +1093,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       setTestResult(null);
       try {
         const isInherited = formSettings.scorer_inherit_default !== false;
+        const inheritModel = formSettings.scorer_inherit_model !== false;
         const model = isInherited
-          ? formSettings.default_llm_model || 'openrouter/openrouter/free'
+          ? (inheritModel
+              ? formSettings.default_llm_model
+              : formSettings.scorer_model || formSettings.default_llm_model) ||
+            'openrouter/openrouter/free'
           : formSettings.scorer_model;
         const apiBase = isInherited
           ? formSettings.default_llm_api_base
@@ -825,8 +1136,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       setTailorTestResult(null);
       try {
         const isInherited = formSettings.tailor_inherit_default !== false;
+        const inheritModel = formSettings.tailor_inherit_model !== false;
         const model = isInherited
-          ? formSettings.default_llm_model || 'openrouter/openrouter/free'
+          ? (inheritModel
+              ? formSettings.default_llm_model
+              : formSettings.tailor_model || formSettings.default_llm_model) ||
+            'openrouter/openrouter/free'
           : formSettings.tailor_model;
         const apiBase = isInherited
           ? formSettings.default_llm_api_base
@@ -864,8 +1179,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       setCopilotTestResult(null);
       try {
         const isInherited = formSettings.copilot_inherit_default !== false;
+        const inheritModel = formSettings.copilot_inherit_model !== false;
         const model = isInherited
-          ? formSettings.default_llm_model || 'openrouter/openrouter/free'
+          ? (inheritModel
+              ? formSettings.default_llm_model
+              : formSettings.copilot_model || formSettings.default_llm_model) ||
+            'openrouter/openrouter/free'
           : formSettings.copilot_model;
         const apiBase = isInherited
           ? formSettings.default_llm_api_base
@@ -2003,87 +2322,57 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         gap: '0.75rem',
                       }}
                     >
-                      <div
-                        style={{
-                          padding: '0.75rem',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
+                      {[
+                        {
+                          name: 'AI Fit Scorer',
+                          inheritDefault: formSettings.scorer_inherit_default,
+                          inheritModel: formSettings.scorer_inherit_model,
+                          model: formSettings.scorer_model,
+                        },
+                        {
+                          name: 'Resume Tailor',
+                          inheritDefault: formSettings.tailor_inherit_default,
+                          inheritModel: formSettings.tailor_inherit_model,
+                          model: formSettings.tailor_model,
+                        },
+                        {
+                          name: 'Copilot & Prompts',
+                          inheritDefault: formSettings.copilot_inherit_default,
+                          inheritModel: formSettings.copilot_inherit_model,
+                          model: formSettings.copilot_model,
+                        },
+                      ].map((card) => (
                         <div
-                          style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.2rem' }}
-                        >
-                          AI Fit Scorer
-                        </div>
-                        <div
+                          key={card.name}
                           style={{
-                            fontSize: '0.75rem',
-                            color:
-                              formSettings.scorer_inherit_default !== false
-                                ? 'var(--color-success, #10b981)'
-                                : 'var(--text-muted)',
+                            padding: '0.75rem',
+                            borderRadius: 'var(--radius-md)',
+                            background: 'var(--bg-input)',
+                            border: '1px solid var(--border-subtle)',
                           }}
                         >
-                          {formSettings.scorer_inherit_default !== false
-                            ? '✓ Inheriting from Gateway'
-                            : 'Using Custom Override'}
+                          <div
+                            style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.2rem' }}
+                          >
+                            {card.name}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: '0.75rem',
+                              color:
+                                card.inheritDefault !== false
+                                  ? 'var(--color-success, #10b981)'
+                                  : 'var(--text-muted)',
+                            }}
+                          >
+                            {card.inheritDefault !== false
+                              ? card.inheritModel !== false
+                                ? '✓ Inheriting Provider & Model'
+                                : `✓ Inheriting Provider (${card.model || 'Custom Model'})`
+                              : 'Using Custom Override'}
+                          </div>
                         </div>
-                      </div>
-                      <div
-                        style={{
-                          padding: '0.75rem',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        <div
-                          style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.2rem' }}
-                        >
-                          Resume Tailor
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color:
-                              formSettings.tailor_inherit_default !== false
-                                ? 'var(--color-success, #10b981)'
-                                : 'var(--text-muted)',
-                          }}
-                        >
-                          {formSettings.tailor_inherit_default !== false
-                            ? '✓ Inheriting from Gateway'
-                            : 'Using Custom Override'}
-                        </div>
-                      </div>
-                      <div
-                        style={{
-                          padding: '0.75rem',
-                          borderRadius: 'var(--radius-md)',
-                          background: 'var(--bg-input)',
-                          border: '1px solid var(--border-subtle)',
-                        }}
-                      >
-                        <div
-                          style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.2rem' }}
-                        >
-                          Copilot & Prompts
-                        </div>
-                        <div
-                          style={{
-                            fontSize: '0.75rem',
-                            color:
-                              formSettings.copilot_inherit_default !== false
-                                ? 'var(--color-success, #10b981)'
-                                : 'var(--text-muted)',
-                          }}
-                        >
-                          {formSettings.copilot_inherit_default !== false
-                            ? '✓ Inheriting from Gateway'
-                            : 'Using Custom Override'}
-                        </div>
-                      </div>
+                      ))}
                     </div>
                   </div>
 
@@ -2252,56 +2541,40 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     </p>
 
                     {/* Inherit toggle from Default AI Gateway */}
-                    <div
-                      style={{
-                        marginBottom: '1.25rem',
-                        padding: '0.85rem 1rem',
-                        borderRadius: 'var(--radius-md)',
-                        background:
-                          formSettings.scorer_inherit_default !== false
-                            ? 'rgba(99, 102, 241, 0.08)'
-                            : 'var(--bg-input)',
-                        border: '1px solid var(--border-subtle)',
+                    <InheritProviderSettingsBlock
+                      inheritDefault={formSettings.scorer_inherit_default !== false}
+                      onToggleInheritDefault={(val) => {
+                        handleFieldChange('scorer_inherit_default', val);
+                        setIsDirty(true);
                       }}
+                      inheritModel={formSettings.scorer_inherit_model !== false}
+                      onToggleInheritModel={(val) => {
+                        handleFieldChange('scorer_inherit_model', val);
+                        setIsDirty(true);
+                      }}
+                      featureName="job fit scoring"
+                      defaultProviderName={
+                        LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider)?.name ||
+                        'Default Gateway'
+                      }
+                      defaultModel={formSettings.default_llm_model}
                     >
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.65rem',
-                          cursor: 'pointer',
-                          fontSize: '0.88rem',
-                          fontWeight: 600,
+                      <InheritedCustomModelSection
+                        id="custom-scorer-model"
+                        label="Custom Scorer Model Identifier"
+                        placeholder="openrouter/google/gemini-2.5-flash"
+                        value={formSettings.scorer_model}
+                        onChange={(val) => {
+                          handleFieldChange('scorer_model', val);
+                          setIsDirty(true);
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formSettings.scorer_inherit_default !== false}
-                          onChange={(e) => {
-                            handleFieldChange('scorer_inherit_default', e.target.checked);
-                            setIsDirty(true);
-                          }}
-                          style={{
-                            accentColor: 'var(--accent-primary)',
-                            width: '16px',
-                            height: '16px',
-                          }}
-                        />
-                        Inherit model & provider from Default AI Gateway (Recommended)
-                      </label>
-                      <div
-                        style={{
-                          fontSize: '0.78rem',
-                          color: 'var(--text-muted)',
-                          marginTop: '0.35rem',
-                          marginLeft: '1.65rem',
-                        }}
-                      >
-                        {formSettings.scorer_inherit_default !== false
-                          ? `Currently using ${formSettings.default_llm_model || 'openrouter/openrouter/free'} with inherited gateway credentials.`
-                          : 'Configure a dedicated, independent LLM model and credentials specifically for job fit scoring.'}
-                      </div>
-                    </div>
+                        preferredTier="fast"
+                        selectedDefaultProvider={selectedDefaultProvider}
+                        datalistId="scorer-model-suggestions"
+                        featureName="Scorer"
+                        icon="zap"
+                      />
+                    </InheritProviderSettingsBlock>
 
                     {formSettings.scorer_inherit_default === false && (
                       <>
@@ -2752,7 +3025,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             Send a minimal 1-token test prompt via LiteLLM to verify model routing
                             and credentials using{' '}
                             {formSettings.scorer_inherit_default !== false
-                              ? 'inherited gateway credentials'
+                              ? `inherited gateway credentials (${formSettings.scorer_inherit_model !== false ? formSettings.default_llm_model : formSettings.scorer_model})`
                               : 'custom scorer credentials'}
                             .
                           </div>
@@ -2850,56 +3123,40 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     </p>
 
                     {/* Inherit toggle from Default AI Gateway */}
-                    <div
-                      style={{
-                        marginBottom: '1.25rem',
-                        padding: '0.85rem 1rem',
-                        borderRadius: 'var(--radius-md)',
-                        background:
-                          formSettings.tailor_inherit_default !== false
-                            ? 'rgba(99, 102, 241, 0.08)'
-                            : 'var(--bg-input)',
-                        border: '1px solid var(--border-subtle)',
+                    <InheritProviderSettingsBlock
+                      inheritDefault={formSettings.tailor_inherit_default !== false}
+                      onToggleInheritDefault={(val) => {
+                        handleFieldChange('tailor_inherit_default', val);
+                        setIsDirty(true);
                       }}
+                      inheritModel={formSettings.tailor_inherit_model !== false}
+                      onToggleInheritModel={(val) => {
+                        handleFieldChange('tailor_inherit_model', val);
+                        setIsDirty(true);
+                      }}
+                      featureName="high-capacity resume tailoring"
+                      defaultProviderName={
+                        LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider)?.name ||
+                        'Default Gateway'
+                      }
+                      defaultModel={formSettings.default_llm_model}
                     >
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.65rem',
-                          cursor: 'pointer',
-                          fontSize: '0.88rem',
-                          fontWeight: 600,
+                      <InheritedCustomModelSection
+                        id="custom-tailor-model"
+                        label="Custom Tailoring Model Identifier"
+                        placeholder="openrouter/anthropic/claude-3.5-sonnet"
+                        value={formSettings.tailor_model}
+                        onChange={(val) => {
+                          handleFieldChange('tailor_model', val);
+                          setIsDirty(true);
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formSettings.tailor_inherit_default !== false}
-                          onChange={(e) => {
-                            handleFieldChange('tailor_inherit_default', e.target.checked);
-                            setIsDirty(true);
-                          }}
-                          style={{
-                            accentColor: 'var(--accent-primary)',
-                            width: '16px',
-                            height: '16px',
-                          }}
-                        />
-                        Inherit model & provider from Default AI Gateway (Recommended)
-                      </label>
-                      <div
-                        style={{
-                          fontSize: '0.78rem',
-                          color: 'var(--text-muted)',
-                          marginTop: '0.35rem',
-                          marginLeft: '1.65rem',
-                        }}
-                      >
-                        {formSettings.tailor_inherit_default !== false
-                          ? `Currently using ${formSettings.default_llm_model || 'openrouter/openrouter/free'} with inherited gateway credentials.`
-                          : 'Configure independent provider credentials and dedicated model specifically for high-capacity resume tailoring.'}
-                      </div>
-                    </div>
+                        preferredTier="reasoning"
+                        selectedDefaultProvider={selectedDefaultProvider}
+                        datalistId="tailor-model-suggestions"
+                        featureName="Tailoring"
+                        icon="sparkles"
+                      />
+                    </InheritProviderSettingsBlock>
 
                     {/* If NOT inherited, show dedicated provider selector, key, and model */}
                     {formSettings.tailor_inherit_default === false && (
@@ -3890,7 +4147,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                             Verify model access and token generation using{' '}
                             {formSettings.tailor_inherit_default !== false
-                              ? 'inherited gateway credentials'
+                              ? `inherited gateway credentials (${formSettings.tailor_inherit_model !== false ? formSettings.default_llm_model : formSettings.tailor_model})`
                               : 'custom tailor credentials'}
                             .
                           </div>
@@ -3991,56 +4248,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     </p>
 
                     {/* Inherit Toggle */}
-                    <div
-                      style={{
-                        marginBottom: '1.25rem',
-                        padding: '0.85rem 1rem',
-                        borderRadius: 'var(--radius-md)',
-                        background:
-                          formSettings.copilot_inherit_default !== false
-                            ? 'rgba(99, 102, 241, 0.08)'
-                            : 'var(--bg-input)',
-                        border: '1px solid var(--border-subtle)',
+                    <InheritProviderSettingsBlock
+                      inheritDefault={formSettings.copilot_inherit_default !== false}
+                      onToggleInheritDefault={(val) => {
+                        handleFieldChange('copilot_inherit_default', val);
+                        setIsDirty(true);
                       }}
+                      inheritModel={formSettings.copilot_inherit_model !== false}
+                      onToggleInheritModel={(val) => {
+                        handleFieldChange('copilot_inherit_model', val);
+                        setIsDirty(true);
+                      }}
+                      featureName="Copilot drafts"
+                      defaultProviderName={
+                        LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider)?.name ||
+                        'Default Gateway'
+                      }
+                      defaultModel={formSettings.default_llm_model}
                     >
-                      <label
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.65rem',
-                          cursor: 'pointer',
-                          fontSize: '0.88rem',
-                          fontWeight: 600,
+                      <InheritedCustomModelSection
+                        id="custom-copilot-model"
+                        label="Custom Copilot Model Identifier"
+                        placeholder="openrouter/anthropic/claude-3.5-sonnet"
+                        value={formSettings.copilot_model || ''}
+                        onChange={(val) => {
+                          handleFieldChange('copilot_model', val);
+                          setIsDirty(true);
                         }}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={formSettings.copilot_inherit_default !== false}
-                          onChange={(e) => {
-                            handleFieldChange('copilot_inherit_default', e.target.checked);
-                            setIsDirty(true);
-                          }}
-                          style={{
-                            accentColor: 'var(--accent-primary)',
-                            width: '16px',
-                            height: '16px',
-                          }}
-                        />
-                        Inherit model & provider from Default AI Gateway (Recommended)
-                      </label>
-                      <div
-                        style={{
-                          fontSize: '0.78rem',
-                          color: 'var(--text-muted)',
-                          marginTop: '0.35rem',
-                          marginLeft: '1.65rem',
-                        }}
-                      >
-                        {formSettings.copilot_inherit_default !== false
-                          ? `Currently using ${formSettings.default_llm_model || 'openrouter/openrouter/free'} with inherited gateway credentials.`
-                          : 'Configure a dedicated, independent LLM provider and credentials specifically for Copilot drafts.'}
-                      </div>
-                    </div>
+                        selectedDefaultProvider={selectedDefaultProvider}
+                        datalistId="copilot-model-suggestions"
+                        featureName="Copilot"
+                        icon="sparkles"
+                      />
+                    </InheritProviderSettingsBlock>
 
                     {/* Dedicated Copilot Provider & Key if NOT inherited */}
                     {formSettings.copilot_inherit_default === false && (
@@ -4293,7 +4533,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                           Verify LLM token generation using{' '}
                           {formSettings.copilot_inherit_default !== false
-                            ? 'inherited gateway credentials'
+                            ? `inherited gateway credentials (${formSettings.copilot_inherit_model !== false ? formSettings.default_llm_model : formSettings.copilot_model})`
                             : 'custom copilot credentials'}
                           .
                         </div>
