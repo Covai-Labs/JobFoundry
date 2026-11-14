@@ -74,9 +74,28 @@ The service then:
 - posts the final result or failure to the callback URL
 - exposes status via `GET /api/v1/tasks/{task_id}`
 
+### Render only (no LLM)
+
+`POST /api/v1/render` re-renders a resume that has already been tailored — for
+example after a manual edit, or when a different theme is picked — without
+invoking the tailoring pipeline. No model call is made, so this is a pure
+HTML/CSS compile step:
+
+```json
+{ "resume": { "...": "JSON Resume" }, "theme": "jsonresume-theme-folio" }
+```
+
+It returns `pdf_base64` plus `plain_text`. The ATS plain text is derived from
+the JSON alone, so it is identical regardless of theme. `theme` defaults to
+`DEFAULT_THEME` and must be listed in `ALLOWED_THEMES`; if `resume` is omitted
+the configured master resume is used. Rendering writes temporary files to a
+throwaway directory, which is deleted before the response returns, so no
+artifacts are left on disk.
+
 ## Endpoints
 
 - `POST /api/v1/tailor`
+- `POST /api/v1/render`
 - `GET /api/v1/tasks/{task_id}`
 - `GET /api/v1/themes`
 - `GET /healthz`

@@ -1,9 +1,13 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-
+import asyncio
+import base64
+import tempfile
 import time
+from pathlib import Path
 from urllib.parse import urlparse
+
+from fastapi import APIRouter, Depends, HTTPException, Response, status
 from litellm import acompletion
 from resume_ops_api.api.deps import get_container
 from resume_ops_api.api.models import (
@@ -16,6 +20,8 @@ from resume_ops_api.api.models import (
     HealthResponse,
     MasterResumeStatus,
     QueuedTaskResponse,
+    RenderRequest,
+    RenderResponse,
     TailorRequest,
     TailorResponse,
     TaskError,
@@ -24,12 +30,12 @@ from resume_ops_api.api.models import (
     TestLlmResponse,
     ThemeListResponse,
 )
+from resume_ops_api.core.exceptions import AppError
 from resume_ops_api.services.ats_text import json_to_ats_text
 from resume_ops_api.services.container import ServiceContainer
 from resume_ops_api.services.ssrf_guard import assert_safe_url
 
 router = APIRouter()
-
 
 
 @router.get("/healthz", response_model=HealthResponse)
@@ -59,6 +65,58 @@ async def list_themes(container: ServiceContainer = Depends(get_container)) -> T
     return ThemeListResponse(
         default_theme=container.theme_service.default_theme,
         allowed_themes=container.theme_service.allowed_themes,
+    )
+
+
+def _encode_pdf(path: Path) -> str:
+    """Read a rendered PDF and base64-encode it.
+
+    Kept synchronous so the blocking file read can run in a worker thread
+    instead of stalling the event loop.
+    """
+    return base64.b64encode(path.read_bytes()).decode("ascii")
+
+
+@router.post(
+    "/api/v1/render",
+    status_code=status.HTTP_200_OK,
+)
+async def render_resume(
+    payload: RenderRequest,
+    container: ServiceContainer = Depends(get_container),
+) -> RenderResponse:
+    """Render an existing resume to PDF with a chosen theme.
+
+    No LLM is involved, so a tailored resume can be re-styled or re-exported
+    after the fact without re-running the tailoring pipeline.
+    """
+    resume_data = payload.resume if payload.resume is not None else container.master_resume
+    if resume_data is None:
+        raise AppError(
+            "No resume supplied and no master resume is configured.",
+            code="resume_missing",
+            status_code=400,
+        )
+
+    theme = container.theme_service.resolve(payload.theme)
+    container.validator.validate(resume_data, context="render resume")
+
+    # Render into a scratch directory: ResumeRenderer writes both resume.json
+    # and output.pdf into the directory it is given, so it must never be pointed
+    # at a caller's artifact directory.
+    async with container.render_semaphore:
+        with tempfile.TemporaryDirectory(prefix="resume-render-") as scratch_dir:
+            pdf_path = await container.renderer.render(
+                resume=resume_data,
+                theme=theme,
+                output_dir=Path(scratch_dir),
+            )
+            pdf_base64 = await asyncio.to_thread(_encode_pdf, Path(pdf_path))
+
+    return RenderResponse(
+        theme=theme,
+        pdf_base64=pdf_base64,
+        plain_text=json_to_ats_text(resume_data),
     )
 
 
