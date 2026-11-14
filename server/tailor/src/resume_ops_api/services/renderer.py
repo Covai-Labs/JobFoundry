@@ -9,15 +9,18 @@ from pathlib import Path
 from resume_ops_api.core.exceptions import AppError
 
 
-# Themes rendered by the bundled folio exporter. Any other allowed theme is
-# rendered with `resumed export --theme <name>`, which resolves the theme as
-# a Node package (bundled, or user-installed under /data/themes).
-FOLIO_EXPORTER_THEMES = frozenset(
-    {
-        "jsonresume-theme-folio",
-        "jsonresume-theme-folio-concise",
-    }
-)
+# Themes rendered by a bundled folio exporter, mapped to the binary that
+# renders them. `folio-export` and `folio-concise-export` are separate
+# binaries shipped by separate packages, so rendering a theme with the other
+# one silently produces the wrong layout instead of failing.
+FOLIO_EXPORTER_BINARIES = {
+    "jsonresume-theme-folio": "folio-export",
+    "jsonresume-theme-folio-concise": "folio-concise-export",
+}
+
+# Any theme not in that map is rendered with `resumed export --theme <name>`,
+# which resolves the theme as a Node package (bundled, or user-installed under
+# /data/themes).
 
 # `resumed` is pure ESM, and Node.js ignores NODE_PATH for `import()`, so a
 # theme installed only under these directories would fail to load by bare
@@ -148,6 +151,9 @@ class ResumeRenderer:
     ) -> None:
         self.binary = binary
         self.resumed_binary = resumed_binary
+        # `binary` stays the regular folio exporter; every other folio theme
+        # keeps the binary its own package ships.
+        self.folio_binaries = {**FOLIO_EXPORTER_BINARIES, "jsonresume-theme-folio": binary}
         # Resolved lazily so a DATA_DIR set after import (e.g. by the
         # packaged launchers) is still honoured.
         self.theme_search_paths = (
@@ -170,8 +176,13 @@ class ResumeRenderer:
         return target
 
     async def render(self, *, resume: dict, theme: str, output_dir: Path) -> Path:
-        use_folio_exporter = theme in FOLIO_EXPORTER_THEMES
-        binary = self._resolve_binary() if use_folio_exporter else self._resolve_binary(self.resumed_binary)
+        folio_binary = self.folio_binaries.get(theme)
+        use_folio_exporter = folio_binary is not None
+        binary = (
+            self._resolve_binary(folio_binary)
+            if use_folio_exporter
+            else self._resolve_binary(self.resumed_binary)
+        )
         output_dir.mkdir(parents=True, exist_ok=True)
         input_path = output_dir / "resume.json"
         pdf_path = output_dir / "output.pdf"
@@ -214,12 +225,22 @@ class ResumeRenderer:
                 "--puppeteer-arg=--disable-setuid-sandbox",
             ]
 
-        process = await asyncio.create_subprocess_exec(
-            *argv,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            env=env,
-        )
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *argv,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                env=env,
+            )
+        except FileNotFoundError as exc:
+            # A theme whose toolchain is not installed would otherwise surface
+            # as an unhandled 500 rather than a named failure.
+            raise AppError(
+                f"Render binary '{binary}' is not installed, so theme '{theme}' cannot be rendered.",
+                code="renderer_unavailable",
+                status_code=500,
+                details={"theme": theme, "binary": binary},
+            ) from exc
         _, stderr = await process.communicate()
         if process.returncode != 0:
             raise AppError(

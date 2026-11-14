@@ -36,9 +36,10 @@ It then:
 - keeps protected fields unchanged
 - tailors only allowed sections
 - validates the final output against the JSON Resume schema
-- renders a PDF using `folio-export` (from `jsonresume-theme-folio`) for the
-  bundled folio themes, or `resumed export --theme <name>` for any other
-  allowed theme (bundled or user-installed under `/data/themes`)
+- renders a PDF using the folio exporter that ships with the theme — `folio-export`
+  for `jsonresume-theme-folio`, `folio-concise-export` for
+  `jsonresume-theme-folio-concise` — or `resumed export --theme <name>` for any
+  other allowed theme (bundled or user-installed under `/data/themes`)
 
 ## Tailoring Rules
 
@@ -198,7 +199,8 @@ RestartSec=5
 
 ## Custom & External Themes
 
-`resume-ops` includes pre-installed `jsonresume-theme-folio` (default) and `jsonresume-theme-stackoverflow`.
+`resume-ops` includes pre-installed `jsonresume-theme-folio` (default),
+`jsonresume-theme-folio-concise` and `jsonresume-theme-stackoverflow`.
 
 ### Adding Third-Party Themes
 
@@ -320,9 +322,9 @@ podman run --rm \
     --jd ./target-job.md \
     --output ./tailored-resume.pdf
 
-# Or natively (requires global npm install of jsonresume-theme-folio, resumed & puppeteer):
+# Or natively (requires global npm install of the folio themes, resumed & puppeteer):
 uv pip install -e .
-npm install -g jsonresume-theme-folio resumed puppeteer
+npm install -g jsonresume-theme-folio jsonresume-theme-folio-concise jsonresume-theme-stackoverflow resumed puppeteer
 resume-ops --resume master-resume.json --jd target-job.md --output ./tailored-resume.pdf
 ```
 
