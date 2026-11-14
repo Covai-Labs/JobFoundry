@@ -179,7 +179,7 @@ openai==2.54.0
     # via
     #   instructor
     #   litellm
-opentelemetry-api==1.45.1
+opentelemetry-api==1.45.2
     # via fastapi
 orjson==3.12.0
     # via
