@@ -84,7 +84,17 @@ export const SETTINGS_METADATA = {
     default: true,
     type: 'boolean',
   },
+  scorer_inherit_model: {
+    env: null,
+    default: true,
+    type: 'boolean',
+  },
   tailor_inherit_default: {
+    env: null,
+    default: true,
+    type: 'boolean',
+  },
+  tailor_inherit_model: {
     env: null,
     default: true,
     type: 'boolean',

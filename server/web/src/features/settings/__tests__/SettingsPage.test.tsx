@@ -272,7 +272,10 @@ describe('SettingsPage', () => {
     });
 
     expect(
-      screen.getByLabelText(/Inherit model & provider from Default AI Gateway/i)
+      screen.getByLabelText(/Inherit provider credentials from Default AI Gateway/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/Also inherit model from Default AI Gateway/i)
     ).toBeInTheDocument();
 
     const tailorTestBtn = screen.getByTestId('test-tailor-llm-btn');
@@ -287,6 +290,52 @@ describe('SettingsPage', () => {
         })
       );
       expect(screen.getAllByText(/Tailoring model responded OK/i).length).toBeGreaterThanOrEqual(1);
+    });
+  });
+
+  it('allows inheriting provider credentials while customizing the model for tailoring', async () => {
+    const testLlmSpy = vi.spyOn(api, 'testLlmConnection').mockResolvedValue({
+      success: true,
+      latencyMs: 150,
+      message: 'Custom tailor model responded OK',
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Resume Tailor/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Resume Tailoring Engine (resume-ops)')).toBeInTheDocument();
+    });
+
+    // Uncheck "Also inherit model from Default AI Gateway"
+    const inheritModelCheckbox = screen.getByLabelText(
+      /Also inherit model from Default AI Gateway/i
+    );
+    fireEvent.click(inheritModelCheckbox);
+
+    // Custom model input should now appear
+    const tailorInput = screen.getByPlaceholderText('openrouter/anthropic/claude-3.5-sonnet');
+    expect(tailorInput).toBeInTheDocument();
+
+    fireEvent.change(tailorInput, {
+      target: { value: 'openrouter/deepseek/deepseek-r1' },
+    });
+
+    const tailorTestBtn = screen.getByTestId('test-tailor-llm-btn');
+    fireEvent.click(tailorTestBtn);
+
+    await waitFor(() => {
+      expect(testLlmSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          provider: 'openrouter',
+          apiKey: 'sk-or-••••••••0d60',
+          model: 'openrouter/deepseek/deepseek-r1',
+        })
+      );
     });
   });
 

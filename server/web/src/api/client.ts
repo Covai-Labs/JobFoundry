@@ -674,7 +674,9 @@ export interface SystemSettings {
   default_llm_api_key?: string;
   default_llm_api_base?: string;
   scorer_inherit_default?: boolean;
+  scorer_inherit_model?: boolean;
   tailor_inherit_default?: boolean;
+  tailor_inherit_model?: boolean;
   copilot_inherit_default?: boolean;
   scorer_model: string;
   scorer_provider: string;
