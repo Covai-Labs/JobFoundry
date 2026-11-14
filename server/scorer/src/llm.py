@@ -13,6 +13,35 @@ from src.ssrf_guard import assert_safe_url, install_transport_guard
 
 logger = logging.getLogger(__name__)
 
+# C0 control characters other than tab, plus DEL. Every one of them is
+# translated to a space before a value reaches a log record.
+_LOG_CONTROL_CHARS = {code: 0x20 for code in range(0x20) if code != 0x09}
+_LOG_CONTROL_CHARS[0x7F] = 0x20
+
+
+def _log_safe(value: Any, limit: int = 200) -> str:
+    """
+    Flatten an untrusted value into a single log-safe line.
+
+    Job records arrive from scraped pages, and provider errors can echo request
+    content back, so either can carry CR/LF or other control characters. Log
+    records are newline-delimited, which makes that a log-forging primitive
+    (CWE-117). Translate control characters to spaces, collapse the remaining
+    whitespace, then cap the length so one oversized field cannot dominate a
+    record.
+
+    Args:
+        value: Anything whose ``str()`` is about to be logged.
+        limit: Maximum number of characters kept.
+
+    Returns:
+        A single line of plain text, at most ``limit`` characters long.
+    """
+    text = " ".join(str(value).translate(_LOG_CONTROL_CHARS).split())
+    if len(text) > limit:
+        text = text[: limit - 3] + "..."
+    return text
+
 
 def format_resume_for_prompt(resume: dict[str, Any]) -> str:
     """
@@ -230,8 +259,8 @@ class LiteLLMClient:
             kwargs["api_base"] = api_base
 
         start_time = time.perf_counter()
-        job_id = job.get("id", "unknown")
-        logger.info("Evaluating job %s with model %s", job_id, model)
+        job_id = _log_safe(job.get("id", "unknown"), limit=64)
+        logger.info("Evaluating job %s with model %s", job_id, _log_safe(model, limit=64))
         max_attempts = 3
         for attempt in range(1, max_attempts + 1):
             try:
@@ -255,7 +284,7 @@ class LiteLLMClient:
                         job_id,
                         attempt,
                         max_attempts,
-                        e,
+                        _log_safe(e, limit=300),
                         backoff,
                     )
                     await asyncio.sleep(backoff)
@@ -266,6 +295,6 @@ class LiteLLMClient:
                     "LLM evaluation failed for job %s after %.2fms: %s",
                     job_id,
                     duration_ms,
-                    e,
+                    _log_safe(e, limit=300),
                 )
                 raise

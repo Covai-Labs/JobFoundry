@@ -1,6 +1,13 @@
 import os
 import pytest
-from src.llm import LLMClient, StubLLM, LiteLLMClient, ScoreResult, format_resume_for_prompt
+from src.llm import (
+    LLMClient,
+    StubLLM,
+    LiteLLMClient,
+    ScoreResult,
+    _log_safe,
+    format_resume_for_prompt,
+)
 
 
 def test_format_resume_for_prompt():
@@ -82,3 +89,33 @@ async def test_litellm_client_skips_without_env(monkeypatch):
     # Without API keys or model configured, live calls should be skipped in normal test suite
     if not os.getenv("LIVE"):
         pytest.skip("Skipping live LLM test (LIVE env not set)")
+
+
+def test_log_safe_collapses_line_breaks():
+    forged = "job-1\n2026-01-01 00:00:00 ERROR forged entry"
+    cleaned = _log_safe(forged)
+    assert "\n" not in cleaned
+    assert "\r" not in cleaned
+    assert cleaned == "job-1 2026-01-01 00:00:00 ERROR forged entry"
+
+
+def test_log_safe_replaces_control_characters():
+    cleaned = _log_safe("job\x00\x1b\x7f-1")
+    assert "\x00" not in cleaned
+    assert "\x1b" not in cleaned
+    assert "\x7f" not in cleaned
+    assert cleaned == "job -1"
+
+
+def test_log_safe_truncates_long_values():
+    cleaned = _log_safe("x" * 500, limit=20)
+    assert len(cleaned) == 20
+    assert cleaned.endswith("...")
+
+
+def test_log_safe_accepts_non_string_values():
+    assert _log_safe(ValueError("boom\nsecond line")) == "boom second line"
+
+
+def test_log_safe_keeps_ordinary_values_intact():
+    assert _log_safe("job-abc_123", limit=64) == "job-abc_123"
