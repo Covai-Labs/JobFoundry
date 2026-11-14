@@ -145,7 +145,16 @@ export async function captureCurrentTab({
     status.style.color = '';
   }
   try {
-    const response = await send('popup:captureActiveTab', undefined);
+    const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+    let tabId: number | undefined;
+    try {
+      const tabs = await api?.tabs?.query?.({ active: true, currentWindow: true });
+      tabId = tabs?.[0]?.id;
+    } catch {}
+    const response = await send(
+      'popup:captureActiveTab',
+      typeof tabId === 'number' ? { tabId } : undefined
+    );
     if (response?.ok) {
       const job = response.job;
       const label = job?.title

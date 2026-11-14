@@ -1,7 +1,8 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { sendMessage } from '../shared/messaging.ts';
+import { sendMessage, onMessage } from '../shared/messaging.ts';
 import { getConfig } from '../shared/config.ts';
 import { createPassiveObserver } from '../content/passive.js';
+import { extractJobsFromDocument } from '../content/extractors/index.js';
 
 export default defineContentScript({
   matches: [
@@ -28,6 +29,17 @@ export default defineContentScript({
   ],
   runAt: 'document_idle',
   async main(ctx) {
+    // Register on-demand extraction listener for popup/background
+    onMessage('content:extractActiveJob', () => {
+      try {
+        const jobs = extractJobsFromDocument(document);
+        return { ok: true, jobs };
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        return { ok: false, error: message };
+      }
+    });
+
     const config = await getConfig();
     if (!config.passiveMode) return;
 
