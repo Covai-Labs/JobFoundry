@@ -163,4 +163,56 @@ describe('computeResumeDiff', () => {
       tailored: 'Newly added description',
     });
   });
+
+  it('handles unnamed projects and duplicate project names one-to-one', () => {
+    const orig = {
+      projects: [
+        { description: 'Unnamed project 1', highlights: ['Bullet 1'] },
+        { name: 'Duplicate Name', description: 'First duplicate', highlights: ['First'] },
+        { name: 'Duplicate Name', description: 'Second duplicate', highlights: ['Second'] },
+      ],
+    };
+    const tail = {
+      projects: [
+        { description: 'Unnamed project 1 rewritten', highlights: ['Bullet 1'] },
+        { name: 'Duplicate Name', description: 'First duplicate tailored', highlights: ['First'] },
+        {
+          name: 'Duplicate Name',
+          description: 'Second duplicate tailored',
+          highlights: ['Second'],
+        },
+        { name: 'Brand New Project', description: 'Added project', highlights: ['New bullet'] },
+      ],
+    };
+
+    const diff = computeResumeDiff(orig, tail);
+    expect(diff.projects).toHaveLength(4);
+
+    // Unnamed project matches at index 0
+    expect(diff.projects[0].name).toBe('Project 1');
+    expect(diff.projects[0].descriptionChange).toEqual({
+      original: 'Unnamed project 1',
+      tailored: 'Unnamed project 1 rewritten',
+    });
+
+    // First duplicate matches first
+    expect(diff.projects[1].descriptionChange).toEqual({
+      original: 'First duplicate',
+      tailored: 'First duplicate tailored',
+    });
+
+    // Second duplicate matches second
+    expect(diff.projects[2].descriptionChange).toEqual({
+      original: 'Second duplicate',
+      tailored: 'Second duplicate tailored',
+    });
+
+    // Brand new project added
+    expect(diff.projects[3].name).toBe('Brand New Project');
+    expect(diff.projects[3].isOmitted).toBe(false);
+    expect(diff.projects[3].descriptionChange).toEqual({
+      original: '',
+      tailored: 'Added project',
+    });
+  });
 });

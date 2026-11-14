@@ -139,17 +139,31 @@ export function computeResumeDiff(
   const tailProjects: any[] = tailored.projects || [];
 
   const projects: ProjectDiff[] = [];
-  const tailNames = new Set(tailProjects.map((p) => p.name).filter(Boolean));
-  const allProjectNames = [
-    ...tailProjects.map((p) => p.name).filter(Boolean),
-    ...origProjects.map((p) => p.name).filter((name) => Boolean(name) && !tailNames.has(name)),
-  ];
+  const usedTailIndices = new Set<number>();
 
-  for (const name of allProjectNames) {
-    const origProj = origProjects.find((p) => p.name === name);
-    const tailProj = tailProjects.find((p) => p.name === name);
+  for (let i = 0; i < origProjects.length; i++) {
+    const origProj = origProjects[i];
+    const origName = origProj?.name?.trim() || '';
 
-    const isOmitted = Boolean(origProj && !tailProj);
+    let tailIdx = -1;
+    if (origName) {
+      tailIdx = tailProjects.findIndex(
+        (tp, idx) => !usedTailIndices.has(idx) && (tp?.name?.trim() || '') === origName
+      );
+    } else {
+      // For unnamed projects, match by position index if target is also unnamed
+      if (tailProjects[i] && !tailProjects[i]?.name?.trim() && !usedTailIndices.has(i)) {
+        tailIdx = i;
+      }
+    }
+
+    const tailProj = tailIdx !== -1 ? tailProjects[tailIdx] : undefined;
+    if (tailIdx !== -1) {
+      usedTailIndices.add(tailIdx);
+    }
+
+    const isOmitted = !tailProj;
+    const name = origName || tailProj?.name?.trim() || `Project ${i + 1}`;
 
     const origDesc = origProj?.description?.trim() ?? '';
     const tailDesc = tailProj?.description?.trim() ?? '';
@@ -176,6 +190,29 @@ export function computeResumeDiff(
       highlights: highlightsDiff,
       keywords: keywordsDiff,
     });
+  }
+
+  // Include any newly added projects in tailored that were not in original
+  for (let j = 0; j < tailProjects.length; j++) {
+    if (!usedTailIndices.has(j)) {
+      const tailProj = tailProjects[j];
+      const name = tailProj?.name?.trim() || `Project ${j + 1}`;
+      const tailDesc = tailProj?.description?.trim() ?? '';
+      let descriptionChange: { original: string; tailored: string } | undefined;
+      if (tailDesc) {
+        descriptionChange = {
+          original: '',
+          tailored: tailDesc,
+        };
+      }
+      projects.push({
+        name,
+        isOmitted: false,
+        descriptionChange,
+        highlights: computeListDiff([], tailProj?.highlights || []),
+        keywords: computeListDiff([], tailProj?.keywords || []),
+      });
+    }
   }
 
   return { basics, work, skills, projects };
