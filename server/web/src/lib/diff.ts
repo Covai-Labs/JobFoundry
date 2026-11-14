@@ -151,15 +151,13 @@ export function computeResumeDiff(
 
     const isOmitted = Boolean(origProj && !tailProj);
 
+    const origDesc = origProj?.description?.trim() ?? '';
+    const tailDesc = tailProj?.description?.trim() ?? '';
     let descriptionChange: { original: string; tailored: string } | undefined;
-    if (
-      origProj?.description &&
-      tailProj?.description &&
-      origProj.description.trim() !== tailProj.description.trim()
-    ) {
+    if (origDesc !== tailDesc && (Boolean(origDesc) || Boolean(tailDesc))) {
       descriptionChange = {
-        original: origProj.description.trim(),
-        tailored: tailProj.description.trim(),
+        original: origDesc,
+        tailored: tailDesc,
       };
     }
 

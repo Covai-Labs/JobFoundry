@@ -117,8 +117,12 @@ describe('computeResumeDiff', () => {
     });
 
     const addedHighlights = projA?.highlights.filter((h) => h.type === 'added').map((h) => h.text);
-    const removedHighlights = projA?.highlights.filter((h) => h.type === 'removed').map((h) => h.text);
-    const unchangedHighlights = projA?.highlights.filter((h) => h.type === 'unchanged').map((h) => h.text);
+    const removedHighlights = projA?.highlights
+      .filter((h) => h.type === 'removed')
+      .map((h) => h.text);
+    const unchangedHighlights = projA?.highlights
+      .filter((h) => h.type === 'unchanged')
+      .map((h) => h.text);
 
     expect(addedHighlights).toContain('Scaled to 10k RPS with FastAPI');
     expect(removedHighlights).toContain('Fixed bugs');
@@ -136,5 +140,27 @@ describe('computeResumeDiff', () => {
     const projB = diff.projects.find((p) => p.name === 'Project B (Omitted)');
     expect(projB).toBeDefined();
     expect(projB?.isOmitted).toBe(true);
+  });
+
+  it('detects project description additions and removals', () => {
+    const orig = {
+      projects: [{ name: 'Proj 1', description: 'Has description' }, { name: 'Proj 2' }],
+    };
+    const tail = {
+      projects: [{ name: 'Proj 1' }, { name: 'Proj 2', description: 'Newly added description' }],
+    };
+
+    const diff = computeResumeDiff(orig, tail);
+    const p1 = diff.projects.find((p) => p.name === 'Proj 1');
+    const p2 = diff.projects.find((p) => p.name === 'Proj 2');
+
+    expect(p1?.descriptionChange).toEqual({
+      original: 'Has description',
+      tailored: '',
+    });
+    expect(p2?.descriptionChange).toEqual({
+      original: '',
+      tailored: 'Newly added description',
+    });
   });
 });
