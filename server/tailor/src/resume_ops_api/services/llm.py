@@ -113,7 +113,13 @@ class StructuredLLMClient:
     ) -> None:
         self.completion_fn = completion_fn or acompletion
         self.enable_cache = enable_cache
-        self.cache: dict[tuple[str, str, str, str], Any] = {}
+        self.cache: dict[tuple[str, str, str, str, str, str], Any] = {}
+        if self.enable_cache:
+            try:
+                import litellm
+                litellm.enable_cache(type="local")
+            except Exception:
+                pass
         self.max_retries = max_retries
         self.retry_min_wait = retry_min_wait
         self.retry_max_wait = retry_max_wait
@@ -455,7 +461,91 @@ class StructuredLLMClient:
                             if get_origin(field_info.annotation) is list:
                                 parsed = {field_name: list_values[0]}
             parsed = _clamp_parsed_data(parsed)
-            return response_model.model_validate(parsed, context=validation_context)
+            try:
+                return response_model.model_validate(parsed, context=validation_context)
+            except Exception as val_err:
+                # Option B: 1-turn conversational self-correction retry
+                import logging
+                logging.warning(
+                    f"Structured output validation failed for model '{model}': {val_err}. "
+                    f"Attempting 1-turn self-correction retry."
+                )
+                correction_msg = (
+                    f"The previously returned JSON was invalid and failed schema validation with error:\n"
+                    f"{val_err}\n\n"
+                    f"Please output corrected JSON that strictly satisfies the schema and validation constraints. "
+                    f"Return ONLY valid JSON."
+                )
+                retry_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                    {"role": "assistant", "content": content_str if isinstance(content, str) else json.dumps(content)},
+                    {"role": "user", "content": correction_msg},
+                ]
+                try:
+                    retry_comp = await self.completion_fn(
+                        model=model,
+                        messages=retry_messages,
+                        temperature=0.1,
+                        drop_params=True,
+                        timeout=self.request_timeout,
+                        response_format={"type": "json_object"},
+                        extra_headers=extra_headers or None,
+                        **extra_kwargs,
+                    )
+                except Exception:
+                    retry_comp = await self.completion_fn(
+                        model=model,
+                        messages=retry_messages,
+                        temperature=0.1,
+                        drop_params=True,
+                        timeout=self.request_timeout,
+                        extra_headers=extra_headers or None,
+                        **extra_kwargs,
+                    )
+                retry_content = retry_comp["choices"][0]["message"]["content"]
+                if isinstance(retry_content, dict):
+                    retry_parsed = retry_content
+                else:
+                    retry_str = retry_content.strip()
+                    import re
+                    m = re.search(r"```(?:json)?\s*(.*?)\s*```", retry_str, re.DOTALL)
+                    if m:
+                        retry_str = m.group(1).strip()
+                    else:
+                        f_idx = min([i for i in [retry_str.find("{"), retry_str.find("[")] if i != -1], default=-1)
+                        l_idx = max([i for i in [retry_str.rfind("}"), retry_str.rfind("]")] if i != -1], default=-1)
+                        if f_idx != -1 and l_idx != -1 and l_idx > f_idx:
+                            retry_str = retry_str[f_idx : l_idx + 1].strip()
+                    if not retry_str.startswith("{") and not retry_str.startswith("[") and ":" in retry_str:
+                        retry_str = "{" + retry_str + "}"
+                    retry_parsed = json.loads(retry_str)
+
+                if isinstance(retry_parsed, list):
+                    model_fields = list(response_model.model_fields.keys())
+                    if len(retry_parsed) == 1 and not any(isinstance(item, list) for item in retry_parsed):
+                        if isinstance(retry_parsed[0], dict) and any(k in model_fields for k in retry_parsed[0].keys()):
+                            retry_parsed = retry_parsed[0]
+                    if isinstance(retry_parsed, list):
+                        list_field = None
+                        for field_name, field_info in response_model.model_fields.items():
+                            from typing import get_origin
+                            if get_origin(field_info.annotation) is list:
+                                list_field = field_name
+                                break
+                        if list_field:
+                            retry_parsed = {list_field: retry_parsed}
+                elif isinstance(retry_parsed, dict):
+                    model_fields = set(response_model.model_fields.keys())
+                    if not (set(retry_parsed.keys()) & model_fields):
+                        list_values = [v for v in retry_parsed.values() if isinstance(v, list)]
+                        if len(list_values) == 1:
+                            for field_name, field_info in response_model.model_fields.items():
+                                from typing import get_origin
+                                if get_origin(field_info.annotation) is list:
+                                    retry_parsed = {field_name: list_values[0]}
+                retry_parsed = _clamp_parsed_data(retry_parsed)
+                return response_model.model_validate(retry_parsed, context=validation_context)
         except Exception as exc:
             import logging
             logging.error(f"Structured LLM generation failed for model '{model}': {exc}. Raw content was: {repr(locals().get('content'))}, content_str was: {repr(locals().get('content_str'))}")

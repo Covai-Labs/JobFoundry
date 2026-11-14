@@ -355,8 +355,36 @@ class TestStructuredLLMClient:
                         response_model=self._FakeResponseModel,
                     )
 
-        # Should only execute once since validation failures shouldn't be retried
-        assert call_count == 1
+        # Executes initial attempt plus 1-turn self-correction attempt before failing
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_recovers_via_self_correction(self) -> None:
+        """Verify that StructuredLLMClient successfully self-corrects on a 1-turn retry."""
+        call_count = 0
+        async def mock_completion(**kwargs):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return {"choices": [{"message": {"content": '{"invalid_key": "schema"}'}}]}
+            return {"choices": [{"message": {"content": '{"name": "recovered", "value": 100}'}}]}
+
+        client = StructuredLLMClient(completion_fn=mock_completion)
+        with patch("resume_ops_api.services.llm.instructor.from_litellm") as mock_instructor:
+            mock_client = MagicMock()
+            mock_client.chat.completions.create = AsyncMock(side_effect=RuntimeError("instructor failed"))
+            mock_instructor.return_value = mock_client
+
+            result = await client.generate_structured(
+                model="openai/gpt-4o-mini",
+                system_prompt="You are helpful.",
+                user_prompt="Say hello.",
+                response_model=self._FakeResponseModel,
+            )
+
+        assert call_count == 2
+        assert result.name == "recovered"
+        assert result.value == 100
 
     @pytest.mark.asyncio
     async def test_generate_structured_unwraps_list_and_markdown_in_fallback(self) -> None:
