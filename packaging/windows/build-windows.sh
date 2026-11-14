@@ -253,12 +253,25 @@ cat > "$STAGE/node-tools/package.json" <<'EOF'
 EOF
 (cd "$STAGE/node-tools" && \
   PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install --omit=dev --no-audit --no-fund)
-[ -x "$STAGE/node-tools/node_modules/.bin/folio-export" ] \
-  || { echo "[windows] ERROR: folio-export binary missing after install" >&2; exit 1; }
-[ -x "$STAGE/node-tools/node_modules/.bin/resumed" ] \
-  || { echo "[windows] ERROR: resumed binary missing after install" >&2; exit 1; }
-[ -x "$STAGE/node-tools/node_modules/.bin/folio-concise-export" ] \
-  || { echo "[windows] ERROR: folio-concise-export binary missing after install" >&2; exit 1; }
+
+# npm runs on Linux here, so .bin holds extensionless symlinks. Windows resolves
+# commands through PATHEXT and cannot run those, so write a .cmd wrapper for each
+# link npm created. Going through npm's own links (rather than each package's
+# "bin" map) preserves npm's precedence: both folio themes expose folio-export.
+BIN_DIR="$STAGE/node-tools/node_modules/.bin"
+for link in "$BIN_DIR"/*; do
+  [ -L "$link" ] || continue
+  name="$(basename "$link")"
+  target="$(readlink -f "$link")"
+  rel="${target#"$STAGE/node-tools/node_modules/"}"
+  [ "$rel" != "$target" ] \
+    || { echo "[windows] ERROR: $name resolves outside node_modules: $target" >&2; exit 1; }
+  printf '@ECHO off\r\nSETLOCAL\r\nnode "%%~dp0..\\%s" %%*\r\n' "${rel//\//\\}" > "$BIN_DIR/$name.cmd"
+done
+for bin in folio-export folio-concise-export resumed; do
+  [ -f "$BIN_DIR/$bin.cmd" ] \
+    || { echo "[windows] ERROR: $bin.cmd shim missing after install" >&2; exit 1; }
+done
 
 # ------------------------------------------------------------------------------
 # 6. Assemble runtime payload
