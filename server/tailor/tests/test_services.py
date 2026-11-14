@@ -361,11 +361,10 @@ class TestStructuredLLMClient:
     @pytest.mark.asyncio
     async def test_generate_structured_recovers_via_self_correction(self) -> None:
         """Verify that StructuredLLMClient successfully self-corrects on a 1-turn retry."""
-        call_count = 0
+        recorded_calls: list[dict] = []
         async def mock_completion(**kwargs):
-            nonlocal call_count
-            call_count += 1
-            if call_count == 1:
+            recorded_calls.append(kwargs)
+            if len(recorded_calls) == 1:
                 return {"choices": [{"message": {"content": '{"invalid_key": "schema"}'}}]}
             return {"choices": [{"message": {"content": '{"name": "recovered", "value": 100}'}}]}
 
@@ -382,7 +381,13 @@ class TestStructuredLLMClient:
                 response_model=self._FakeResponseModel,
             )
 
-        assert call_count == 2
+        assert len(recorded_calls) == 2
+        retry_messages = recorded_calls[1]["messages"]
+        assert len(retry_messages) == 4
+        assert retry_messages[2]["role"] == "assistant"
+        assert '{"invalid_key": "schema"}' in retry_messages[2]["content"]
+        assert retry_messages[3]["role"] == "user"
+        assert "previously returned JSON was invalid" in retry_messages[3]["content"]
         assert result.name == "recovered"
         assert result.value == 100
 
