@@ -8,6 +8,7 @@ from resume_ops_api.graph.models import (
     WorkTailoringOutput,
     EducationTailoringOutput,
     CertificatesSelectionOutput,
+    QualificationsTailoringOutput,
     OptionalSectionsOutput,
 )
 
@@ -162,6 +163,49 @@ def test_validate_certificate_names_failure():
         CertificatesSelectionOutput.model_validate(data, context=context)
     
     assert "Certificate 'GCP Cloud Digital Leader' does not exist in the master resume" in str(excinfo.value)
+
+
+def test_validate_certificate_with_issuer_formats_normalizes():
+    context = {
+        "original_resume": {
+            "certificates": [
+                {"name": "AI Product Manager Professional Certificate", "issuer": "IBM"},
+                {"name": "Product Management Professional Certificate", "issuer": "Aha!"},
+            ]
+        }
+    }
+    # Test comma issuer, parens issuer, dash issuer, and exact match
+    data = {
+        "certificates": [
+            "AI Product Manager Professional Certificate, IBM",
+            "Product Management Professional Certificate (Aha!)",
+        ]
+    }
+    obj = CertificatesSelectionOutput.model_validate(data, context=context)
+    assert obj.certificates == [
+        "AI Product Manager Professional Certificate",
+        "Product Management Professional Certificate",
+    ]
+
+
+def test_validate_qualifications_certificate_with_issuer_normalizes():
+    context = {
+        "original_resume": {
+            "certificates": [
+                {"name": "AI Product Manager Professional Certificate", "issuer": "IBM"},
+            ]
+        }
+    }
+    data = {
+        "skills": [],
+        "certificates": [
+            "AI Product Manager Professional Certificate, IBM"
+        ],
+        "education": []
+    }
+    obj = QualificationsTailoringOutput.model_validate(data, context=context)
+    assert obj.certificates == ["AI Product Manager Professional Certificate"]
+
 
 
 

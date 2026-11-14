@@ -1,8 +1,69 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator, ValidationInfo
+
+
+def _resolve_certificate_name(cert_input: str, original_certificates: list[dict[str, Any]]) -> str | None:
+    """Resolve a selected certificate name against master resume entries.
+
+    Handles exact matches as well as common LLM formatting variations such as
+    appending the issuer (e.g. 'Certificate, Issuer', 'Certificate (Issuer)',
+    or 'Certificate - Issuer'). Returns the canonical master certificate name,
+    or None if no match is found.
+    """
+    if not cert_input or not isinstance(cert_input, str) or not cert_input.strip():
+        return None
+    cleaned = cert_input.strip()
+    lowered = cleaned.lower()
+
+    # Pass 1: exact case-insensitive match on certificate name
+    for c in original_certificates:
+        name = c.get("name", "").strip()
+        if lowered == name.lower():
+            return name
+
+    # Pass 2: match with issuer variations
+    for c in original_certificates:
+        name = c.get("name", "").strip()
+        issuer = c.get("issuer", "").strip() if isinstance(c.get("issuer"), str) else ""
+        if not issuer:
+            continue
+        variants = [
+            f"{name.lower()}, {issuer.lower()}",
+            f"{name.lower()} - {issuer.lower()}",
+            f"{name.lower()} ({issuer.lower()})",
+            f"{name.lower()} by {issuer.lower()}",
+            f"{name.lower()},{issuer.lower()}",
+        ]
+        if lowered in variants:
+            return name
+
+    # Pass 3: prefix match if stripped of issuer suffix
+    for c in original_certificates:
+        name = c.get("name", "").strip()
+        issuer = c.get("issuer", "").strip() if isinstance(c.get("issuer"), str) else ""
+        if lowered.startswith(name.lower()):
+            suffix = lowered[len(name):].strip(" ,-():[]")
+            if not suffix or (issuer and suffix == issuer.lower()):
+                return name
+
+    # Pass 4: token-level normalization
+    tokens = set(re.findall(r"[a-z0-9]+", lowered))
+    for c in original_certificates:
+        name = c.get("name", "").strip()
+        issuer = c.get("issuer", "").strip() if isinstance(c.get("issuer"), str) else ""
+        name_tokens = set(re.findall(r"[a-z0-9]+", name.lower()))
+        if tokens == name_tokens:
+            return name
+        if issuer:
+            issuer_tokens = set(re.findall(r"[a-z0-9]+", issuer.lower()))
+            if tokens == (name_tokens | issuer_tokens):
+                return name
+
+    return None
 
 
 class StrategyOutput(BaseModel):
@@ -125,18 +186,22 @@ class QualificationsTailoringOutput(BaseModel):
                         f"with the master resume ({expected_edu_count})."
                     )
             if self.certificates:
-                original_certs = {
-                    c.get("name", "").strip().lower()
-                    for c in context["original_resume"].get("certificates", [])
+                resolved_certs: list[str] = []
+                original_certs = [
+                    c for c in context["original_resume"].get("certificates", [])
                     if isinstance(c, dict) and c.get("name")
-                }
+                ]
                 if original_certs:
+                    allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
                     for cert in self.certificates:
-                        if cert.strip().lower() not in original_certs:
+                        matched = _resolve_certificate_name(cert, original_certs)
+                        if not matched:
                             raise ValueError(
                                 f"Certificate '{cert}' does not exist in the master resume. "
-                                f"Allowed certificates: {', '.join(sorted(original_certs))}"
+                                f"Allowed certificates: {', '.join(allowed_names)}"
                             )
+                        resolved_certs.append(matched)
+                    self.certificates = resolved_certs
         return self
 
 
@@ -187,17 +252,22 @@ class CertificatesSelectionOutput(BaseModel):
     def validate_certificate_names(self, info: ValidationInfo) -> "CertificatesSelectionOutput":
         context = info.context
         if context and "original_resume" in context:
-            original_certs = {
-                c.get("name", "").strip().lower()
-                for c in context["original_resume"].get("certificates", [])
+            resolved_certs: list[str] = []
+            original_certs = [
+                c for c in context["original_resume"].get("certificates", [])
                 if isinstance(c, dict) and c.get("name")
-            }
-            for cert in self.certificates:
-                if cert.strip().lower() not in original_certs:
-                    raise ValueError(
-                        f"Certificate '{cert}' does not exist in the master resume. "
-                        f"Allowed certificates: {', '.join(sorted(original_certs))}"
-                    )
+            ]
+            if original_certs:
+                allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
+                for cert in self.certificates:
+                    matched = _resolve_certificate_name(cert, original_certs)
+                    if not matched:
+                        raise ValueError(
+                            f"Certificate '{cert}' does not exist in the master resume. "
+                            f"Allowed certificates: {', '.join(allowed_names)}"
+                        )
+                    resolved_certs.append(matched)
+                self.certificates = resolved_certs
         return self
 
 
