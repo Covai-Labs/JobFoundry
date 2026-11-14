@@ -30,7 +30,7 @@ export const DEFAULT_TAILOR_STRATEGY_PROMPT =
   'Formulate a coherent tailoring strategy for the candidate matching the target job description. Tailor only the professional label (headline/title) and the main summary paragraph aiming for under 100 words (3-4 sentences). Retain high-signaling education if present. Return target_narrative, priority_keywords, section_rules, red_lines, label, and summary without inventing facts.';
 
 export const DEFAULT_TAILOR_WORK_PROMPT =
-  'Tailor only the summary and highlights for each work item to align with the target role. Do not change company names, positions, dates, locations, urls, or order. Do not invent unsupported responsibilities or achievements. Apply tiered highlight limits based on recency.';
+  'Tailor only the summary and highlights for each work item to align with the target role. Do not change company names, positions, dates, locations, urls, or order. Do not invent unsupported responsibilities or achievements. Apply tiered highlight limits based on recency and ranked merit: retain 4 to 6 high-impact highlights for flagship roles while strictly omitting low-signal or routine tasks, and condense older roles to 1 to 2 highlights.';
 
 export const DEFAULT_TAILOR_PROJECTS_PROMPT =
   'Select 2 to 4 projects most relevant to the target job description. Keep project names verbatim. Refocus and tailor project descriptions to align with the target role problem domain. Rewrite, focus, and prioritize highlights (max 3) emphasizing technical choices, quantifiable impact, and relevance. Curate and prioritize keywords (max 6) without inventing unsupported technologies. In sequential cascade mode, ensure projects complement work experience without repeating identical accomplishments.';

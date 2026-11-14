@@ -175,10 +175,17 @@ def test_work_prompt_tier_partitioning() -> None:
     # Convergys is Tier 2 (1 or 2 bullets if essential)
     # LightMass is Tier 3 (medium detail)
     # Covai Labs, Taxilla, ValueLabs, IBM are Tier 4 (full detail)
-    assert "For Covai Labs, Taxilla, ValueLabs, IBM: Tailor normally by retaining only the highly relevant highlights" in system
-    assert "For LightMass: Include only as many highlights as makes sense" in system
-    assert "For Convergys: Set the summary to an empty string (\"\"). Limit highlights strictly to 1 or 2 bullet points if essential" in system
-    assert "For Sutherland: Set the summary to an empty string (\"\"). Limit highlights strictly to exactly 1 bullet point focusing on the single most relevant accomplishment" in system
+    assert "For Covai Labs, Taxilla, ValueLabs, IBM (flagship / most recent roles): Retain 4 to 6 high-impact highlights per role" in system
+    assert "For LightMass (mid-career roles): Include 2 to 3 highlights" in system
+    assert "For Convergys (older roles): Set the summary to an empty string (\"\"). Limit highlights strictly to 1 or 2 bullet points if essential" in system
+    assert "For Sutherland (oldest roles): Set the summary to an empty string (\"\"). Limit highlights strictly to exactly 1 bullet point" in system
+    assert "SELECTION CRITERIA & ANTI-DILUTION BAR:" in system
+
+    # Also test few-jobs candidate (1-2 jobs)
+    few_resume = {"work": [{"name": "Startup Inc"}, {"name": "Tech Corp"}]}
+    few_sys, _ = work_prompt(few_resume, "mock job", {})
+    assert "For all roles (1–2 jobs total)" in few_sys
+    assert "retain 5 to 7 high-impact highlights" in few_sys
 
 
 
