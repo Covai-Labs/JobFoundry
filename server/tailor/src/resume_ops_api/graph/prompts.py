@@ -122,7 +122,7 @@ def work_prompt(
     ]
     if N <= 2:
         rules.append(
-            "- For all roles (1–2 jobs total): Since the candidate has few roles, each role carries substantial visual and substantive weight. "
+            "- For all roles (1-2 jobs total): Since the candidate has few roles, each role carries substantial visual and substantive weight. "
             "For the primary/most recent role, retain 5 to 7 high-impact highlights (max 8, min 3) if strong Tier A/B evidence exists. "
             "For the second role, retain 4 to 6 highlights (max 6, min 2). Omit weak or redundant points."
         )

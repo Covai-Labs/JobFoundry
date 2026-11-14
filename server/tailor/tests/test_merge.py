@@ -184,7 +184,7 @@ def test_work_prompt_tier_partitioning() -> None:
     # Also test few-jobs candidate (1-2 jobs)
     few_resume = {"work": [{"name": "Startup Inc"}, {"name": "Tech Corp"}]}
     few_sys, _ = work_prompt(few_resume, "mock job", {})
-    assert "For all roles (1–2 jobs total)" in few_sys
+    assert "For all roles (1-2 jobs total)" in few_sys
     assert "retain 5 to 7 high-impact highlights" in few_sys
 
     # Also test 3-jobs candidate (flagship + mid + oldest)

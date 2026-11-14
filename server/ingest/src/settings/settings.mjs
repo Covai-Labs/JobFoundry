@@ -39,7 +39,7 @@ export const DEFAULT_TAILOR_QUALIFICATIONS_PROMPT =
   'Tailor candidate qualifications (skills, certificates, education) without inventing facts. Regroup skills into 4 to 6 high-impact categories with 3 to 8 keywords representing the most relevant tools. Select only relevant certificates. Preserve education metadata.';
 
 export const DEFAULT_TAILOR_MONOLITHIC_PROMPT =
-  'Tailor the complete resume strictly grounded in the master resume to align with the target job description. Retain factual integrity, preserve all dates, employers, degrees, and positions. Do not invent facts or metrics. Craft a cohesive headline, summary, aligned work bullets, selected relevant projects with refocused descriptions, highlights, and keywords, and prioritized skills.';
+  'Tailor the complete resume strictly grounded in the master resume to align with the target job description. Retain factual integrity, preserve all dates, employers, degrees, and positions. Do not invent facts or metrics. Craft a cohesive headline, summary, aligned work bullets applying ranked merit and anti-dilution (4 to 6 highlights for flagship/recent roles, 5 to 7 if only 1-2 roles exist, condensed older roles), selected relevant projects with refocused descriptions, highlights, and keywords, and prioritized skills.';
 
 export const DEFAULT_TAILOR_FINAL_CHECK_PROMPT =
   'Act as a strict Resume Quality Auditor and Fact-Checker. Compare the tailored resume against the master resume and custom instructions. Verify zero hallucination, enforce language and style guidelines (e.g., British English, no em dashes), ensure project highlights and work bullets complement each other, and verify all formatting rules.';
