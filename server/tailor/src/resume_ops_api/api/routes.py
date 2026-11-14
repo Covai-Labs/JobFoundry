@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import tempfile
 import time
@@ -36,8 +37,6 @@ from resume_ops_api.services.ssrf_guard import assert_safe_url
 
 router = APIRouter()
 
-NO_RESUME_DETAIL = "No resume provided and no master resume configured or valid"
-
 
 @router.get("/healthz", response_model=HealthResponse)
 async def healthcheck() -> HealthResponse:
@@ -69,9 +68,17 @@ async def list_themes(container: ServiceContainer = Depends(get_container)) -> T
     )
 
 
+def _encode_pdf(path: Path) -> str:
+    """Read a rendered PDF and base64-encode it.
+
+    Kept synchronous so the blocking file read can run in a worker thread
+    instead of stalling the event loop.
+    """
+    return base64.b64encode(path.read_bytes()).decode("ascii")
+
+
 @router.post(
     "/api/v1/render",
-    response_model=RenderResponse,
     status_code=status.HTTP_200_OK,
 )
 async def render_resume(
@@ -85,7 +92,11 @@ async def render_resume(
     """
     resume_data = payload.resume if payload.resume is not None else container.master_resume
     if resume_data is None:
-        raise AppError(NO_RESUME_DETAIL, code="resume_missing", status_code=400)
+        raise AppError(
+            "No resume supplied and no master resume is configured.",
+            code="resume_missing",
+            status_code=400,
+        )
 
     theme = container.theme_service.resolve(payload.theme)
     container.validator.validate(resume_data, context="render resume")
@@ -100,7 +111,7 @@ async def render_resume(
                 theme=theme,
                 output_dir=Path(scratch_dir),
             )
-            pdf_base64 = base64.b64encode(Path(pdf_path).read_bytes()).decode("ascii")
+            pdf_base64 = await asyncio.to_thread(_encode_pdf, Path(pdf_path))
 
     return RenderResponse(
         theme=theme,
@@ -121,7 +132,7 @@ async def tailor_resume(
 ) -> TailorResponse | QueuedTaskResponse:
     if payload.resume is None:
         if not container.master_resume:
-            raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
+            raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
         resume_data = container.master_resume
     else:
         resume_data = payload.resume
@@ -179,7 +190,7 @@ async def copilot_outreach(
 ) -> CopilotOutreachResponse:
     resume_data = payload.resume or container.master_resume
     if not resume_data:
-        raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
+        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
 
     result = await container.copilot_service.generate_outreach(
         resume=resume_data,
@@ -215,7 +226,7 @@ async def copilot_qa(
 ) -> CopilotQAResponse:
     resume_data = payload.resume or container.master_resume
     if not resume_data:
-        raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
+        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
 
     result = await container.copilot_service.generate_qa(
         question=payload.question,
@@ -253,7 +264,7 @@ async def copilot_cover_letter(
 ) -> CopilotCoverLetterResponse:
     resume_data = payload.resume or container.master_resume
     if not resume_data:
-        raise HTTPException(status_code=400, detail=NO_RESUME_DETAIL)
+        raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
 
     result = await container.copilot_service.generate_cover_letter(
         resume=resume_data,
