@@ -355,8 +355,41 @@ class TestStructuredLLMClient:
                         response_model=self._FakeResponseModel,
                     )
 
-        # Should only execute once since validation failures shouldn't be retried
-        assert call_count == 1
+        # Executes initial attempt plus 1-turn self-correction attempt before failing
+        assert call_count == 2
+
+    @pytest.mark.asyncio
+    async def test_generate_structured_recovers_via_self_correction(self) -> None:
+        """Verify that StructuredLLMClient successfully self-corrects on a 1-turn retry."""
+        recorded_calls: list[dict] = []
+        async def mock_completion(**kwargs):
+            recorded_calls.append(kwargs)
+            if len(recorded_calls) == 1:
+                return {"choices": [{"message": {"content": '{"invalid_key": "schema"}'}}]}
+            return {"choices": [{"message": {"content": '{"name": "recovered", "value": 100}'}}]}
+
+        client = StructuredLLMClient(completion_fn=mock_completion)
+        with patch("resume_ops_api.services.llm.instructor.from_litellm") as mock_instructor:
+            mock_client = MagicMock()
+            mock_client.chat.completions.create = AsyncMock(side_effect=RuntimeError("instructor failed"))
+            mock_instructor.return_value = mock_client
+
+            result = await client.generate_structured(
+                model="openai/gpt-4o-mini",
+                system_prompt="You are helpful.",
+                user_prompt="Say hello.",
+                response_model=self._FakeResponseModel,
+            )
+
+        assert len(recorded_calls) == 2
+        retry_messages = recorded_calls[1]["messages"]
+        assert len(retry_messages) == 4
+        assert retry_messages[2]["role"] == "assistant"
+        assert '{"invalid_key": "schema"}' in retry_messages[2]["content"]
+        assert retry_messages[3]["role"] == "user"
+        assert "previously returned JSON was invalid" in retry_messages[3]["content"]
+        assert result.name == "recovered"
+        assert result.value == 100
 
     @pytest.mark.asyncio
     async def test_generate_structured_unwraps_list_and_markdown_in_fallback(self) -> None:
@@ -1217,6 +1250,81 @@ class TestResumeGraphPipeline:
         assert final_resume["basics"]["summary"] == "Original summary."
         assert final_resume["skills"][0]["name"] == "Original Skill"
         assert final_resume["projects"][0]["description"] == "Original proj"
+
+    @pytest.mark.asyncio
+    async def test_node_validation_failure_falls_back_to_master(self) -> None:
+        from resume_ops_api.graph.pipeline import ResumeGraph
+        from resume_ops_api.graph.merge import ResumeMerger
+        from resume_ops_api.graph.models import StrategyOutput
+        from resume_ops_api.graph.state import ResumeGraphState
+
+        mock_llm = MagicMock()
+        mock_llm.generate_structured = AsyncMock(
+            side_effect=AppError("LLM validation failed", code="llm_generation_failed", status_code=502)
+        )
+        graph = ResumeGraph(
+            llm_client=mock_llm,
+            merger=ResumeMerger(),
+            validator=MagicMock(),
+            renderer=MagicMock(),
+        )
+        state: ResumeGraphState = {
+            "original_resume": {
+                "basics": {"name": "Jay", "label": "Original Title"},
+                "work": [{"name": "Acme", "summary": "Original summary", "highlights": ["Item 1"]}],
+                "skills": [{"name": "Python", "keywords": ["FastAPI"]}],
+                "projects": [{"name": "Project A", "description": "Original description"}],
+            },
+            "strategy": StrategyOutput(target_narrative="Build software"),
+            "job_description": "We need a Python developer.",
+            "sections": ["work", "skills", "projects"],
+        }
+        # Run work_node directly: returns {} on validation failure
+        assert await graph.work_node(state) == {}
+
+        # Run projects_node directly: returns {} on validation failure
+        assert await graph.projects_node(state) == {}
+
+        # Run qualifications_node directly: returns {} on validation failure
+        assert await graph.qualifications_node(state) == {}
+
+        # Merge node with empty tailored results preserves all original sections
+        merge_result = await graph.merge_node(state)
+        final_resume = merge_result["final_resume"]
+        assert final_resume["work"][0]["summary"] == "Original summary"
+        assert final_resume["skills"][0]["name"] == "Python"
+        assert final_resume["projects"][0]["description"] == "Original description"
+
+    @pytest.mark.asyncio
+    async def test_node_provider_auth_failure_raises_transparently(self) -> None:
+        from resume_ops_api.graph.pipeline import ResumeGraph
+        from resume_ops_api.graph.merge import ResumeMerger
+        from resume_ops_api.graph.models import StrategyOutput
+        from resume_ops_api.graph.state import ResumeGraphState
+
+        mock_llm = MagicMock()
+        mock_llm.generate_structured = AsyncMock(
+            side_effect=AppError("Invalid API key", code="unauthorized", status_code=401)
+        )
+        graph = ResumeGraph(
+            llm_client=mock_llm,
+            merger=ResumeMerger(),
+            validator=MagicMock(),
+            renderer=MagicMock(),
+        )
+        state: ResumeGraphState = {
+            "original_resume": {
+                "basics": {"name": "Jay"},
+                "work": [{"name": "Acme", "summary": "Original"}],
+            },
+            "strategy": StrategyOutput(target_narrative="Build software"),
+            "job_description": "We need a dev.",
+            "sections": ["work"],
+        }
+        with pytest.raises(AppError) as exc_info:
+            await graph.work_node(state)
+        assert exc_info.value.code == "unauthorized"
+        assert exc_info.value.status_code == 401
 
 
 # ---------------------------------------------------------------------------

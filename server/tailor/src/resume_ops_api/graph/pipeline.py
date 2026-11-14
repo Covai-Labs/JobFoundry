@@ -29,6 +29,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_SECTIONS = ["basics", "work", "skills", "projects", "education", "certificates"]
 
 
+def _is_validation_failure(exc: Exception) -> bool:
+    return isinstance(exc, AppError) and exc.code == "llm_generation_failed"
+
+
 def route_after_merge(state: ResumeGraphState) -> str:
     if state.get("enable_final_check"):
         return "final_check"
@@ -214,17 +218,27 @@ class ResumeGraph:
             custom_template=custom_template,
             basics_context=basics_context,
         )
-        output = await self.llm_client.generate_structured(
-            model=state.get("model") or self.work_model,
-            system_prompt=system,
-            user_prompt=user,
-            response_model=WorkTailoringOutput,
-            session_id=state.get("job_id"),
-            validation_context={"original_resume": state["original_resume"]},
-            api_key=state.get("api_key"),
-            api_base=state.get("api_base"),
-        )
-        return {"tailored_work": output}
+        try:
+            output = await self.llm_client.generate_structured(
+                model=state.get("model") or self.work_model,
+                system_prompt=system,
+                user_prompt=user,
+                response_model=WorkTailoringOutput,
+                session_id=state.get("job_id"),
+                validation_context={"original_resume": state["original_resume"]},
+                api_key=state.get("api_key"),
+                api_base=state.get("api_base"),
+            )
+            return {"tailored_work": output}
+        except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
+            logger.warning(
+                "Work tailoring failed validation after retry (%s). "
+                "Applying Option A: leaving work unchanged from master resume.",
+                exc,
+            )
+            return {}
 
     async def projects_node(self, state: ResumeGraphState) -> dict[str, Any]:
         active_sections = self._resolve_active_sections(state)
@@ -251,17 +265,27 @@ class ResumeGraph:
             custom_template=custom_template,
             work_context=work_context,
         )
-        output = await self.llm_client.generate_structured(
-            model=state.get("model") or self.projects_model,
-            system_prompt=system,
-            user_prompt=user,
-            response_model=ProjectsTailoringOutput,
-            session_id=state.get("job_id"),
-            validation_context={"original_resume": state["original_resume"]},
-            api_key=state.get("api_key"),
-            api_base=state.get("api_base"),
-        )
-        return {"tailored_projects": output}
+        try:
+            output = await self.llm_client.generate_structured(
+                model=state.get("model") or self.projects_model,
+                system_prompt=system,
+                user_prompt=user,
+                response_model=ProjectsTailoringOutput,
+                session_id=state.get("job_id"),
+                validation_context={"original_resume": state["original_resume"]},
+                api_key=state.get("api_key"),
+                api_base=state.get("api_base"),
+            )
+            return {"tailored_projects": output}
+        except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
+            logger.warning(
+                "Projects tailoring failed validation after retry (%s). "
+                "Applying Option A: leaving projects unchanged from master resume.",
+                exc,
+            )
+            return {}
 
     async def qualifications_node(self, state: ResumeGraphState) -> dict[str, Any]:
         active_sections = self._resolve_active_sections(state)
@@ -303,17 +327,27 @@ class ResumeGraph:
             work_context=work_context,
             projects_context=projects_context,
         )
-        output = await self.llm_client.generate_structured(
-            model=state.get("model") or self.qualifications_model,
-            system_prompt=system,
-            user_prompt=user,
-            response_model=QualificationsTailoringOutput,
-            session_id=state.get("job_id"),
-            validation_context={"original_resume": state["original_resume"]},
-            api_key=state.get("api_key"),
-            api_base=state.get("api_base"),
-        )
-        return {"tailored_qualifications": output}
+        try:
+            output = await self.llm_client.generate_structured(
+                model=state.get("model") or self.qualifications_model,
+                system_prompt=system,
+                user_prompt=user,
+                response_model=QualificationsTailoringOutput,
+                session_id=state.get("job_id"),
+                validation_context={"original_resume": state["original_resume"]},
+                api_key=state.get("api_key"),
+                api_base=state.get("api_base"),
+            )
+            return {"tailored_qualifications": output}
+        except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
+            logger.warning(
+                "Qualifications tailoring failed validation after retry (%s). "
+                "Applying Option A: leaving qualifications unchanged from master resume.",
+                exc,
+            )
+            return {}
 
     async def monolithic_node(self, state: ResumeGraphState) -> dict[str, Any]:
         active_sections = set(self._resolve_active_sections(state))
@@ -328,15 +362,25 @@ class ResumeGraph:
             custom_template=custom_template,
             active_sections=list(active_sections),
         )
-        output = await self.llm_client.generate_structured(
-            model=state.get("model") or self.monolithic_model,
-            system_prompt=system,
-            user_prompt=user,
-            response_model=FullResumeTailoringOutput,
-            session_id=state.get("job_id"),
-            api_key=state.get("api_key"),
-            api_base=state.get("api_base"),
-        )
+        try:
+            output = await self.llm_client.generate_structured(
+                model=state.get("model") or self.monolithic_model,
+                system_prompt=system,
+                user_prompt=user,
+                response_model=FullResumeTailoringOutput,
+                session_id=state.get("job_id"),
+                api_key=state.get("api_key"),
+                api_base=state.get("api_base"),
+            )
+        except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
+            logger.warning(
+                "Monolithic tailoring failed validation after retry (%s). "
+                "Applying Option A: leaving resume unchanged from master.",
+                exc,
+            )
+            return {}
         result: dict[str, Any] = {}
         if "basics" in active_sections and output.basics is not None:
             result["tailored_basics"] = output.basics

@@ -1,8 +1,10 @@
 import asyncio
 from collections import deque
 import json
+import logging
+import re
 import time
-from typing import Any, TypeVar, cast
+from typing import Any, TypeVar, cast, get_origin
 
 import instructor
 from litellm import acompletion
@@ -11,7 +13,94 @@ from pydantic import BaseModel
 from resume_ops_api.core.exceptions import AppError
 from resume_ops_api.services.ssrf_guard import SSRFBlockedError, assert_safe_url, install_transport_guard
 
+logger = logging.getLogger(__name__)
+
 ModelT = TypeVar("ModelT", bound=BaseModel)
+
+JSON_BLOCK_RE = re.compile(r"```(?:json\s*)?(.*?)```", re.DOTALL)
+
+
+def _is_unsupported_format_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(p in msg for p in ("response_format", "json_object", "unrecognized parameter", "not supported", "unexpected parameter"))
+
+
+def _extract_json_string(content_str: str) -> str:
+    content_str = content_str.strip()
+    match = JSON_BLOCK_RE.search(content_str)
+    if match:
+        content_str = match.group(1).strip()
+    else:
+        first_idx = min(
+            [idx for idx in [content_str.find("{"), content_str.find("[")] if idx != -1],
+            default=-1,
+        )
+        last_idx = max(
+            [idx for idx in [content_str.rfind("}"), content_str.rfind("]")] if idx != -1],
+            default=-1,
+        )
+        if first_idx != -1 and last_idx != -1 and last_idx > first_idx:
+            content_str = content_str[first_idx : last_idx + 1].strip()
+
+    if not content_str.startswith("{") and not content_str.startswith("[") and ":" in content_str:
+        content_str = "{" + content_str + "}"
+    return content_str
+
+
+def _clamp_parsed_data(d: Any) -> Any:
+    if isinstance(d, dict):
+        # Clamp project keywords and highlights
+        if "projects" in d and isinstance(d["projects"], list):
+            for p in d["projects"]:
+                if isinstance(p, dict):
+                    if "highlights" in p and isinstance(p["highlights"], list):
+                        p["highlights"] = p["highlights"][:3]
+                    if "keywords" in p and isinstance(p["keywords"], list):
+                        p["keywords"] = p["keywords"][:6]
+
+        # Clamp skills keywords
+        if "skills" in d and isinstance(d["skills"], list):
+            for s in d["skills"]:
+                if isinstance(s, dict) and "keywords" in s and isinstance(s["keywords"], list):
+                    s["keywords"] = s["keywords"][:8]
+    return d
+
+
+def _reshape_parsed_data(parsed: Any, response_model: type[BaseModel]) -> Any:
+    if isinstance(parsed, list):
+        model_fields = list(response_model.model_fields.keys())
+        if len(parsed) == 1 and not any(isinstance(item, list) for item in parsed):
+            first_item = parsed[0]
+            if isinstance(first_item, dict) and any(k in model_fields for k in first_item.keys()):
+                parsed = first_item
+
+        if isinstance(parsed, list):
+            list_field = None
+            for field_name, field_info in response_model.model_fields.items():
+                if get_origin(field_info.annotation) is list:
+                    list_field = field_name
+                    break
+            if list_field:
+                parsed = {list_field: parsed}
+    elif isinstance(parsed, dict):
+        model_fields = set(response_model.model_fields.keys())
+        if not (set(parsed.keys()) & model_fields):
+            list_values = [v for v in parsed.values() if isinstance(v, list)]
+            if len(list_values) == 1:
+                for field_name, field_info in response_model.model_fields.items():
+                    if get_origin(field_info.annotation) is list:
+                        parsed = {field_name: list_values[0]}
+                        break
+    return _clamp_parsed_data(parsed)
+
+
+def _parse_raw_llm_json(content: Any, response_model: type[BaseModel]) -> tuple[Any, str]:
+    if isinstance(content, dict):
+        return _reshape_parsed_data(content, response_model), json.dumps(content)
+    raw_str = str(content)
+    extracted = _extract_json_string(raw_str)
+    parsed = json.loads(extracted)
+    return _reshape_parsed_data(parsed, response_model), raw_str
 
 # ---------------------------------------------------------------------------
 # API base URL SSRF guard (connection-time IP-range blocking)
@@ -113,7 +202,15 @@ class StructuredLLMClient:
     ) -> None:
         self.completion_fn = completion_fn or acompletion
         self.enable_cache = enable_cache
-        self.cache: dict[tuple[str, str, str, str], Any] = {}
+        self.cache: dict[tuple[str, str, str, str, str, str], Any] = {}
+        if self.enable_cache:
+            try:
+                import litellm
+                litellm.enable_cache(type="local")
+            except (ImportError, AttributeError) as exc:
+                logger.debug("Optional LiteLLM cache support not available: %s", exc)
+            except Exception as exc:
+                logger.warning("Failed to initialize LiteLLM cache: %s", exc)
         self.max_retries = max_retries
         self.retry_min_wait = retry_min_wait
         self.retry_max_wait = retry_max_wait
@@ -234,24 +331,6 @@ class StructuredLLMClient:
         if "json" not in system_prompt.lower() and "json" not in user_prompt.lower():
             system_prompt = system_prompt + "\n\nNote: The output must be valid JSON."
 
-        def _clamp_parsed_data(d: Any) -> Any:
-            if isinstance(d, dict):
-                # Clamp project keywords and highlights
-                if "projects" in d and isinstance(d["projects"], list):
-                    for p in d["projects"]:
-                        if isinstance(p, dict):
-                            if "highlights" in p and isinstance(p["highlights"], list):
-                                p["highlights"] = p["highlights"][:3]
-                            if "keywords" in p and isinstance(p["keywords"], list):
-                                p["keywords"] = p["keywords"][:6]
-
-                # Clamp skills keywords
-                if "skills" in d and isinstance(d["skills"], list):
-                    for s in d["skills"]:
-                        if isinstance(s, dict) and "keywords" in s and isinstance(s["keywords"], list):
-                            s["keywords"] = s["keywords"][:8]
-            return d
-
         # For OpenRouter models, execute direct completion with markdown JSON parsing and field clamping
         if "openrouter" in model.lower():
             try:
@@ -265,36 +344,14 @@ class StructuredLLMClient:
                     drop_params=True,
                     timeout=self.request_timeout,
                     extra_headers=extra_headers or None,
+                    caching=self.enable_cache,
                     **extra_kwargs,
                 )
                 content = completion["choices"][0]["message"]["content"]
-                if isinstance(content, dict):
-                    parsed = content
-                else:
-                    content_str = content.strip()
-                    import re
-                    match = re.search(r"```(?:json)?\s*(.*?)\s*```", content_str, re.DOTALL)
-                    if match:
-                        content_str = match.group(1).strip()
-                    else:
-                        first_idx = min(
-                            [idx for idx in [content_str.find("{"), content_str.find("[")] if idx != -1],
-                            default=-1
-                        )
-                        last_idx = max(
-                            [idx for idx in [content_str.rfind("}"), content_str.rfind("]")] if idx != -1],
-                            default=-1
-                        )
-                        if first_idx != -1 and last_idx != -1 and last_idx > first_idx:
-                            content_str = content_str[first_idx : last_idx + 1].strip()
-
-                    parsed = json.loads(content_str)
-
-                parsed = _clamp_parsed_data(parsed)
+                parsed, _ = _parse_raw_llm_json(content, response_model)
                 return response_model.model_validate(parsed, context=validation_context)
             except Exception as e:
-                import logging
-                logging.debug(f"Direct OpenRouter completion failed for model '{model}': {e}. Falling back to standard modes.")
+                logger.debug("Direct OpenRouter completion failed for model '%s': %s. Falling back to standard modes.", model, e)
 
         # 1. First, try strict JSON Schema mode (OpenAI Structured Outputs)
         try:
@@ -311,13 +368,13 @@ class StructuredLLMClient:
                 timeout=self.request_timeout,
                 extra_headers=extra_headers or None,
                 validation_context=validation_context,
+                caching=self.enable_cache,
                 **extra_kwargs,
             )
             if isinstance(response, response_model):
                 return response
         except Exception as e:
-            import logging
-            logging.debug(f"JSON_OAI strict mode failed for model '{model}': {e}. Falling back to tool calling.")
+            logger.debug("JSON_OAI strict mode failed for model '%s': %s. Falling back to tool calling.", model, e)
 
         # 2. Fall back to standard Tool Calling
         try:
@@ -334,13 +391,13 @@ class StructuredLLMClient:
                 timeout=self.request_timeout,
                 extra_headers=extra_headers or None,
                 validation_context=validation_context,
+                caching=self.enable_cache,
                 **extra_kwargs,
             )
             if isinstance(response, response_model):
                 return response
         except Exception as e:
-            import logging
-            logging.debug(f"Tool calling mode failed for model '{model}': {e}. Falling back to raw JSON object mode.")
+            logger.debug("Tool calling mode failed for model '%s': %s. Falling back to raw JSON object mode.", model, e)
 
         # 2b. Try MD_JSON fallback before raw parsing
         try:
@@ -357,13 +414,13 @@ class StructuredLLMClient:
                 timeout=self.request_timeout,
                 extra_headers=extra_headers or None,
                 validation_context=validation_context,
+                caching=self.enable_cache,
                 **extra_kwargs,
             )
             if isinstance(response, response_model):
                 return response
         except Exception as e:
-            import logging
-            logging.debug(f"Fallback MD_JSON mode failed for model '{model}': {e}.")
+            logger.debug("Fallback MD_JSON mode failed for model '%s': %s.", model, e)
 
         # 3. Final fallback to raw acompletion with json_object
         try:
@@ -379,13 +436,16 @@ class StructuredLLMClient:
                     timeout=self.request_timeout,
                     response_format={"type": "json_object"},
                     extra_headers=extra_headers or None,
+                    caching=self.enable_cache,
                     **extra_kwargs,
                 )
             except Exception as format_exc:
-                import logging
-                logging.debug(
-                    f"Raw completion with json_object failed for model '{model}': {format_exc}. "
-                    f"Retrying without response_format."
+                if not _is_unsupported_format_error(format_exc):
+                    raise
+                logger.debug(
+                    "Raw completion with json_object failed for model '%s': %s. Retrying without response_format.",
+                    model,
+                    format_exc,
                 )
                 completion = await self.completion_fn(
                     model=model,
@@ -397,68 +457,72 @@ class StructuredLLMClient:
                     drop_params=True,
                     timeout=self.request_timeout,
                     extra_headers=extra_headers or None,
+                    caching=self.enable_cache,
                     **extra_kwargs,
                 )
             content = completion["choices"][0]["message"]["content"]
-            
-            if isinstance(content, dict):
-                parsed = content
-            else:
-                # Clean up potential markdown formatting code blocks or leading/trailing conversational text
-                content_str = content.strip()
-                import re
-                match = re.search(r"```(?:json)?\s*(.*?)\s*```", content_str, re.DOTALL)
-                if match:
-                    content_str = match.group(1).strip()
-                else:
-                    first_idx = min(
-                        [idx for idx in [content_str.find("{"), content_str.find("[")] if idx != -1],
-                        default=-1
+            try:
+                parsed, content_str = _parse_raw_llm_json(content, response_model)
+                return response_model.model_validate(parsed, context=validation_context)
+            except Exception as val_err:
+                # Option B: 1-turn conversational self-correction retry
+                logger.warning(
+                    "Structured output validation failed for model '%s': %s. Attempting 1-turn self-correction retry.",
+                    model,
+                    val_err,
+                )
+                correction_msg = (
+                    f"The previously returned JSON was invalid and failed schema validation with error:\n"
+                    f"{val_err}\n\n"
+                    f"Please output corrected JSON that strictly satisfies the schema and validation constraints. "
+                    f"Return ONLY valid JSON."
+                )
+                retry_messages = [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                    {"role": "assistant", "content": content if isinstance(content, str) else json.dumps(content)},
+                    {"role": "user", "content": correction_msg},
+                ]
+                try:
+                    retry_comp = await self.completion_fn(
+                        model=model,
+                        messages=retry_messages,
+                        temperature=0.1,
+                        drop_params=True,
+                        timeout=self.request_timeout,
+                        response_format={"type": "json_object"},
+                        extra_headers=extra_headers or None,
+                        caching=self.enable_cache,
+                        **extra_kwargs,
                     )
-                    last_idx = max(
-                        [idx for idx in [content_str.rfind("}"), content_str.rfind("]")] if idx != -1],
-                        default=-1
+                except Exception as retry_format_exc:
+                    if not _is_unsupported_format_error(retry_format_exc):
+                        raise
+                    logger.debug(
+                        "Repair completion with json_object failed for model '%s': %s. Retrying without response_format.",
+                        model,
+                        retry_format_exc,
                     )
-                    if first_idx != -1 and last_idx != -1 and last_idx > first_idx:
-                        content_str = content_str[first_idx : last_idx + 1].strip()
-
-                # If the content doesn't start with '{' or '[', but looks like a key-value or field definition, wrap it in braces
-                if not content_str.startswith("{") and not content_str.startswith("["):
-                    if ":" in content_str:
-                        content_str = "{" + content_str + "}"
-
-                parsed = json.loads(content_str)
-            # Normalize list and dict wrappers to match target model schema
-            if isinstance(parsed, list):
-                model_fields = list(response_model.model_fields.keys())
-                if len(parsed) == 1 and not any(isinstance(item, list) for item in parsed):
-                    first_item = parsed[0]
-                    if isinstance(first_item, dict) and any(k in model_fields for k in first_item.keys()):
-                        parsed = first_item
-                
-                if isinstance(parsed, list):
-                    list_field = None
-                    for field_name, field_info in response_model.model_fields.items():
-                        from typing import get_origin
-                        if get_origin(field_info.annotation) is list:
-                            list_field = field_name
-                            break
-                    if list_field:
-                        parsed = {list_field: parsed}
-            elif isinstance(parsed, dict):
-                model_fields = set(response_model.model_fields.keys())
-                if not (set(parsed.keys()) & model_fields):
-                    list_values = [v for v in parsed.values() if isinstance(v, list)]
-                    if len(list_values) == 1:
-                        for field_name, field_info in response_model.model_fields.items():
-                            from typing import get_origin
-                            if get_origin(field_info.annotation) is list:
-                                parsed = {field_name: list_values[0]}
-            parsed = _clamp_parsed_data(parsed)
-            return response_model.model_validate(parsed, context=validation_context)
+                    retry_comp = await self.completion_fn(
+                        model=model,
+                        messages=retry_messages,
+                        temperature=0.1,
+                        drop_params=True,
+                        timeout=self.request_timeout,
+                        extra_headers=extra_headers or None,
+                        caching=self.enable_cache,
+                        **extra_kwargs,
+                    )
+                retry_content = retry_comp["choices"][0]["message"]["content"]
+                retry_parsed, _ = _parse_raw_llm_json(retry_content, response_model)
+                return response_model.model_validate(retry_parsed, context=validation_context)
         except Exception as exc:
-            import logging
-            logging.error(f"Structured LLM generation failed for model '{model}': {exc}. Raw content was: {repr(locals().get('content'))}, content_str was: {repr(locals().get('content_str'))}")
+            logger.error(
+                "Structured LLM generation failed for model '%s': %s. Raw content was: %r",
+                model,
+                exc,
+                locals().get("content"),
+            )
             raise AppError(
                 f"Structured LLM generation failed for model '{model}'.",
                 code="llm_generation_failed",
