@@ -4,6 +4,28 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.9.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.8.0...v0.9.0) (2026-11-14)
+
+
+### Features
+
+* add quick URL ingest to pipeline and fix Lever active tab capture ([#191](https://github.com/Covai-Labs/JobFoundry/issues/191)) ([b025aae](https://github.com/Covai-Labs/JobFoundry/commit/b025aae3f531e1f11ae12d649ab4126051ab7a4c))
+* **settings:** allow inheriting provider credentials with custom model selection ([#192](https://github.com/Covai-Labs/JobFoundry/issues/192)) ([be2a681](https://github.com/Covai-Labs/JobFoundry/commit/be2a6812a5dd8d512178ef0aeb626e1207e8a969))
+* **tailor,web:** strengthen project tailoring prompt and add projects diff view ([#190](https://github.com/Covai-Labs/JobFoundry/issues/190)) ([01520d6](https://github.com/Covai-Labs/JobFoundry/commit/01520d61d4ab9aac0fae1809401d4e6acf4078ae))
+* **tailor:** add render-only endpoint for re-styling resumes ([#175](https://github.com/Covai-Labs/JobFoundry/issues/175)) ([c3babb0](https://github.com/Covai-Labs/JobFoundry/commit/c3babb041c272868537eeb2d6567b817afc11320))
+* **tailor:** implement ranked-merit and dynamic density work prompt with anti-dilution ([#193](https://github.com/Covai-Labs/JobFoundry/issues/193)) ([9bf7c3d](https://github.com/Covai-Labs/JobFoundry/commit/9bf7c3d01475d9c64758caa5de77be80ac65064f))
+* **tailor:** pipeline resilience with caching, 1-turn self-correction, and node fallback ([#189](https://github.com/Covai-Labs/JobFoundry/issues/189)) ([dc1be27](https://github.com/Covai-Labs/JobFoundry/commit/dc1be277a9b7a2ff5b191f0badd50d94f89a29a3))
+
+
+### Bug Fixes
+
+* **deps:** update all dependencies ([#164](https://github.com/Covai-Labs/JobFoundry/issues/164)) ([280f594](https://github.com/Covai-Labs/JobFoundry/commit/280f5948fb528635b42c82d68d814ba90e437698))
+* **ingest:** rate-limit the login endpoint ([#195](https://github.com/Covai-Labs/JobFoundry/issues/195)) ([0482a11](https://github.com/Covai-Labs/JobFoundry/commit/0482a118e2631cfc1bec5e122f96a6f5ad8553c9))
+* **packaging:** put the bundled node toolchain on PATH on Windows ([#180](https://github.com/Covai-Labs/JobFoundry/issues/180)) ([2577a49](https://github.com/Covai-Labs/JobFoundry/commit/2577a49e0061df295aee48f239a1ce510db4ad9b))
+* **scorer:** neutralize control characters in log records ([#194](https://github.com/Covai-Labs/JobFoundry/issues/194)) ([df75941](https://github.com/Covai-Labs/JobFoundry/commit/df75941c7aed2bae51ed61c193d086e1d29ce7e8))
+* **tailor:** give each folio theme its own exporter and install it ([#176](https://github.com/Covai-Labs/JobFoundry/issues/176)) ([1796ebf](https://github.com/Covai-Labs/JobFoundry/commit/1796ebfc387b1c87f801528205b57c3b890435fd))
+* **tailor:** normalize certificate selection and avoid validation failures on issuer and URL formats ([#188](https://github.com/Covai-Labs/JobFoundry/issues/188)) ([cab0d8d](https://github.com/Covai-Labs/JobFoundry/commit/cab0d8dd640db63897e05f6450ce5c5df9d7003a))
+
 ## [0.8.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.7.0...v0.8.0) (2026-11-13)
 
 
