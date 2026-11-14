@@ -20,6 +20,11 @@ ModelT = TypeVar("ModelT", bound=BaseModel)
 JSON_BLOCK_RE = re.compile(r"```(?:json\s*)?(.*?)```", re.DOTALL)
 
 
+def _is_unsupported_format_error(exc: Exception) -> bool:
+    msg = str(exc).lower()
+    return any(p in msg for p in ("response_format", "json_object", "unrecognized parameter", "not supported", "unexpected parameter"))
+
+
 def _extract_json_string(content_str: str) -> str:
     content_str = content_str.strip()
     match = JSON_BLOCK_RE.search(content_str)
@@ -435,6 +440,8 @@ class StructuredLLMClient:
                     **extra_kwargs,
                 )
             except Exception as format_exc:
+                if not _is_unsupported_format_error(format_exc):
+                    raise
                 logger.debug(
                     "Raw completion with json_object failed for model '%s': %s. Retrying without response_format.",
                     model,
@@ -488,7 +495,14 @@ class StructuredLLMClient:
                         caching=self.enable_cache,
                         **extra_kwargs,
                     )
-                except Exception:
+                except Exception as retry_format_exc:
+                    if not _is_unsupported_format_error(retry_format_exc):
+                        raise
+                    logger.debug(
+                        "Repair completion with json_object failed for model '%s': %s. Retrying without response_format.",
+                        model,
+                        retry_format_exc,
+                    )
                     retry_comp = await self.completion_fn(
                         model=model,
                         messages=retry_messages,

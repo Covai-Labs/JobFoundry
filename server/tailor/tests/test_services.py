@@ -1251,6 +1251,81 @@ class TestResumeGraphPipeline:
         assert final_resume["skills"][0]["name"] == "Original Skill"
         assert final_resume["projects"][0]["description"] == "Original proj"
 
+    @pytest.mark.asyncio
+    async def test_node_validation_failure_falls_back_to_master(self) -> None:
+        from resume_ops_api.graph.pipeline import ResumeGraph
+        from resume_ops_api.graph.merge import ResumeMerger
+        from resume_ops_api.graph.models import StrategyOutput
+        from resume_ops_api.graph.state import ResumeGraphState
+
+        mock_llm = MagicMock()
+        mock_llm.generate_structured = AsyncMock(
+            side_effect=AppError("LLM validation failed", code="llm_generation_failed", status_code=502)
+        )
+        graph = ResumeGraph(
+            llm_client=mock_llm,
+            merger=ResumeMerger(),
+            validator=MagicMock(),
+            renderer=MagicMock(),
+        )
+        state: ResumeGraphState = {
+            "original_resume": {
+                "basics": {"name": "Jay", "label": "Original Title"},
+                "work": [{"name": "Acme", "summary": "Original summary", "highlights": ["Item 1"]}],
+                "skills": [{"name": "Python", "keywords": ["FastAPI"]}],
+                "projects": [{"name": "Project A", "description": "Original description"}],
+            },
+            "strategy": StrategyOutput(target_narrative="Build software"),
+            "job_description": "We need a Python developer.",
+            "sections": ["work", "skills", "projects"],
+        }
+        # Run work_node directly: returns {} on validation failure
+        assert await graph.work_node(state) == {}
+
+        # Run projects_node directly: returns {} on validation failure
+        assert await graph.projects_node(state) == {}
+
+        # Run qualifications_node directly: returns {} on validation failure
+        assert await graph.qualifications_node(state) == {}
+
+        # Merge node with empty tailored results preserves all original sections
+        merge_result = await graph.merge_node(state)
+        final_resume = merge_result["final_resume"]
+        assert final_resume["work"][0]["summary"] == "Original summary"
+        assert final_resume["skills"][0]["name"] == "Python"
+        assert final_resume["projects"][0]["description"] == "Original description"
+
+    @pytest.mark.asyncio
+    async def test_node_provider_auth_failure_raises_transparently(self) -> None:
+        from resume_ops_api.graph.pipeline import ResumeGraph
+        from resume_ops_api.graph.merge import ResumeMerger
+        from resume_ops_api.graph.models import StrategyOutput
+        from resume_ops_api.graph.state import ResumeGraphState
+
+        mock_llm = MagicMock()
+        mock_llm.generate_structured = AsyncMock(
+            side_effect=AppError("Invalid API key", code="unauthorized", status_code=401)
+        )
+        graph = ResumeGraph(
+            llm_client=mock_llm,
+            merger=ResumeMerger(),
+            validator=MagicMock(),
+            renderer=MagicMock(),
+        )
+        state: ResumeGraphState = {
+            "original_resume": {
+                "basics": {"name": "Jay"},
+                "work": [{"name": "Acme", "summary": "Original"}],
+            },
+            "strategy": StrategyOutput(target_narrative="Build software"),
+            "job_description": "We need a dev.",
+            "sections": ["work"],
+        }
+        with pytest.raises(AppError) as exc_info:
+            await graph.work_node(state)
+        assert exc_info.value.code == "unauthorized"
+        assert exc_info.value.status_code == 401
+
 
 # ---------------------------------------------------------------------------
 # API base SSRF validation tests (connection-time IP-range blocking, BYOK)
