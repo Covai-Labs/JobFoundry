@@ -69,6 +69,34 @@ def _resolve_certificate_name(cert_input: str, original_certificates: list[dict[
     )
 
 
+def _validate_and_canonicalize_certificates(
+    certificates: list[str],
+    context: Any,
+) -> list[str]:
+    """Validate selected certificates against master resume and canonicalize matched names."""
+    if not isinstance(context, dict) or "original_resume" not in context or not certificates:
+        return certificates
+    resolved_certs: list[str] = []
+    original_certs = [
+        c for c in context["original_resume"].get("certificates", [])
+        if isinstance(c, dict) and c.get("name")
+    ]
+    allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
+    for cert in certificates:
+        matched = _resolve_certificate_name(cert, original_certs) if original_certs else None
+        if not matched:
+            allowed_display = (
+                f"Allowed certificates: {', '.join(allowed_names)}"
+                if allowed_names
+                else "Master resume contains no certificates."
+            )
+            raise ValueError(
+                f"Certificate '{cert}' does not exist in the master resume. {allowed_display}"
+            )
+        resolved_certs.append(matched)
+    return resolved_certs
+
+
 class StrategyOutput(BaseModel):
     target_narrative: str
     priority_keywords: list[str] | dict[str, Any] | str = Field(default_factory=list)
@@ -189,25 +217,7 @@ class QualificationsTailoringOutput(BaseModel):
                         f"with the master resume ({expected_edu_count})."
                     )
             if self.certificates:
-                resolved_certs: list[str] = []
-                original_certs = [
-                    c for c in context["original_resume"].get("certificates", [])
-                    if isinstance(c, dict) and c.get("name")
-                ]
-                allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
-                for cert in self.certificates:
-                    matched = _resolve_certificate_name(cert, original_certs) if original_certs else None
-                    if not matched:
-                        allowed_display = (
-                            f"Allowed certificates: {', '.join(allowed_names)}"
-                            if allowed_names
-                            else "Master resume contains no certificates."
-                        )
-                        raise ValueError(
-                            f"Certificate '{cert}' does not exist in the master resume. {allowed_display}"
-                        )
-                    resolved_certs.append(matched)
-                self.certificates = resolved_certs
+                self.certificates = _validate_and_canonicalize_certificates(self.certificates, context)
         return self
 
 
@@ -256,27 +266,8 @@ class CertificatesSelectionOutput(BaseModel):
 
     @model_validator(mode="after")
     def validate_certificate_names(self, info: ValidationInfo) -> "CertificatesSelectionOutput":
-        context = info.context
-        if context and "original_resume" in context:
-            resolved_certs: list[str] = []
-            original_certs = [
-                c for c in context["original_resume"].get("certificates", [])
-                if isinstance(c, dict) and c.get("name")
-            ]
-            allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
-            for cert in self.certificates:
-                matched = _resolve_certificate_name(cert, original_certs) if original_certs else None
-                if not matched:
-                    allowed_display = (
-                        f"Allowed certificates: {', '.join(allowed_names)}"
-                        if allowed_names
-                        else "Master resume contains no certificates."
-                    )
-                    raise ValueError(
-                        f"Certificate '{cert}' does not exist in the master resume. {allowed_display}"
-                    )
-                resolved_certs.append(matched)
-            self.certificates = resolved_certs
+        if self.certificates:
+            self.certificates = _validate_and_canonicalize_certificates(self.certificates, info.context)
         return self
 
 
