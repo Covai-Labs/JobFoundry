@@ -7,8 +7,51 @@ interface AddJobModalProps {
   onJobAdded: (job: Job) => void;
 }
 
+function guessCompanyFromUrl(rawUrl: string): string {
+  try {
+    const parsed = new URL(rawUrl.startsWith('http') ? rawUrl : `https://${rawUrl}`);
+    const host = parsed.hostname.toLowerCase();
+    const isDomain = (d: string) => host === d || host.endsWith('.' + d);
+    const pathname = parsed.pathname;
+
+    const firstSegment = (exclude?: string) => {
+      const seg = pathname.split('/').filter(Boolean)[0];
+      if (!seg || seg === exclude) return '';
+      return seg.charAt(0).toUpperCase() + seg.slice(1);
+    };
+
+    if (isDomain('greenhouse.io')) {
+      const comp = firstSegment('embed');
+      if (comp) return comp;
+    }
+    if (isDomain('lever.co') || isDomain('ashbyhq.com') || isDomain('smartrecruiters.com')) {
+      const comp = firstSegment();
+      if (comp) return comp;
+    }
+    if (isDomain('myworkdayjobs.com')) {
+      const sub = host.split('.')[0];
+      if (sub) return sub.charAt(0).toUpperCase() + sub.slice(1);
+    }
+    const cleanHost = host.replace(/^www\./, '');
+    const parts = cleanHost.split('.');
+    if (parts.length >= 2) {
+      const name = parts[0] === 'careers' || parts[0] === 'jobs' ? parts[1] : parts[0];
+      if (name && name !== 'linkedin' && name !== 'indeed' && name !== 'glassdoor') {
+        return name.charAt(0).toUpperCase() + name.slice(1);
+      }
+    }
+  } catch {}
+  return '';
+}
+
 export const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, onJobAdded }) => {
-  const [tab, setTab] = useState<'paste' | 'manual'>('paste');
+  const [tab, setTab] = useState<'url' | 'paste' | 'manual'>('url');
+
+  // Input states for URL Import tab
+  const [inputUrl, setInputUrl] = useState('');
+  const [urlTitle, setUrlTitle] = useState('');
+  const [urlCompany, setUrlCompany] = useState('');
+  const [isCompanyManual, setIsCompanyManual] = useState(false);
 
   // Input states for AI Parser tab
   const [pasteText, setPasteText] = useState('');
@@ -61,6 +104,71 @@ export const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, onJobAdded })
       setError(err?.message || 'Failed to parse job description with AI.');
     } finally {
       setParsing(false);
+    }
+  };
+
+  const handleUrlSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    let targetUrl = inputUrl.trim();
+    if (!targetUrl) {
+      setError('Please enter a job posting URL.');
+      return;
+    }
+    if (!/^https?:\/\//i.test(targetUrl)) {
+      targetUrl = `https://${targetUrl}`;
+    }
+
+    try {
+      new URL(targetUrl);
+    } catch {
+      setError('Please enter a valid URL.');
+      return;
+    }
+
+    const companyToUse = urlCompany.trim() || guessCompanyFromUrl(targetUrl) || 'Unknown Company';
+    const titleToUse = urlTitle.trim() || 'Pending Extraction';
+
+    setSaving(true);
+    setError(null);
+
+    try {
+      const payload: Partial<Job> = {
+        title: titleToUse,
+        company: companyToUse,
+        url: targetUrl,
+        source: 'url_import',
+        description: '',
+      };
+
+      const res = await api.ingestJobs(payload);
+      if (res && res.ids && res.ids.length > 0) {
+        const createdJobId = res.ids[0];
+        try {
+          const freshJob = await api.getJob(createdJobId);
+          onJobAdded(freshJob);
+        } catch {
+          onJobAdded({
+            id: createdJobId,
+            title: titleToUse,
+            company: companyToUse,
+            location: null,
+            url: targetUrl,
+            source: 'url_import',
+            description: '',
+            status: 'new',
+            liveness: 'unknown',
+            created_at: Date.now(),
+            updated_at: Date.now(),
+          });
+        }
+        onClose();
+      } else {
+        setError('Server did not return a job ID after ingestion.');
+      }
+    } catch (err: any) {
+      setError(err?.message || 'Failed to add job to pipeline.');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -176,7 +284,7 @@ export const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, onJobAdded })
                 Add Job to Pipeline
               </h2>
               <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                Paste raw JD text/markdown for AI parsing or enter details manually.
+                Import via URL, paste raw JD text/markdown, or enter details manually.
               </p>
             </div>
           </div>
@@ -204,6 +312,27 @@ export const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, onJobAdded })
             background: 'rgba(0, 0, 0, 0.2)',
           }}
         >
+          <button
+            type="button"
+            onClick={() => {
+              setTab('url');
+              setError(null);
+            }}
+            style={{
+              flex: 1,
+              padding: '0.75rem',
+              background: 'transparent',
+              border: 'none',
+              borderBottom:
+                tab === 'url' ? '2px solid var(--accent-primary)' : '2px solid transparent',
+              color: tab === 'url' ? 'var(--text-primary)' : 'var(--text-muted)',
+              fontWeight: tab === 'url' ? 600 : 400,
+              cursor: 'pointer',
+              fontSize: '0.875rem',
+            }}
+          >
+            🔗 Quick URL Import
+          </button>
           <button
             type="button"
             onClick={() => {
@@ -288,7 +417,198 @@ export const AddJobModal: React.FC<AddJobModalProps> = ({ onClose, onJobAdded })
             </div>
           )}
 
-          {tab === 'paste' ? (
+          {tab === 'url' ? (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void handleUrlSubmit(e);
+              }}
+              style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+            >
+              <div
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: 'var(--radius-sm)',
+                  background: 'rgba(59, 130, 246, 0.08)',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  display: 'flex',
+                  gap: '0.75rem',
+                  alignItems: 'flex-start',
+                }}
+              >
+                <span style={{ fontSize: '1.2rem', lineHeight: 1 }}>ℹ️</span>
+                <div
+                  style={{
+                    fontSize: '0.825rem',
+                    lineHeight: '1.45',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  <strong
+                    style={{
+                      color: 'var(--text-primary)',
+                      display: 'block',
+                      marginBottom: '0.2rem',
+                    }}
+                  >
+                    Companion Extension Relay
+                  </strong>
+                  Paste any job link. The job will be added to your pipeline immediately, and your
+                  JobFoundry browser extension will extract the full JD, requirements, and metadata
+                  in the background.
+                </div>
+              </div>
+
+              <div>
+                <label
+                  style={{
+                    display: 'block',
+                    fontSize: '0.85rem',
+                    fontWeight: 500,
+                    marginBottom: '0.35rem',
+                    color: 'var(--text-secondary)',
+                  }}
+                >
+                  Job Posting URL *
+                </label>
+                <input
+                  type="text"
+                  inputMode="url"
+                  required
+                  placeholder="https://jobs.example.com/posting/123 or LinkedIn/Indeed/Lever link"
+                  value={inputUrl}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setInputUrl(val);
+                    if (!isCompanyManual) {
+                      const guessed = guessCompanyFromUrl(val);
+                      setUrlCompany(guessed);
+                    }
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '0.75rem 0.85rem',
+                    background: 'var(--bg-primary)',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-primary)',
+                    fontSize: '0.9rem',
+                  }}
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      marginBottom: '0.35rem',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    Company Name (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Auto-extracted if left blank"
+                    value={urlCompany}
+                    onChange={(e) => {
+                      setUrlCompany(e.target.value);
+                      setIsCompanyManual(Boolean(e.target.value.trim()));
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                    }}
+                  />
+                </div>
+
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.85rem',
+                      fontWeight: 500,
+                      marginBottom: '0.35rem',
+                      color: 'var(--text-secondary)',
+                    }}
+                  >
+                    Job Title (Optional)
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Auto-extracted if left blank"
+                    value={urlTitle}
+                    onChange={(e) => {
+                      setUrlTitle(e.target.value);
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '0.65rem 0.85rem',
+                      background: 'var(--bg-primary)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-sm)',
+                      color: 'var(--text-primary)',
+                      fontSize: '0.9rem',
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  gap: '0.75rem',
+                  marginTop: '0.5rem',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={onClose}
+                  style={{
+                    padding: '0.65rem 1.25rem',
+                    background: 'transparent',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-sm)',
+                    color: 'var(--text-secondary)',
+                    fontWeight: 500,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || !inputUrl.trim()}
+                  style={{
+                    padding: '0.65rem 1.25rem',
+                    background: 'var(--accent-gradient)',
+                    border: 'none',
+                    borderRadius: 'var(--radius-sm)',
+                    color: '#fff',
+                    fontWeight: 600,
+                    fontSize: '0.9rem',
+                    cursor: saving || !inputUrl.trim() ? 'not-allowed' : 'pointer',
+                    opacity: saving || !inputUrl.trim() ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                  }}
+                >
+                  {saving ? '⏳ Adding to Pipeline...' : '➕ Add to Pipeline'}
+                </button>
+              </div>
+            </form>
+          ) : tab === 'paste' ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               <div>
                 <label

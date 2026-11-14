@@ -261,8 +261,13 @@ export function fulfillTask(
         );
         if (result.title) {
           db.prepare(
-            "UPDATE jobs SET title = CASE WHEN title = 'Unknown Position' OR title = '' THEN ? ELSE title END WHERE id = ?"
+            "UPDATE jobs SET title = CASE WHEN title IN ('Unknown Position', 'Pending Extraction', 'Job via URL', '') THEN ? ELSE title END WHERE id = ?"
           ).run(result.title, task.job_id);
+        }
+        if (result.company) {
+          db.prepare(
+            "UPDATE jobs SET company = CASE WHEN company IN ('Unknown Company', 'Pending Extraction', '') THEN ? ELSE company END WHERE id = ?"
+          ).run(result.company, task.job_id);
         }
       } else if (task.type === 'CHECK_LIVENESS' && result.liveness) {
         db.prepare('UPDATE jobs SET liveness = ?, updated_at = ? WHERE id = ?').run(

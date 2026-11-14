@@ -145,6 +145,56 @@ test('task-queue: check liveness task updates job liveness in db', () => {
   }
 });
 
+test('task-queue: fetch job page task updates job description, title, and company in db', () => {
+  const db = openDb({ path: ':memory:' });
+  try {
+    const now = Date.now();
+    db.prepare(
+      'INSERT INTO users (id, email, password_hash, api_key, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run('u1', 'test@example.com', 'h', 'k1', now, now);
+
+    db.prepare(
+      'INSERT INTO jobs (id, title, company, url, source, description, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+    ).run(
+      'j_fetch_1',
+      'Pending Extraction',
+      'Unknown Company',
+      'https://example.com/careers/lead-sre',
+      'url_import',
+      '',
+      'new',
+      now,
+      now
+    );
+
+    enqueueTask(db, {
+      userId: 'u1',
+      type: 'FETCH_JOB_PAGE',
+      jobId: 'j_fetch_1',
+      url: 'https://example.com/careers/lead-sre',
+    });
+
+    const leased = leaseNextTask(db, { userId: 'u1' });
+    fulfillTask(db, {
+      taskId: leased.id,
+      leaseToken: leased.leaseToken,
+      userId: 'u1',
+      result: {
+        title: 'Staff Site Reliability Engineer',
+        company: 'Stark Industries',
+        description: 'Lead infrastructure reliability and distributed platforms.',
+      },
+    });
+
+    const job = db.prepare('SELECT * FROM jobs WHERE id = ?').get('j_fetch_1');
+    assert.equal(job.title, 'Staff Site Reliability Engineer');
+    assert.equal(job.company, 'Stark Industries');
+    assert.equal(job.description, 'Lead infrastructure reliability and distributed platforms.');
+  } finally {
+    db.close();
+  }
+});
+
 test('task-queue: reclaims expired lease and marks failed after max retries', () => {
   const db = openDb({ path: ':memory:' });
   try {

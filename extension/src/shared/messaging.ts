@@ -10,10 +10,20 @@ export interface JobsDiscoveredPayload {
   jobs: Array<Record<string, any>>;
 }
 
+export interface CaptureActiveTabPayload {
+  tabId?: number;
+}
+
 export interface CaptureActiveTabResult {
   ok: boolean;
-  job?: any;
+  job?: Record<string, unknown>;
   count?: number;
+  error?: string;
+}
+
+export interface ExtractActiveJobResult {
+  ok: boolean;
+  jobs?: Array<Record<string, unknown>>;
   error?: string;
 }
 
@@ -42,12 +52,15 @@ export interface SearchBoardsResult {
   error?: string;
 }
 
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 interface JobFoundryProtocol {
   'popup:scanNow': () => ScanNowResult;
   'popup:searchBoardsNow': () => SearchBoardsResult;
-  'popup:captureActiveTab': () => CaptureActiveTabResult;
+  'popup:captureActiveTab': (payload?: CaptureActiveTabPayload) => CaptureActiveTabResult;
   'popup:autoConnect': () => AutoConnectResult;
-  'content:jobsDiscovered': (data: JobsDiscoveredPayload) => JobsDiscoveredResult;
+  'content:jobsDiscovered': (payload: JobsDiscoveredPayload) => JobsDiscoveredResult;
+  'content:extractActiveJob': () => ExtractActiveJobResult;
 }
+/* eslint-enable no-unused-vars, @typescript-eslint/no-unused-vars */
 
 export const { sendMessage, onMessage } = defineExtensionMessaging<JobFoundryProtocol>();
