@@ -30,7 +30,7 @@ export const DEFAULT_TAILOR_STRATEGY_PROMPT =
   'Formulate a coherent tailoring strategy for the candidate matching the target job description. Tailor only the professional label (headline/title) and the main summary paragraph aiming for under 100 words (3-4 sentences). Retain high-signaling education if present. Return target_narrative, priority_keywords, section_rules, red_lines, label, and summary without inventing facts.';
 
 export const DEFAULT_TAILOR_WORK_PROMPT =
-  'Tailor only the summary and highlights for each work item to align with the target role. Do not change company names, positions, dates, locations, urls, or order. Do not invent unsupported responsibilities or achievements. Apply tiered highlight limits based on recency.';
+  'Tailor only the summary and highlights for each work item to align with the target role. Do not change company names, positions, dates, locations, urls, or order. Do not invent unsupported responsibilities or achievements. Apply tiered highlight limits based on recency and ranked merit: retain 4 to 6 high-impact highlights for flagship roles while strictly omitting low-signal or routine tasks, and condense older roles to 1 to 2 highlights.';
 
 export const DEFAULT_TAILOR_PROJECTS_PROMPT =
   'Select 2 to 4 projects most relevant to the target job description. Keep project names verbatim. Refocus and tailor project descriptions to align with the target role problem domain. Rewrite, focus, and prioritize highlights (max 3) emphasizing technical choices, quantifiable impact, and relevance. Curate and prioritize keywords (max 6) without inventing unsupported technologies. In sequential cascade mode, ensure projects complement work experience without repeating identical accomplishments.';
@@ -39,7 +39,7 @@ export const DEFAULT_TAILOR_QUALIFICATIONS_PROMPT =
   'Tailor candidate qualifications (skills, certificates, education) without inventing facts. Regroup skills into 4 to 6 high-impact categories with 3 to 8 keywords representing the most relevant tools. Select only relevant certificates. Preserve education metadata.';
 
 export const DEFAULT_TAILOR_MONOLITHIC_PROMPT =
-  'Tailor the complete resume strictly grounded in the master resume to align with the target job description. Retain factual integrity, preserve all dates, employers, degrees, and positions. Do not invent facts or metrics. Craft a cohesive headline, summary, aligned work bullets, selected relevant projects with refocused descriptions, highlights, and keywords, and prioritized skills.';
+  'Tailor the complete resume strictly grounded in the master resume to align with the target job description. Retain factual integrity, preserve all dates, employers, degrees, and positions. Do not invent facts or metrics. Craft a cohesive headline, summary, aligned work bullets applying ranked merit and anti-dilution (4 to 6 highlights for flagship/recent roles, 5 to 7 if only 1-2 roles exist, condensed older roles), selected relevant projects with refocused descriptions, highlights, and keywords, and prioritized skills.';
 
 export const DEFAULT_TAILOR_FINAL_CHECK_PROMPT =
   'Act as a strict Resume Quality Auditor and Fact-Checker. Compare the tailored resume against the master resume and custom instructions. Verify zero hallucination, enforce language and style guidelines (e.g., British English, no em dashes), ensure project highlights and work bullets complement each other, and verify all formatting rules.';

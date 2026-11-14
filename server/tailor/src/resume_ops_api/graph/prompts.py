@@ -109,13 +109,29 @@ def work_prompt(
     work_items = resume.get("work", [])
     N = len(work_items)
     
-    rules = []
+    rules = [
+        "SELECTION CRITERIA & ANTI-DILUTION BAR:\n"
+        "1. Rank the master highlights for each role by relevance and signaling power for the target job description.\n"
+        "2. Keep only high-signal accomplishments: direct matches for core responsibilities/qualifications (Tier A) "
+        "or high-impact quantifiable achievements demonstrating caliber and scale (Tier B).\n"
+        "3. Strictly omit low-signal bullets: routine maintenance, incidental tooling, administrative tasks, "
+        "or weak tangential matches (Tier C), even if the maximum bullet range for that role has not been met.\n"
+        "4. Anti-Dilution: 4 high-impact, focused highlights are vastly superior to 7 diluted ones. Never keep filler points.\n"
+        "5. Do NOT over-prune: If distinct, high-signal Tier A/B accomplishments exist in the master resume within the target range, "
+        "retain them rather than arbitrarily pruning down to 1 or 2 bullets."
+    ]
     if N <= 2:
-        rules.append("- Tailor the highlights normally by retaining only the highly relevant accomplishments and eliminating unrelated ones.")
+        rules.append(
+            "- For all roles (1-2 jobs total): Since the candidate has few roles, each role carries substantial visual and substantive weight. "
+            "For the primary/most recent role, retain 5 to 7 high-impact highlights (max 8, min 3) if strong Tier A/B evidence exists. "
+            "For the second role, retain 4 to 6 highlights (max 6, min 2). Omit weak or redundant points."
+        )
     elif N == 3:
         rules.append(
-            f"- For {work_items[0].get('name', 'Item 1')} and {work_items[1].get('name', 'Item 2')}: Tailor normally by retaining only the highly relevant accomplishments and eliminating unrelated ones.\n"
-            f"- For {work_items[2].get('name', 'Item 3')}: Set the summary to an empty string (\"\"). Limit highlights strictly to 1 or 2 bullet points, keeping only the most relevant accomplishments and discarding the rest."
+            f"- For {work_items[0].get('name', 'Item 1')} and {work_items[1].get('name', 'Item 2')} (newest / flagship roles): "
+            f"Retain 4 to 6 high-impact highlights per role (max 6, min 3) meeting the Tier A/B bar.\n"
+            f"- For {work_items[2].get('name', 'Item 3')} (oldest role): Set the summary to an empty string (\"\"). "
+            f"Limit highlights strictly to 1 or 2 bullet points, keeping only the most relevant accomplishments and discarding the rest."
         )
     else:
         # N >= 4: partition into 4 tiers:
@@ -139,10 +155,11 @@ def work_prompt(
         t1_names = [w.get("name", f"Item {i+t4_size+t3_size+t2_size+1}") for i, w in enumerate(t1_items)]
         
         rules.append(
-            f"- For {', '.join(t4_names)}: Tailor normally by retaining only the highly relevant highlights and eliminating unrelated ones, maintaining detail/bullets for matching skills.\n"
-            f"- For {', '.join(t3_names)}: Include only as many highlights as makes sense (medium detail), focusing strictly on relevant achievements and eliminating unrelated ones.\n"
-            f"- For {', '.join(t2_names)}: Set the summary to an empty string (\"\"). Limit highlights strictly to 1 or 2 bullet points if essential, keeping only the most relevant accomplishments and discarding the rest.\n"
-            f"- For {', '.join(t1_names)}: Set the summary to an empty string (\"\"). Limit highlights strictly to exactly 1 bullet point focusing on the single most relevant accomplishment, and discard all other points."
+            f"- For {', '.join(t4_names)} (flagship / most recent roles): Retain 4 to 6 high-impact highlights per role (max 6, min 3) "
+            f"that satisfy the Tier A/B relevance bar, ensuring diverse coverage of leadership, technical depth, and delivery. Do not over-prune to 2 bullets if strong matching evidence exists.\n"
+            f"- For {', '.join(t3_names)} (mid-career roles): Include 2 to 3 highlights (medium detail), focusing strictly on standout relevant achievements.\n"
+            f"- For {', '.join(t2_names)} (older roles): Set the summary to an empty string (\"\"). Limit highlights strictly to 1 or 2 bullet points if essential, keeping only the most relevant accomplishments and discarding the rest.\n"
+            f"- For {', '.join(t1_names)} (oldest roles): Set the summary to an empty string (\"\"). Limit highlights strictly to exactly 1 bullet point focusing on the single most relevant accomplishment, and discard all other points."
         )
 
     base = custom_template.strip() if custom_template and custom_template.strip() else (
@@ -330,19 +347,29 @@ def monolithic_prompt(
     custom_template: str | None = None,
     active_sections: list[str] | None = None,
 ) -> tuple[str, str]:
-    base = custom_template.strip() if custom_template and custom_template.strip() else (
-        "You are tailoring a complete resume to match the target job description without inventing facts.\n"
-        "Retain absolute factual integrity: the master resume is the sole source of truth. "
-        "Never invent employers, job titles, degrees, certifications, tech stacks, or metrics.\n\n"
-        "SECTION GUIDELINES:\n"
-        "- BASICS: Tailor professional headline (label) and concise summary paragraph (<100 words).\n"
-        "- WORK: Tailor summary and highlights for each work role. Preserve companies, dates, titles, and order 1:1.\n"
-        "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Refocus descriptions and provide up to 3 tailored highlights and up to 6 relevant keywords per project.\n"
-        "- SKILLS: Regroup existing skills into 4 to 6 categories with 3 to 8 keywords representing matching technologies.\n"
-        "- CERTIFICATES: Select relevant certificates verbatim from existing certificates. Output ONLY the exact certificate 'name' string without appending the issuer or organization.\n"
-        "- EDUCATION: Tailor courses if applicable; preserve degrees, institutions, and dates.\n\n"
-        "Return structured JSON matching FullResumeTailoringOutput."
+    density_guideline = (
+        "\n\nWORK DENSITY & ANTI-DILUTION GUIDELINE:\n"
+        "Apply ranked merit with anti-dilution: retain 4 to 6 high-impact highlights for flagship/recent roles "
+        "(5 to 7 if only 1-2 roles exist) and condense older roles to 1 to 2 bullets. Strictly omit routine or low-signal tasks."
     )
+    if custom_template and custom_template.strip():
+        base = custom_template.strip() + density_guideline
+    else:
+        base = (
+            "You are tailoring a complete resume to match the target job description without inventing facts.\n"
+            "Retain absolute factual integrity: the master resume is the sole source of truth. "
+            "Never invent employers, job titles, degrees, certifications, tech stacks, or metrics.\n\n"
+            "SECTION GUIDELINES:\n"
+            "- BASICS: Tailor professional headline (label) and concise summary paragraph (<100 words).\n"
+            "- WORK: Tailor summary and highlights for each work role. Preserve companies, dates, titles, and order 1:1. "
+            "Apply ranked merit with anti-dilution: retain 4 to 6 high-impact highlights for flagship/recent roles (5 to 7 if only 1-2 roles exist) "
+            "and condense older roles to 1 to 2 bullets. Strictly omit routine or low-signal tasks.\n"
+            "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Refocus descriptions and provide up to 3 tailored highlights and up to 6 relevant keywords per project.\n"
+            "- SKILLS: Regroup existing skills into 4 to 6 categories with 3 to 8 keywords representing matching technologies.\n"
+            "- CERTIFICATES: Select relevant certificates verbatim from existing certificates. Output ONLY the exact certificate 'name' string without appending the issuer or organization.\n"
+            "- EDUCATION: Tailor courses if applicable; preserve degrees, institutions, and dates.\n\n"
+            "Return structured JSON matching FullResumeTailoringOutput."
+        )
     system = _apply_style(base, style, custom_instructions)
     user_parts = [
         f"Job description:\n{job_description}",
