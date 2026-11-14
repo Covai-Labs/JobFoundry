@@ -97,6 +97,15 @@ Job board extractors live in `extension/src/content/extractors/` and background 
 - **Formatting**: We use Prettier. Run `npm run format` to auto-format your changes.
 - **Vendored Providers**: Notice that `extension/src/background/providers/` are kept byte-identical to upstream ports to preserve hash integrity. Do not reformat vendored files.
 
+### Dependency Updates
+
+- **Renovate owns dependency updates.** Dependabot version updates are disabled in `.github/dependabot.yml`; security update PRs still arrive through Dependabot alerts.
+- **`packaging/python/*-requirements.txt` are compiled lockfiles**, not manifests. Never edit the pins by hand. After changing `server/scorer/pyproject.toml` or `server/tailor/pyproject.toml`, regenerate them:
+  ```bash
+  scripts/regen-packaging-requirements.sh
+  ```
+  CI runs the same script with `--check` and fails if the committed files are stale.
+
 ---
 
 ## Submitting Pull Requests

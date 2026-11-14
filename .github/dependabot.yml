@@ -1,0 +1,23 @@
+# Dependabot is intentionally kept out of version updates.
+#
+# Renovate owns dependency updates for this repository (see renovate.json and
+# the shared Covai-Labs/.github preset): it opens one grouped PR per run and it
+# knows how to *recompile* the uv lockfiles under packaging/python.
+#
+# Dependabot used to be configured through the repository UI only, which this
+# file overrides. That UI configuration ran `pip` against /packaging/python and
+# edited the compiled requirements.txt files line by line, which is not a valid
+# way to update a lockfile: it produced byte-identical duplicate PRs (#144 and
+# #178) and broken sets (#183).
+#
+# Version updates are disabled with open-pull-requests-limit: 0. Security
+# update PRs are not affected: those come from Dependabot alerts, not from the
+# ecosystems listed here.
+version: 2
+
+updates:
+  - package-ecosystem: 'pip'
+    directory: '/packaging/python'
+    schedule:
+      interval: 'weekly'
+    open-pull-requests-limit: 0

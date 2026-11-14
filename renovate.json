@@ -1,8 +1,16 @@
 {
   "$schema": "https://docs.renovatebot.com/renovate-schema.json",
   "extends": ["local>Covai-Labs/.github"],
-  "ignorePaths": ["packaging/python/**"],
+  "pip-compile": {
+    "managerFilePatterns": ["/^packaging\\/python\\/[a-z]+-requirements\\.txt$/"]
+  },
   "packageRules": [
+    {
+      "description": "packaging/python holds uv-compiled lockfiles. Renovate's pip_requirements manager edits pins line by line, which cannot keep a compiled set consistent - the pip-compile manager re-runs the command in the file header instead.",
+      "matchManagers": ["pip_requirements"],
+      "matchFileNames": ["packaging/python/**"],
+      "enabled": false
+    },
     {
       "matchPackageNames": ["python", "docker.io/library/python"],
       "allowedVersions": "<3.15"
