@@ -838,7 +838,7 @@ class TestResumeRenderer:
         assert called_args[6] == (pkg / "dist" / "index.js").resolve().as_uri()
 
     @pytest.mark.asyncio
-    async def test_render_concise_theme_stays_on_folio_exporter(
+    async def test_render_concise_theme_uses_its_own_exporter(
         self, renderer: ResumeRenderer, tmp_path: Path
     ) -> None:
         output_dir = tmp_path / "output"
@@ -851,7 +851,10 @@ class TestResumeRenderer:
         mock_process.communicate = AsyncMock(side_effect=mock_communicate)
 
         mock_exec = AsyncMock(return_value=mock_process)
-        with patch("resume_ops_api.services.renderer.shutil.which", return_value="/usr/bin/fake-folio-export"):
+        with patch(
+            "resume_ops_api.services.renderer.shutil.which",
+            side_effect=lambda name: f"/usr/bin/{name}",
+        ):
             with patch("resume_ops_api.services.renderer.asyncio.create_subprocess_exec", mock_exec):
                 output_dir.mkdir(parents=True, exist_ok=True)
                 (output_dir / "output.pdf").write_bytes(b"%PDF-1.4 fake")
@@ -862,8 +865,32 @@ class TestResumeRenderer:
                 )
 
         called_args = mock_exec.call_args[0]
-        assert called_args[0] == "/usr/bin/fake-folio-export"
+        # Concise ships its own exporter; reusing folio-export would silently
+        # render the regular folio layout instead.
+        assert called_args[0] == "/usr/bin/folio-concise-export"
         assert called_args[3] == "--single-page"
+
+    @pytest.mark.asyncio
+    async def test_render_reports_missing_binary(
+        self, renderer: ResumeRenderer, tmp_path: Path
+    ) -> None:
+        output_dir = tmp_path / "output"
+
+        with patch("resume_ops_api.services.renderer.shutil.which", return_value=None):
+            with patch(
+                "resume_ops_api.services.renderer.asyncio.create_subprocess_exec",
+                AsyncMock(side_effect=FileNotFoundError("resumed")),
+            ):
+                with pytest.raises(AppError) as exc_info:
+                    await renderer.render(
+                        resume={"basics": {"name": "Test"}},
+                        theme="jsonresume-theme-stackoverflow",
+                        output_dir=output_dir,
+                    )
+
+        assert exc_info.value.code == "renderer_unavailable"
+        assert exc_info.value.status_code == 500
+        assert exc_info.value.details["theme"] == "jsonresume-theme-stackoverflow"
 
     @pytest.mark.asyncio
     async def test_render_writes_resume_json(self, renderer: ResumeRenderer, tmp_path: Path) -> None:

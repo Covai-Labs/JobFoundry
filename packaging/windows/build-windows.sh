@@ -244,6 +244,7 @@ cat > "$STAGE/node-tools/package.json" <<'EOF'
   "license": "AGPL-3.0-only",
   "dependencies": {
     "jsonresume-theme-folio": "^1.3.1",
+    "jsonresume-theme-folio-concise": "^1.2.1",
     "jsonresume-theme-stackoverflow": "*",
     "resumed": "^7.0.0",
     "puppeteer": "^24.0.0"
@@ -256,6 +257,8 @@ EOF
   || { echo "[windows] ERROR: folio-export binary missing after install" >&2; exit 1; }
 [ -x "$STAGE/node-tools/node_modules/.bin/resumed" ] \
   || { echo "[windows] ERROR: resumed binary missing after install" >&2; exit 1; }
+[ -x "$STAGE/node-tools/node_modules/.bin/folio-concise-export" ] \
+  || { echo "[windows] ERROR: folio-concise-export binary missing after install" >&2; exit 1; }
 
 # ------------------------------------------------------------------------------
 # 6. Assemble runtime payload

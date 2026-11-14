@@ -29,7 +29,7 @@ RUN npm ci --omit=dev --workspace=server/ingest
 # --- Stage 3: Final All-in-One Runtime ---
 FROM python:3.14-slim
 
-ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-stackoverflow"
+ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-folio-concise@^1.2.1 jsonresume-theme-stackoverflow"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
