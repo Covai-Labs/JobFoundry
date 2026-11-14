@@ -200,7 +200,9 @@ def qualifications_prompt(
         sections_rules.append(
             "- CERTIFICATES: Select only certificates from the candidate's certificates list that have a strong, direct mapping "
             "to the target role's priority keywords. Return a maximum of 18 (or fewer if not meeting strict relevance). "
-            "Do not rewrite or invent certificate names; use existing certificate names verbatim."
+            "Do not rewrite or invent certificate names; use existing certificate names verbatim. "
+            "CRITICAL: Output ONLY the exact certificate 'name' string without appending the issuer, organization, or any additional text "
+            "(e.g., return 'AI Product Manager Professional Certificate', NOT 'AI Product Manager Professional Certificate, IBM')."
         )
     else:
         sections_rules.append("- CERTIFICATES: Certificate selection is disabled. Return certificates as an empty list [].")
@@ -336,7 +338,7 @@ def monolithic_prompt(
         "- WORK: Tailor summary and highlights for each work role. Preserve companies, dates, titles, and order 1:1.\n"
         "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Provide up to 3 highlights per project.\n"
         "- SKILLS: Regroup existing skills into 4 to 6 categories with 3 to 8 keywords representing matching technologies.\n"
-        "- CERTIFICATES: Select relevant certificates verbatim from existing certificates.\n"
+        "- CERTIFICATES: Select relevant certificates verbatim from existing certificates. Output ONLY the exact certificate 'name' string without appending the issuer or organization.\n"
         "- EDUCATION: Tailor courses if applicable; preserve degrees, institutions, and dates.\n\n"
         "Return structured JSON matching FullResumeTailoringOutput."
     )
@@ -389,6 +391,7 @@ def certificates_prompt(resume: dict[str, Any], job_description: str, strategy: 
         "Select only certificates that have a strong, direct mapping to the target role's priority keywords. "
         "Return a maximum of 18, but fewer if they do not meet a strict relevance threshold. "
         "Do not rewrite or invent certificate names; use existing certificate names verbatim. "
+        "CRITICAL: Output ONLY the exact certificate 'name' string without appending the issuer, organization, or any additional text (e.g. return 'AI Product Manager Professional Certificate', NOT 'AI Product Manager Professional Certificate, IBM'). "
         "Return structured JSON with this key: certificates (a list of certificate names)."
     )
     user = (

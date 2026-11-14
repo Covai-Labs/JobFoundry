@@ -370,6 +370,20 @@ def test_merger_preserves_omitted_sections(sample_resume: dict) -> None:
     assert merged["work"][0]["summary"] == "Work only"
 
 
+def test_merger_resolves_formatted_certificates(sample_resume: dict) -> None:
+    merger = ResumeMerger()
+    cert = sample_resume["certificates"][0]
+    issuer = cert.get("issuer") or "Some Issuer"
+    formatted_cert = f"{cert['name']}, {issuer}"
+    merged = merger.merge(
+        original_resume=sample_resume,
+        selected_certificates=CertificatesSelectionOutput(certificates=[formatted_cert]),
+    )
+    assert len(merged["certificates"]) == 1
+    assert merged["certificates"][0]["name"] == cert["name"]
+
+
+
 
 
 

@@ -15,6 +15,7 @@ from resume_ops_api.graph.models import (
     StrategyAndBasicsOutput,
     WorkTailoringOutput,
     BasicsTailoringOutput,
+    _resolve_certificate_name,
 )
 
 TOKEN_RE = re.compile(r"[a-z0-9]+")
@@ -216,11 +217,13 @@ class ResumeMerger:
             return
         original_certificates = original_resume.get("certificates", [])
         originals_by_name = {_normalize(certificate.get("name", "")): certificate for certificate in original_certificates}
-        merged["certificates"] = [
-            copy.deepcopy(originals_by_name[name_key])
-            for name in selected_certificates.certificates[:MAX_SELECTED_CERTIFICATES]
-            if (name_key := _normalize(name)) in originals_by_name
-        ]
+        merged_certs = []
+        for name in selected_certificates.certificates[:MAX_SELECTED_CERTIFICATES]:
+            canonical = _resolve_certificate_name(name, original_certificates)
+            name_key = _normalize(canonical or name)
+            if name_key in originals_by_name:
+                merged_certs.append(copy.deepcopy(originals_by_name[name_key]))
+        merged["certificates"] = merged_certs
 
     def _merge_optional_sections(
         self,

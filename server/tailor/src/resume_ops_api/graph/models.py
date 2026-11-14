@@ -1,8 +1,100 @@
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator, model_validator, ValidationInfo
+
+
+URL_RE = re.compile(r"https?://[^\s,()]+")
+
+
+def _match_exact_name(lowered: str, candidates: list[dict[str, Any]]) -> str | None:
+    for c in candidates:
+        name = c.get("name", "").strip()
+        if lowered == name.lower():
+            return name
+    return None
+
+
+def _match_delimited_name(lowered: str, candidates: list[dict[str, Any]]) -> str | None:
+    for sep in (",", " - ", " (", " | "):
+        if sep in lowered:
+            prefix = lowered.split(sep)[0].strip()
+            for c in candidates:
+                name = c.get("name", "").strip()
+                if prefix == name.lower():
+                    rest = lowered[len(prefix):].strip(" ,-():[]|")
+                    issuer = (c.get("issuer") or "").strip().lower() if isinstance(c.get("issuer"), str) else ""
+                    url = (c.get("url") or "").strip().lower() if isinstance(c.get("url"), str) else ""
+                    if not rest or (issuer and issuer in rest) or (url and url in rest):
+                        return name
+    return None
+
+
+def _match_url(lowered: str, candidates: list[dict[str, Any]]) -> str | None:
+    extracted_urls = [u.rstrip(".,);]") for u in URL_RE.findall(lowered)]
+    if not extracted_urls:
+        return None
+    for target_url in extracted_urls:
+        matching = [
+            c.get("name", "").strip()
+            for c in candidates
+            if isinstance(c.get("url"), str) and c.get("url", "").strip().lower() == target_url
+        ]
+        if len(matching) == 1:
+            return matching[0]
+    return None
+
+
+def _resolve_certificate_name(cert_input: str, original_certificates: list[dict[str, Any]]) -> str | None:
+    """Resolve a selected certificate name against master resume entries.
+
+    Handles exact matches as well as common LLM formatting variations such as
+    appending the issuer, full URL, or copying the full tabular row
+    (e.g. 'Certificate, Issuer, URL', 'Certificate, Issuer', 'Certificate (Issuer)',
+    or 'Certificate - Issuer'). Returns the canonical master certificate name,
+    or None if no match is found.
+    """
+    if not cert_input or not isinstance(cert_input, str) or not cert_input.strip():
+        return None
+    lowered = cert_input.strip().lower()
+    candidates = [c for c in original_certificates if isinstance(c, dict) and c.get("name")]
+    candidates.sort(key=lambda c: len(c.get("name", "")), reverse=True)
+
+    return (
+        _match_exact_name(lowered, candidates)
+        or _match_delimited_name(lowered, candidates)
+        or _match_url(lowered, candidates)
+    )
+
+
+def _validate_and_canonicalize_certificates(
+    certificates: list[str],
+    context: Any,
+) -> list[str]:
+    """Validate selected certificates against master resume and canonicalize matched names."""
+    if not isinstance(context, dict) or "original_resume" not in context or not certificates:
+        return certificates
+    resolved_certs: list[str] = []
+    original_certs = [
+        c for c in context["original_resume"].get("certificates", [])
+        if isinstance(c, dict) and c.get("name")
+    ]
+    allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
+    for cert in certificates:
+        matched = _resolve_certificate_name(cert, original_certs) if original_certs else None
+        if not matched:
+            allowed_display = (
+                f"Allowed certificates: {', '.join(allowed_names)}"
+                if allowed_names
+                else "Master resume contains no certificates."
+            )
+            raise ValueError(
+                f"Certificate '{cert}' does not exist in the master resume. {allowed_display}"
+            )
+        resolved_certs.append(matched)
+    return resolved_certs
 
 
 class StrategyOutput(BaseModel):
@@ -125,18 +217,7 @@ class QualificationsTailoringOutput(BaseModel):
                         f"with the master resume ({expected_edu_count})."
                     )
             if self.certificates:
-                original_certs = {
-                    c.get("name", "").strip().lower()
-                    for c in context["original_resume"].get("certificates", [])
-                    if isinstance(c, dict) and c.get("name")
-                }
-                if original_certs:
-                    for cert in self.certificates:
-                        if cert.strip().lower() not in original_certs:
-                            raise ValueError(
-                                f"Certificate '{cert}' does not exist in the master resume. "
-                                f"Allowed certificates: {', '.join(sorted(original_certs))}"
-                            )
+                self.certificates = _validate_and_canonicalize_certificates(self.certificates, context)
         return self
 
 
@@ -185,19 +266,8 @@ class CertificatesSelectionOutput(BaseModel):
 
     @model_validator(mode="after")
     def validate_certificate_names(self, info: ValidationInfo) -> "CertificatesSelectionOutput":
-        context = info.context
-        if context and "original_resume" in context:
-            original_certs = {
-                c.get("name", "").strip().lower()
-                for c in context["original_resume"].get("certificates", [])
-                if isinstance(c, dict) and c.get("name")
-            }
-            for cert in self.certificates:
-                if cert.strip().lower() not in original_certs:
-                    raise ValueError(
-                        f"Certificate '{cert}' does not exist in the master resume. "
-                        f"Allowed certificates: {', '.join(sorted(original_certs))}"
-                    )
+        if self.certificates:
+            self.certificates = _validate_and_canonicalize_certificates(self.certificates, info.context)
         return self
 
 
