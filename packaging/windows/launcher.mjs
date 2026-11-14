@@ -91,6 +91,24 @@ env.PYTHONPATH = [path.join(APP_SRC, 'server', 'scorer'), SITE_PACKAGES].join(';
 env.PUPPETEER_EXECUTABLE_PATH = CHROME_BIN;
 env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 
+// The renderer shells out to the bundled toolchain by bare name
+// (folio-export, folio-concise-export, resumed), and each npm .cmd shim then
+// invokes `node`. Neither the node directory nor node-tools/.bin is on the
+// user's PATH, so every theme would fail to render. Prepend both, mirroring
+// packaging/launcher.sh.
+const bundledNodeDir = path.dirname(NODE_BIN);
+const bundledNodeToolsBin = path.join(APP_SRC, 'node-tools', 'node_modules', '.bin');
+
+// Windows environment blocks are case-insensitive but a Node object is not, so
+// the inherited variable can be spelled PATH, Path or path. Merge every
+// spelling into one PATH and drop the rest: spawn() with two would be
+// ambiguous, and keeping only the spelling we happen to look for would lose
+// the inherited directories.
+const pathKeys = Object.keys(env).filter((key) => key.toUpperCase() === 'PATH');
+const inheritedPath = pathKeys.length ? env[pathKeys[0]] : '';
+for (const key of pathKeys) delete env[key];
+env.PATH = [bundledNodeDir, bundledNodeToolsBin, inheritedPath].filter(Boolean).join(';');
+
 // Ports (all bound on localhost).
 const TAILOR_PORT = 8081;
 const SCORER_PORT = 8001;
@@ -106,7 +124,10 @@ if (fs.existsSync(ENV_FILE)) {
     if (eq <= 0) continue;
     const key = line.slice(0, eq).trim();
     const value = line.slice(eq + 1).trim();
-    if (key && !(key in env)) env[key] = value;
+    // PATH is launcher-owned: a user value would shadow the bundled node
+    // toolchain, and any casing of the name would sit beside our PATH.
+    if (!key || key.toUpperCase() === 'PATH') continue;
+    if (!(key in env)) env[key] = value;
   }
 }
 

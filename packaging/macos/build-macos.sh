@@ -333,6 +333,7 @@ cat > "$STAGE/node-tools/package.json" <<'EOF'
   "license": "AGPL-3.0-only",
   "dependencies": {
     "jsonresume-theme-folio": "^1.3.1",
+    "jsonresume-theme-folio-concise": "^1.2.1",
     "jsonresume-theme-stackoverflow": "*",
     "resumed": "^7.0.0",
     "puppeteer": "^24.0.0"
@@ -345,6 +346,8 @@ EOF
   || { echo "[macos] ERROR: folio-export binary missing after install" >&2; exit 1; }
 [ -x "$STAGE/node-tools/node_modules/.bin/resumed" ] \
   || { echo "[macos] ERROR: resumed binary missing after install" >&2; exit 1; }
+[ -x "$STAGE/node-tools/node_modules/.bin/folio-concise-export" ] \
+  || { echo "[macos] ERROR: folio-concise-export binary missing after install" >&2; exit 1; }
 
 # ------------------------------------------------------------------------------
 # 7. Install Python services into the standalone Python
