@@ -347,21 +347,29 @@ def monolithic_prompt(
     custom_template: str | None = None,
     active_sections: list[str] | None = None,
 ) -> tuple[str, str]:
-    base = custom_template.strip() if custom_template and custom_template.strip() else (
-        "You are tailoring a complete resume to match the target job description without inventing facts.\n"
-        "Retain absolute factual integrity: the master resume is the sole source of truth. "
-        "Never invent employers, job titles, degrees, certifications, tech stacks, or metrics.\n\n"
-        "SECTION GUIDELINES:\n"
-        "- BASICS: Tailor professional headline (label) and concise summary paragraph (<100 words).\n"
-        "- WORK: Tailor summary and highlights for each work role. Preserve companies, dates, titles, and order 1:1. "
-        "Apply ranked merit with anti-dilution: retain 4 to 6 high-impact highlights for flagship/recent roles (5 to 7 if only 1-2 roles exist) "
-        "and condense older roles to 1 to 2 bullets. Strictly omit routine or low-signal tasks.\n"
-        "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Refocus descriptions and provide up to 3 tailored highlights and up to 6 relevant keywords per project.\n"
-        "- SKILLS: Regroup existing skills into 4 to 6 categories with 3 to 8 keywords representing matching technologies.\n"
-        "- CERTIFICATES: Select relevant certificates verbatim from existing certificates. Output ONLY the exact certificate 'name' string without appending the issuer or organization.\n"
-        "- EDUCATION: Tailor courses if applicable; preserve degrees, institutions, and dates.\n\n"
-        "Return structured JSON matching FullResumeTailoringOutput."
+    density_guideline = (
+        "\n\nWORK DENSITY & ANTI-DILUTION GUIDELINE:\n"
+        "Apply ranked merit with anti-dilution: retain 4 to 6 high-impact highlights for flagship/recent roles "
+        "(5 to 7 if only 1-2 roles exist) and condense older roles to 1 to 2 bullets. Strictly omit routine or low-signal tasks."
     )
+    if custom_template and custom_template.strip():
+        base = custom_template.strip() + density_guideline
+    else:
+        base = (
+            "You are tailoring a complete resume to match the target job description without inventing facts.\n"
+            "Retain absolute factual integrity: the master resume is the sole source of truth. "
+            "Never invent employers, job titles, degrees, certifications, tech stacks, or metrics.\n\n"
+            "SECTION GUIDELINES:\n"
+            "- BASICS: Tailor professional headline (label) and concise summary paragraph (<100 words).\n"
+            "- WORK: Tailor summary and highlights for each work role. Preserve companies, dates, titles, and order 1:1. "
+            "Apply ranked merit with anti-dilution: retain 4 to 6 high-impact highlights for flagship/recent roles (5 to 7 if only 1-2 roles exist) "
+            "and condense older roles to 1 to 2 bullets. Strictly omit routine or low-signal tasks.\n"
+            "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Refocus descriptions and provide up to 3 tailored highlights and up to 6 relevant keywords per project.\n"
+            "- SKILLS: Regroup existing skills into 4 to 6 categories with 3 to 8 keywords representing matching technologies.\n"
+            "- CERTIFICATES: Select relevant certificates verbatim from existing certificates. Output ONLY the exact certificate 'name' string without appending the issuer or organization.\n"
+            "- EDUCATION: Tailor courses if applicable; preserve degrees, institutions, and dates.\n\n"
+            "Return structured JSON matching FullResumeTailoringOutput."
+        )
     system = _apply_style(base, style, custom_instructions)
     user_parts = [
         f"Job description:\n{job_description}",

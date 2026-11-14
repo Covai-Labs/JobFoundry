@@ -187,6 +187,12 @@ def test_work_prompt_tier_partitioning() -> None:
     assert "For all roles (1–2 jobs total)" in few_sys
     assert "retain 5 to 7 high-impact highlights" in few_sys
 
+    # Also test 3-jobs candidate (flagship + mid + oldest)
+    three_resume = {"work": [{"name": "Lead Role"}, {"name": "Mid Role"}, {"name": "Early Role"}]}
+    three_sys, _ = work_prompt(three_resume, "mock job", {})
+    assert "For Lead Role and Mid Role (newest / flagship roles): Retain 4 to 6 high-impact highlights" in three_sys
+    assert "For Early Role (oldest role): Set the summary to an empty string" in three_sys
+
 
 
 def test_prompts_style_injection() -> None:

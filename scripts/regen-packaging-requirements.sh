@@ -30,7 +30,7 @@ PYTHON_VERSION=3.14
 # CI pins this version and compares the regenerated files byte-for-byte, so a
 # different resolver locally shows up as spurious drift. Keep in sync with the
 # `python` job in .github/workflows/ci.yml.
-UV_VERSION=0.12.24
+UV_VERSION=0.13.8
 SOURCES=(
   "server/scorer/pyproject.toml:packaging/python/scorer-requirements.txt"
   "server/tailor/pyproject.toml:packaging/python/tailor-requirements.txt"
