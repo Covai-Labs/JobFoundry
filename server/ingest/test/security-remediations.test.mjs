@@ -51,6 +51,32 @@ test('security rate limits protect every newly shielded endpoint', async () => {
   }
 });
 
+test('security rate limits protect the login endpoint from credential stuffing', async () => {
+  const { app } = makeApp();
+  try {
+    for (let attempt = 0; attempt < 10; attempt += 1) {
+      const response = await app.inject({
+        method: 'POST',
+        url: '/api/v1/auth/login',
+        payload: { email: 'nobody@example.com', password: 'wrong-password' },
+      });
+      assert.equal(response.statusCode, 401, `attempt ${attempt + 1}`);
+    }
+
+    const blocked = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: 'nobody@example.com', password: 'wrong-password' },
+    });
+    assert.equal(blocked.statusCode, 429);
+    assert.deepEqual(blocked.json(), {
+      error: 'Too many requests, please try again later.',
+    });
+  } finally {
+    await app.close();
+  }
+});
+
 test('security rate limit releases an address after the sliding window expires', async () => {
   const originalNow = Date.now;
   let now = 1_000_000;

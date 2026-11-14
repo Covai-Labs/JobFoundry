@@ -799,34 +799,50 @@ export function buildApp({
   );
 
   // POST /api/v1/auth/login
-  app.post('/api/v1/auth/login', async (request, reply) => {
-    const { email, password } = request.body || {};
-    if (!email || !password) {
-      return reply.code(400).send({ error: 'email and password are required' });
+  app.post(
+    '/api/v1/auth/login',
+    {
+      config: {
+        rateLimit: {
+          max: 10,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 10,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 10)) return;
+      const { email, password } = request.body || {};
+      if (!email || !password) {
+        return reply.code(400).send({ error: 'email and password are required' });
+      }
+
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const userRow = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+      if (!userRow) {
+        return reply.code(401).send({ error: 'invalid email or password' });
+      }
+
+      const isValid = await verifyPassword(password, userRow.password_hash);
+      if (!isValid) {
+        return reply.code(401).send({ error: 'invalid email or password' });
+      }
+
+      const user = {
+        id: userRow.id,
+        email: userRow.email,
+        name: userRow.name,
+        apiKey: userRow.api_key,
+        isAdmin: Boolean(userRow.is_admin),
+      };
+      const token = createToken({ userId: userRow.id, email: userRow.email }, jwtSecret);
+
+      return { user, token };
     }
-
-    const normalizedEmail = String(email).trim().toLowerCase();
-    const userRow = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
-    if (!userRow) {
-      return reply.code(401).send({ error: 'invalid email or password' });
-    }
-
-    const isValid = await verifyPassword(password, userRow.password_hash);
-    if (!isValid) {
-      return reply.code(401).send({ error: 'invalid email or password' });
-    }
-
-    const user = {
-      id: userRow.id,
-      email: userRow.email,
-      name: userRow.name,
-      apiKey: userRow.api_key,
-      isAdmin: Boolean(userRow.is_admin),
-    };
-    const token = createToken({ userId: userRow.id, email: userRow.email }, jwtSecret);
-
-    return { user, token };
-  });
+  );
 
   // GET /api/v1/auth/me
   app.get('/api/v1/auth/me', async (request, reply) => {
