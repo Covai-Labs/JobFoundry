@@ -21,6 +21,20 @@ describe('computeResumeDiff', () => {
         keywords: ['Python', 'Flask', 'MySQL'],
       },
     ],
+    projects: [
+      {
+        name: 'Project A',
+        description: 'Old project description',
+        highlights: ['Built MVP', 'Fixed bugs'],
+        keywords: ['Python', 'SQLite'],
+      },
+      {
+        name: 'Project B (Omitted)',
+        description: 'Legacy internal tool',
+        highlights: ['Maintained tool'],
+        keywords: ['Bash'],
+      },
+    ],
   };
 
   const tailoredResume = {
@@ -44,6 +58,14 @@ describe('computeResumeDiff', () => {
       {
         name: 'Backend',
         keywords: ['Python', 'FastAPI', 'Flask', 'MySQL', 'Docker'],
+      },
+    ],
+    projects: [
+      {
+        name: 'Project A',
+        description: 'New focused project description for target role',
+        highlights: ['Built MVP', 'Scaled to 10k RPS with FastAPI'],
+        keywords: ['Python', 'FastAPI', 'Redis'],
       },
     ],
   };
@@ -82,5 +104,37 @@ describe('computeResumeDiff', () => {
     const addedKeywords = skillDiff.keywords.filter((k) => k.type === 'added').map((k) => k.text);
     expect(addedKeywords).toContain('FastAPI');
     expect(addedKeywords).toContain('Docker');
+  });
+
+  it('detects project description modifications, highlight additions/removals, and keywords', () => {
+    const diff = computeResumeDiff(originalResume, tailoredResume);
+    const projA = diff.projects.find((p) => p.name === 'Project A');
+    expect(projA).toBeDefined();
+    expect(projA?.isOmitted).toBeFalsy();
+    expect(projA?.descriptionChange).toEqual({
+      original: 'Old project description',
+      tailored: 'New focused project description for target role',
+    });
+
+    const addedHighlights = projA?.highlights.filter((h) => h.type === 'added').map((h) => h.text);
+    const removedHighlights = projA?.highlights.filter((h) => h.type === 'removed').map((h) => h.text);
+    const unchangedHighlights = projA?.highlights.filter((h) => h.type === 'unchanged').map((h) => h.text);
+
+    expect(addedHighlights).toContain('Scaled to 10k RPS with FastAPI');
+    expect(removedHighlights).toContain('Fixed bugs');
+    expect(unchangedHighlights).toContain('Built MVP');
+
+    const addedKeywords = projA?.keywords.filter((k) => k.type === 'added').map((k) => k.text);
+    const removedKeywords = projA?.keywords.filter((k) => k.type === 'removed').map((k) => k.text);
+    expect(addedKeywords).toContain('FastAPI');
+    expect(addedKeywords).toContain('Redis');
+    expect(removedKeywords).toContain('SQLite');
+  });
+
+  it('detects omitted projects from master resume', () => {
+    const diff = computeResumeDiff(originalResume, tailoredResume);
+    const projB = diff.projects.find((p) => p.name === 'Project B (Omitted)');
+    expect(projB).toBeDefined();
+    expect(projB?.isOmitted).toBe(true);
   });
 });

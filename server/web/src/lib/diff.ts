@@ -14,6 +14,14 @@ export interface SkillDiff {
   keywords: DiffItem[];
 }
 
+export interface ProjectDiff {
+  name: string;
+  isOmitted?: boolean;
+  descriptionChange?: { original: string; tailored: string };
+  highlights: DiffItem[];
+  keywords: DiffItem[];
+}
+
 export interface ResumeDiff {
   basics: {
     labelChange?: { original: string; tailored: string };
@@ -21,6 +29,7 @@ export interface ResumeDiff {
   };
   work: WorkDiff[];
   skills: SkillDiff[];
+  projects: ProjectDiff[];
 }
 
 export function computeListDiff(
@@ -125,5 +134,51 @@ export function computeResumeDiff(
     });
   }
 
-  return { basics, work, skills };
+  // Projects Diff
+  const origProjects: any[] = original.projects || [];
+  const tailProjects: any[] = tailored.projects || [];
+
+  const projects: ProjectDiff[] = [];
+  const tailNames = new Set(tailProjects.map((p) => p.name).filter(Boolean));
+  const allProjectNames = [
+    ...tailProjects.map((p) => p.name).filter(Boolean),
+    ...origProjects.map((p) => p.name).filter((name) => Boolean(name) && !tailNames.has(name)),
+  ];
+
+  for (const name of allProjectNames) {
+    const origProj = origProjects.find((p) => p.name === name);
+    const tailProj = tailProjects.find((p) => p.name === name);
+
+    const isOmitted = Boolean(origProj && !tailProj);
+
+    let descriptionChange: { original: string; tailored: string } | undefined;
+    if (
+      origProj?.description &&
+      tailProj?.description &&
+      origProj.description.trim() !== tailProj.description.trim()
+    ) {
+      descriptionChange = {
+        original: origProj.description.trim(),
+        tailored: tailProj.description.trim(),
+      };
+    }
+
+    const origHighlights: string[] = origProj?.highlights || [];
+    const tailHighlights: string[] = tailProj?.highlights || [];
+    const highlightsDiff = computeListDiff(origHighlights, tailHighlights);
+
+    const origKeywords: string[] = origProj?.keywords || [];
+    const tailKeywords: string[] = tailProj?.keywords || [];
+    const keywordsDiff = computeListDiff(origKeywords, tailKeywords);
+
+    projects.push({
+      name,
+      isOmitted,
+      descriptionChange,
+      highlights: highlightsDiff,
+      keywords: keywordsDiff,
+    });
+  }
+
+  return { basics, work, skills, projects };
 }
