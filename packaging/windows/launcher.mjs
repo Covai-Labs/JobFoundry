@@ -91,6 +91,18 @@ env.PYTHONPATH = [path.join(APP_SRC, 'server', 'scorer'), SITE_PACKAGES].join(';
 env.PUPPETEER_EXECUTABLE_PATH = CHROME_BIN;
 env.PUPPETEER_SKIP_CHROMIUM_DOWNLOAD = 'true';
 
+// The renderer shells out to the bundled toolchain by bare name
+// (folio-export, folio-concise-export, resumed), and each npm .cmd shim then
+// invokes `node`. Neither the node directory nor node-tools/.bin is on the
+// user's PATH, so every theme would fail to render. Prepend both, mirroring
+// packaging/launcher.sh. process.env may spell the variable `Path`, and
+// passing both spellings to spawn() is ambiguous, so normalise to one.
+const bundledNodeDir = path.dirname(NODE_BIN);
+const bundledNodeToolsBin = path.join(APP_SRC, 'node-tools', 'node_modules', '.bin');
+const inheritedPath = env.PATH || env.Path || '';
+delete env.Path;
+env.PATH = [bundledNodeDir, bundledNodeToolsBin, inheritedPath].filter(Boolean).join(';');
+
 // Ports (all bound on localhost).
 const TAILOR_PORT = 8081;
 const SCORER_PORT = 8001;
