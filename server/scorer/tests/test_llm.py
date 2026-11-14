@@ -119,3 +119,37 @@ def test_log_safe_accepts_non_string_values():
 
 def test_log_safe_keeps_ordinary_values_intact():
     assert _log_safe("job-abc_123", limit=64) == "job-abc_123"
+
+
+class _FailingCompletions:
+    async def create(self, **_kwargs):
+        raise RuntimeError("provider exploded:\r\n2026-01-01 00:00:00 ERROR forged entry")
+
+
+class _FailingChat:
+    completions = _FailingCompletions()
+
+
+class _FailingClient:
+    chat = _FailingChat()
+
+
+@pytest.mark.asyncio
+async def test_score_scrubs_untrusted_values_from_log_records(caplog):
+    client = LiteLLMClient(model="test-model")
+    client.client = _FailingClient()
+
+    with caplog.at_level("INFO"):
+        with pytest.raises(RuntimeError):
+            await client.score({"id": "job-1\nERROR forged entry", "title": "t"}, {})
+
+    messages = [record.getMessage() for record in caplog.records]
+    assert messages, "expected the failure to be logged"
+    assert all("\n" not in message and "\r" not in message for message in messages)
+    assert any("job-1 ERROR forged entry" in message for message in messages)
+
+
+def test_log_safe_strips_bidirectional_formatting():
+    cleaned = _log_safe("job-1\u202eevil\u2066text\u2069")
+    for invisible in ("\u202e", "\u2066", "\u2069"):
+        assert invisible not in cleaned

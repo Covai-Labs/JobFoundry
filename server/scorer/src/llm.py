@@ -17,6 +17,28 @@ logger = logging.getLogger(__name__)
 # translated to a space before a value reaches a log record.
 _LOG_CONTROL_CHARS = {code: 0x20 for code in range(0x20) if code != 0x09}
 _LOG_CONTROL_CHARS[0x7F] = 0x20
+# Bidirectional and other invisible formatting characters. They carry no log
+# content, but they can reorder how the rest of the line is rendered.
+_LOG_CONTROL_CHARS.update(
+    {
+        code: 0x20
+        for code in (
+            0x061C,  # ARABIC LETTER MARK
+            0x200B,  # ZERO WIDTH SPACE
+            0x200E,  # LEFT-TO-RIGHT MARK
+            0x200F,  # RIGHT-TO-LEFT MARK
+            0x202A,  # LEFT-TO-RIGHT EMBEDDING
+            0x202B,  # RIGHT-TO-LEFT EMBEDDING
+            0x202C,  # POP DIRECTIONAL FORMATTING
+            0x202D,  # LEFT-TO-RIGHT OVERRIDE
+            0x202E,  # RIGHT-TO-LEFT OVERRIDE
+            0x2066,  # LEFT-TO-RIGHT ISOLATE
+            0x2067,  # RIGHT-TO-LEFT ISOLATE
+            0x2068,  # FIRST STRONG ISOLATE
+            0x2069,  # POP DIRECTIONAL ISOLATE
+        )
+    }
+)
 
 
 def _log_safe(value: Any, limit: int = 200) -> str:
