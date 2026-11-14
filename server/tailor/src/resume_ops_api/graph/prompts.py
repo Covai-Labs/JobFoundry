@@ -294,12 +294,13 @@ def projects_prompt(
     work_context: list[dict[str, Any]] | None = None,
 ) -> tuple[str, str]:
     base = custom_template.strip() if custom_template and custom_template.strip() else (
-        "Choose only from existing projects. You may omit, reorder, and tailor descriptions and highlights. "
-        "Select a maximum of 4 (ideally 2 to 4) projects that are most relevant to the target job description. "
-        "For each project, write at most 3 relevant highlights and list at most 6 technologies/keywords used. "
-        "CRITICAL: You MUST keep the 'name' of each project EXACTLY as provided in the master resume. "
-        "Do not alter project names even slightly (e.g. spelling, casing, symbols), or they will be dropped during merge. "
-        "For each project, retain or tailor its 'keywords' list (technologies used) matching the StackOverflow layout theme. "
+        "You are an expert resume editor. Tailor the candidate's projects to maximize relevance and alignment with the target role.\n"
+        "1. SELECTION: Choose only from existing projects in the master resume. Select a maximum of 4 (ideally 2 to 4) projects that are most relevant to the target job description.\n"
+        "2. PROJECT NAMES: CRITICAL: You MUST keep the 'name' of each project EXACTLY as provided in the master resume. Do not alter project names even slightly (e.g. spelling, casing, symbols), or they will be dropped during merge.\n"
+        "3. TAILOR DESCRIPTIONS: Refocus and tailor the 'description' of each chosen project so it clearly frames the problem, scope, and domain relevance to the target job requirements while maintaining factual accuracy.\n"
+        "4. TAILOR HIGHLIGHTS: Rewrite, focus, and prioritize 'highlights' (at most 3 bullet points per project) to emphasize relevant architectural choices, business impact, technical depth, and quantifiable achievements matching the target role. Do not simply copy master bullets unchanged when they can be refocused for stronger alignment.\n"
+        "5. TAILOR KEYWORDS: Curate and prioritize the 'keywords' list (at most 6 technologies/tools per project) highlighting the stack and methodologies most valued in the job description.\n"
+        "6. FACTUAL INTEGRITY: Never invent projects, unperformed work, or unsupported technologies not evidenced in the master resume.\n\n"
         "Return structured JSON with this key: projects (a list of tailored project objects with name, description, highlights, and keywords)."
     )
     if work_context:
@@ -336,7 +337,7 @@ def monolithic_prompt(
         "SECTION GUIDELINES:\n"
         "- BASICS: Tailor professional headline (label) and concise summary paragraph (<100 words).\n"
         "- WORK: Tailor summary and highlights for each work role. Preserve companies, dates, titles, and order 1:1.\n"
-        "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Provide up to 3 highlights per project.\n"
+        "- PROJECTS: Select 2 to 4 most relevant projects. Retain original project names verbatim. Refocus descriptions and provide up to 3 tailored highlights and up to 6 relevant keywords per project.\n"
         "- SKILLS: Regroup existing skills into 4 to 6 categories with 3 to 8 keywords representing matching technologies.\n"
         "- CERTIFICATES: Select relevant certificates verbatim from existing certificates. Output ONLY the exact certificate 'name' string without appending the issuer or organization.\n"
         "- EDUCATION: Tailor courses if applicable; preserve degrees, institutions, and dates.\n\n"

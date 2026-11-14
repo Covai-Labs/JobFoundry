@@ -14,6 +14,14 @@ export interface SkillDiff {
   keywords: DiffItem[];
 }
 
+export interface ProjectDiff {
+  name: string;
+  isOmitted?: boolean;
+  descriptionChange?: { original: string; tailored: string };
+  highlights: DiffItem[];
+  keywords: DiffItem[];
+}
+
 export interface ResumeDiff {
   basics: {
     labelChange?: { original: string; tailored: string };
@@ -21,6 +29,7 @@ export interface ResumeDiff {
   };
   work: WorkDiff[];
   skills: SkillDiff[];
+  projects: ProjectDiff[];
 }
 
 export function computeListDiff(
@@ -125,5 +134,86 @@ export function computeResumeDiff(
     });
   }
 
-  return { basics, work, skills };
+  // Projects Diff
+  const origProjects: any[] = original.projects || [];
+  const tailProjects: any[] = tailored.projects || [];
+
+  const projects: ProjectDiff[] = [];
+  const usedTailIndices = new Set<number>();
+
+  for (let i = 0; i < origProjects.length; i++) {
+    const origProj = origProjects[i];
+    const origName = origProj?.name?.trim() || '';
+
+    let tailIdx = -1;
+    if (origName) {
+      tailIdx = tailProjects.findIndex(
+        (tp, idx) => !usedTailIndices.has(idx) && (tp?.name?.trim() || '') === origName
+      );
+    } else {
+      // For unnamed projects, match by position index if target is also unnamed
+      if (tailProjects[i] && !tailProjects[i]?.name?.trim() && !usedTailIndices.has(i)) {
+        tailIdx = i;
+      }
+    }
+
+    const tailProj = tailIdx !== -1 ? tailProjects[tailIdx] : undefined;
+    if (tailIdx !== -1) {
+      usedTailIndices.add(tailIdx);
+    }
+
+    const isOmitted = !tailProj;
+    const name = origName || tailProj?.name?.trim() || `Project ${i + 1}`;
+
+    const origDesc = origProj?.description?.trim() ?? '';
+    const tailDesc = tailProj?.description?.trim() ?? '';
+    let descriptionChange: { original: string; tailored: string } | undefined;
+    if (origDesc !== tailDesc && (Boolean(origDesc) || Boolean(tailDesc))) {
+      descriptionChange = {
+        original: origDesc,
+        tailored: tailDesc,
+      };
+    }
+
+    const origHighlights: string[] = origProj?.highlights || [];
+    const tailHighlights: string[] = tailProj?.highlights || [];
+    const highlightsDiff = computeListDiff(origHighlights, tailHighlights);
+
+    const origKeywords: string[] = origProj?.keywords || [];
+    const tailKeywords: string[] = tailProj?.keywords || [];
+    const keywordsDiff = computeListDiff(origKeywords, tailKeywords);
+
+    projects.push({
+      name,
+      isOmitted,
+      descriptionChange,
+      highlights: highlightsDiff,
+      keywords: keywordsDiff,
+    });
+  }
+
+  // Include any newly added projects in tailored that were not in original
+  for (let j = 0; j < tailProjects.length; j++) {
+    if (!usedTailIndices.has(j)) {
+      const tailProj = tailProjects[j];
+      const name = tailProj?.name?.trim() || `Project ${j + 1}`;
+      const tailDesc = tailProj?.description?.trim() ?? '';
+      let descriptionChange: { original: string; tailored: string } | undefined;
+      if (tailDesc) {
+        descriptionChange = {
+          original: '',
+          tailored: tailDesc,
+        };
+      }
+      projects.push({
+        name,
+        isOmitted: false,
+        descriptionChange,
+        highlights: computeListDiff([], tailProj?.highlights || []),
+        keywords: computeListDiff([], tailProj?.keywords || []),
+      });
+    }
+  }
+
+  return { basics, work, skills, projects };
 }
