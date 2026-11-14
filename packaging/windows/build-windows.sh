@@ -259,11 +259,14 @@ EOF
 # link npm created. Going through npm's own links (rather than each package's
 # "bin" map) preserves npm's precedence: both folio themes expose folio-export.
 BIN_DIR="$STAGE/node-tools/node_modules/.bin"
+# readlink -f resolves symlinks and ".." in STAGE too, so compare against the
+# resolved parent or a BUILD_DIR containing either would look like a violation.
+NODE_MODULES_DIR="$(readlink -f "$BIN_DIR/..")"
 for link in "$BIN_DIR"/*; do
   [ -L "$link" ] || continue
   name="$(basename "$link")"
   target="$(readlink -f "$link")"
-  rel="${target#"$STAGE/node-tools/node_modules/"}"
+  rel="${target#"$NODE_MODULES_DIR/"}"
   [ "$rel" != "$target" ] \
     || { echo "[windows] ERROR: $name resolves outside node_modules: $target" >&2; exit 1; }
   printf '@ECHO off\r\nSETLOCAL\r\nnode "%%~dp0..\\%s" %%*\r\n' "${rel//\//\\}" > "$BIN_DIR/$name.cmd"
