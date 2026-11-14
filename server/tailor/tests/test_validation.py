@@ -211,5 +211,28 @@ def test_validate_qualifications_certificate_with_issuer_normalizes():
     assert obj.certificates == ["AI Product Manager Professional Certificate"]
 
 
+def test_validate_certificate_empty_master_resume_fails():
+    context = {"original_resume": {"certificates": []}}
+    data = {"certificates": ["Some Certificate"]}
+    with pytest.raises(ValidationError) as excinfo:
+        CertificatesSelectionOutput.model_validate(data, context=context)
+    assert "Certificate 'Some Certificate' does not exist in the master resume" in str(excinfo.value)
+
+
+def test_validate_certificate_unrelated_suffix_fails():
+    context = {
+        "original_resume": {
+            "certificates": [
+                {"name": "AWS Certified Solutions Architect", "issuer": "Amazon"},
+            ]
+        }
+    }
+    data = {"certificates": ["AWS Certified Solutions Architect Professional"]}
+    with pytest.raises(ValidationError) as excinfo:
+        CertificatesSelectionOutput.model_validate(data, context=context)
+    assert "does not exist in the master resume" in str(excinfo.value)
+
+
+
 
 

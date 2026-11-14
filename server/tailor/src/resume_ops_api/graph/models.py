@@ -6,6 +6,47 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator, model_validator, ValidationInfo
 
 
+URL_RE = re.compile(r"https?://[^\s,()]+")
+
+
+def _match_exact_name(lowered: str, candidates: list[dict[str, Any]]) -> str | None:
+    for c in candidates:
+        name = c.get("name", "").strip()
+        if lowered == name.lower():
+            return name
+    return None
+
+
+def _match_delimited_name(lowered: str, candidates: list[dict[str, Any]]) -> str | None:
+    for sep in (",", " - ", " (", " | "):
+        if sep in lowered:
+            prefix = lowered.split(sep)[0].strip()
+            for c in candidates:
+                name = c.get("name", "").strip()
+                if prefix == name.lower():
+                    rest = lowered[len(prefix):].strip(" ,-():[]|")
+                    issuer = (c.get("issuer") or "").strip().lower() if isinstance(c.get("issuer"), str) else ""
+                    url = (c.get("url") or "").strip().lower() if isinstance(c.get("url"), str) else ""
+                    if not rest or (issuer and issuer in rest) or (url and url in rest):
+                        return name
+    return None
+
+
+def _match_url(lowered: str, candidates: list[dict[str, Any]]) -> str | None:
+    extracted_urls = [u.rstrip(".,);]") for u in URL_RE.findall(lowered)]
+    if not extracted_urls:
+        return None
+    for target_url in extracted_urls:
+        matching = [
+            c.get("name", "").strip()
+            for c in candidates
+            if isinstance(c.get("url"), str) and c.get("url", "").strip().lower() == target_url
+        ]
+        if len(matching) == 1:
+            return matching[0]
+    return None
+
+
 def _resolve_certificate_name(cert_input: str, original_certificates: list[dict[str, Any]]) -> str | None:
     """Resolve a selected certificate name against master resume entries.
 
@@ -17,60 +58,15 @@ def _resolve_certificate_name(cert_input: str, original_certificates: list[dict[
     """
     if not cert_input or not isinstance(cert_input, str) or not cert_input.strip():
         return None
-    cleaned = cert_input.strip()
-    lowered = cleaned.lower()
+    lowered = cert_input.strip().lower()
+    candidates = [c for c in original_certificates if isinstance(c, dict) and c.get("name")]
+    candidates.sort(key=lambda c: len(c.get("name", "")), reverse=True)
 
-    # Sort candidates by name length descending so longer/more specific names match first
-    # e.g. 'AI Product Manager Professional Certificate' before 'Product Manager Professional Certificate'
-    sorted_certs = sorted(
-        [c for c in original_certificates if isinstance(c, dict) and c.get("name")],
-        key=lambda c: len(c.get("name", "")),
-        reverse=True,
+    return (
+        _match_exact_name(lowered, candidates)
+        or _match_delimited_name(lowered, candidates)
+        or _match_url(lowered, candidates)
     )
-
-    # Pass 1: exact case-insensitive match on certificate name
-    for c in sorted_certs:
-        name = c.get("name", "").strip()
-        if lowered == name.lower():
-            return name
-
-    # Pass 2: check if string starts with name followed by delimiter (comma, dash, paren, space, bracket)
-    for c in sorted_certs:
-        name = c.get("name", "").strip()
-        name_lower = name.lower()
-        if lowered.startswith(name_lower):
-            rest = lowered[len(name_lower):]
-            if not rest or rest[0] in (",", "-", "(", "[", ":", " ", "|"):
-                return name
-
-    # Pass 3: match by URL if present in the input string
-    for c in sorted_certs:
-        url = c.get("url", "").strip() if isinstance(c.get("url"), str) else ""
-        if url and url.lower() in lowered:
-            return c.get("name", "").strip()
-
-    # Pass 4: first comma-separated or dash-separated token matches name
-    for sep in (",", " - ", " (", " | "):
-        if sep in lowered:
-            first_part = lowered.split(sep)[0].strip()
-            for c in sorted_certs:
-                if first_part == c.get("name", "").strip().lower():
-                    return c.get("name", "").strip()
-
-    # Pass 5: token-level normalization
-    tokens = set(re.findall(r"[a-z0-9]+", lowered))
-    for c in sorted_certs:
-        name = c.get("name", "").strip()
-        issuer = c.get("issuer", "").strip() if isinstance(c.get("issuer"), str) else ""
-        name_tokens = set(re.findall(r"[a-z0-9]+", name.lower()))
-        if name_tokens and name_tokens.issubset(tokens):
-            issuer_tokens = set(re.findall(r"[a-z0-9]+", issuer.lower())) if issuer else set()
-            url_tokens = set(re.findall(r"[a-z0-9]+", c.get("url", "").lower())) if c.get("url") else set()
-            extra = tokens - name_tokens
-            if extra.issubset(issuer_tokens | url_tokens | {"https", "http", "www", "coursera", "org", "linkedin", "com"}):
-                return name
-
-    return None
 
 
 class StrategyOutput(BaseModel):
@@ -198,17 +194,20 @@ class QualificationsTailoringOutput(BaseModel):
                     c for c in context["original_resume"].get("certificates", [])
                     if isinstance(c, dict) and c.get("name")
                 ]
-                if original_certs:
-                    allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
-                    for cert in self.certificates:
-                        matched = _resolve_certificate_name(cert, original_certs)
-                        if not matched:
-                            raise ValueError(
-                                f"Certificate '{cert}' does not exist in the master resume. "
-                                f"Allowed certificates: {', '.join(allowed_names)}"
-                            )
-                        resolved_certs.append(matched)
-                    self.certificates = resolved_certs
+                allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
+                for cert in self.certificates:
+                    matched = _resolve_certificate_name(cert, original_certs) if original_certs else None
+                    if not matched:
+                        allowed_display = (
+                            f"Allowed certificates: {', '.join(allowed_names)}"
+                            if allowed_names
+                            else "Master resume contains no certificates."
+                        )
+                        raise ValueError(
+                            f"Certificate '{cert}' does not exist in the master resume. {allowed_display}"
+                        )
+                    resolved_certs.append(matched)
+                self.certificates = resolved_certs
         return self
 
 
@@ -264,17 +263,20 @@ class CertificatesSelectionOutput(BaseModel):
                 c for c in context["original_resume"].get("certificates", [])
                 if isinstance(c, dict) and c.get("name")
             ]
-            if original_certs:
-                allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
-                for cert in self.certificates:
-                    matched = _resolve_certificate_name(cert, original_certs)
-                    if not matched:
-                        raise ValueError(
-                            f"Certificate '{cert}' does not exist in the master resume. "
-                            f"Allowed certificates: {', '.join(allowed_names)}"
-                        )
-                    resolved_certs.append(matched)
-                self.certificates = resolved_certs
+            allowed_names = sorted({c.get("name", "").strip().lower() for c in original_certs})
+            for cert in self.certificates:
+                matched = _resolve_certificate_name(cert, original_certs) if original_certs else None
+                if not matched:
+                    allowed_display = (
+                        f"Allowed certificates: {', '.join(allowed_names)}"
+                        if allowed_names
+                        else "Master resume contains no certificates."
+                    )
+                    raise ValueError(
+                        f"Certificate '{cert}' does not exist in the master resume. {allowed_display}"
+                    )
+                resolved_certs.append(matched)
+            self.certificates = resolved_certs
         return self
 
 
