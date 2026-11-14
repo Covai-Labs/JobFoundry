@@ -10,7 +10,8 @@ def _resolve_certificate_name(cert_input: str, original_certificates: list[dict[
     """Resolve a selected certificate name against master resume entries.
 
     Handles exact matches as well as common LLM formatting variations such as
-    appending the issuer (e.g. 'Certificate, Issuer', 'Certificate (Issuer)',
+    appending the issuer, full URL, or copying the full tabular row
+    (e.g. 'Certificate, Issuer, URL', 'Certificate, Issuer', 'Certificate (Issuer)',
     or 'Certificate - Issuer'). Returns the canonical master certificate name,
     or None if no match is found.
     """
@@ -19,48 +20,54 @@ def _resolve_certificate_name(cert_input: str, original_certificates: list[dict[
     cleaned = cert_input.strip()
     lowered = cleaned.lower()
 
+    # Sort candidates by name length descending so longer/more specific names match first
+    # e.g. 'AI Product Manager Professional Certificate' before 'Product Manager Professional Certificate'
+    sorted_certs = sorted(
+        [c for c in original_certificates if isinstance(c, dict) and c.get("name")],
+        key=lambda c: len(c.get("name", "")),
+        reverse=True,
+    )
+
     # Pass 1: exact case-insensitive match on certificate name
-    for c in original_certificates:
+    for c in sorted_certs:
         name = c.get("name", "").strip()
         if lowered == name.lower():
             return name
 
-    # Pass 2: match with issuer variations
-    for c in original_certificates:
+    # Pass 2: check if string starts with name followed by delimiter (comma, dash, paren, space, bracket)
+    for c in sorted_certs:
         name = c.get("name", "").strip()
-        issuer = c.get("issuer", "").strip() if isinstance(c.get("issuer"), str) else ""
-        if not issuer:
-            continue
-        variants = [
-            f"{name.lower()}, {issuer.lower()}",
-            f"{name.lower()} - {issuer.lower()}",
-            f"{name.lower()} ({issuer.lower()})",
-            f"{name.lower()} by {issuer.lower()}",
-            f"{name.lower()},{issuer.lower()}",
-        ]
-        if lowered in variants:
-            return name
-
-    # Pass 3: prefix match if stripped of issuer suffix
-    for c in original_certificates:
-        name = c.get("name", "").strip()
-        issuer = c.get("issuer", "").strip() if isinstance(c.get("issuer"), str) else ""
-        if lowered.startswith(name.lower()):
-            suffix = lowered[len(name):].strip(" ,-():[]")
-            if not suffix or (issuer and suffix == issuer.lower()):
+        name_lower = name.lower()
+        if lowered.startswith(name_lower):
+            rest = lowered[len(name_lower):]
+            if not rest or rest[0] in (",", "-", "(", "[", ":", " ", "|"):
                 return name
 
-    # Pass 4: token-level normalization
+    # Pass 3: match by URL if present in the input string
+    for c in sorted_certs:
+        url = c.get("url", "").strip() if isinstance(c.get("url"), str) else ""
+        if url and url.lower() in lowered:
+            return c.get("name", "").strip()
+
+    # Pass 4: first comma-separated or dash-separated token matches name
+    for sep in (",", " - ", " (", " | "):
+        if sep in lowered:
+            first_part = lowered.split(sep)[0].strip()
+            for c in sorted_certs:
+                if first_part == c.get("name", "").strip().lower():
+                    return c.get("name", "").strip()
+
+    # Pass 5: token-level normalization
     tokens = set(re.findall(r"[a-z0-9]+", lowered))
-    for c in original_certificates:
+    for c in sorted_certs:
         name = c.get("name", "").strip()
         issuer = c.get("issuer", "").strip() if isinstance(c.get("issuer"), str) else ""
         name_tokens = set(re.findall(r"[a-z0-9]+", name.lower()))
-        if tokens == name_tokens:
-            return name
-        if issuer:
-            issuer_tokens = set(re.findall(r"[a-z0-9]+", issuer.lower()))
-            if tokens == (name_tokens | issuer_tokens):
+        if name_tokens and name_tokens.issubset(tokens):
+            issuer_tokens = set(re.findall(r"[a-z0-9]+", issuer.lower())) if issuer else set()
+            url_tokens = set(re.findall(r"[a-z0-9]+", c.get("url", "").lower())) if c.get("url") else set()
+            extra = tokens - name_tokens
+            if extra.issubset(issuer_tokens | url_tokens | {"https", "http", "www", "coursera", "org", "linkedin", "com"}):
                 return name
 
     return None

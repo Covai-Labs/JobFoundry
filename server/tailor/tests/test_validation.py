@@ -169,15 +169,19 @@ def test_validate_certificate_with_issuer_formats_normalizes():
     context = {
         "original_resume": {
             "certificates": [
-                {"name": "AI Product Manager Professional Certificate", "issuer": "IBM"},
+                {
+                    "name": "AI Product Manager Professional Certificate",
+                    "issuer": "IBM",
+                    "url": "https://www.coursera.org/account/accomplishments/specialization/IRXA9N96VT3C",
+                },
                 {"name": "Product Management Professional Certificate", "issuer": "Aha!"},
             ]
         }
     }
-    # Test comma issuer, parens issuer, dash issuer, and exact match
+    # Test full row with URL, comma issuer, parens issuer, dash issuer, and exact match
     data = {
         "certificates": [
-            "AI Product Manager Professional Certificate, IBM",
+            "AI Product Manager Professional Certificate, IBM, https://www.coursera.org/account/accomplishments/specialization/IRXA9N96VT3C",
             "Product Management Professional Certificate (Aha!)",
         ]
     }
