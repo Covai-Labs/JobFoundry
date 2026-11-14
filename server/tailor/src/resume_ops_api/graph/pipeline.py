@@ -33,6 +33,69 @@ logger = logging.getLogger(__name__)
 DEFAULT_SECTIONS = ["basics", "work", "skills", "projects", "education", "certificates"]
 
 
+def _is_validation_failure(exc: Exception) -> bool:
+    return isinstance(exc, AppError) and exc.code == "llm_generation_failed"
+
+
+def _fallback_work(orig_work: list[Any]) -> list[WorkEntryTailoring]:
+    return [
+        WorkEntryTailoring(
+            summary=w.get("summary"),
+            highlights=w.get("highlights", []) if isinstance(w.get("highlights"), list) else [],
+        )
+        for w in orig_work
+        if isinstance(w, dict)
+    ]
+
+
+def _fallback_projects(orig_projects: list[Any]) -> list[ProjectEntryTailoring]:
+    return [
+        ProjectEntryTailoring(
+            name=p.get("name", "Project"),
+            description=p.get("description"),
+            highlights=p.get("highlights", []) if isinstance(p.get("highlights"), list) else [],
+            keywords=p.get("keywords", []) if isinstance(p.get("keywords"), list) else [],
+        )
+        for p in orig_projects
+        if isinstance(p, dict) and p.get("name")
+    ]
+
+
+def _fallback_skills(orig_skills: list[Any]) -> list[SkillEntry]:
+    return [
+        SkillEntry(
+            name=s["name"],
+            keywords=[k for k in s.get("keywords", []) if isinstance(k, str) and k.strip()],
+        )
+        for s in orig_skills
+        if isinstance(s, dict) and s.get("name")
+    ]
+
+
+def _fallback_certificates(orig_certs: list[Any]) -> list[str]:
+    return [
+        c.get("name", "").strip()
+        for c in orig_certs
+        if isinstance(c, dict) and c.get("name")
+    ]
+
+
+def _fallback_education(orig_edu: list[Any]) -> list[EducationEntryTailoring]:
+    return [
+        EducationEntryTailoring(courses=[c for c in e.get("courses", []) if isinstance(c, str)])
+        for e in orig_edu
+        if isinstance(e, dict)
+    ]
+
+
+def _fallback_qualifications(orig: dict[str, Any]) -> QualificationsTailoringOutput:
+    return QualificationsTailoringOutput(
+        skills=_fallback_skills(orig.get("skills", [])),
+        certificates=_fallback_certificates(orig.get("certificates", [])),
+        education=_fallback_education(orig.get("education", [])),
+    )
+
+
 def route_after_merge(state: ResumeGraphState) -> str:
     if state.get("enable_final_check"):
         return "final_check"
@@ -231,21 +294,15 @@ class ResumeGraph:
             )
             return {"tailored_work": output}
         except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
             logger.warning(
                 "Work tailoring failed validation after retry (%s). "
                 "Applying Option A: falling back to master work entries to preserve resume flow.",
                 exc,
             )
             orig_work = state["original_resume"].get("work", [])
-            fallback_work = [
-                WorkEntryTailoring(
-                    summary=w.get("summary"),
-                    highlights=w.get("highlights", []) if isinstance(w.get("highlights"), list) else [],
-                )
-                for w in orig_work
-                if isinstance(w, dict)
-            ]
-            return {"tailored_work": WorkTailoringOutput(work=fallback_work)}
+            return {"tailored_work": WorkTailoringOutput(work=_fallback_work(orig_work))}
 
     async def projects_node(self, state: ResumeGraphState) -> dict[str, Any]:
         active_sections = self._resolve_active_sections(state)
@@ -285,23 +342,15 @@ class ResumeGraph:
             )
             return {"tailored_projects": output}
         except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
             logger.warning(
                 "Projects tailoring failed validation after retry (%s). "
                 "Applying Option A: falling back to master projects to preserve resume flow.",
                 exc,
             )
             orig_projects = state["original_resume"].get("projects", [])
-            fallback_projects = [
-                ProjectEntryTailoring(
-                    name=p.get("name", "Project"),
-                    description=p.get("description"),
-                    highlights=p.get("highlights", []) if isinstance(p.get("highlights"), list) else [],
-                    keywords=p.get("keywords", []) if isinstance(p.get("keywords"), list) else [],
-                )
-                for p in orig_projects
-                if isinstance(p, dict) and p.get("name")
-            ][:4]
-            return {"tailored_projects": ProjectsTailoringOutput(projects=fallback_projects)}
+            return {"tailored_projects": ProjectsTailoringOutput(projects=_fallback_projects(orig_projects))}
 
     async def qualifications_node(self, state: ResumeGraphState) -> dict[str, Any]:
         active_sections = self._resolve_active_sections(state)
@@ -356,37 +405,14 @@ class ResumeGraph:
             )
             return {"tailored_qualifications": output}
         except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
             logger.warning(
                 "Qualifications tailoring failed validation after retry (%s). "
                 "Applying Option A: falling back to master qualifications to preserve tailored work and narrative.",
                 exc,
             )
-            orig = state["original_resume"]
-            fallback_skills: list[SkillEntry] = []
-            for s in orig.get("skills", []):
-                if isinstance(s, dict) and s.get("name"):
-                    kws = [k for k in s.get("keywords", []) if isinstance(k, str) and k.strip()]
-                    fallback_skills.append(SkillEntry(name=s["name"], keywords=kws[:8] if kws else ["General"]))
-            fallback_skills = fallback_skills[:6]
-
-            fallback_certs: list[str] = [
-                c.get("name", "").strip()
-                for c in orig.get("certificates", [])
-                if isinstance(c, dict) and c.get("name")
-            ][:18]
-
-            fallback_edu: list[EducationEntryTailoring] = [
-                EducationEntryTailoring(courses=[c for c in e.get("courses", []) if isinstance(c, str)])
-                for e in orig.get("education", [])
-                if isinstance(e, dict)
-            ]
-            return {
-                "tailored_qualifications": QualificationsTailoringOutput(
-                    skills=fallback_skills,
-                    certificates=fallback_certs,
-                    education=fallback_edu,
-                )
-            }
+            return {"tailored_qualifications": _fallback_qualifications(state["original_resume"])}
 
     async def monolithic_node(self, state: ResumeGraphState) -> dict[str, Any]:
         active_sections = set(self._resolve_active_sections(state))
@@ -412,6 +438,8 @@ class ResumeGraph:
                 api_base=state.get("api_base"),
             )
         except Exception as exc:
+            if not _is_validation_failure(exc):
+                raise
             logger.warning(
                 "Monolithic tailoring failed validation after retry (%s). "
                 "Applying Option A: falling back to master resume.",
