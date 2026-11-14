@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 from dataclasses import dataclass
@@ -34,6 +35,9 @@ class ServiceContainer:
     orchestrator: TailorOrchestrator
     job_runner: AsyncJobRunner
     copilot_service: CopilotService
+    # Bounds Chromium subprocesses started by the synchronous render path,
+    # which does not go through the job runner's own concurrency limit.
+    render_semaphore: asyncio.Semaphore
     _master_resume: dict[str, Any] | None = None
 
     @property
@@ -112,6 +116,9 @@ def build_container(settings: Settings, **overrides: Any) -> ServiceContainer:
         llm_client=llm_client,
         default_model=settings.strategy_and_basics_model,
     )
+    render_semaphore = overrides.get("render_semaphore") or asyncio.Semaphore(
+        settings.max_concurrent_jobs
+    )
     return ServiceContainer(
         settings=settings,
         database=database,
@@ -124,5 +131,6 @@ def build_container(settings: Settings, **overrides: Any) -> ServiceContainer:
         orchestrator=orchestrator,
         job_runner=job_runner,
         copilot_service=copilot_service,
+        render_semaphore=render_semaphore,
     )
 

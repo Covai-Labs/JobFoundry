@@ -72,7 +72,7 @@ jobs:
       - run: uv sync --dev
         env:
           UV_EXTRA_BUILD_DEPENDENCIES: hatchling
-      - run: uv run pytest tests/test_api.py tests/test_merge.py tests/test_cli.py tests/test_config.py tests/test_db.py
+      - run: uv run pytest tests/test_api.py tests/test_render_api.py tests/test_merge.py tests/test_cli.py tests/test_config.py tests/test_db.py
 
   docker:
     name: Container image build (no push)
