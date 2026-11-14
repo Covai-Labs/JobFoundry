@@ -64,7 +64,7 @@ jobs:
           uv pip install --dry-run --python /tmp/packaging-venv/bin/python -r ../../packaging/python/tailor-requirements.txt
       # packaging/python/*.txt are compiled lockfiles, and nothing used to
       # regenerate them (#185). This fails instead of letting them rot: it
-      # recompiles with --upgrade and requires the tree to be unchanged.
+      # checks that existing pins satisfy pyproject.toml manifests without drift.
       - name: Check packaging requirements are up to date
         working-directory: ${{ github.workspace }}
         run: scripts/regen-packaging-requirements.sh --check

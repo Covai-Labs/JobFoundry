@@ -20,8 +20,8 @@
 #       use the = form (Renovate rejects `--python-version 3.14`).
 #
 # Usage:
-#   scripts/regen-packaging-requirements.sh          # rewrite in place
-#   scripts/regen-packaging-requirements.sh --check  # exit 1 if stale (CI)
+#   scripts/regen-packaging-requirements.sh          # rewrite in place with --upgrade
+#   scripts/regen-packaging-requirements.sh --check  # exit 1 if stale without modifying repo (CI)
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -49,41 +49,51 @@ fi
 check=false
 [[ "${1:-}" == "--check" ]] && check=true
 
-snapshot=""
 if [[ "$check" == true ]]; then
-  snapshot="$(mktemp -d)"
-  trap 'rm -rf "${snapshot}"' EXIT
-  for entry in "${SOURCES[@]}"; do
-    cp "${entry##*:}" "${snapshot}/$(basename "${entry##*:}")"
-  done
-fi
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "${tmp_dir}"' EXIT
 
-for entry in "${SOURCES[@]}"; do
-  source="${entry%%:*}"
-  output="${entry##*:}"
-
-  canonical="uv pip compile --python-version=${PYTHON_VERSION} --universal ${source} --output-file=${output}"
-
-  uv pip compile --python-version="${PYTHON_VERSION}" --universal "${source}" \
-    --upgrade \
-    --custom-compile-command "${canonical}" \
-    --output-file "${output}" >/dev/null
-done
-
-if [[ "$check" == true ]]; then
   status=0
   for entry in "${SOURCES[@]}"; do
-    output="${entry##*:}"
-    if ! diff -q "${snapshot}/$(basename "${output}")" "${output}" >/dev/null; then
-      echo "Stale: ${output}" >&2
-      diff -u "${snapshot}/$(basename "${output}")" "${output}" >&2 || true
+    source="${entry%%:*}"
+    target="${entry##*:}"
+    filename="$(basename "${target}")"
+    compiled="${tmp_dir}/${filename}"
+
+    # Seed the temporary compile target with the committed lockfile so uv
+    # retains existing pins and only updates if constraints cannot be satisfied.
+    cp "${target}" "${compiled}"
+
+    canonical="uv pip compile --python-version=${PYTHON_VERSION} --universal ${source} --output-file=${target}"
+
+    uv pip compile --python-version="${PYTHON_VERSION}" --universal "${source}" \
+      --custom-compile-command "${canonical}" \
+      --output-file "${compiled}" >/dev/null
+
+    if ! diff -q "${target}" "${compiled}" >/dev/null; then
+      echo "Stale: ${target}" >&2
+      diff -u "${target}" "${compiled}" >&2 || true
       status=1
     fi
   done
+
   if ((status != 0)); then
     echo >&2
     echo "packaging/python is out of date. Run scripts/regen-packaging-requirements.sh and commit the result." >&2
     exit 1
   fi
   echo "packaging/python is up to date."
+else
+  for entry in "${SOURCES[@]}"; do
+    source="${entry%%:*}"
+    output="${entry##*:}"
+
+    canonical="uv pip compile --python-version=${PYTHON_VERSION} --universal ${source} --output-file=${output}"
+
+    uv pip compile --python-version="${PYTHON_VERSION}" --universal "${source}" \
+      --upgrade \
+      --custom-compile-command "${canonical}" \
+      --output-file "${output}" >/dev/null
+  done
+  echo "packaging/python regenerated successfully."
 fi
