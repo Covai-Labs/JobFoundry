@@ -4,7 +4,7 @@ import time
 import uuid
 from typing import Any
 from src.artifacts import ArtifactManager
-from src.llm import LiteLLMClient
+from src.llm import LiteLLMClient, _log_safe
 from src.screener import Screener
 from src.store import JobStore
 from src.tailor_bridge import TailorBridge
@@ -177,7 +177,11 @@ async def process_unscored_user_jobs(
                                 status="tailor_failed",
                             )
                     except Exception as te:
-                        logger.error("Tailoring bridge error for user_job %s: %s", user_job_id, te)
+                        logger.error(
+                            "Tailoring bridge error for user_job %s: %s",
+                            user_job_id,
+                            _log_safe(te, limit=300),
+                        )
                         store.update_user_job_tailoring(
                             user_job_id=user_job_id,
                             tailored_resume_id="",
@@ -188,7 +192,7 @@ async def process_unscored_user_jobs(
 
             scored_jobs.append(updated_uj)
         except Exception as e:
-            logger.error("Failed to score user_job %s: %s", user_job_id, e)
+            logger.error("Failed to score user_job %s: %s", user_job_id, _log_safe(e, limit=300))
             failed_uj = store.mark_user_job_failed(user_job_id=user_job_id, error_message=str(e))
             scored_jobs.append(failed_uj)
 
@@ -314,7 +318,11 @@ async def process_unscored_jobs(
                                 status="tailor_failed",
                             )
                     except Exception as te:
-                        logger.error("Tailoring bridge error for job %s: %s", job_id, te)
+                        logger.error(
+                            "Tailoring bridge error for job %s: %s",
+                            job_id,
+                            _log_safe(te, limit=300),
+                        )
                         store.update_job_tailoring(
                             job_id=job_id,
                             tailored_resume_id="",
@@ -325,7 +333,7 @@ async def process_unscored_jobs(
 
             scored_jobs.append(updated_job)
         except Exception as e:
-            logger.error("Failed to score job %s: %s", job_id, e)
+            logger.error("Failed to score job %s: %s", job_id, _log_safe(e, limit=300))
             failed_job = store.mark_job_failed(job_id=job_id, error_message=str(e))
             scored_jobs.append(failed_job)
 
