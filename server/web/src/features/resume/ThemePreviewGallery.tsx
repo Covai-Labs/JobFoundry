@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState } from 'react';
 import { THEME_CATALOG, ThemeMetadata, findThemeMetadata } from './themeCatalog';
 import { Check, Download, Star, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
@@ -5,14 +6,14 @@ import { Check, Download, Star, Loader2, AlertCircle, RefreshCw } from 'lucide-r
 export interface ThemePreviewGalleryProps {
   activeTheme: string;
   selectedTheme: string;
-  onSelectTheme: (slug: string) => void;
-  onSetDefaultTheme: (slug: string) => void;
+  onSelectTheme: (_slug: string) => void;
+  onSetDefaultTheme: (_slug: string) => void;
   /** Object URL of the rendered preview PDF, or null while unavailable. */
   previewPdfUrl: string | null;
   previewLoading?: boolean;
   previewError?: string | null;
   onRetryPreview?: () => void;
-  onDownloadPdf?: (slug: string) => void;
+  onDownloadPdf?: (_slug: string) => void;
   isSavingDefault?: boolean;
 }
 
@@ -23,7 +24,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
   onSetDefaultTheme,
   previewPdfUrl,
   previewLoading = false,
-  previewError = null,
+  previewError,
   onRetryPreview,
   onDownloadPdf,
   isSavingDefault = false,
@@ -362,7 +363,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
             justifyContent: 'center',
           }}
         >
-          {previewLoading && (
+          {previewLoading ? (
             <div
               style={{
                 position: 'absolute',
@@ -396,9 +397,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
                 Rendering {currentMeta.name} preview...
               </p>
             </div>
-          )}
-
-          {previewError && !previewLoading && (
+          ) : previewError ? (
             <div
               role="alert"
               style={{
@@ -429,9 +428,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
                 </button>
               )}
             </div>
-          )}
-
-          {previewPdfUrl && !previewError && (
+          ) : previewPdfUrl ? (
             <iframe
               key={previewPdfUrl}
               src={previewPdfUrl}
@@ -444,7 +441,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
                 backgroundColor: '#ffffff',
               }}
             />
-          )}
+          ) : null}
         </div>
       </div>
     </div>

@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
@@ -30,7 +31,7 @@ const schemaValidator = ajv.compile(resumeSchema);
 
 export interface ResumeManagerProps {
   onActiveResumeChange?: (hasActive: boolean) => void;
-  onThemeChange?: (theme: string) => void;
+  onThemeChange?: (_theme: string) => void;
 }
 
 export const ResumeManager: React.FC<ResumeManagerProps> = ({
