@@ -10,12 +10,15 @@ import {
   Code2,
   Save,
   PlusCircle,
+  Eye,
 } from 'lucide-react';
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
 import { ResumeFormEditor, ResumeData, SkillItem } from './ResumeFormEditor';
 import { CandidateFactsPanel } from './CandidateFactsPanel';
+import { ThemePreviewGallery } from './ThemePreviewGallery';
+import { findThemeMetadata } from './themeCatalog';
 
 const AjvClass = (Ajv as any).default || Ajv;
 const addFormatsFn = (addFormats as any).default || addFormats;
@@ -36,13 +39,18 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
   const [success, setSuccess] = useState<string | null>(null);
 
   // Editor states
-  const [editorMode, setEditorMode] = useState<'form' | 'json'>('form');
+  const [editorMode, setEditorMode] = useState<'form' | 'json' | 'preview'>('form');
   const [title, setTitle] = useState<string>('Master Resume');
   const [jsonText, setJsonText] = useState<string>('');
   const [initialJsonText, setInitialJsonText] = useState<string>('');
   const [parsedResume, setParsedResume] = useState<Record<string, unknown>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
+
+  // Theme states
+  const [activeTheme, setActiveTheme] = useState<string>('jsonresume-theme-folio');
+  const [selectedTheme, setSelectedTheme] = useState<string>('jsonresume-theme-folio');
+  const [savingDefaultTheme, setSavingDefaultTheme] = useState<boolean>(false);
 
   // AI Raw Resume Converter states
   const [showAiConvertModal, setShowAiConvertModal] = useState<boolean>(false);
@@ -112,7 +120,49 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
 
   useEffect(() => {
     void fetchResumes();
+    api
+      .getSettings()
+      .then((s) => {
+        if (s?.tailor_theme) {
+          setActiveTheme(s.tailor_theme);
+          setSelectedTheme(s.tailor_theme);
+        }
+      })
+      .catch(() => {});
   }, []);
+
+  const handleSetDefaultTheme = async (themeSlug: string) => {
+    setSavingDefaultTheme(true);
+    setError(null);
+    try {
+      await api.updateSettings({ tailor_theme: themeSlug });
+      setActiveTheme(themeSlug);
+      const meta = findThemeMetadata(themeSlug);
+      setSuccess(`Set ${meta?.name || themeSlug} as default theme!`);
+      setTimeout(() => setSuccess(null), 4000);
+    } catch (err: any) {
+      setError(err.message || 'Failed to update default theme');
+    } finally {
+      setSavingDefaultTheme(false);
+    }
+  };
+
+  const handleDownloadPreviewPdf = async (themeSlug: string) => {
+    try {
+      const blob = await api.downloadMasterResumePreviewPdf(themeSlug);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const meta = findThemeMetadata(themeSlug);
+      a.download = `${title || 'Master-Resume'}-${meta?.name || themeSlug}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err: any) {
+      setError(err.message || 'Failed to download preview PDF');
+    }
+  };
 
   const validateJson = (text: string): boolean => {
     try {
@@ -617,6 +667,20 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                 >
                   <Code2 size={14} /> Raw JSON
                 </button>
+                <button
+                  type="button"
+                  onClick={() => setEditorMode('preview')}
+                  className={`btn btn-sm ${editorMode === 'preview' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  disabled={validationErrors.length > 0}
+                  title={
+                    validationErrors.length > 0
+                      ? 'Resolve schema validation errors to preview themes'
+                      : 'Preview master resume across 14 curated themes'
+                  }
+                >
+                  <Eye size={14} /> Theme Preview
+                </button>
                 {validationErrors.length > 0 ? (
                   <span className="badge badge-danger" style={{ fontSize: '0.75rem' }}>
                     ❌ {validationErrors.length} Schema Error(s)
@@ -647,50 +711,64 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               </button>
             </div>
 
-            {/* Resume Title Input */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.82rem',
-                  fontWeight: 500,
-                  marginBottom: '0.3rem',
-                }}
-              >
-                Profile / Resume Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Senior Backend Engineer"
-                className="input-text"
-                style={{ height: '36px', fontSize: '0.85rem' }}
+            {editorMode === 'preview' ? (
+              <ThemePreviewGallery
+                activeTheme={activeTheme}
+                selectedTheme={selectedTheme}
+                onSelectTheme={setSelectedTheme}
+                onSetDefaultTheme={handleSetDefaultTheme}
+                previewPdfUrl={api.getMasterResumePreviewPdfUrl(selectedTheme)}
+                onDownloadPdf={handleDownloadPreviewPdf}
+                isSavingDefault={savingDefaultTheme}
               />
-            </div>
-
-            {/* Mode-specific Editor */}
-            {editorMode === 'form' ? (
-              <ResumeFormEditor resume={parsedResume} onChange={handleFormChange} />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <textarea
-                  aria-label="Raw JSON Schema Content"
-                  value={jsonText}
-                  onChange={(e) => handleJsonChange(e.target.value)}
-                  className="input-text"
-                  rows={20}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '0.8rem',
-                    lineHeight: 1.4,
-                    resize: 'vertical',
-                    whiteSpace: 'pre',
-                    tabSize: 2,
-                  }}
-                  spellCheck={false}
-                />
-              </div>
+              <>
+                {/* Resume Title Input */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.82rem',
+                      fontWeight: 500,
+                      marginBottom: '0.3rem',
+                    }}
+                  >
+                    Profile / Resume Title
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Senior Backend Engineer"
+                    className="input-text"
+                    style={{ height: '36px', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                {/* Mode-specific Editor */}
+                {editorMode === 'form' ? (
+                  <ResumeFormEditor resume={parsedResume} onChange={handleFormChange} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <textarea
+                      aria-label="Raw JSON Schema Content"
+                      value={jsonText}
+                      onChange={(e) => handleJsonChange(e.target.value)}
+                      className="input-text"
+                      rows={20}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem',
+                        lineHeight: 1.4,
+                        resize: 'vertical',
+                        whiteSpace: 'pre',
+                        tabSize: 2,
+                      }}
+                      spellCheck={false}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {validationErrors.length > 0 && (

@@ -64,6 +64,25 @@ describe('ResumeManager', () => {
     expect(screen.getByDisplayValue('alex@mercer.dev')).toBeDefined();
     expect(screen.getByText('Form Editor')).toBeDefined();
     expect(screen.getByText('Raw JSON')).toBeDefined();
+    expect(screen.getByRole('button', { name: /theme preview/i })).toBeDefined();
+  });
+
+  it('switches to Theme Preview tab and displays theme gallery when resume is valid', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+    vi.spyOn(api, 'getSettings').mockResolvedValue({ tailor_theme: 'jsonresume-theme-folio' } as any);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alex Mercer')).toBeDefined();
+    });
+
+    const previewTab = screen.getByRole('button', { name: /theme preview/i });
+    fireEvent.click(previewTab);
+
+    await waitFor(() => {
+      expect(screen.getByText('Resume Themes')).toBeDefined();
+    });
   });
 
   it('switches to Raw JSON tab and reflects live edits back to Form Editor', async () => {

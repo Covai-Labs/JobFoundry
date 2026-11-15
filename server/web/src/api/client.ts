@@ -494,6 +494,24 @@ export class ApiClient {
     return response.text();
   }
 
+  getMasterResumePreviewPdfUrl(theme: string): string {
+    const base = `${this.baseUrl}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(theme)}`;
+    return this.apiKey ? `${base}&api_key=${encodeURIComponent(this.apiKey)}` : base;
+  }
+
+  async downloadMasterResumePreviewPdf(theme: string): Promise<Blob> {
+    const url = this.getMasterResumePreviewPdfUrl(theme);
+    const headers: Record<string, string> = {};
+    if (this.apiKey) {
+      headers['Authorization'] = `Bearer ${this.apiKey}`;
+    }
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new ApiError(response.status, `Failed to download preview for ${theme}`);
+    }
+    return response.blob();
+  }
+
   async downloadExport(
     format: ExportFormat,
     options?: { jobId?: string }
