@@ -17,6 +17,7 @@ import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
 import { ResumeFormEditor, ResumeData, SkillItem } from './ResumeFormEditor';
+import { STARTER_RESUME_TEMPLATE } from './resumeTypes';
 import { CandidateFactsPanel } from './CandidateFactsPanel';
 import { ThemePreviewGallery } from './ThemePreviewGallery';
 import { findThemeMetadata } from './themeCatalog';
@@ -80,37 +81,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         setInitialJsonText(formatted);
         validateJson(formatted);
       } else {
-        // Starter template conforming to JSON Resume v1.0.0
-        const starter = {
-          $schema: 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json',
-          basics: {
-            name: 'Your Name',
-            label: 'Software Engineer',
-            email: 'you@example.com',
-            phone: '+1 555-0100',
-            url: 'https://example.com',
-            summary: 'Experienced developer specializing in scalable distributed systems.',
-            location: { city: 'San Francisco', region: 'CA' },
-          },
-          skills: [
-            { name: 'Languages', keywords: ['TypeScript', 'Python', 'Go', 'Rust'] },
-            { name: 'Frameworks & Tools', keywords: ['React', 'Node.js', 'FastAPI', 'Docker'] },
-          ],
-          work: [
-            {
-              name: 'Tech Innovators Inc',
-              position: 'Senior Backend Engineer',
-              startDate: '2022-01-01',
-              highlights: [
-                'Engineered real-time data pipeline processing 50M events daily.',
-                'Reduced query latency by 45% using Redis caching and index optimization.',
-              ],
-            },
-          ],
-        };
         setTitle('Master Resume');
-        setParsedResume(starter);
-        const formatted = JSON.stringify(starter, null, 2);
+        setParsedResume(STARTER_RESUME_TEMPLATE);
+        const formatted = JSON.stringify(STARTER_RESUME_TEMPLATE, null, 2);
         setJsonText(formatted);
         setInitialJsonText(formatted);
         validateJson(formatted);

@@ -65,3 +65,31 @@ export interface ResumeData {
   projects?: ProjectItem[];
   [key: string]: unknown;
 }
+
+export const STARTER_RESUME_TEMPLATE: ResumeData = {
+  $schema: 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json',
+  basics: {
+    name: 'Your Name',
+    label: 'Software Engineer',
+    email: 'you@example.com',
+    phone: '+1 555-0100',
+    url: 'https://example.com',
+    summary: 'Experienced developer specializing in scalable distributed systems.',
+    location: { city: 'San Francisco', region: 'CA' },
+  },
+  skills: [
+    { name: 'Languages', keywords: ['TypeScript', 'Python', 'Go', 'Rust'] },
+    { name: 'Frameworks & Tools', keywords: ['React', 'Node.js', 'FastAPI', 'Docker'] },
+  ],
+  work: [
+    {
+      name: 'Tech Innovators Inc',
+      position: 'Senior Backend Engineer',
+      startDate: '2022-01-01',
+      highlights: [
+        'Engineered real-time data pipeline processing 50M events daily.',
+        'Reduced query latency by 45% using Redis caching and index optimization.',
+      ],
+    },
+  ],
+};
