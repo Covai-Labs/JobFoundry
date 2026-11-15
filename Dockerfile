@@ -29,7 +29,7 @@ RUN npm ci --omit=dev --workspace=server/ingest
 # --- Stage 3: Final All-in-One Runtime ---
 FROM python:3.14-slim
 
-ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-folio-concise@^1.2.1 jsonresume-theme-stackoverflow"
+ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-stackoverflow jsonresume-theme-pro jsonresume-theme-harvard-classic jsonresume-theme-jake-technical jsonresume-theme-awesome-professional jsonresume-theme-compact-developer jsonresume-theme-charter-serif jsonresume-theme-diplomat-cv jsonresume-theme-ledger-professional jsonresume-theme-stewardship-cv jsonresume-theme-europass-inspired jsonresume-theme-first-role jsonresume-theme-academic-classic"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -46,7 +46,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     SCORER_PROVIDER=openrouter \
     SCORER_THRESHOLD=75 \
     TAILOR_MODEL=openrouter/google/gemini-2.0-flash-exp:free \
-    ALLOWED_THEMES='["jsonresume-theme-folio","jsonresume-theme-folio-concise","jsonresume-theme-stackoverflow"]' \
+    ALLOWED_THEMES='["jsonresume-theme-folio","jsonresume-theme-stackoverflow","jsonresume-theme-pro","jsonresume-theme-harvard-classic","jsonresume-theme-jake-technical","jsonresume-theme-awesome-professional","jsonresume-theme-compact-developer","jsonresume-theme-charter-serif","jsonresume-theme-diplomat-cv","jsonresume-theme-ledger-professional","jsonresume-theme-stewardship-cv","jsonresume-theme-europass-inspired","jsonresume-theme-first-role","jsonresume-theme-academic-classic"]' \
     TAILOR_TIMEOUT_SECONDS=900 \
     TAILOR_TIMEOUT_MS=1800000 \
     LLM_REQUEST_TIMEOUT=600 \

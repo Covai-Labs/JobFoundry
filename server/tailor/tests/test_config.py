@@ -75,11 +75,9 @@ class TestSettingsDefaults:
     def test_default_theme_and_allowed_themes(self) -> None:
         settings = _clean_settings()
         assert settings.default_theme == "jsonresume-theme-folio"
-        assert settings.allowed_themes == [
-            "jsonresume-theme-folio",
-            "jsonresume-theme-folio-concise",
-            "jsonresume-theme-stackoverflow",
-        ]
+        assert len(settings.allowed_themes) == 14
+        assert "jsonresume-theme-folio" in settings.allowed_themes
+        assert "jsonresume-theme-folio-concise" not in settings.allowed_themes
 
     def test_default_max_concurrent_jobs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MAX_CONCURRENT_JOBS", raising=False)
@@ -155,6 +153,29 @@ class TestSettingsEnvironmentOverrides:
         settings = _clean_settings()
         assert settings.strategy_model == "anthropic/claude-3-opus"
         assert settings.work_model == "anthropic/claude-3-sonnet"
+
+    def test_default_allowed_themes_contains_all_14_themes(self) -> None:
+        settings = _clean_settings()
+        expected_themes = [
+            "jsonresume-theme-folio",
+            "jsonresume-theme-stackoverflow",
+            "jsonresume-theme-pro",
+            "jsonresume-theme-harvard-classic",
+            "jsonresume-theme-jake-technical",
+            "jsonresume-theme-awesome-professional",
+            "jsonresume-theme-compact-developer",
+            "jsonresume-theme-charter-serif",
+            "jsonresume-theme-diplomat-cv",
+            "jsonresume-theme-ledger-professional",
+            "jsonresume-theme-stewardship-cv",
+            "jsonresume-theme-europass-inspired",
+            "jsonresume-theme-first-role",
+            "jsonresume-theme-academic-classic",
+        ]
+        assert "jsonresume-theme-folio-concise" not in settings.allowed_themes
+        assert len(settings.allowed_themes) == 14
+        for theme in expected_themes:
+            assert theme in settings.allowed_themes
 
     def test_default_theme_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DEFAULT_THEME", "jsonresume-theme-even")

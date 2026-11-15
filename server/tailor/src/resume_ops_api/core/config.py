@@ -104,8 +104,19 @@ class Settings(BaseSettings):
     allowed_themes: list[str] = Field(
         default_factory=lambda: [
             "jsonresume-theme-folio",
-            "jsonresume-theme-folio-concise",
             "jsonresume-theme-stackoverflow",
+            "jsonresume-theme-pro",
+            "jsonresume-theme-harvard-classic",
+            "jsonresume-theme-jake-technical",
+            "jsonresume-theme-awesome-professional",
+            "jsonresume-theme-compact-developer",
+            "jsonresume-theme-charter-serif",
+            "jsonresume-theme-diplomat-cv",
+            "jsonresume-theme-ledger-professional",
+            "jsonresume-theme-stewardship-cv",
+            "jsonresume-theme-europass-inspired",
+            "jsonresume-theme-first-role",
+            "jsonresume-theme-academic-classic",
         ]
     )
     max_concurrent_jobs: int = 2
