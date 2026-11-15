@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { THEME_CATALOG, ThemeMetadata, findThemeMetadata } from './themeCatalog';
-import { Check, Download, Star, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
+import { Check, Download, Star, Loader2 } from 'lucide-react';
 
 export interface ThemePreviewGalleryProps {
   activeTheme: string;
@@ -26,122 +26,294 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
 
   const categories = ['All', ...Array.from(new Set(THEME_CATALOG.map((t) => t.category)))];
 
-  const filteredThemes = filterCategory === 'All'
-    ? THEME_CATALOG
-    : THEME_CATALOG.filter((t) => t.category === filterCategory);
+  const filteredThemes =
+    filterCategory === 'All'
+      ? THEME_CATALOG
+      : THEME_CATALOG.filter((t) => t.category === filterCategory);
 
   const currentMeta = findThemeMetadata(selectedTheme) || THEME_CATALOG[0];
   const isDefault = selectedTheme === activeTheme;
 
   return (
-    <div className="flex flex-col lg:flex-row gap-6 w-full h-full min-h-[750px]">
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '1.5rem',
+        width: '100%',
+        minHeight: '750px',
+      }}
+    >
       {/* Left / Sidebar: Themes list */}
-      <div className="w-full lg:w-80 flex flex-col shrink-0 border border-border rounded-xl bg-card p-4 overflow-hidden">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="font-semibold text-base text-foreground">Resume Themes</h3>
-          <span className="text-xs text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+      <div
+        className="settings-card"
+        style={{
+          width: '320px',
+          flexShrink: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '1rem',
+          borderRadius: 'var(--radius-lg)',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+        }}
+      >
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: '0.75rem',
+          }}
+        >
+          <h3
+            style={{ fontSize: '1rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0 }}
+          >
+            Resume Themes
+          </h3>
+          <span
+            className="badge badge-neutral"
+            style={{ fontSize: '0.75rem', padding: '0.15rem 0.5rem' }}
+          >
             {THEME_CATALOG.length} Curated
           </span>
         </div>
 
         {/* Category Pills */}
-        <div className="flex gap-1.5 overflow-x-auto pb-2 mb-3 scrollbar-thin">
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              type="button"
-              onClick={() => setFilterCategory(cat)}
-              className={`text-xs px-2.5 py-1 rounded-md whitespace-nowrap transition-colors ${
-                filterCategory === cat
-                  ? 'bg-primary text-primary-foreground font-medium'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div
+          style={{
+            display: 'flex',
+            gap: '0.375rem',
+            overflowX: 'auto',
+            paddingBottom: '0.5rem',
+            marginBottom: '0.75rem',
+          }}
+        >
+          {categories.map((cat) => {
+            const isCatActive = filterCategory === cat;
+            return (
+              <button
+                key={cat}
+                type="button"
+                onClick={() => setFilterCategory(cat)}
+                style={{
+                  fontSize: '0.75rem',
+                  padding: '0.25rem 0.65rem',
+                  borderRadius: 'var(--radius-md)',
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                  border: isCatActive
+                    ? '1px solid var(--accent-primary)'
+                    : '1px solid var(--border-subtle)',
+                  backgroundColor: isCatActive ? 'var(--accent-primary)' : 'var(--bg-primary)',
+                  color: isCatActive ? '#ffffff' : 'var(--text-secondary)',
+                  fontWeight: isCatActive ? 600 : 400,
+                  transition: 'all 0.15s ease',
+                }}
+              >
+                {cat}
+              </button>
+            );
+          })}
         </div>
 
         {/* Theme Cards List */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1 max-h-[600px] lg:max-h-none scrollbar-thin">
+        <div
+          style={{
+            flex: 1,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            maxHeight: '620px',
+            paddingRight: '0.25rem',
+          }}
+        >
           {filteredThemes.map((theme: ThemeMetadata) => {
             const isSelected = theme.slug === selectedTheme;
             const isThemeDefault = theme.slug === activeTheme;
 
             return (
-              <div
+              <button
                 key={theme.slug}
+                type="button"
                 onClick={() => {
                   if (theme.slug !== selectedTheme) {
                     setIframeLoading(true);
                     onSelectTheme(theme.slug);
                   }
                 }}
-                className={`p-3 rounded-lg border text-left cursor-pointer transition-all ${
-                  isSelected
-                    ? 'border-primary bg-primary/5 shadow-sm'
-                    : 'border-border hover:border-border/80 hover:bg-muted/30 bg-background'
-                }`}
+                style={{
+                  display: 'block',
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-md)',
+                  border: isSelected
+                    ? '1.5px solid var(--accent-primary)'
+                    : '1px solid var(--border-subtle)',
+                  backgroundColor: isSelected ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-primary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s ease',
+                  boxShadow: isSelected ? '0 0 0 1px var(--accent-primary)' : 'none',
+                }}
               >
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-sm text-foreground">{theme.name}</span>
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.25rem',
+                  }}
+                >
+                  <span
+                    style={{
+                      fontWeight: 600,
+                      fontSize: '0.875rem',
+                      color: isSelected ? 'var(--accent-primary)' : 'var(--text-primary)',
+                    }}
+                  >
+                    {theme.name}
+                  </span>
                   {isThemeDefault && (
-                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 px-1.5 py-0.5 rounded">
-                      <Star className="w-3 h-3 fill-emerald-500" /> Active Default
+                    <span
+                      className="badge badge-green"
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.25rem',
+                        fontSize: '0.7rem',
+                        padding: '0.1rem 0.4rem',
+                      }}
+                    >
+                      <Star style={{ width: '0.75rem', height: '0.75rem', fill: 'currentColor' }} />{' '}
+                      Active Default
                     </span>
                   )}
                 </div>
-                <p className="text-xs text-muted-foreground line-clamp-2 mb-2">
+                <p
+                  style={{
+                    fontSize: '0.75rem',
+                    color: 'var(--text-secondary)',
+                    margin: '0 0 0.5rem 0',
+                    lineHeight: '1.25',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    overflow: 'hidden',
+                  }}
+                >
                   {theme.description}
                 </p>
-                <div className="flex flex-wrap gap-1">
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
                   {theme.badges.map((b) => (
                     <span
                       key={b}
-                      className="text-[10px] bg-muted text-muted-foreground px-1.5 py-0.2 rounded"
+                      className="badge badge-neutral"
+                      style={{ fontSize: '0.65rem', padding: '0.05rem 0.35rem' }}
                     >
                       {b}
                     </span>
                   ))}
                 </div>
-              </div>
+              </button>
             );
           })}
         </div>
       </div>
 
       {/* Right / Main: Preview Panel */}
-      <div className="flex-1 flex flex-col border border-border rounded-xl bg-card overflow-hidden">
+      <div
+        className="settings-card"
+        style={{
+          flex: 1,
+          minWidth: '400px',
+          display: 'flex',
+          flexDirection: 'column',
+          borderRadius: 'var(--radius-lg)',
+          backgroundColor: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          overflow: 'hidden',
+        }}
+      >
         {/* Header toolbar */}
-        <div className="p-4 border-b border-border flex flex-wrap items-center justify-between gap-3 bg-muted/20">
+        <div
+          style={{
+            padding: '1rem 1.25rem',
+            borderBottom: '1px solid var(--border-subtle)',
+            display: 'flex',
+            flexWrap: 'wrap',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
+            backgroundColor: 'rgba(0, 0, 0, 0.1)',
+          }}
+        >
           <div>
-            <div className="flex items-center gap-2">
-              <h4 className="font-semibold text-base text-foreground">{currentMeta.name}</h4>
-              <span className="text-xs bg-muted text-muted-foreground px-2 py-0.5 rounded">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <h4
+                style={{
+                  fontWeight: 600,
+                  fontSize: '1rem',
+                  color: 'var(--text-primary)',
+                  margin: 0,
+                }}
+              >
+                {currentMeta.name}
+              </h4>
+              <span
+                className="badge badge-neutral"
+                style={{ fontSize: '0.7rem', padding: '0.1rem 0.45rem' }}
+              >
                 {currentMeta.category}
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{currentMeta.description}</p>
+            <p
+              style={{
+                fontSize: '0.75rem',
+                color: 'var(--text-secondary)',
+                margin: '0.25rem 0 0 0',
+              }}
+            >
+              {currentMeta.description}
+            </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             {!isDefault ? (
               <button
                 type="button"
                 onClick={() => onSetDefaultTheme(selectedTheme)}
                 disabled={isSavingDefault}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+                className="btn btn-primary btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
               >
                 {isSavingDefault ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Loader2
+                    style={{
+                      width: '0.875rem',
+                      height: '0.875rem',
+                      animation: 'spin 1s linear infinite',
+                    }}
+                  />
                 ) : (
-                  <Star className="w-3.5 h-3.5" />
+                  <Star style={{ width: '0.875rem', height: '0.875rem' }} />
                 )}
                 Set as Default Theme
               </button>
             ) : (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
-                <Check className="w-3.5 h-3.5" />
+              <span
+                className="badge badge-green"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.35rem',
+                  padding: '0.35rem 0.65rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                }}
+              >
+                <Check style={{ width: '0.875rem', height: '0.875rem' }} />
                 Current Default
               </span>
             )}
@@ -150,10 +322,11 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
               <button
                 type="button"
                 onClick={() => onDownloadPdf(selectedTheme)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-background hover:bg-muted text-foreground transition-colors"
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                 title="Download preview PDF"
               >
-                <Download className="w-3.5 h-3.5" />
+                <Download style={{ width: '0.875rem', height: '0.875rem' }} />
                 Download PDF
               </button>
             )}
@@ -161,11 +334,48 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
         </div>
 
         {/* PDF Preview Frame with loader */}
-        <div className="relative flex-1 bg-muted/40 min-h-[600px] flex items-center justify-center">
+        <div
+          style={{
+            position: 'relative',
+            flex: 1,
+            backgroundColor: 'var(--bg-primary)',
+            minHeight: '620px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {iframeLoading && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 backdrop-blur-sm z-10 gap-3">
-              <Loader2 className="w-8 h-8 text-primary animate-spin" />
-              <p className="text-xs text-muted-foreground font-medium">
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                backgroundColor: 'rgba(11, 15, 25, 0.75)',
+                backdropFilter: 'blur(4px)',
+                zIndex: 10,
+                gap: '0.75rem',
+              }}
+            >
+              <Loader2
+                style={{
+                  width: '2rem',
+                  height: '2rem',
+                  color: 'var(--accent-primary)',
+                  animation: 'spin 1s linear infinite',
+                }}
+              />
+              <p
+                style={{
+                  fontSize: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  fontWeight: 500,
+                  margin: 0,
+                }}
+              >
                 Rendering {currentMeta.name} preview...
               </p>
             </div>
@@ -175,7 +385,13 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
             key={previewPdfUrl}
             src={previewPdfUrl}
             title={`${currentMeta.name} Resume Preview`}
-            className="w-full h-full min-h-[650px] border-none"
+            style={{
+              width: '100%',
+              height: '100%',
+              minHeight: '650px',
+              border: 'none',
+              backgroundColor: '#ffffff',
+            }}
             onLoad={() => setIframeLoading(false)}
           />
         </div>

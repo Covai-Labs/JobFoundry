@@ -1894,7 +1894,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {activeTab === 'profile' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div className="settings-card" style={{ padding: '1.5rem' }}>
-                    <ResumeManager onActiveResumeChange={setHasActiveResume} />
+                    <ResumeManager
+                      onActiveResumeChange={setHasActiveResume}
+                      onThemeChange={(newTheme) =>
+                        setFormSettings((prev) => ({ ...prev, tailor_theme: newTheme }))
+                      }
+                    />
                   </div>
                   {/* Next / Previous Step Footer Navigation */}
                   <div

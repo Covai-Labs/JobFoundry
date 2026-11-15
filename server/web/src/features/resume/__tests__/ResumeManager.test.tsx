@@ -69,7 +69,10 @@ describe('ResumeManager', () => {
 
   it('switches to Theme Preview tab and displays theme gallery when resume is valid', async () => {
     vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
-    vi.spyOn(api, 'getSettings').mockResolvedValue({ tailor_theme: 'jsonresume-theme-folio' } as any);
+    vi.spyOn(api, 'getSettings').mockResolvedValue({
+      settings: { tailor_theme: 'jsonresume-theme-jake-technical' },
+      meta: {},
+    } as any);
 
     render(<ResumeManager />);
 

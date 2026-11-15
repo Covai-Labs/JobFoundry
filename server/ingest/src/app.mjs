@@ -885,6 +885,97 @@ export function buildApp({
 
   // --- RESUME MANAGEMENT ROUTES ---
 
+  // GET /api/v1/master-resume/preview-pdf
+  app.get('/api/v1/master-resume/preview-pdf', async (request, reply) => {
+    if (!authenticate(request, reply)) return;
+    const theme = request.query?.theme || 'jsonresume-theme-folio';
+    const active = getActiveResume(db, request.user.id);
+    let resumeData = null;
+    if (active?.resume) {
+      resumeData = active.resume;
+    } else {
+      const allResumes = getUserResumes(db, request.user.id);
+      if (allResumes.length > 0 && allResumes[0].resume) {
+        resumeData = allResumes[0].resume;
+      }
+    }
+
+    const tailorPort = process.env.TAILOR_PORT || 8081;
+    const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+
+    try {
+      const resp = await safeFetch(
+        `${resumeOpsUrl.replace(/\/$/, '')}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(theme)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+          redirect: 'error',
+          body: JSON.stringify({ resume: resumeData, theme }),
+        }
+      );
+
+      if (!resp.ok) {
+        const errorText = await resp.text().catch(() => '');
+        return reply.code(resp.status).send({ error: errorText || 'Failed to render preview PDF' });
+      }
+
+      const pdfBuffer = Buffer.from(await resp.arrayBuffer());
+      reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `inline; filename="master-resume-${theme}.pdf"`)
+        .header('Cache-Control', 'private, max-age=3600')
+        .send(pdfBuffer);
+    } catch (err) {
+      request.log.error(err, 'Failed to proxy master-resume preview-pdf');
+      return reply.code(500).send({ error: 'Failed to generate resume preview' });
+    }
+  });
+
+  // POST /api/v1/master-resume/preview-pdf
+  app.post('/api/v1/master-resume/preview-pdf', async (request, reply) => {
+    if (!authenticate(request, reply)) return;
+    const theme = request.query?.theme || request.body?.theme || 'jsonresume-theme-folio';
+    let resumeData = request.body?.resume || null;
+    if (!resumeData) {
+      const active = getActiveResume(db, request.user.id);
+      if (active?.resume) {
+        resumeData = active.resume;
+      }
+    }
+
+    const tailorPort = process.env.TAILOR_PORT || 8081;
+    const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+
+    try {
+      const resp = await safeFetch(
+        `${resumeOpsUrl.replace(/\/$/, '')}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(theme)}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(60000),
+          redirect: 'error',
+          body: JSON.stringify({ resume: resumeData, theme }),
+        }
+      );
+
+      if (!resp.ok) {
+        const errorText = await resp.text().catch(() => '');
+        return reply.code(resp.status).send({ error: errorText || 'Failed to render preview PDF' });
+      }
+
+      const pdfBuffer = Buffer.from(await resp.arrayBuffer());
+      reply
+        .header('Content-Type', 'application/pdf')
+        .header('Content-Disposition', `inline; filename="master-resume-${theme}.pdf"`)
+        .header('Cache-Control', 'private, max-age=3600')
+        .send(pdfBuffer);
+    } catch (err) {
+      request.log.error(err, 'Failed to proxy master-resume preview-pdf');
+      return reply.code(500).send({ error: 'Failed to generate resume preview' });
+    }
+  });
+
   // GET /api/v1/resumes
   app.get('/api/v1/resumes', async (request, reply) => {
     if (!authenticate(request, reply)) return;

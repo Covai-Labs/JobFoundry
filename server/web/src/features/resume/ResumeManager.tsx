@@ -29,9 +29,13 @@ const schemaValidator = ajv.compile(resumeSchema);
 
 export interface ResumeManagerProps {
   onActiveResumeChange?: (hasActive: boolean) => void;
+  onThemeChange?: (theme: string) => void;
 }
 
-export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChange }) => {
+export const ResumeManager: React.FC<ResumeManagerProps> = ({
+  onActiveResumeChange,
+  onThemeChange,
+}) => {
   const [resumes, setResumes] = useState<UserResume[]>([]);
   const [activeResume, setActiveResume] = useState<UserResume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -123,9 +127,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     api
       .getSettings()
       .then((s) => {
-        if (s?.tailor_theme) {
-          setActiveTheme(s.tailor_theme);
-          setSelectedTheme(s.tailor_theme);
+        const theme = s?.settings?.tailor_theme;
+        if (theme) {
+          setActiveTheme(theme);
+          setSelectedTheme(theme);
         }
       })
       .catch(() => {});
@@ -137,6 +142,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
     try {
       await api.updateSettings({ tailor_theme: themeSlug });
       setActiveTheme(themeSlug);
+      onThemeChange?.(themeSlug);
       const meta = findThemeMetadata(themeSlug);
       setSuccess(`Set ${meta?.name || themeSlug} as default theme!`);
       setTimeout(() => setSuccess(null), 4000);

@@ -88,7 +88,7 @@ async def test_render_returns_pdf_and_ats_text(settings: Settings, sample_resume
     async with _client_for(settings, sample_resume, renderer) as client:
         response = await client.post("/api/v1/render", json={"resume": sample_resume})
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     payload = response.json()
     assert payload["theme"] == settings.default_theme
     assert renderer.calls[0]["theme"] == settings.default_theme
@@ -104,7 +104,7 @@ async def test_render_uses_requested_theme(client: AsyncClient, sample_resume: d
         json={"resume": sample_resume, "theme": "jsonresume-theme-even"},
     )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert response.json()["theme"] == "jsonresume-theme-even"
 
 
@@ -138,7 +138,7 @@ async def test_render_accepts_explicitly_empty_resume(
     async with _client_for(settings, sample_resume, renderer) as client:
         response = await client.post("/api/v1/render", json={"resume": {}})
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert renderer.calls[0]["resume"] == {}
 
 
@@ -154,7 +154,7 @@ async def test_render_falls_back_to_master_resume(settings: Settings, sample_res
     async with _client_for(render_settings, sample_resume, renderer) as client:
         response = await client.post("/api/v1/render", json={})
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert renderer.calls[0]["resume"] == master_resume
 
 
@@ -175,7 +175,7 @@ async def test_render_does_not_call_the_llm(
     ) as client:
         response = await client.post("/api/v1/render", json={"resume": sample_resume})
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
 
 
 async def test_render_cleans_up_temp_dir_and_forwards_arguments(
@@ -189,7 +189,7 @@ async def test_render_cleans_up_temp_dir_and_forwards_arguments(
             json={"resume": sample_resume, "theme": "jsonresume-theme-even"},
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert len(renderer.calls) == 1
     call = renderer.calls[0]
     assert call["resume"] == sample_resume
@@ -230,7 +230,7 @@ async def test_master_resume_preview_pdf_returns_pdf(
     async with _client_for(settings, sample_resume, renderer, master_resume=sample_resume) as client:
         response = await client.get("/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-folio")
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     assert response.headers["content-type"] == "application/pdf"
     assert response.content.startswith(b"%PDF-")
     assert len(renderer.calls) == 1
@@ -262,4 +262,23 @@ async def test_master_resume_preview_pdf_invalid_theme_returns_400(
 
     assert response.status_code == 400
     assert response.json()["code"] == "invalid_theme"
+
+
+async def test_master_resume_preview_pdf_post_with_resume_payload(
+    settings: Settings, sample_resume: dict
+) -> None:
+    renderer = RecordingRenderer()
+    custom_resume = {**sample_resume, "basics": {**sample_resume["basics"], "name": "Custom Candidate"}}
+    async with _client_for(settings, sample_resume, renderer, master_resume=None) as client:
+        response = await client.post(
+            "/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-pro",
+            json={"resume": custom_resume},
+        )
+
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"] == "application/pdf"
+    assert "inline" in response.headers.get("content-disposition", "")
+    assert len(renderer.calls) == 1
+    assert renderer.calls[0]["theme"] == "jsonresume-theme-pro"
+    assert renderer.calls[0]["resume"]["basics"]["name"] == "Custom Candidate"
 

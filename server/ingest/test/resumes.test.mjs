@@ -1,5 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { openDb } from '../src/db/index.mjs';
 import { buildApp } from '../src/app.mjs';
 import { validateResumeJson } from '../src/resumes/resumes.mjs';
@@ -180,4 +181,50 @@ test('resumes API: upload valid schema, reject invalid schema, switch active, de
   assert.ok(parsedBody.resumeJson);
   assert.equal(parsedBody.resumeJson.basics.name, 'Jane Doe');
   assert.equal(parsedBody.resumeJson.basics.email, 'jane.doe@example.com');
+});
+
+test('GET /api/v1/master-resume/preview-pdf proxies to tailor and returns PDF', async () => {
+  const db = openDb({ path: ':memory:' });
+  const server = http.createServer((req, res) => {
+    if (req.url?.startsWith('/api/v1/master-resume/preview-pdf') && req.method === 'POST') {
+      res.writeHead(200, {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': 'inline; filename="master-resume-folio.pdf"',
+      });
+      res.end(Buffer.from('%PDF-1.4 Mock'));
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  process.env.TAILOR_PORT = String(port);
+
+  try {
+    const app = await buildApp({ db, config: { API_KEYS: 'test-api-key' } });
+    const headers = { authorization: 'Bearer test-api-key' };
+
+    await app.inject({
+      method: 'POST',
+      url: '/api/v1/resumes',
+      headers,
+      payload: { title: 'Master', resumeJson: SAMPLE_RESUME, setActive: true },
+    });
+
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-folio',
+      headers,
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.headers['content-type'], 'application/pdf');
+    assert.ok(res.headers['content-disposition'].includes('inline'));
+    assert.equal(res.body, '%PDF-1.4 Mock');
+  } finally {
+    server.close();
+    delete process.env.TAILOR_PORT;
+  }
 });

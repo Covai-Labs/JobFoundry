@@ -75,9 +75,9 @@ class TestSettingsDefaults:
     def test_default_theme_and_allowed_themes(self) -> None:
         settings = _clean_settings()
         assert settings.default_theme == "jsonresume-theme-folio"
-        assert len(settings.allowed_themes) == 14
+        assert len(settings.allowed_themes) == 15
         assert "jsonresume-theme-folio" in settings.allowed_themes
-        assert "jsonresume-theme-folio-concise" not in settings.allowed_themes
+        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
 
     def test_default_max_concurrent_jobs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MAX_CONCURRENT_JOBS", raising=False)
@@ -171,9 +171,10 @@ class TestSettingsEnvironmentOverrides:
             "jsonresume-theme-europass-inspired",
             "jsonresume-theme-first-role",
             "jsonresume-theme-academic-classic",
+            "jsonresume-theme-folio-concise",
         ]
-        assert "jsonresume-theme-folio-concise" not in settings.allowed_themes
-        assert len(settings.allowed_themes) == 14
+        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
+        assert len(settings.allowed_themes) == 15
         for theme in expected_themes:
             assert theme in settings.allowed_themes
 
@@ -252,11 +253,11 @@ class TestSettingsFieldValidators:
 
     def test_parse_allowed_themes_from_none_returns_default(self) -> None:
         settings = _clean_settings(allowed_themes=None)  # type: ignore[arg-type]
-        assert settings.allowed_themes == [
-            "jsonresume-theme-folio",
-            "jsonresume-theme-folio-concise",
-            "jsonresume-theme-stackoverflow",
-        ]
+        assert len(settings.allowed_themes) == 15
+        assert "jsonresume-theme-folio" in settings.allowed_themes
+        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
+        assert "jsonresume-theme-stackoverflow" in settings.allowed_themes
+        assert "jsonresume-theme-pro" in settings.allowed_themes
 
     def test_default_theme_strips_whitespace(self) -> None:
         settings = _clean_settings(default_theme="  jsonresume-theme-even  ")

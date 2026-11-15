@@ -34,6 +34,18 @@ RUN apt-get update \
         jsonresume-theme-folio@1.3.1 \
         jsonresume-theme-folio-concise@1.3.0 \
         jsonresume-theme-stackoverflow@3.3.0 \
+        jsonresume-theme-pro \
+        jsonresume-theme-harvard-classic \
+        jsonresume-theme-jake-technical \
+        jsonresume-theme-awesome-professional \
+        jsonresume-theme-compact-developer \
+        jsonresume-theme-charter-serif \
+        jsonresume-theme-diplomat-cv \
+        jsonresume-theme-ledger-professional \
+        jsonresume-theme-stewardship-cv \
+        jsonresume-theme-europass-inspired \
+        jsonresume-theme-first-role \
+        jsonresume-theme-academic-classic \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app

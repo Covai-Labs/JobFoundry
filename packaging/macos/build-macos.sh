@@ -335,6 +335,18 @@ cat > "$STAGE/node-tools/package.json" <<'EOF'
     "jsonresume-theme-folio": "^1.3.1",
     "jsonresume-theme-folio-concise": "^1.2.1",
     "jsonresume-theme-stackoverflow": "*",
+    "jsonresume-theme-pro": "*",
+    "jsonresume-theme-harvard-classic": "*",
+    "jsonresume-theme-jake-technical": "*",
+    "jsonresume-theme-awesome-professional": "*",
+    "jsonresume-theme-compact-developer": "*",
+    "jsonresume-theme-charter-serif": "*",
+    "jsonresume-theme-diplomat-cv": "*",
+    "jsonresume-theme-ledger-professional": "*",
+    "jsonresume-theme-stewardship-cv": "*",
+    "jsonresume-theme-europass-inspired": "*",
+    "jsonresume-theme-first-role": "*",
+    "jsonresume-theme-academic-classic": "*",
     "resumed": "^7.0.0",
     "puppeteer": "^24.0.0"
   }

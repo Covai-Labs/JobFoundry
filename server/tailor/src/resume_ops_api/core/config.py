@@ -104,6 +104,7 @@ class Settings(BaseSettings):
     allowed_themes: list[str] = Field(
         default_factory=lambda: [
             "jsonresume-theme-folio",
+            "jsonresume-theme-folio-concise",
             "jsonresume-theme-stackoverflow",
             "jsonresume-theme-pro",
             "jsonresume-theme-harvard-classic",
@@ -166,7 +167,23 @@ class Settings(BaseSettings):
     @classmethod
     def parse_allowed_themes(cls, value: object) -> list[str]:
         if value is None:
-            return ["jsonresume-theme-folio", "jsonresume-theme-folio-concise", "jsonresume-theme-stackoverflow"]
+            return [
+                "jsonresume-theme-folio",
+                "jsonresume-theme-folio-concise",
+                "jsonresume-theme-stackoverflow",
+                "jsonresume-theme-pro",
+                "jsonresume-theme-harvard-classic",
+                "jsonresume-theme-jake-technical",
+                "jsonresume-theme-awesome-professional",
+                "jsonresume-theme-compact-developer",
+                "jsonresume-theme-charter-serif",
+                "jsonresume-theme-diplomat-cv",
+                "jsonresume-theme-ledger-professional",
+                "jsonresume-theme-stewardship-cv",
+                "jsonresume-theme-europass-inspired",
+                "jsonresume-theme-first-role",
+                "jsonresume-theme-academic-classic",
+            ]
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         if isinstance(value, list):

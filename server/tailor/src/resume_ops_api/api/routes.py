@@ -7,7 +7,9 @@ import json
 import shutil
 import tempfile
 import time
+import uuid
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
@@ -22,6 +24,7 @@ from resume_ops_api.api.models import (
     CopilotQARequest,
     CopilotQAResponse,
     HealthResponse,
+    MasterResumePreviewRequest,
     MasterResumeStatus,
     QueuedTaskResponse,
     RenderRequest,
@@ -72,9 +75,73 @@ async def list_themes(container: ServiceContainer = Depends(get_container)) -> T
     )
 
 
-def _compute_resume_hash(resume: dict) -> str:
+def _compute_resume_hash(resume: dict[str, Any]) -> str:
     serialized = json.dumps(resume, sort_keys=True, ensure_ascii=True)
     return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+async def _handle_master_resume_preview(
+    resume_payload: dict[str, Any] | None,
+    theme: str | None,
+    container: ServiceContainer,
+) -> FileResponse:
+    effective_resume = resume_payload or container.master_resume
+    if not effective_resume:
+        raise AppError(
+            "No master resume configured or master resume is empty.",
+            code="resume_missing",
+            status_code=400,
+        )
+    resolved_theme = container.theme_service.resolve(theme)
+    resume_hash = _compute_resume_hash(effective_resume)
+
+    preview_dir = container.settings.artifacts_dir / "master-previews" / resume_hash
+    pdf_path = preview_dir / f"{resolved_theme}.pdf"
+
+    if pdf_path.is_file() and pdf_path.stat().st_size > 0:
+        return FileResponse(
+            pdf_path,
+            media_type="application/pdf",
+            content_disposition_type="inline",
+            filename=f"master-resume-{resolved_theme}.pdf",
+        )
+
+    # Acquire concurrency semaphore to throttle Chromium processes
+    async with container.render_semaphore:
+        # Recheck cache after waiting for semaphore
+        if pdf_path.is_file() and pdf_path.stat().st_size > 0:
+            return FileResponse(
+                pdf_path,
+                media_type="application/pdf",
+                content_disposition_type="inline",
+                filename=f"master-resume-{resolved_theme}.pdf",
+            )
+
+        preview_dir.mkdir(parents=True, exist_ok=True)
+        # Use an isolated temporary directory so concurrent renders don't overwrite output.pdf
+        with tempfile.TemporaryDirectory() as temp_dir_str:
+            temp_dir = Path(temp_dir_str)
+            rendered_path = await container.renderer.render(
+                resume=effective_resume,
+                theme=resolved_theme,
+                output_dir=temp_dir,
+            )
+            if not rendered_path.is_file() or rendered_path.stat().st_size == 0:
+                raise AppError(
+                    f"Renderer produced no PDF output for theme {resolved_theme}",
+                    code="render_failed",
+                    status_code=500,
+                )
+            temp_target = preview_dir / f"{resolved_theme}.pdf.tmp.{uuid.uuid4().hex}"
+            shutil.copyfile(rendered_path, temp_target)
+            temp_target.replace(pdf_path)
+
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        content_disposition_type="inline",
+        filename=f"master-resume-{resolved_theme}.pdf",
+    )
 
 
 @router.get("/api/v1/master-resume/preview-pdf")
@@ -82,31 +149,18 @@ async def get_master_resume_preview_pdf(
     theme: str | None = None,
     container: ServiceContainer = Depends(get_container),
 ) -> FileResponse:
-    if not container.master_resume:
-        raise AppError(
-            "No master resume configured or master resume is empty.",
-            code="resume_missing",
-            status_code=400,
-        )
-    resolved_theme = container.theme_service.resolve(theme)
-    resume_hash = _compute_resume_hash(container.master_resume)
+    return await _handle_master_resume_preview(None, theme, container)
 
-    preview_dir = container.settings.artifacts_dir / "master-previews" / resume_hash
-    pdf_path = preview_dir / f"{resolved_theme}.pdf"
 
-    if pdf_path.is_file() and pdf_path.stat().st_size > 0:
-        return FileResponse(pdf_path, media_type="application/pdf", filename=f"{resolved_theme}.pdf")
-
-    preview_dir.mkdir(parents=True, exist_ok=True)
-    rendered_path = await container.renderer.render(
-        resume=container.master_resume,
-        theme=resolved_theme,
-        output_dir=preview_dir,
-    )
-    if rendered_path != pdf_path and rendered_path.is_file():
-        shutil.move(str(rendered_path), str(pdf_path))
-
-    return FileResponse(pdf_path, media_type="application/pdf", filename=f"{resolved_theme}.pdf")
+@router.post("/api/v1/master-resume/preview-pdf")
+async def post_master_resume_preview_pdf(
+    payload: MasterResumePreviewRequest | None = None,
+    theme: str | None = None,
+    container: ServiceContainer = Depends(get_container),
+) -> FileResponse:
+    effective_theme = payload.theme if (payload and payload.theme) else theme
+    resume_data = payload.resume if payload else None
+    return await _handle_master_resume_preview(resume_data, effective_theme, container)
 
 
 

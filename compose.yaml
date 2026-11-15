@@ -45,7 +45,7 @@ services:
       TAILOR_STYLE: ${TAILOR_STYLE-}
       TAILORING_STYLE: ${TAILORING_STYLE-}
       DEFAULT_THEME: ${DEFAULT_THEME-jsonresume-theme-folio}
-      ALLOWED_THEMES: '${ALLOWED_THEMES-["jsonresume-theme-folio","jsonresume-theme-stackoverflow","jsonresume-theme-pro","jsonresume-theme-harvard-classic","jsonresume-theme-jake-technical","jsonresume-theme-awesome-professional","jsonresume-theme-compact-developer","jsonresume-theme-charter-serif","jsonresume-theme-diplomat-cv","jsonresume-theme-ledger-professional","jsonresume-theme-stewardship-cv","jsonresume-theme-europass-inspired","jsonresume-theme-first-role","jsonresume-theme-academic-classic"]}'
+      ALLOWED_THEMES: '${ALLOWED_THEMES-["jsonresume-theme-folio","jsonresume-theme-folio-concise","jsonresume-theme-stackoverflow","jsonresume-theme-pro","jsonresume-theme-harvard-classic","jsonresume-theme-jake-technical","jsonresume-theme-awesome-professional","jsonresume-theme-compact-developer","jsonresume-theme-charter-serif","jsonresume-theme-diplomat-cv","jsonresume-theme-ledger-professional","jsonresume-theme-stewardship-cv","jsonresume-theme-europass-inspired","jsonresume-theme-first-role","jsonresume-theme-academic-classic"]}'
       MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS-2}
       CALLBACK_TIMEOUT_SECONDS: ${CALLBACK_TIMEOUT_SECONDS-5}
       LLM_REQUEST_TIMEOUT: ${LLM_REQUEST_TIMEOUT-600}
