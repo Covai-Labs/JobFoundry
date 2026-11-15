@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { api } from '../../api/client';
+import { api, type FunnelData } from '../../api/client';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { PipelineFunnel } from './PipelineFunnel';
 
 interface PipelineJob {
   id: string;
@@ -36,6 +37,7 @@ export const PipelineView: React.FC<{
   });
   const [jobs, setJobs] = useState<PipelineJob[]>([]);
   const [loading, setLoading] = useState(true);
+  const [funnelData, setFunnelData] = useState<FunnelData | null>(null);
   const [filter, setFilter] = useState<
     'all' | 'unscored' | 'scored' | 'tailored' | 'failed' | 'invalid'
   >('all');
@@ -55,16 +57,20 @@ export const PipelineView: React.FC<{
   const fetchPipelineData = async () => {
     setLoading(true);
     try {
-      const [statsData, jobsData, activeResume] = await Promise.all([
+      const [statsData, jobsData, activeResume, funnelRes] = await Promise.all([
         api
           .getPipelineStats()
           .catch(() => ({ total: 0, unscored: 0, scored: 0, tailored: 0, failed: 0 })),
         api.getPipelineJobs({ sort_by: sortField, order: sortOrder }).catch(() => []),
         api.getActiveResume().catch(() => null),
+        api.getFunnelStats().catch(() => null),
       ]);
       setStats(statsData);
       setJobs(jobsData);
       setActiveResumeLoaded(Boolean(activeResume?.resume));
+      if (funnelRes) {
+        setFunnelData(funnelRes);
+      }
     } catch (err) {
       console.error('Failed to load pipeline data:', err);
     } finally {
@@ -365,6 +371,9 @@ export const PipelineView: React.FC<{
             </div>
           </div>
         </div>
+
+        {/* Application Conversion Funnel (Issue #152) */}
+        <PipelineFunnel data={funnelData ?? undefined} loading={loading} />
 
         {/* Filter Controls */}
         <div
