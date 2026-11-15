@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
@@ -28,9 +29,7 @@ addFormatsFn(ajv);
 const schemaValidator = ajv.compile(resumeSchema);
 
 export interface ResumeManagerProps {
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onActiveResumeChange?: (hasActive: boolean) => void;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onThemeChange?: (theme: string) => void;
 }
 

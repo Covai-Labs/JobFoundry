@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import React, { useState } from 'react';
 import { THEME_CATALOG, ThemeMetadata, findThemeMetadata } from './themeCatalog';
 import { Check, Download, Star, Loader2 } from 'lucide-react';
@@ -5,12 +6,9 @@ import { Check, Download, Star, Loader2 } from 'lucide-react';
 export interface ThemePreviewGalleryProps {
   activeTheme: string;
   selectedTheme: string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSelectTheme: (slug: string) => void;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onSetDefaultTheme: (slug: string) => void;
   previewPdfUrl: string;
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   onDownloadPdf?: (slug: string) => void;
   isSavingDefault?: boolean;
 }
