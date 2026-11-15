@@ -13,6 +13,7 @@ import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/T
 import { useToast } from '../../context/ToastContext';
 import { ScraperSettingsTab } from './ScraperSettingsTab';
 import { ResumeManager } from '../resume/ResumeManager';
+import { THEME_CATALOG } from '../resume/themeCatalog';
 import { ExtensionSyncView } from '../sync/ExtensionSyncView';
 import { RegistrationControls } from '../auth/RegistrationControls';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
@@ -3327,10 +3328,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onChange={(e) => handleFieldChange('tailor_theme', e.target.value)}
                         className="input-text"
                       >
-                        <option value="jsonresume-theme-folio">Folio (One single page pdf)</option>
-                        <option value="jsonresume-theme-stackoverflow">
-                          StackOverflow (Clean Developer Theme)
-                        </option>
+                        {THEME_CATALOG.map((theme) => (
+                          <option key={theme.slug} value={theme.slug}>
+                            {theme.name} ({theme.badges.join(', ')})
+                          </option>
+                        ))}
                       </select>
                     </div>
 
