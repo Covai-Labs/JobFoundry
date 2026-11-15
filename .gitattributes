@@ -1,0 +1,12 @@
+# Architectural knowledge graph snapshots (`graphify update`) are committed for
+# reference only. Marking them generated keeps language statistics, GitHub
+# diff rendering, and review bots from treating multi-megabyte machine output
+# as hand-written source.
+graphify-out/** linguist-generated=true
+
+# Undiffable blobs: a single graph refresh rewrites all of them, so a textual
+# diff is noise (and megabytes wide) rather than information.
+graphify-out/graph.json -diff
+graphify-out/graph.html -diff
+graphify-out/manifest.json -diff
+graphify-out/.vocab.txt -diff

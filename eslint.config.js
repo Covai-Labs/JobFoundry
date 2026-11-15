@@ -10,6 +10,8 @@ export default [
       '**/.output/**',
       '**/.wxt/**',
       '**/.venv/**',
+      // Generated architecture-graph snapshots (`graphify update`).
+      'graphify-out/**',
       // Vendored career-ops provider layer (MIT): files are byte-identical to
       // upstream so `sync:providers` content hashes stay stable. Upstream
       // carries its own lint noise (unused vars, irregular whitespace); do not

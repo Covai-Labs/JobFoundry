@@ -1,5 +1,8 @@
 ---
 exclude_paths:
+  # Generated architecture-graph snapshots (`graphify update`): committed for
+  # reference, never hand-edited, and not part of the shipped product.
+  - 'graphify-out/**'
   - 'extension/src/background/providers/**'
   - 'extension/scripts/ports/**'
   - 'server/ingest/src/vendored/**'
