@@ -62,12 +62,18 @@ async def _client_for(
     sample_resume: dict,
     renderer: object,
     llm_client: object | None = None,
+    master_resume: dict | None = None,
 ) -> AsyncIterator[AsyncClient]:
+    overrides: dict[str, Any] = {
+        "llm_client": llm_client or FakeStructuredLLMClient(sample_resume),
+        "renderer": renderer,
+        "callback_service": FakeCallbackService(),
+    }
+    if master_resume is not None:
+        overrides["master_resume"] = master_resume
     app = create_app(
         settings,
-        llm_client=llm_client or FakeStructuredLLMClient(sample_resume),
-        renderer=renderer,
-        callback_service=FakeCallbackService(),
+        **overrides,
     )
     async with app.router.lifespan_context(app):
         async with AsyncClient(
@@ -215,3 +221,45 @@ async def test_render_reports_renderer_failure(settings: Settings, sample_resume
 
     assert response.status_code == 500
     assert response.json()["code"] == "render_failed"
+
+
+async def test_master_resume_preview_pdf_returns_pdf(
+    settings: Settings, sample_resume: dict
+) -> None:
+    renderer = RecordingRenderer()
+    async with _client_for(settings, sample_resume, renderer, master_resume=sample_resume) as client:
+        response = await client.get("/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-folio")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "application/pdf"
+    assert response.content.startswith(b"%PDF-")
+    assert len(renderer.calls) == 1
+    assert renderer.calls[0]["theme"] == "jsonresume-theme-folio"
+
+
+async def test_master_resume_preview_pdf_caches_result(
+    settings: Settings, sample_resume: dict
+) -> None:
+    renderer = RecordingRenderer()
+    async with _client_for(settings, sample_resume, renderer, master_resume=sample_resume) as client:
+        res1 = await client.get("/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-pro")
+        assert res1.status_code == 200
+        assert len(renderer.calls) == 1
+
+        # Second call with the same theme should hit cache and NOT invoke renderer again
+        res2 = await client.get("/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-pro")
+        assert res2.status_code == 200
+        assert res2.content == res1.content
+        assert len(renderer.calls) == 1
+
+
+async def test_master_resume_preview_pdf_invalid_theme_returns_400(
+    settings: Settings, sample_resume: dict
+) -> None:
+    renderer = RecordingRenderer()
+    async with _client_for(settings, sample_resume, renderer, master_resume=sample_resume) as client:
+        response = await client.get("/api/v1/master-resume/preview-pdf?theme=invalid-theme-xyz")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_theme"
+

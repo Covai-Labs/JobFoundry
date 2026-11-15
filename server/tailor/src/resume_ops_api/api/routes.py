@@ -2,12 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hashlib
+import json
+import shutil
 import tempfile
 import time
 from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi.responses import FileResponse
 from litellm import acompletion
 from resume_ops_api.api.deps import get_container
 from resume_ops_api.api.models import (
@@ -66,6 +70,44 @@ async def list_themes(container: ServiceContainer = Depends(get_container)) -> T
         default_theme=container.theme_service.default_theme,
         allowed_themes=container.theme_service.allowed_themes,
     )
+
+
+def _compute_resume_hash(resume: dict) -> str:
+    serialized = json.dumps(resume, sort_keys=True, ensure_ascii=True)
+    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+
+
+@router.get("/api/v1/master-resume/preview-pdf")
+async def get_master_resume_preview_pdf(
+    theme: str | None = None,
+    container: ServiceContainer = Depends(get_container),
+) -> FileResponse:
+    if not container.master_resume:
+        raise AppError(
+            "No master resume configured or master resume is empty.",
+            code="resume_missing",
+            status_code=400,
+        )
+    resolved_theme = container.theme_service.resolve(theme)
+    resume_hash = _compute_resume_hash(container.master_resume)
+
+    preview_dir = container.settings.artifacts_dir / "master-previews" / resume_hash
+    pdf_path = preview_dir / f"{resolved_theme}.pdf"
+
+    if pdf_path.is_file() and pdf_path.stat().st_size > 0:
+        return FileResponse(pdf_path, media_type="application/pdf", filename=f"{resolved_theme}.pdf")
+
+    preview_dir.mkdir(parents=True, exist_ok=True)
+    rendered_path = await container.renderer.render(
+        resume=container.master_resume,
+        theme=resolved_theme,
+        output_dir=preview_dir,
+    )
+    if rendered_path != pdf_path and rendered_path.is_file():
+        shutil.move(str(rendered_path), str(pdf_path))
+
+    return FileResponse(pdf_path, media_type="application/pdf", filename=f"{resolved_theme}.pdf")
+
 
 
 def _encode_pdf(path: Path) -> str:

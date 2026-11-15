@@ -191,6 +191,10 @@ class Settings(BaseSettings):
         return self.data_dir / "jobs"
 
     @property
+    def artifacts_dir(self) -> Path:
+        return self.data_dir / "artifacts"
+
+    @property
     def schema_path(self) -> Path:
         return Path(__file__).resolve().parent.parent / "resources" / "resume_schema.json"
 

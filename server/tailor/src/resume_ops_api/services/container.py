@@ -132,5 +132,6 @@ def build_container(settings: Settings, **overrides: Any) -> ServiceContainer:
         job_runner=job_runner,
         copilot_service=copilot_service,
         render_semaphore=render_semaphore,
+        _master_resume=overrides.get("master_resume"),
     )
 
