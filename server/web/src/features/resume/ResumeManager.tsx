@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+/* eslint-disable no-unused-vars */
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 import {
@@ -10,12 +11,16 @@ import {
   Code2,
   Save,
   PlusCircle,
+  Eye,
 } from 'lucide-react';
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
 import { ResumeFormEditor, ResumeData, SkillItem } from './ResumeFormEditor';
+import { STARTER_RESUME_TEMPLATE } from './resumeTypes';
 import { CandidateFactsPanel } from './CandidateFactsPanel';
+import { ThemePreviewGallery } from './ThemePreviewGallery';
+import { findThemeMetadata } from './themeCatalog';
 
 const AjvClass = (Ajv as any).default || Ajv;
 const addFormatsFn = (addFormats as any).default || addFormats;
@@ -26,9 +31,13 @@ const schemaValidator = ajv.compile(resumeSchema);
 
 export interface ResumeManagerProps {
   onActiveResumeChange?: (hasActive: boolean) => void;
+  onThemeChange?: (_theme: string) => void;
 }
 
-export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChange }) => {
+export const ResumeManager: React.FC<ResumeManagerProps> = ({
+  onActiveResumeChange,
+  onThemeChange,
+}) => {
   const [resumes, setResumes] = useState<UserResume[]>([]);
   const [activeResume, setActiveResume] = useState<UserResume | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -36,13 +45,26 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
   const [success, setSuccess] = useState<string | null>(null);
 
   // Editor states
-  const [editorMode, setEditorMode] = useState<'form' | 'json'>('form');
+  const [editorMode, setEditorMode] = useState<'form' | 'json' | 'preview'>('form');
   const [title, setTitle] = useState<string>('Master Resume');
   const [jsonText, setJsonText] = useState<string>('');
   const [initialJsonText, setInitialJsonText] = useState<string>('');
   const [parsedResume, setParsedResume] = useState<Record<string, unknown>>({});
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [saving, setSaving] = useState<boolean>(false);
+
+  // Theme states
+  const [activeTheme, setActiveTheme] = useState<string>('jsonresume-theme-folio');
+  const [selectedTheme, setSelectedTheme] = useState<string>('jsonresume-theme-folio');
+  const [savingDefaultTheme, setSavingDefaultTheme] = useState<boolean>(false);
+
+  // Theme preview states (blob URLs, because the PDF is fetched with an
+  // Authorization header and iframes cannot send one)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewObjectUrl = useRef<string | null>(null);
+  const previewBlob = useRef<{ theme: string; blob: Blob } | null>(null);
 
   // AI Raw Resume Converter states
   const [showAiConvertModal, setShowAiConvertModal] = useState<boolean>(false);
@@ -67,37 +89,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
         setInitialJsonText(formatted);
         validateJson(formatted);
       } else {
-        // Starter template conforming to JSON Resume v1.0.0
-        const starter = {
-          $schema: 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json',
-          basics: {
-            name: 'Your Name',
-            label: 'Software Engineer',
-            email: 'you@example.com',
-            phone: '+1 555-0100',
-            url: 'https://example.com',
-            summary: 'Experienced developer specializing in scalable distributed systems.',
-            location: { city: 'San Francisco', region: 'CA' },
-          },
-          skills: [
-            { name: 'Languages', keywords: ['TypeScript', 'Python', 'Go', 'Rust'] },
-            { name: 'Frameworks & Tools', keywords: ['React', 'Node.js', 'FastAPI', 'Docker'] },
-          ],
-          work: [
-            {
-              name: 'Tech Innovators Inc',
-              position: 'Senior Backend Engineer',
-              startDate: '2022-01-01',
-              highlights: [
-                'Engineered real-time data pipeline processing 50M events daily.',
-                'Reduced query latency by 45% using Redis caching and index optimization.',
-              ],
-            },
-          ],
-        };
         setTitle('Master Resume');
-        setParsedResume(starter);
-        const formatted = JSON.stringify(starter, null, 2);
+        setParsedResume(STARTER_RESUME_TEMPLATE);
+        const formatted = JSON.stringify(STARTER_RESUME_TEMPLATE, null, 2);
         setJsonText(formatted);
         setInitialJsonText(formatted);
         validateJson(formatted);
@@ -112,7 +106,98 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
 
   useEffect(() => {
     void fetchResumes();
+    api
+      .getSettings()
+      .then((s) => {
+        const theme = s.settings.tailor_theme;
+        if (theme) {
+          setActiveTheme(theme);
+          setSelectedTheme(theme);
+        }
+      })
+      .catch(() => {
+        // Ignore settings load errors on initial mount
+      });
   }, []);
+
+  const loadThemePreview = useCallback(
+    async (themeSlug: string) => {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const blob = await api.getMasterResumePreviewPdf(themeSlug, parsedResume);
+        const url = window.URL.createObjectURL(blob);
+        if (previewObjectUrl.current) window.URL.revokeObjectURL(previewObjectUrl.current);
+        previewObjectUrl.current = url;
+        previewBlob.current = { theme: themeSlug, blob };
+        setPreviewUrl(url);
+      } catch (err: unknown) {
+        previewBlob.current = null;
+        setPreviewUrl(null);
+        setPreviewError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [parsedResume]
+  );
+
+  useEffect(() => {
+    if (editorMode !== 'preview' || validationErrors.length > 0) return;
+    void loadThemePreview(selectedTheme);
+  }, [editorMode, selectedTheme, loadThemePreview, validationErrors.length]);
+
+  useEffect(
+    () => () => {
+      if (previewObjectUrl.current) window.URL.revokeObjectURL(previewObjectUrl.current);
+    },
+    []
+  );
+
+  const handleSetDefaultTheme = async (themeSlug: string) => {
+    setSavingDefaultTheme(true);
+    setError(null);
+    try {
+      await api.updateSettings({ tailor_theme: themeSlug });
+      setActiveTheme(themeSlug);
+      onThemeChange?.(themeSlug);
+      const meta = findThemeMetadata(themeSlug);
+      setSuccess(`Set ${meta?.name ?? themeSlug} as default theme!`);
+      setTimeout(() => {
+        setSuccess(null);
+      }, 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to update default theme');
+    } finally {
+      setSavingDefaultTheme(false);
+    }
+  };
+
+  const safeFilenamePart = (value: string) =>
+    value.replace(/[^a-z0-9._ -]+/gi, '_').trim() || 'Resume';
+
+  const handleDownloadPreviewPdf = async (themeSlug: string) => {
+    try {
+      const cached = previewBlob.current;
+      const blob =
+        cached && cached.theme === themeSlug
+          ? cached.blob
+          : await api.getMasterResumePreviewPdf(themeSlug, parsedResume);
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const meta = findThemeMetadata(themeSlug);
+      a.download = `${safeFilenamePart(title || 'Master-Resume')}-${meta?.name ?? themeSlug}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to download preview PDF');
+    }
+  };
 
   const validateJson = (text: string): boolean => {
     try {
@@ -617,6 +702,22 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
                 >
                   <Code2 size={14} /> Raw JSON
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditorMode('preview');
+                  }}
+                  className={`btn btn-sm ${editorMode === 'preview' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                  disabled={validationErrors.length > 0}
+                  title={
+                    validationErrors.length > 0
+                      ? 'Resolve schema validation errors to preview themes'
+                      : 'Preview master resume across 14 curated themes'
+                  }
+                >
+                  <Eye size={14} /> Theme Preview
+                </button>
                 {validationErrors.length > 0 ? (
                   <span className="badge badge-danger" style={{ fontSize: '0.75rem' }}>
                     ❌ {validationErrors.length} Schema Error(s)
@@ -647,50 +748,67 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({ onActiveResumeChan
               </button>
             </div>
 
-            {/* Resume Title Input */}
-            <div>
-              <label
-                style={{
-                  display: 'block',
-                  fontSize: '0.82rem',
-                  fontWeight: 500,
-                  marginBottom: '0.3rem',
-                }}
-              >
-                Profile / Resume Title
-              </label>
-              <input
-                type="text"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Senior Backend Engineer"
-                className="input-text"
-                style={{ height: '36px', fontSize: '0.85rem' }}
+            {editorMode === 'preview' ? (
+              <ThemePreviewGallery
+                activeTheme={activeTheme}
+                selectedTheme={selectedTheme}
+                onSelectTheme={setSelectedTheme}
+                onSetDefaultTheme={handleSetDefaultTheme}
+                previewPdfUrl={previewUrl}
+                previewLoading={previewLoading}
+                previewError={previewError}
+                onRetryPreview={() => void loadThemePreview(selectedTheme)}
+                onDownloadPdf={handleDownloadPreviewPdf}
+                isSavingDefault={savingDefaultTheme}
               />
-            </div>
-
-            {/* Mode-specific Editor */}
-            {editorMode === 'form' ? (
-              <ResumeFormEditor resume={parsedResume} onChange={handleFormChange} />
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                <textarea
-                  aria-label="Raw JSON Schema Content"
-                  value={jsonText}
-                  onChange={(e) => handleJsonChange(e.target.value)}
-                  className="input-text"
-                  rows={20}
-                  style={{
-                    fontFamily: 'monospace',
-                    fontSize: '0.8rem',
-                    lineHeight: 1.4,
-                    resize: 'vertical',
-                    whiteSpace: 'pre',
-                    tabSize: 2,
-                  }}
-                  spellCheck={false}
-                />
-              </div>
+              <>
+                {/* Resume Title Input */}
+                <div>
+                  <label
+                    style={{
+                      display: 'block',
+                      fontSize: '0.82rem',
+                      fontWeight: 500,
+                      marginBottom: '0.3rem',
+                    }}
+                  >
+                    Profile / Resume Title
+                  </label>
+                  <input
+                    type="text"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="e.g. Senior Backend Engineer"
+                    className="input-text"
+                    style={{ height: '36px', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                {/* Mode-specific Editor */}
+                {editorMode === 'form' ? (
+                  <ResumeFormEditor resume={parsedResume} onChange={handleFormChange} />
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <textarea
+                      aria-label="Raw JSON Schema Content"
+                      value={jsonText}
+                      onChange={(e) => handleJsonChange(e.target.value)}
+                      className="input-text"
+                      rows={20}
+                      style={{
+                        fontFamily: 'monospace',
+                        fontSize: '0.8rem',
+                        lineHeight: 1.4,
+                        resize: 'vertical',
+                        whiteSpace: 'pre',
+                        tabSize: 2,
+                      }}
+                      spellCheck={false}
+                    />
+                  </div>
+                )}
+              </>
             )}
 
             {validationErrors.length > 0 && (

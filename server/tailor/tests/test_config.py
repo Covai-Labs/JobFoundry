@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from resume_ops_api.core.config import Settings, get_settings
+from resume_ops_api.core.config import DEFAULT_ALLOWED_THEMES, Settings, get_settings
 
 
 # ---------------------------------------------------------------------------
@@ -75,11 +75,9 @@ class TestSettingsDefaults:
     def test_default_theme_and_allowed_themes(self) -> None:
         settings = _clean_settings()
         assert settings.default_theme == "jsonresume-theme-folio"
-        assert settings.allowed_themes == [
-            "jsonresume-theme-folio",
-            "jsonresume-theme-folio-concise",
-            "jsonresume-theme-stackoverflow",
-        ]
+        assert settings.allowed_themes == list(DEFAULT_ALLOWED_THEMES)
+        assert "jsonresume-theme-folio" in settings.allowed_themes
+        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
 
     def test_default_max_concurrent_jobs(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.delenv("MAX_CONCURRENT_JOBS", raising=False)
@@ -156,6 +154,33 @@ class TestSettingsEnvironmentOverrides:
         assert settings.strategy_model == "anthropic/claude-3-opus"
         assert settings.work_model == "anthropic/claude-3-sonnet"
 
+    def test_default_allowed_themes_covers_the_curated_gallery(self) -> None:
+        settings = _clean_settings()
+        curated_themes = [
+            "jsonresume-theme-folio",
+            "jsonresume-theme-stackoverflow",
+            "jsonresume-theme-pro",
+            "jsonresume-theme-harvard-classic",
+            "jsonresume-theme-jake-technical",
+            "jsonresume-theme-awesome-professional",
+            "jsonresume-theme-compact-developer",
+            "jsonresume-theme-charter-serif",
+            "jsonresume-theme-diplomat-cv",
+            "jsonresume-theme-ledger-professional",
+            "jsonresume-theme-stewardship-cv",
+            "jsonresume-theme-europass-inspired",
+            "jsonresume-theme-first-role",
+            "jsonresume-theme-academic-classic",
+        ]
+        assert settings.allowed_themes == list(DEFAULT_ALLOWED_THEMES)
+        for theme in curated_themes:
+            assert theme in settings.allowed_themes
+        # Retired from the gallery, kept allow-listed so existing profiles render.
+        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
+        assert set(settings.allowed_themes) - set(curated_themes) == {
+            "jsonresume-theme-folio-concise"
+        }
+
     def test_default_theme_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DEFAULT_THEME", "jsonresume-theme-even")
         # pydantic-settings expects JSON arrays for list types in env vars
@@ -231,11 +256,8 @@ class TestSettingsFieldValidators:
 
     def test_parse_allowed_themes_from_none_returns_default(self) -> None:
         settings = _clean_settings(allowed_themes=None)  # type: ignore[arg-type]
-        assert settings.allowed_themes == [
-            "jsonresume-theme-folio",
-            "jsonresume-theme-folio-concise",
-            "jsonresume-theme-stackoverflow",
-        ]
+        assert settings.allowed_themes == list(DEFAULT_ALLOWED_THEMES)
+        assert "jsonresume-theme-pro" in settings.allowed_themes
 
     def test_default_theme_strips_whitespace(self) -> None:
         settings = _clean_settings(default_theme="  jsonresume-theme-even  ")

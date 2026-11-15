@@ -155,6 +155,11 @@ class MasterResumeStatus(BaseModel):
     message: str
 
 
+class MasterResumePreviewRequest(BaseModel):
+    resume: dict[str, Any] | None = None
+    theme: str | None = None
+
+
 class TestLlmRequest(BaseModel):
     model: str
     api_key: str | None = None

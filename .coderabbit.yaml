@@ -1,0 +1,9 @@
+# CodeRabbit configuration. See
+# https://docs.coderabbit.ai/reference/configuration
+#
+# `graphify-out/` holds generated architecture-graph snapshots (megabytes of
+# HTML/JSON). They are committed for reference, but reviewing them costs
+# tokens and produces no useful findings.
+reviews:
+  path_filters:
+    - '!graphify-out/**'

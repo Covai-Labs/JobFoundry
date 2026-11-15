@@ -244,8 +244,20 @@ cat > "$STAGE/node-tools/package.json" <<'EOF'
   "license": "AGPL-3.0-only",
   "dependencies": {
     "jsonresume-theme-folio": "^1.3.1",
-    "jsonresume-theme-folio-concise": "^1.2.1",
-    "jsonresume-theme-stackoverflow": "*",
+    "jsonresume-theme-folio-concise": "1.3.0",
+    "jsonresume-theme-stackoverflow": "3.3.0",
+    "jsonresume-theme-pro": "0.2.0",
+    "jsonresume-theme-harvard-classic": "0.2.0",
+    "jsonresume-theme-jake-technical": "0.2.0",
+    "jsonresume-theme-awesome-professional": "0.2.0",
+    "jsonresume-theme-compact-developer": "0.2.0",
+    "jsonresume-theme-charter-serif": "0.2.0",
+    "jsonresume-theme-diplomat-cv": "0.2.0",
+    "jsonresume-theme-ledger-professional": "0.2.0",
+    "jsonresume-theme-stewardship-cv": "0.2.0",
+    "jsonresume-theme-europass-inspired": "0.2.0",
+    "jsonresume-theme-first-role": "0.2.0",
+    "jsonresume-theme-academic-classic": "0.2.0",
     "resumed": "^7.0.0",
     "puppeteer": "^24.0.0"
   }

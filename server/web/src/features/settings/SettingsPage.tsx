@@ -13,6 +13,7 @@ import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/T
 import { useToast } from '../../context/ToastContext';
 import { ScraperSettingsTab } from './ScraperSettingsTab';
 import { ResumeManager } from '../resume/ResumeManager';
+import { THEME_CATALOG, findThemeMetadata } from '../resume/themeCatalog';
 import { ExtensionSyncView } from '../sync/ExtensionSyncView';
 import { RegistrationControls } from '../auth/RegistrationControls';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
@@ -1893,7 +1894,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               {activeTab === 'profile' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div className="settings-card" style={{ padding: '1.5rem' }}>
-                    <ResumeManager onActiveResumeChange={setHasActiveResume} />
+                    <ResumeManager
+                      onActiveResumeChange={setHasActiveResume}
+                      onThemeChange={(newTheme) =>
+                        setFormSettings((prev) => ({ ...prev, tailor_theme: newTheme }))
+                      }
+                    />
                   </div>
                   {/* Next / Previous Step Footer Navigation */}
                   <div
@@ -3327,10 +3333,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onChange={(e) => handleFieldChange('tailor_theme', e.target.value)}
                         className="input-text"
                       >
-                        <option value="jsonresume-theme-folio">Folio (One single page pdf)</option>
-                        <option value="jsonresume-theme-stackoverflow">
-                          StackOverflow (Clean Developer Theme)
-                        </option>
+                        {
+                          // Keep a profile's stored theme selectable even once it
+                          // is retired from the curated gallery, otherwise saving
+                          // the form would silently rewrite it to the first option.
+                          findThemeMetadata(formSettings.tailor_theme) === undefined && (
+                            <option value={formSettings.tailor_theme}>
+                              {formSettings.tailor_theme} (legacy)
+                            </option>
+                          )
+                        }
+                        {THEME_CATALOG.map((theme) => (
+                          <option key={theme.slug} value={theme.slug}>
+                            {theme.name} ({theme.badges.join(', ')})
+                          </option>
+                        ))}
                       </select>
                     </div>
 

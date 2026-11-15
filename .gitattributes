@@ -1,0 +1,9 @@
+# `graphify-out/` is git-ignored (`graphify update .` rebuilds it, and the
+# rendered graph is published to Pages). These attributes only apply if someone
+# force-adds a snapshot: keep language statistics and diff rendering from
+# treating 8 MB of generated HTML/JSON as hand-written source.
+graphify-out/** linguist-generated=true
+graphify-out/graph.json -diff
+graphify-out/graph.html -diff
+graphify-out/manifest.json -diff
+graphify-out/.vocab.txt -diff

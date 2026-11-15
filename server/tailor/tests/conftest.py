@@ -179,7 +179,12 @@ def sample_resume() -> dict[str, Any]:
 def settings(tmp_path: Path) -> Settings:
     return Settings(
         data_dir=tmp_path / "data",
-        allowed_themes=["jsonresume-theme-stackoverflow", "jsonresume-theme-even"],
+        allowed_themes=[
+            "jsonresume-theme-folio",
+            "jsonresume-theme-stackoverflow",
+            "jsonresume-theme-pro",
+            "jsonresume-theme-even",
+        ],
         default_theme="jsonresume-theme-stackoverflow",
         database_url=f"sqlite+aiosqlite:///{tmp_path / 'resume_ops.db'}",
         default_model="openai/gpt-4o-mini",

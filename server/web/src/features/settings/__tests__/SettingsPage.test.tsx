@@ -750,4 +750,21 @@ describe('SettingsPage', () => {
     expect(screen.getByText(/Enable LangSmith Tracing Callbacks/i)).toBeInTheDocument();
     expect(screen.getByPlaceholderText('https://api.smith.langchain.com')).toBeInTheDocument();
   });
+
+  it('renders all 14 curated themes in the Default Resume Theme dropdown', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Resume Tailor/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Default Resume Theme')).toBeInTheDocument();
+    });
+
+    expect(screen.getByRole('option', { name: /Jake Technical/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /Harvard Classic/i })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: /^Pro \(/i })).toBeInTheDocument();
+  });
 });
