@@ -27,6 +27,8 @@ export const PROVIDER_DEFAULT_BASES = Object.freeze({
   groq: 'https://api.groq.com/openai/v1',
   deepseek: 'https://api.deepseek.com/v1',
   ollama: 'http://127.0.0.1:11434/v1',
+  // A self-hosted gateway has no public endpoint; it must be configured.
+  custom: '',
 });
 
 /**
@@ -35,7 +37,7 @@ export const PROVIDER_DEFAULT_BASES = Object.freeze({
  * @param {string} modelString
  * @returns {string} provider id, or '' when unknown
  */
-export function detectProviderFromModel(modelString) {
+export function inferProviderFromModel(modelString) {
   const s = String(modelString || '')
     .toLowerCase()
     .trim();
@@ -57,27 +59,49 @@ export function detectProviderFromModel(modelString) {
 }
 
 /**
+ * UI-facing provider detection: unknown models default to OpenRouter, the
+ * household default provider. Base-URL resolution must use
+ * `inferProviderFromModel` instead so unknown models are not silently routed to
+ * a provider the user never selected.
+ * @param {string} modelString
+ */
+export function detectProviderFromModel(modelString) {
+  return inferProviderFromModel(modelString) || 'openrouter';
+}
+
+/**
  * Trims a base URL and drops trailing slashes. Returns '' for non-strings.
+ * Implemented without a regex: `/\/+$/` is polynomial on long input and trips
+ * CodeQL's ReDoS rule.
  * @param {unknown} value
  */
 export function normalizeApiBase(value) {
   if (typeof value !== 'string') return '';
-  return value.trim().replace(/\/+$/, '');
+  let out = value.trim();
+  while (out.endsWith('/')) {
+    out = out.slice(0, -1);
+  }
+  return out;
 }
 
 /**
- * Returns the public endpoint for a provider, falling back to inference from
- * the model identifier. Returns '' when the provider should be routed by
- * LiteLLM from the model prefix.
+ * Returns the public endpoint for an explicitly selected provider.
+ *
+ * An unknown / unsupported provider resolves to '' so LiteLLM routes from the
+ * model prefix. It must never borrow another provider's public endpoint: that
+ * is how a key ends up at the wrong service. Model inference is only used when
+ * the caller selected no provider at all.
  * @param {string} [provider]
  * @param {string} [model]
  */
 export function defaultBaseForProvider(provider, model) {
   const p = String(provider || '').toLowerCase();
-  if (Object.prototype.hasOwnProperty.call(PROVIDER_DEFAULT_BASES, p)) {
-    return PROVIDER_DEFAULT_BASES[p];
+  if (p) {
+    return Object.prototype.hasOwnProperty.call(PROVIDER_DEFAULT_BASES, p)
+      ? PROVIDER_DEFAULT_BASES[p]
+      : '';
   }
-  return PROVIDER_DEFAULT_BASES[detectProviderFromModel(model)] || '';
+  return PROVIDER_DEFAULT_BASES[inferProviderFromModel(model)] || '';
 }
 
 /**
@@ -133,30 +157,25 @@ export function resolveFeatureLlmConfig(db, feature, { userId = null, env = proc
   let keySetting;
   if (isGateway) {
     keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', scope);
-    if (!keySetting.value) {
-      keySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', scope);
-    }
   } else if (inherit) {
+    // Inheritance means the gateway's credential scope, including its key.
+    // Borrowing the feature key here would pair a feature credential with the
+    // gateway endpoint (the reverse of the bug this resolver fixes).
     keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', scope);
-    if (!keySetting.value) {
-      keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, scope);
-    }
   } else {
+    // An explicit override owns its key. Falling back to the gateway key would
+    // re-introduce the cross-scope pairing this resolver exists to prevent.
     keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, scope);
-    if (!keySetting.value) {
-      keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', scope);
-    }
   }
 
   // --- Base URL ----------------------------------------------------------
   // The gateway/inherited scope may use the gateway base. A feature that
-  // opted out must use its own base only.
+  // opted out must use its own base only. A retained feature base is ignored
+  // while inheriting: it belongs to a different credential scope and would
+  // send the gateway key to a stale private proxy.
   let baseSetting;
   if (isGateway || inherit) {
     baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', scope);
-    if (!baseSetting.value && !isGateway) {
-      baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, scope);
-    }
   } else {
     baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, scope);
   }
@@ -177,7 +196,7 @@ export function resolveFeatureLlmConfig(db, feature, { userId = null, env = proc
   return {
     feature,
     inherited: inherit,
-    provider: provider || detectProviderFromModel(model),
+    provider: provider || inferProviderFromModel(model),
     model,
     apiKey: keyAllowed ? keySetting.value || '' : '',
     keySource: keySetting.source,

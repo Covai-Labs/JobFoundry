@@ -130,7 +130,7 @@ const LlmTestTarget: React.FC<{ id: string; target: EffectiveEndpoint }> = ({ id
         border: '1px solid var(--border-subtle)',
       }}
     >
-      {target.url || 'provider default route'}
+      {target.url || 'model-prefix routing (no base URL)'}
     </code>
     <span style={{ opacity: 0.85 }}>— {target.note}</span>
   </div>
@@ -1127,7 +1127,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setDefaultTestResult({ success: false, error: msg });
+        setDefaultTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || gatewayTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingDefaultLlm(false);
@@ -1168,7 +1172,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setTestResult({ success: false, error: msg });
+        setTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || scorerTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingLlm(false);
@@ -1209,7 +1217,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setTailorTestResult({ success: false, error: msg });
+        setTailorTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || tailorTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingTailorLlm(false);
@@ -1250,7 +1262,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setCopilotTestResult({ success: false, error: msg });
+        setCopilotTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || copilotTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingCopilotLlm(false);

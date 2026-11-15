@@ -50,6 +50,7 @@ import {
 import { getUserFacts, createUserFact, updateUserFact, deleteUserFact } from './facts/facts.mjs';
 import {
   defaultBaseForProvider,
+  inferProviderFromModel,
   normalizeApiBase,
   resolveFeatureLlmConfig,
 } from './settings/llm-resolve.mjs';
@@ -511,9 +512,19 @@ export function buildApp({
       }
 
       // An explicit value from the form wins (it may be unsaved), otherwise the
-      // resolved base. Provider inference is the last resort for direct calls.
-      const effectiveProvider = resolved.provider || provider || '';
-      const explicitBase = normalizeApiBase(apiBase) || resolved.apiBase || '';
+      // resolved saved settings. When the request supplies credentials, model or
+      // provider, resolve the endpoint from *those* values — not from the saved
+      // provider — so an unsaved provider switch never reuses the old endpoint.
+      const requestScoped = Boolean(apiKey || model || provider);
+      const effectiveProvider = requestScoped
+        ? provider || inferProviderFromModel(model)
+        : resolved.provider || provider || '';
+      const explicitBase =
+        normalizeApiBase(apiBase) ||
+        (requestScoped
+          ? defaultBaseForProvider(effectiveProvider, effectiveModel)
+          : resolved.apiBase) ||
+        '';
       const directBase = explicitBase || defaultBaseForProvider(effectiveProvider, effectiveModel);
 
       if (!effectiveKey) {
@@ -577,6 +588,17 @@ export function buildApp({
           });
         }
         // Fallback to direct fetch only if Tailor service failed to connect / unreachable
+      }
+
+      if (!directBase) {
+        return reply.code(400).send({
+          success: false,
+          provider: effectiveProvider,
+          apiBase: '',
+          error: effectiveProvider
+            ? `No endpoint known for provider "${effectiveProvider}". Set an explicit base URL or route it through LiteLLM.`
+            : 'No endpoint known for this model. Set an explicit base URL to test it.',
+        });
       }
 
       // Direct provider call (no LiteLLM here): OpenRouter's native router IDs
@@ -2285,32 +2307,6 @@ export function buildApp({
         getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
         getEffectiveSetting(db, 'scorer_model', process.env, userId) ||
         'openrouter/openrouter/free';
-    }
-    if (!copilotKey) {
-      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', {
-        userId,
-      });
-      copilotKey = isRegisteredUser(db, userId)
-        ? defaultKeySetting.source === 'user'
-          ? defaultKeySetting.value
-          : ''
-        : defaultKeySetting.value;
-    }
-    if (!copilotKey) {
-      const tailorKeySetting = getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
-      copilotKey = isRegisteredUser(db, userId)
-        ? tailorKeySetting.source === 'user'
-          ? tailorKeySetting.value
-          : ''
-        : tailorKeySetting.value;
-    }
-    if (!copilotKey) {
-      const scorerKeySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
-      copilotKey = isRegisteredUser(db, userId)
-        ? scorerKeySetting.source === 'user'
-          ? scorerKeySetting.value
-          : ''
-        : scorerKeySetting.value;
     }
 
     let finalConstraints = constraints;

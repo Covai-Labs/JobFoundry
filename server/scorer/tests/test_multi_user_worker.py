@@ -548,3 +548,30 @@ def test_tailor_override_never_inherits_scorer_api_base(tmp_path):
     )
     assert resolved["api_key"] == "sk-or-tailor-key-123456"
     assert resolved["api_base"] == ""
+
+
+def test_scorer_override_without_own_key_never_uses_gateway_key(tmp_path):
+    """An opted-out scorer must not borrow the Default Gateway's key."""
+    store = JobStore(db_path=str(tmp_path / "t.db"))
+    store.init_schema(SCHEMA_SQL)
+    now = 1700000000000
+
+    store.conn.execute(
+        "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("u_nokey", "nokey@example.com", "hash", "NoKey", "key_n", now, now),
+    )
+    for key, value in {
+        "default_llm_api_key": "sk-or-default-key-123456",
+        "default_llm_api_base": "https://litellm.example.com/v1",
+        "scorer_inherit_default": "false",
+        "scorer_provider": "openrouter",
+        "scorer_model": "openrouter/openrouter/free",
+    }.items():
+        store.conn.execute(
+            "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+            ("u_nokey", key, value, now),
+        )
+
+    resolved = store.get_user_effective_llm("u_nokey")
+    assert resolved["api_key"] == ""
+    assert resolved["api_base"] == ""
