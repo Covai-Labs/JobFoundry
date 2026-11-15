@@ -137,6 +137,37 @@ test('GET /api/v1/analytics/funnel endpoint tests', async (t) => {
       assert.equal(dataB.total, 1);
       const stagesMapB = Object.fromEntries(dataB.stages.map((s) => [s.id, s]));
       assert.equal(stagesMapB.offer.count, 1);
+
+      // Verify alternate /api/v1/pipeline/funnel endpoint returns identical result
+      const resAlt = await app.inject({
+        method: 'GET',
+        url: '/api/v1/pipeline/funnel',
+        headers: { authorization: `Bearer ${userA.apiKey}` },
+      });
+      assert.equal(resAlt.statusCode, 200);
+      const dataAlt = JSON.parse(resAlt.body).funnel;
+      assert.deepEqual(dataAlt, dataA);
     }
   );
+
+  await t.test('supports legacy single-tenant admin fallback from jobs table', async () => {
+    // Single tenant mode with legacy pre-shared API key
+    const legacyKey = 'legacy-secret-key';
+    const singleTenantApp = buildApp({
+      db,
+      jwtSecret: 'test-secret',
+      apiKeys: [legacyKey],
+      logger: false,
+    });
+    const res = await singleTenantApp.inject({
+      method: 'GET',
+      url: '/api/v1/analytics/funnel',
+      headers: { authorization: `Bearer ${legacyKey}` },
+    });
+    assert.equal(res.statusCode, 200);
+    const body = JSON.parse(res.body);
+    assert.equal(body.ok, true);
+    assert.equal(typeof body.funnel.total, 'number');
+    assert.equal(body.funnel.stages.length, 5);
+  });
 });

@@ -3,10 +3,10 @@
 // Reimplemented for JobFoundry pipeline conversion analysis (Issue #152).
 
 import React, { useState, useEffect } from 'react';
-import { api, FunnelData, FunnelStageData } from '../../api/client';
+import { api, type FunnelData } from '../../api/client';
 import { Filter, ArrowRight, CheckCircle2 } from 'lucide-react';
 
-export type { FunnelData, FunnelStageData };
+export type { FunnelData, FunnelStageData } from '../../api/client';
 
 export interface PipelineFunnelProps {
   data?: FunnelData;
@@ -94,9 +94,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
         className={`funnel-card ${className}`}
         style={{
           padding: '1.5rem',
-          borderRadius: '12px',
-          background: 'var(--bg-card, #18181b)',
-          border: '1px solid var(--border-color, #27272a)',
+          borderRadius: 'var(--radius-md, 12px)',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
         }}
       >
         <div
@@ -104,7 +104,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
             display: 'flex',
             alignItems: 'center',
             gap: '0.5rem',
-            color: 'var(--text-muted, #a1a1aa)',
+            color: 'var(--text-muted)',
           }}
         >
           <Filter size={18} className="animate-spin" />
@@ -120,9 +120,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
         className={`funnel-card ${className}`}
         style={{
           padding: '1.5rem',
-          borderRadius: '12px',
-          background: 'var(--bg-card, #18181b)',
-          border: '1px solid var(--border-color, #27272a)',
+          borderRadius: 'var(--radius-md, 12px)',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
           color: 'var(--color-red, #ef4444)',
         }}
       >
@@ -131,7 +131,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     );
   }
 
-  const funnelData = data || {
+  const funnelData = data ?? {
     total: 0,
     stages: [
       { id: 'captured', label: 'Captured', count: 0, conversionRate: 0 },
@@ -173,9 +173,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
       className={`funnel-container ${className}`}
       style={{
         padding: '1.5rem',
-        borderRadius: '12px',
-        background: 'var(--bg-card, #18181b)',
-        border: '1px solid var(--border-color, #27272a)',
+        borderRadius: 'var(--radius-md, 12px)',
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
         marginBottom: '1.5rem',
       }}
     >
@@ -196,7 +196,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
               display: 'flex',
               alignItems: 'center',
               gap: '0.5rem',
-              color: 'var(--text-primary, #f4f4f5)',
+              color: 'var(--text-primary)',
             }}
           >
             <Filter size={18} style={{ color: 'var(--color-blue, #3b82f6)' }} />
@@ -205,7 +205,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           <p
             style={{
               fontSize: '0.85rem',
-              color: 'var(--text-muted, #a1a1aa)',
+              color: 'var(--text-muted)',
               margin: '0.25rem 0 0 0',
             }}
           >
@@ -216,7 +216,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           <div
             style={{
               fontSize: '0.82rem',
-              color: 'var(--text-muted, #a1a1aa)',
+              color: 'var(--text-muted)',
               display: 'flex',
               alignItems: 'center',
               gap: '0.4rem',
@@ -233,10 +233,10 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           style={{
             padding: '2.5rem 1rem',
             textAlign: 'center',
-            color: 'var(--text-muted, #a1a1aa)',
+            color: 'var(--text-muted)',
             borderRadius: '8px',
-            border: '1px dashed var(--border-color, #27272a)',
-            background: 'rgba(255, 255, 255, 0.01)',
+            border: '1px dashed var(--border-subtle)',
+            background: 'var(--bg-secondary)',
           }}
         >
           <p style={{ margin: 0, fontSize: '0.95rem' }}>
@@ -304,10 +304,21 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                 return (
                   <g
                     key={`node-${coord.stage.id}`}
-                    style={{ cursor: onStageClick ? 'pointer' : 'default' }}
+                    role={onStageClick ? 'button' : undefined}
+                    tabIndex={onStageClick ? 0 : undefined}
+                    aria-label={
+                      onStageClick ? `${coord.stage.label}: ${coord.stage.count}` : undefined
+                    }
+                    style={{ cursor: onStageClick ? 'pointer' : 'default', outline: 'none' }}
                     onMouseEnter={() => setHoveredStage(coord.stage.id)}
                     onMouseLeave={() => setHoveredStage(null)}
                     onClick={() => onStageClick?.(coord.stage.id)}
+                    onKeyDown={(e) => {
+                      if (onStageClick && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        onStageClick(coord.stage.id);
+                      }
+                    }}
                   >
                     {/* Node Bar */}
                     <rect
@@ -326,7 +337,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       x={coord.x + BAR_WIDTH / 2}
                       y={BASE_Y - 6}
                       textAnchor="middle"
-                      fill="var(--text-muted, #a1a1aa)"
+                      fill="var(--text-muted)"
                       fontSize="12"
                       fontWeight="500"
                     >
@@ -338,7 +349,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       x={coord.x + BAR_WIDTH / 2}
                       y={BASE_Y + MAX_BAR_HEIGHT + 18}
                       textAnchor="middle"
-                      fill="var(--text-primary, #f4f4f5)"
+                      fill="var(--text-primary)"
                       fontSize="13"
                       fontWeight="600"
                     >
@@ -356,7 +367,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
               display: 'grid',
               gridTemplateColumns: `repeat(${stages.length}, 1fr)`,
               gap: '0.75rem',
-              borderTop: '1px solid var(--border-color, #27272a)',
+              borderTop: '1px solid var(--border-subtle)',
               paddingTop: '1rem',
             }}
           >
@@ -364,17 +375,25 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
               const colors = STAGE_COLORS[stage.id] || STAGE_COLORS.captured;
               const isFirst = idx === 0;
               return (
-                <div
+                <button
+                  type="button"
                   key={stage.id}
                   data-testid={`funnel-stage-${stage.id}`}
                   onClick={() => onStageClick?.(stage.id)}
+                  disabled={!onStageClick}
+                  aria-label={`${stage.label}: ${stage.count} jobs, ${stage.conversionRate}% conversion rate`}
                   style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    textAlign: 'left',
                     padding: '0.75rem',
-                    borderRadius: '8px',
-                    background: 'var(--bg-subtle, rgba(255, 255, 255, 0.03))',
-                    border: '1px solid var(--border-subtle, rgba(255, 255, 255, 0.06))',
+                    borderRadius: 'var(--radius-md, 8px)',
+                    background: 'var(--bg-secondary)',
+                    border: '1px solid var(--border-subtle)',
                     cursor: onStageClick ? 'pointer' : 'default',
                     transition: 'border-color 0.15s, transform 0.15s',
+                    fontFamily: 'inherit',
+                    color: 'inherit',
                   }}
                 >
                   <div
@@ -383,6 +402,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       alignItems: 'center',
                       justifyContent: 'space-between',
                       marginBottom: '0.25rem',
+                      width: '100%',
                     }}
                   >
                     <span
@@ -401,7 +421,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       style={{
                         fontSize: '1.05rem',
                         fontWeight: 700,
-                        color: 'var(--text-primary, #f4f4f5)',
+                        color: 'var(--text-primary)',
                       }}
                     >
                       {stage.count}
@@ -414,14 +434,14 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       alignItems: 'center',
                       gap: '0.35rem',
                       fontSize: '0.78rem',
-                      color: 'var(--text-muted, #a1a1aa)',
+                      color: 'var(--text-muted)',
                     }}
                   >
                     {!isFirst && <ArrowRight size={12} />}
                     <span>{stage.conversionRate}%</span>
                     {!isFirst && <span style={{ opacity: 0.65 }}>conv.</span>}
                   </div>
-                </div>
+                </button>
               );
             })}
           </div>
