@@ -2313,8 +2313,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onChange={(e) => {
                           const val = e.target.value;
                           handleFieldChange('default_llm_model', val);
+                          const current = LLM_PROVIDERS.find(
+                            (p) => p.id === selectedDefaultProvider
+                          );
+                          const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
+                            val.toLowerCase().startsWith(`${p.id}/`)
+                          );
                           const detected = detectProviderFromModel(val);
-                          if (detected && detected !== selectedDefaultProvider) {
+                          if (
+                            hasKnownPrefix &&
+                            !current?.isCustom &&
+                            !current?.isLocal &&
+                            detected &&
+                            detected !== selectedDefaultProvider
+                          ) {
                             setSelectedDefaultProvider(detected);
                             handleFieldChange('default_llm_provider', detected);
                           }

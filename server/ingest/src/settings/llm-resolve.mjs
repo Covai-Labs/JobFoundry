@@ -182,6 +182,23 @@ export function resolveFeatureLlmConfig(db, feature, { userId = null, env = proc
 
   let apiBase = normalizeApiBase(baseSetting.value);
   let apiBaseSource = baseSetting.source;
+
+  // Environment variables (e.g. OPENAI_BASE_URL) must only apply to OpenAI or custom
+  // providers, never hijacking a built-in provider like OpenRouter or DeepSeek.
+  if (
+    apiBaseSource === 'env' &&
+    provider &&
+    provider !== 'custom' &&
+    provider !== 'openai' &&
+    provider !== 'ollama'
+  ) {
+    if (provider === 'openrouter' && (env.OPENROUTER_API_BASE || env.OPENROUTER_BASE_URL)) {
+      apiBase = normalizeApiBase(env.OPENROUTER_API_BASE || env.OPENROUTER_BASE_URL);
+    } else {
+      apiBase = '';
+    }
+  }
+
   if (!apiBase) {
     apiBase = defaultBaseForProvider(provider, model);
     apiBaseSource = apiBase ? 'provider-default' : 'default';
