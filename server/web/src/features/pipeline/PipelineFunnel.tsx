@@ -38,7 +38,10 @@ const STAGE_COLORS = new Map<string, StageColorConfig>([
       bg: 'rgba(139, 92, 246, 0.12)',
     },
   ],
-  ['applied', { bar: 'var(--color-cyan, #06b6d4)', text: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)' }],
+  [
+    'applied',
+    { bar: 'var(--color-cyan, #06b6d4)', text: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)' },
+  ],
   [
     'interview',
     {
@@ -47,7 +50,10 @@ const STAGE_COLORS = new Map<string, StageColorConfig>([
       bg: 'rgba(245, 158, 11, 0.12)',
     },
   ],
-  ['offer', { bar: 'var(--color-green, #10b981)', text: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' }],
+  [
+    'offer',
+    { bar: 'var(--color-green, #10b981)', text: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
+  ],
 ]);
 
 function getStageColor(stageId: string): StageColorConfig {
