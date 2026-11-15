@@ -162,6 +162,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   const [isSupportOpen, setIsSupportOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const userTriggerRef = useRef<HTMLButtonElement>(null);
   const [feedInitialFilters, setFeedInitialFilters] = useState<any>(undefined);
 
   // Global shortcut for Command Palette
@@ -186,6 +187,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         setIsUserMenuOpen(false);
+        userTriggerRef.current?.focus();
       }
     };
 
@@ -306,11 +308,11 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
           {/* User Account & Settings Dropdown */}
           <div className="user-menu-container" ref={userMenuRef}>
             <button
+              ref={userTriggerRef}
               type="button"
               onClick={() => setIsUserMenuOpen((prev) => !prev)}
               className={`user-menu-trigger ${isUserMenuOpen ? 'active' : ''}`}
               aria-expanded={isUserMenuOpen}
-              aria-haspopup="true"
               aria-label="User account and settings menu"
             >
               <div className="user-avatar-badge">{userInitials}</div>
@@ -322,7 +324,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             </button>
 
             {isUserMenuOpen && (
-              <div className="user-menu-dropdown" role="menu">
+              <div className="user-menu-dropdown">
                 <div className="user-menu-profile-header">
                   <div className="user-avatar-badge lg">{userInitials}</div>
                   <div className="user-menu-profile-info">
@@ -333,13 +335,12 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
 
                 <div className="user-menu-section">
                   <div className="user-menu-section-label">Appearance</div>
-                  <div className="theme-toggle-group" role="radiogroup" aria-label="Theme mode">
+                  <div className="theme-toggle-group" aria-label="Theme mode">
                     <button
                       type="button"
                       className={`theme-chip ${colorMode === 'light' ? 'active' : ''}`}
                       onClick={() => setColorMode('light')}
-                      role="radio"
-                      aria-checked={colorMode === 'light'}
+                      aria-pressed={colorMode === 'light'}
                       title="Light theme"
                     >
                       <Sun size={13} />
@@ -349,8 +350,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                       type="button"
                       className={`theme-chip ${colorMode === 'dark' ? 'active' : ''}`}
                       onClick={() => setColorMode('dark')}
-                      role="radio"
-                      aria-checked={colorMode === 'dark'}
+                      aria-pressed={colorMode === 'dark'}
                       title="Dark theme"
                     >
                       <Moon size={13} />
@@ -360,8 +360,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                       type="button"
                       className={`theme-chip ${colorMode === 'system' ? 'active' : ''}`}
                       onClick={() => setColorMode('system')}
-                      role="radio"
-                      aria-checked={colorMode === 'system'}
+                      aria-pressed={colorMode === 'system'}
                       title="System theme"
                     >
                       <Laptop size={13} />
@@ -379,7 +378,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                     setIsUserMenuOpen(false);
                     navigate('/settings');
                   }}
-                  role="menuitem"
                 >
                   <Settings size={15} />
                   <span>Settings & Themes</span>
@@ -392,7 +390,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                     setIsUserMenuOpen(false);
                     setIsSupportOpen(true);
                   }}
-                  role="menuitem"
                 >
                   <Heart size={15} style={{ color: 'var(--color-red, #ef4444)' }} />
                   <span>Support JobFoundry</span>
@@ -407,7 +404,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                     setIsUserMenuOpen(false);
                     logout();
                   }}
-                  role="menuitem"
                 >
                   <LogOut size={15} />
                   <span>Sign out</span>
