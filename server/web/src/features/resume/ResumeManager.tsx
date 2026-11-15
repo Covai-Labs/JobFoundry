@@ -28,8 +28,8 @@ addFormatsFn(ajv);
 const schemaValidator = ajv.compile(resumeSchema);
 
 export interface ResumeManagerProps {
-  onActiveResumeChange?: (hasActive: boolean) => void;
-  onThemeChange?: (theme: string) => void;
+  onActiveResumeChange?: (_hasActive: boolean) => void;
+  onThemeChange?: (_theme: string) => void;
 }
 
 export const ResumeManager: React.FC<ResumeManagerProps> = ({
@@ -127,13 +127,15 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     api
       .getSettings()
       .then((s) => {
-        const theme = s?.settings?.tailor_theme;
+        const theme = s.settings?.tailor_theme;
         if (theme) {
           setActiveTheme(theme);
           setSelectedTheme(theme);
         }
       })
-      .catch(() => {});
+      .catch(() => {
+        // Ignore settings load errors on initial mount
+      });
   }, []);
 
   const handleSetDefaultTheme = async (themeSlug: string) => {
@@ -144,10 +146,13 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
       setActiveTheme(themeSlug);
       onThemeChange?.(themeSlug);
       const meta = findThemeMetadata(themeSlug);
-      setSuccess(`Set ${meta?.name || themeSlug} as default theme!`);
-      setTimeout(() => setSuccess(null), 4000);
-    } catch (err: any) {
-      setError(err.message || 'Failed to update default theme');
+      setSuccess(`Set ${meta?.name ?? themeSlug} as default theme!`);
+      setTimeout(() => {
+        setSuccess(null);
+      }, 4000);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to update default theme');
     } finally {
       setSavingDefaultTheme(false);
     }
@@ -160,13 +165,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
       const a = document.createElement('a');
       a.href = url;
       const meta = findThemeMetadata(themeSlug);
-      a.download = `${title || 'Master-Resume'}-${meta?.name || themeSlug}.pdf`;
+      a.download = `${title || 'Master-Resume'}-${meta?.name ?? themeSlug}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError(err.message || 'Failed to download preview PDF');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setError(msg || 'Failed to download preview PDF');
     }
   };
 
@@ -675,7 +681,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setEditorMode('preview')}
+                  onClick={() => {
+                    setEditorMode('preview');
+                  }}
                   className={`btn btn-sm ${editorMode === 'preview' ? 'btn-primary' : 'btn-secondary'}`}
                   style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
                   disabled={validationErrors.length > 0}

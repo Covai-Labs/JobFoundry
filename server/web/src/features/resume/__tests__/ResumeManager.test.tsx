@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { ResumeManager } from '../ResumeManager';
-import { api, UserResume } from '../../../api/client';
+import { api, UserResume, SystemSettingsResponse } from '../../../api/client';
 
 const mockResume: UserResume = {
   id: 'resume-1',
@@ -72,7 +72,7 @@ describe('ResumeManager', () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({
       settings: { tailor_theme: 'jsonresume-theme-jake-technical' },
       meta: {},
-    } as any);
+    } as unknown as SystemSettingsResponse);
 
     render(<ResumeManager />);
 

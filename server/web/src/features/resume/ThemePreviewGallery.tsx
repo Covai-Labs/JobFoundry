@@ -5,10 +5,10 @@ import { Check, Download, Star, Loader2 } from 'lucide-react';
 export interface ThemePreviewGalleryProps {
   activeTheme: string;
   selectedTheme: string;
-  onSelectTheme: (slug: string) => void;
-  onSetDefaultTheme: (slug: string) => void;
+  onSelectTheme: (_slug: string) => void;
+  onSetDefaultTheme: (_slug: string) => void;
   previewPdfUrl: string;
-  onDownloadPdf?: (slug: string) => void;
+  onDownloadPdf?: (_slug: string) => void;
   isSavingDefault?: boolean;
 }
 
@@ -31,7 +31,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
       ? THEME_CATALOG
       : THEME_CATALOG.filter((t) => t.category === filterCategory);
 
-  const currentMeta = findThemeMetadata(selectedTheme) || THEME_CATALOG[0];
+  const currentMeta = findThemeMetadata(selectedTheme) ?? THEME_CATALOG[0];
   const isDefault = selectedTheme === activeTheme;
 
   return (
@@ -95,7 +95,9 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
               <button
                 key={cat}
                 type="button"
-                onClick={() => setFilterCategory(cat)}
+                onClick={() => {
+                  setFilterCategory(cat);
+                }}
                 style={{
                   fontSize: '0.75rem',
                   padding: '0.25rem 0.65rem',
@@ -392,7 +394,9 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
               border: 'none',
               backgroundColor: '#ffffff',
             }}
-            onLoad={() => setIframeLoading(false)}
+            onLoad={() => {
+              setIframeLoading(false);
+            }}
           />
         </div>
       </div>
