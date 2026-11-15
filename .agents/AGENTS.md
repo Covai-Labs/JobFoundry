@@ -48,9 +48,11 @@ When modifying the task relay (`server/ingest/src/relay/` or `extension/src/back
 
 ### 2.4 Generated Architecture Graph
 
+- The graph is **not committed**. `graphify-out/` is git-ignored: it is 8 MB of regenerated HTML/JSON, and tracking it churned every diff. Rebuild it locally with `graphify update .` (no LLM, no API key needed).
 - Use `graphify-out/GRAPH_REPORT.md` for a human-readable overview, `graphify-out/graph.html` for the interactive view, and `graphify-out/graph.json` with `graphify-out/.vocab.txt` for Graphify queries.
+- The browser view is published at <https://jobfoundry.covai.org/graph.html> (rebuilt from `main` by `.github/workflows/pages.yml`), so it never needs to live in git.
 - The graph is a generated navigation aid, not a source of truth. Check `built_at_commit` in `graphify-out/graph.json`, verify claims against current source, and treat `INFERRED` connections as hypotheses.
-- Keep the shared graph snapshot read-only during reviews: do not add conversation prompts or answers to the committed outputs. Refresh code changes with `graphify update .`.
+- Never force-add `graphify-out/` back into git; regenerate it instead.
 
 ---
 

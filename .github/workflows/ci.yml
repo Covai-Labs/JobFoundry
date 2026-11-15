@@ -7,10 +7,6 @@ on:
     paths-ignore:
       - 'docs/**'
       - '**.md'
-      # Generated architecture-graph snapshots. A graph refresh touches only
-      # these files, so there is nothing for the suite to verify. Not applied
-      # to pull_request (see below) because required checks must still run.
-      - 'graphify-out/**'
   # No paths-ignore for pull_request: the `main` ruleset requires the
   # "Node lint + test", "Python scorer tests" and "Resume tailor tests"
   # checks. Any paths-ignore here makes those checks unpassable for
