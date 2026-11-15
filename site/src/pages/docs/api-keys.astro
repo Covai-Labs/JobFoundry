@@ -103,6 +103,9 @@ import { resolvePath } from '../../utils/paths.js';
   <p>
     Provider-specific examples: Cohere uses <code>command-a-03-2025</code>, Gemini uses <code>gemini-2.0-flash</code>, and Cloudflare Workers AI uses <code>@cf/meta/llama-3.1-8b-instruct</code>. Cloudflare also requires an account ID in the base URL and an API token with Workers AI permissions.
   </p>
+  <p>
+    Per-feature overrides (<strong>AI Fit Scorer</strong>, <strong>AI Resume Tailor</strong>, <strong>Copilot</strong>) own their Base URL. When you turn off inheritance and leave the field empty, JobFoundry calls the selected provider's public endpoint — never the Default Gateway's custom proxy. The <strong>Test Connection</strong> panel always shows the endpoint it will call.
+  </p>
 
   <h3>Manual / developer installs (.env file)</h3>
   <p>

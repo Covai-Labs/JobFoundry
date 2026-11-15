@@ -374,6 +374,74 @@ export function detectProviderFromModel(modelString: string): string {
   return 'openrouter';
 }
 
+/**
+ * Public OpenAI-compatible endpoints. Providers without an entry are routed by
+ * LiteLLM from the model prefix and must not be given a synthetic base URL.
+ * Keep in sync with `server/ingest/src/settings/llm-resolve.mjs`.
+ */
+export const PROVIDER_DEFAULT_BASES: Record<string, string> = {
+  openrouter: 'https://openrouter.ai/api/v1',
+  openai: 'https://api.openai.com/v1',
+  groq: 'https://api.groq.com/openai/v1',
+  deepseek: 'https://api.deepseek.com/v1',
+  ollama: 'http://localhost:11434/v1',
+  custom: '',
+};
+
+export function providerDefaultBase(providerId?: string, model?: string): string {
+  const p = (providerId || '').toLowerCase();
+  if (p && Object.prototype.hasOwnProperty.call(PROVIDER_DEFAULT_BASES, p)) {
+    return PROVIDER_DEFAULT_BASES[p];
+  }
+  return PROVIDER_DEFAULT_BASES[detectProviderFromModel(model || '')] || '';
+}
+
+export interface EffectiveEndpoint {
+  /** URL actually used, or '' when the provider routes by model prefix. */
+  url: string;
+  /** Short human-readable provenance, e.g. "custom override". */
+  note: string;
+}
+
+/**
+ * Mirrors the backend resolution so the UI can show the endpoint a connection
+ * test will really hit. A feature that does not inherit never reuses the
+ * Default Gateway's base URL.
+ */
+export function resolveEffectiveEndpoint(args: {
+  inherit: boolean;
+  gatewayBase?: string;
+  gatewayProvider?: string;
+  gatewayModel?: string;
+  featureBase?: string;
+  featureProvider?: string;
+  featureModel?: string;
+}): EffectiveEndpoint {
+  const gatewayBase = (args.gatewayBase || '').trim();
+  if (args.inherit) {
+    if (gatewayBase) {
+      return { url: gatewayBase, note: 'inherited from Default AI Gateway' };
+    }
+    const fallback = providerDefaultBase(args.gatewayProvider, args.gatewayModel);
+    return fallback
+      ? { url: fallback, note: 'Default AI Gateway provider default' }
+      : { url: '', note: 'Default AI Gateway routes by model prefix' };
+  }
+
+  const featureBase = (args.featureBase || '').trim();
+  if (featureBase) {
+    const note =
+      gatewayBase && gatewayBase !== featureBase
+        ? 'custom override — the Default Gateway base URL is not used'
+        : 'custom override';
+    return { url: featureBase, note };
+  }
+  const fallback = providerDefaultBase(args.featureProvider, args.featureModel);
+  return fallback
+    ? { url: fallback, note: 'provider default — no custom override' }
+    : { url: '', note: 'provider routes by model prefix — no custom override' };
+}
+
 export const ALL_RECOMMENDED_MODELS: LlmModelRecommendation[] = Array.from(
   new Map(LLM_PROVIDERS.flatMap((p) => p.recommendedModels).map((m) => [m.id, m])).values()
 );

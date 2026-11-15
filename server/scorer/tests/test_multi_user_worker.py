@@ -482,3 +482,69 @@ async def test_multi_user_worker_no_key_failure_never_falls_back_to_legacy(tmp_p
     job_row = store.conn.execute("SELECT fit_score, status FROM jobs WHERE id = 'j_go'").fetchone()
     assert job_row["fit_score"] is None
     assert job_row["status"] == "new"
+
+
+def test_scorer_override_never_inherits_gateway_api_base(tmp_path):
+    """
+    A user who opts out of the Default Gateway owns the scorer base URL.
+
+    The gateway base may point at a different provider (e.g. a self-hosted
+    LiteLLM proxy), so reusing it for an OpenRouter key produced a 401
+    token_not_found_in_db from the proxy.
+    """
+    store = JobStore(db_path=str(tmp_path / "t.db"))
+    store.init_schema(SCHEMA_SQL)
+    now = 1700000000000
+
+    store.conn.execute(
+        "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("u_override", "override@example.com", "hash", "Override", "key_o", now, now),
+    )
+    for key, value in {
+        "default_llm_provider": "custom",
+        "default_llm_model": "openrouter/openrouter/free",
+        "default_llm_api_base": "https://litellm.example.com/v1",
+        "default_llm_api_key": "sk-or-default-key-123456",
+        "scorer_inherit_default": "false",
+        "scorer_provider": "openrouter",
+        "scorer_model": "openrouter/openrouter/free",
+        "scorer_api_key": "sk-or-scorer-key-123456",
+    }.items():
+        store.conn.execute(
+            "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+            ("u_override", key, value, now),
+        )
+
+    resolved = store.get_user_effective_llm("u_override")
+    assert resolved["api_key"] == "sk-or-scorer-key-123456"
+    assert resolved["model"] == "openrouter/openrouter/free"
+    # Must NOT be the gateway's LiteLLM base URL.
+    assert resolved["api_base"] in (None, "")
+
+
+def test_tailor_override_never_inherits_scorer_api_base(tmp_path):
+    """An explicit tailor provider must not borrow the scorer's/gateway's base."""
+    store = JobStore(db_path=str(tmp_path / "t.db"))
+    store.init_schema(SCHEMA_SQL)
+    now = 1700000000000
+
+    store.conn.execute(
+        "INSERT INTO users VALUES (?, ?, ?, ?, ?, ?, ?)",
+        ("u_tailor", "tailor@example.com", "hash", "Tailor", "key_t", now, now),
+    )
+    for key, value in {
+        "default_llm_api_base": "https://litellm.example.com/v1",
+        "tailor_inherit_default": "false",
+        "tailor_model": "openrouter/openrouter/free",
+        "tailor_api_key": "sk-or-tailor-key-123456",
+    }.items():
+        store.conn.execute(
+            "INSERT INTO user_settings (user_id, key, value, updated_at) VALUES (?, ?, ?, ?)",
+            ("u_tailor", key, value, now),
+        )
+
+    resolved = store.get_user_effective_tailor(
+        "u_tailor", fallback={"api_base": "https://litellm.example.com/v1"}
+    )
+    assert resolved["api_key"] == "sk-or-tailor-key-123456"
+    assert resolved["api_base"] == ""

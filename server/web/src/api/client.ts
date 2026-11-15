@@ -798,6 +798,8 @@ export interface TestLlmResponse {
   success: boolean;
   latencyMs?: number;
   model?: string;
+  provider?: string;
+  apiBase?: string;
   message?: string;
   error?: string;
 }

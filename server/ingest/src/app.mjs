@@ -49,6 +49,11 @@ import {
 } from './resumes/resumes.mjs';
 import { getUserFacts, createUserFact, updateUserFact, deleteUserFact } from './facts/facts.mjs';
 import {
+  defaultBaseForProvider,
+  normalizeApiBase,
+  resolveFeatureLlmConfig,
+} from './settings/llm-resolve.mjs';
+import {
   DEFAULT_EXTENSION_CONFIG,
   DEFAULT_PROMPT_TEMPLATES,
   getAllSettings,
@@ -492,107 +497,30 @@ export function buildApp({
 
       // Per-user effective settings (BYOK): a registered user may only test with
       // their own key — the platform/shared key is never used as a fallback.
-      let baseSetting;
-      let modelSetting;
-      let keySetting;
-
-      if (feature === 'gateway') {
-        keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
-        if (!keySetting.value) {
-          keySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
-        }
-        modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
-        if (!modelSetting.value) {
-          modelSetting = getEffectiveSettingWithSource(db, 'scorer_model', { userId });
-        }
-        baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', { userId });
-        if (!baseSetting.value) {
-          baseSetting = getEffectiveSettingWithSource(db, 'scorer_api_base', { userId });
-        }
-      } else {
-        const inheritDefault =
-          getEffectiveSetting(db, `${feature}_inherit_default`, process.env, userId) ?? true;
-        const inheritModel =
-          getEffectiveSetting(db, `${feature}_inherit_model`, process.env, userId) ?? true;
-        if (inheritDefault) {
-          keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
-          if (!keySetting.value) {
-            keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, { userId });
-          }
-          if (inheritModel) {
-            modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
-            if (!modelSetting.value) {
-              modelSetting = getEffectiveSettingWithSource(db, `${feature}_model`, { userId });
-            }
-          } else {
-            modelSetting = getEffectiveSettingWithSource(db, `${feature}_model`, { userId });
-            if (!modelSetting.value) {
-              modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
-            }
-          }
-          baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', { userId });
-          if (!baseSetting.value) {
-            baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, { userId });
-          }
-        } else {
-          keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, { userId });
-          if (!keySetting.value) {
-            keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
-          }
-          modelSetting = getEffectiveSettingWithSource(db, `${feature}_model`, { userId });
-          if (!modelSetting.value) {
-            modelSetting = getEffectiveSettingWithSource(db, 'default_llm_model', { userId });
-          }
-          baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, { userId });
-          if (!baseSetting.value) {
-            baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', { userId });
-          }
-        }
-      }
+      // Credentials resolve as one unit so a feature's key is never paired with
+      // another credential scope's base URL (the 401 token_not_found_in_db bug).
+      const resolved = resolveFeatureLlmConfig(db, feature, { userId });
 
       const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
-      const fallbackKeyAllowed = !registered || keySetting.source === 'user';
-      const effectiveKey = hasExplicitKey ? apiKey : fallbackKeyAllowed ? keySetting.value : '';
-      let effectiveModel = model || modelSetting.value || 'openrouter/openrouter/free';
+      const effectiveKey = hasExplicitKey ? apiKey : resolved.apiKey;
+      let effectiveModel = model || resolved.model || 'openrouter/openrouter/free';
       if (effectiveModel === 'openrouter/free') {
         effectiveModel = 'openrouter/openrouter/free';
       } else if (effectiveModel === 'openrouter/auto') {
         effectiveModel = 'openrouter/openrouter/auto';
       }
 
-      let explicitBase = null;
-      if (typeof apiBase === 'string' && apiBase.trim()) {
-        explicitBase = apiBase.trim().replace(/\/$/, '');
-      } else if (baseSetting.value && baseSetting.value.trim()) {
-        explicitBase = baseSetting.value.trim().replace(/\/$/, '');
-      }
-
-      // Default base for direct /chat/completions fallback
-      let directBase = explicitBase;
-      if (!directBase) {
-        const m = (effectiveModel || '').toLowerCase();
-        const p = (provider || '').toLowerCase();
-        if (p === 'groq' || m.startsWith('groq/')) {
-          directBase = 'https://api.groq.com/openai/v1';
-        } else if (
-          p === 'openai' ||
-          m.startsWith('openai/') ||
-          m.startsWith('gpt-') ||
-          m.startsWith('o3-')
-        ) {
-          directBase = 'https://api.openai.com/v1';
-        } else if (p === 'deepseek' || m.startsWith('deepseek/')) {
-          directBase = 'https://api.deepseek.com/v1';
-        } else if (p === 'ollama' || m.startsWith('ollama/')) {
-          directBase = 'http://127.0.0.1:11434/v1';
-        } else {
-          directBase = 'https://openrouter.ai/api/v1';
-        }
-      }
+      // An explicit value from the form wins (it may be unsaved), otherwise the
+      // resolved base. Provider inference is the last resort for direct calls.
+      const effectiveProvider = resolved.provider || provider || '';
+      const explicitBase = normalizeApiBase(apiBase) || resolved.apiBase || '';
+      const directBase = explicitBase || defaultBaseForProvider(effectiveProvider, effectiveModel);
 
       if (!effectiveKey) {
         return reply.code(400).send({
           success: false,
+          provider: effectiveProvider,
+          apiBase: explicitBase || directBase,
           error: registered
             ? 'No API key configured — go to Settings to add your LLM key.'
             : 'No API key provided or configured. Please enter an API key to test.',
@@ -623,6 +551,8 @@ export function buildApp({
               success: true,
               latencyMs: data.latencyMs || Date.now() - startTime,
               model: effectiveModel,
+              provider: effectiveProvider,
+              apiBase: explicitBase || directBase,
               message:
                 data.message ||
                 `Connected successfully to ${effectiveModel} (${data.latencyMs || Date.now() - startTime}ms)`,
@@ -631,6 +561,8 @@ export function buildApp({
             return reply.code(400).send({
               success: false,
               latencyMs: data.latencyMs || Date.now() - startTime,
+              provider: effectiveProvider,
+              apiBase: explicitBase || directBase,
               error: data.error || 'LLM connection failed',
             });
           }
@@ -639,6 +571,8 @@ export function buildApp({
         if (err.name === 'TimeoutError' || err.name === 'AbortError') {
           return reply.code(504).send({
             success: false,
+            provider: effectiveProvider,
+            apiBase: explicitBase || directBase,
             error: 'Connection test to Tailor service timed out after 10 seconds',
           });
         }
@@ -676,6 +610,8 @@ export function buildApp({
             success: true,
             latencyMs,
             model: directModel,
+            provider: effectiveProvider,
+            apiBase: directBase,
             message: `Connected successfully to ${directModel} (${latencyMs}ms)`,
           };
         } else {
@@ -684,6 +620,8 @@ export function buildApp({
             success: false,
             status: resp.status,
             latencyMs,
+            provider: effectiveProvider,
+            apiBase: directBase,
             error: `Endpoint returned HTTP ${resp.status}: ${errorText.slice(0, 300)}`,
           });
         }
@@ -692,6 +630,8 @@ export function buildApp({
         return reply.code(502).send({
           success: false,
           latencyMs,
+          provider: effectiveProvider,
+          apiBase: directBase,
           error: `Connection error: ${err.message}`,
         });
       }
@@ -1249,36 +1189,13 @@ export function buildApp({
     try {
       const userId = request.user.id;
       const registered = isRegisteredUser(db, userId);
-      const inherit =
-        getEffectiveSetting(db, 'scorer_inherit_default', process.env, userId) ?? true;
-      const inheritModel =
-        getEffectiveSetting(db, 'scorer_inherit_model', process.env, userId) ?? true;
-      let keySetting = inherit
-        ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
-        : getEffectiveSettingWithSource(db, 'scorer_api_key', { userId });
-      if (!keySetting.value) {
-        keySetting = getEffectiveSettingWithSource(db, 'scorer_api_key', { userId })?.value
-          ? getEffectiveSettingWithSource(db, 'scorer_api_key', { userId })
-          : getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
-      }
-      // BYOK: a registered user may only parse with their own key — never a shared one.
-      const apiKey = registered
-        ? keySetting.source === 'user'
-          ? keySetting.value
-          : ''
-        : keySetting.value;
-      const model =
-        (inherit && inheritModel
-          ? getEffectiveSetting(db, 'default_llm_model', process.env, userId)
-          : null) ||
-        getEffectiveSetting(db, 'scorer_model', process.env, userId) ||
-        getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
-        'openrouter/openrouter/free';
-      const apiBase =
-        (inherit ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) : null) ||
-        getEffectiveSetting(db, 'scorer_api_base', process.env, userId) ||
-        getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
-        '';
+      // BYOK: a registered user may only parse with their own key — never a
+      // shared one. Credentials resolve as a unit so the key is never sent to
+      // another scope's base URL.
+      const llm = resolveFeatureLlmConfig(db, 'scorer', { userId });
+      const apiKey = llm.apiKey;
+      const model = llm.model || 'openrouter/openrouter/free';
+      const apiBase = llm.apiBase || '';
       const parsed = await parseJobDescription({
         text,
         markdown,
@@ -2105,24 +2022,11 @@ export function buildApp({
         });
       }
 
-      // BYOK: a registered user may only tailor with their own key — never a shared one.
-      const tailorInherit =
-        getEffectiveSetting(db, 'tailor_inherit_default', process.env, userId) ?? true;
-      const tailorInheritModel =
-        getEffectiveSetting(db, 'tailor_inherit_model', process.env, userId) ?? true;
-      let tailorKeySetting = tailorInherit
-        ? getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId })
-        : getEffectiveSettingWithSource(db, 'tailor_api_key', { userId });
-      if (!tailorKeySetting.value) {
-        tailorKeySetting = getEffectiveSettingWithSource(db, 'tailor_api_key', { userId })?.value
-          ? getEffectiveSettingWithSource(db, 'tailor_api_key', { userId })
-          : getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
-      }
-      const tailorKey = isRegisteredUser(db, userId)
-        ? tailorKeySetting.source === 'user'
-          ? tailorKeySetting.value
-          : ''
-        : tailorKeySetting.value;
+      // BYOK: a registered user may only tailor with their own key — never a
+      // shared one. Key/model/base resolve as one credential unit so a tailor
+      // key is never paired with the Default Gateway's base URL.
+      const tailorLlm = resolveFeatureLlmConfig(db, 'tailor', { userId });
+      const tailorKey = tailorLlm.apiKey;
       if (isRegisteredUser(db, userId) && !tailorKey) {
         return reply.code(400).send({
           error: 'No API key configured — go to Settings to add your LLM key.',
@@ -2188,20 +2092,8 @@ export function buildApp({
       const tailorTimeoutMs =
         (Number(getEffectiveSetting(db, 'tailor_timeout_seconds', process.env, userId)) || 900) *
         1000;
-      const tailorModel =
-        (tailorInherit && tailorInheritModel
-          ? getEffectiveSetting(db, 'default_llm_model', process.env, userId)
-          : null) ||
-        getEffectiveSetting(db, 'tailor_model', process.env, userId) ||
-        getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
-        'openrouter/openrouter/free';
-      const tailorBase =
-        (tailorInherit
-          ? getEffectiveSetting(db, 'default_llm_api_base', process.env, userId)
-          : null) ||
-        getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
-        getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
-        '';
+      const tailorModel = tailorLlm.model || 'openrouter/openrouter/free';
+      const tailorBase = tailorLlm.apiBase || '';
       const tailorStyle = getEffectiveSetting(db, 'tailor_style', process.env, userId);
       const rawTailorInstructions =
         getEffectiveSetting(db, 'tailor_instructions', process.env, userId) || '';
@@ -2365,8 +2257,6 @@ export function buildApp({
   // --- COPILOT ROUTES ---
 
   function resolveCopilotConfig(userId) {
-    const inheritModel =
-      getEffectiveSetting(db, 'copilot_inherit_model', process.env, userId) ?? true;
     const stopSlop =
       getEffectiveSetting(db, 'copilot_stop_slop_enabled', process.env, userId) ?? true;
     const constraints = getEffectiveSetting(db, 'copilot_constraints', process.env, userId) || '';
@@ -2381,37 +2271,13 @@ export function buildApp({
       getEffectiveSetting(db, 'copilot_cover_letter_prompt_template', process.env, userId) ||
       systemPrompt;
 
-    const inheritDefault =
-      getEffectiveSetting(db, 'copilot_inherit_default', process.env, userId) ?? true;
-    let copilotModel;
-    let copilotKey;
-    let copilotBase;
-
-    if (inheritDefault) {
-      copilotModel = inheritModel
-        ? getEffectiveSetting(db, 'default_llm_model', process.env, userId) || ''
-        : getEffectiveSetting(db, 'copilot_model', process.env, userId) ||
-          getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
-          '';
-      const defaultKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', {
-        userId,
-      });
-      copilotKey = isRegisteredUser(db, userId)
-        ? defaultKeySetting.source === 'user'
-          ? defaultKeySetting.value
-          : ''
-        : defaultKeySetting.value;
-      copilotBase = getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) || '';
-    } else {
-      copilotModel = getEffectiveSetting(db, 'copilot_model', process.env, userId) || '';
-      const keySetting = getEffectiveSettingWithSource(db, 'copilot_api_key', { userId });
-      copilotKey = isRegisteredUser(db, userId)
-        ? keySetting.source === 'user'
-          ? keySetting.value
-          : ''
-        : keySetting.value;
-      copilotBase = getEffectiveSetting(db, 'copilot_api_base', process.env, userId) || '';
-    }
+    // Credentials (key/model/base) resolve as one unit. A copilot override
+    // never inherits the Default Gateway's base URL, which may belong to a
+    // different provider.
+    const copilotLlm = resolveFeatureLlmConfig(db, 'copilot', { userId });
+    let copilotModel = copilotLlm.model;
+    let copilotKey = copilotLlm.apiKey;
+    let copilotBase = copilotLlm.apiBase;
 
     if (!copilotModel) {
       copilotModel =
@@ -2445,12 +2311,6 @@ export function buildApp({
           ? scorerKeySetting.value
           : ''
         : scorerKeySetting.value;
-    }
-    if (!copilotBase) {
-      copilotBase =
-        getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) ||
-        getEffectiveSetting(db, 'tailor_api_base', process.env, userId) ||
-        getEffectiveSetting(db, 'scorer_api_base', process.env, userId);
     }
 
     let finalConstraints = constraints;
