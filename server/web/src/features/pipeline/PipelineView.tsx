@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../../api/client';
 import { ErrorBoundary } from '../../components/ErrorBoundary';
+import { PipelineFunnel } from './PipelineFunnel';
 
 interface PipelineJob {
   id: string;
@@ -365,6 +366,9 @@ export const PipelineView: React.FC<{
             </div>
           </div>
         </div>
+
+        {/* Application Conversion Funnel (Issue #152) */}
+        <PipelineFunnel />
 
         {/* Filter Controls */}
         <div

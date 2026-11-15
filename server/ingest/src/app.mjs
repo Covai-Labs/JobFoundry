@@ -3183,6 +3183,120 @@ export function buildApp({
     }
   );
 
+  // GET /api/v1/analytics/funnel - Conversion funnel aggregated from user_jobs.status (Issue #152)
+  const funnelHandler = async (request, reply) => {
+    if (!checkRateLimit(request, reply, 60)) return;
+    if (!authenticate(request, reply)) return;
+    const userId = request.user?.id;
+    const isMultiTenant = Boolean(userId && userId !== 'legacy-admin' && userId !== 'dev-user');
+
+    const rows = isMultiTenant
+      ? db.prepare('SELECT status, tailored_resume_id FROM user_jobs WHERE user_id = ?').all(userId)
+      : db.prepare('SELECT status, tailored_resume_id FROM jobs').all();
+
+    const total = rows.length;
+    let tailoredCount = 0;
+    let appliedCount = 0;
+    let interviewCount = 0;
+    let offerCount = 0;
+    const byStatus = {};
+    for (const row of rows) {
+      const status = row.status || 'new';
+      byStatus[status] = (byStatus[status] || 0) + 1;
+      const hasTailored =
+        Boolean(row.tailored_resume_id) ||
+        ['tailored', 'applied', 'interview', 'offer'].includes(status);
+      if (hasTailored) {
+        tailoredCount++;
+      }
+      if (
+        ['applied', 'interview', 'offer'].includes(status) ||
+        (status === 'rejected' && hasTailored)
+      ) {
+        appliedCount++;
+      }
+      if (['interview', 'offer'].includes(status)) {
+        interviewCount++;
+      }
+      if (status === 'offer') {
+        offerCount++;
+      }
+    }
+
+    const calcRate = (num, denom) => (denom > 0 ? Math.round((num / denom) * 1000) / 10 : 0);
+
+    const stages = [
+      { id: 'captured', label: 'Captured', count: total, conversionRate: total > 0 ? 100 : 0 },
+      {
+        id: 'tailored',
+        label: 'Tailored',
+        count: tailoredCount,
+        conversionRate: calcRate(tailoredCount, total),
+      },
+      {
+        id: 'applied',
+        label: 'Applied',
+        count: appliedCount,
+        conversionRate: calcRate(appliedCount, tailoredCount),
+      },
+      {
+        id: 'interview',
+        label: 'Interview',
+        count: interviewCount,
+        conversionRate: calcRate(interviewCount, appliedCount),
+      },
+      {
+        id: 'offer',
+        label: 'Offer',
+        count: offerCount,
+        conversionRate: calcRate(offerCount, interviewCount),
+      },
+    ];
+
+    return {
+      ok: true,
+      funnel: {
+        total,
+        stages,
+        by_status: byStatus,
+      },
+    };
+  };
+
+  app.get(
+    '/api/v1/analytics/funnel',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    funnelHandler
+  );
+
+  app.get(
+    '/api/v1/pipeline/funnel',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    funnelHandler
+  );
+
   // GET /api/v1/pipeline/jobs - Live job queue for pipeline inspection
   app.get(
     '/api/v1/pipeline/jobs',

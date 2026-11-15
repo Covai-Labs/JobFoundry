@@ -51,6 +51,19 @@ export interface TailoredJob {
   updated_at?: number | null;
 }
 
+export interface FunnelStageData {
+  id: 'captured' | 'tailored' | 'applied' | 'interview' | 'offer';
+  label: string;
+  count: number;
+  conversionRate: number;
+}
+
+export interface FunnelData {
+  total: number;
+  stages: FunnelStageData[];
+  by_status: Record<string, number>;
+}
+
 export interface ExportDownload {
   blob: Blob;
   filename: string;
@@ -583,6 +596,14 @@ export class ApiClient {
       stats: { total: number; unscored: number; scored: number; tailored: number; failed: number };
     }>('/api/v1/pipeline/stats');
     return res.stats;
+  }
+
+  async getFunnelStats(): Promise<FunnelData> {
+    const res = await this.request<{
+      ok: boolean;
+      funnel: FunnelData;
+    }>('/api/v1/analytics/funnel');
+    return res.funnel;
   }
 
   async getPipelineJobs(paramsObj: { sort_by?: string; order?: string } = {}): Promise<any[]> {
