@@ -251,14 +251,15 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
     // Verify provider dropdown exists with known options
-    const providerSelectEl = screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement;
-    expect(providerSelectEl).toBeInTheDocument();
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'Google Gemini' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'DeepSeek' })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: 'OpenAI' })).toBeInTheDocument();
 
     // Select DeepSeek provider
-    fireEvent.change(providerSelectEl, { target: { value: 'deepseek' } });
+    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
+      target: { value: 'deepseek' },
+    });
 
     // Verify recommendations for DeepSeek render
     await waitFor(() => {
@@ -461,8 +462,9 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
     // Select Custom Gateway provider
-    const providerSelectEl = screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement;
-    fireEvent.change(providerSelectEl, { target: { value: 'custom' } });
+    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
+      target: { value: 'custom' },
+    });
 
     // Fallback header should state other providers
     expect(
@@ -474,7 +476,9 @@ describe('SettingsPage', () => {
     fireEvent.change(modelInput, { target: { value: 'my-custom-mistral' } });
 
     // Custom Gateway should remain selected
-    expect(providerSelectEl.value).toBe('custom');
+    expect((screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement).value).toBe(
+      'custom'
+    );
   });
 
   it('preserves custom gateway provider and editable URL when typing model names', async () => {
@@ -484,9 +488,12 @@ describe('SettingsPage', () => {
     });
 
     // Gateway tab is active by default; select Custom Gateway provider
-    const gatewaySelectEl = screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement;
-    fireEvent.change(gatewaySelectEl, { target: { value: 'custom' } });
-    expect(gatewaySelectEl.value).toBe('custom');
+    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
+      target: { value: 'custom' },
+    });
+    expect((screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement).value).toBe(
+      'custom'
+    );
 
     // Editable base URL input should be rendered
     const baseUrlInput = screen.getByPlaceholderText('http://localhost:8000/v1');
@@ -499,7 +506,9 @@ describe('SettingsPage', () => {
     fireEvent.change(defaultModelInput, { target: { value: 'openai/my-proxied-model' } });
 
     // Custom provider must remain selected and base URL remains editable
-    expect(gatewaySelectEl.value).toBe('custom');
+    expect((screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement).value).toBe(
+      'custom'
+    );
     expect(screen.getByPlaceholderText('http://localhost:8000/v1')).toBeInTheDocument();
   });
 
