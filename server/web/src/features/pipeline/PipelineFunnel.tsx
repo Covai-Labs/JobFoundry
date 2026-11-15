@@ -11,12 +11,24 @@ export type { FunnelData, FunnelStageData } from '../../api/client';
 export interface PipelineFunnelProps {
   data?: FunnelData;
   loading?: boolean;
-  onStageClick?: (stageId: string) => void;
+  onStageClick?: (_stageId: string) => void;
   className?: string;
 }
 
-const STAGE_COLORS: Record<string, { bar: string; text: string; bg: string }> = {
-  captured: { bar: 'var(--color-blue, #3b82f6)', text: '#3b82f6', bg: 'rgba(59, 130, 246, 0.12)' },
+interface StageColorConfig {
+  bar: string;
+  text: string;
+  bg: string;
+}
+
+const DEFAULT_STAGE_COLOR: StageColorConfig = {
+  bar: 'var(--color-blue, #3b82f6)',
+  text: '#3b82f6',
+  bg: 'rgba(59, 130, 246, 0.12)',
+};
+
+const STAGE_COLORS: Record<string, StageColorConfig | undefined> = {
+  captured: DEFAULT_STAGE_COLOR,
   tailored: {
     bar: 'var(--color-purple, #8b5cf6)',
     text: '#8b5cf6',
@@ -30,6 +42,10 @@ const STAGE_COLORS: Record<string, { bar: string; text: string; bg: string }> = 
   },
   offer: { bar: 'var(--color-green, #10b981)', text: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
 };
+
+function getStageColor(stageId: string): StageColorConfig {
+  return STAGE_COLORS[stageId] ?? DEFAULT_STAGE_COLOR;
+}
 
 /**
  * Generates an SVG path for a cubic-bezier connecting ribbon between two stage bars.
@@ -61,6 +77,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     if (initialData) {
       setData(initialData);
       setLoading(false);
+      setError(null);
       return;
     }
 
@@ -74,7 +91,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           setError(null);
         }
       })
-      .catch((err) => {
+      .catch((err: unknown) => {
         if (isMounted) {
           setError(err instanceof Error ? err.message : 'Failed to load funnel stats');
         }
@@ -257,8 +274,8 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                 {stages.map((stage, idx) => {
                   if (idx === stages.length - 1) return null;
                   const nextStage = stages[idx + 1];
-                  const c0 = STAGE_COLORS[stage.id]?.text || '#3b82f6';
-                  const c1 = STAGE_COLORS[nextStage.id]?.text || '#10b981';
+                  const c0 = getStageColor(stage.id).text;
+                  const c1 = getStageColor(nextStage.id).text;
                   return (
                     <linearGradient
                       key={`grad-${stage.id}`}
@@ -299,7 +316,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
 
               {/* Stage Nodes & Labels */}
               {stageCoords.map((coord) => {
-                const colors = STAGE_COLORS[coord.stage.id] || STAGE_COLORS.captured;
+                const colors = getStageColor(coord.stage.id);
                 const isHovered = hoveredStage === coord.stage.id;
                 return (
                   <g
@@ -310,8 +327,12 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       onStageClick ? `${coord.stage.label}: ${coord.stage.count}` : undefined
                     }
                     style={{ cursor: onStageClick ? 'pointer' : 'default', outline: 'none' }}
-                    onMouseEnter={() => setHoveredStage(coord.stage.id)}
-                    onMouseLeave={() => setHoveredStage(null)}
+                    onMouseEnter={() => {
+                      setHoveredStage(coord.stage.id);
+                    }}
+                    onMouseLeave={() => {
+                      setHoveredStage(null);
+                    }}
                     onClick={() => onStageClick?.(coord.stage.id)}
                     onKeyDown={(e) => {
                       if (onStageClick && (e.key === 'Enter' || e.key === ' ')) {
@@ -372,7 +393,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
             }}
           >
             {stages.map((stage, idx) => {
-              const colors = STAGE_COLORS[stage.id] || STAGE_COLORS.captured;
+              const colors = getStageColor(stage.id);
               const isFirst = idx === 0;
               return (
                 <button
