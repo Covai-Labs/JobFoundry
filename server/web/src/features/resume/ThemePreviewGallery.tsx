@@ -1,14 +1,17 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
 import React, { useState } from 'react';
 import { THEME_CATALOG, ThemeMetadata, findThemeMetadata } from './themeCatalog';
-import { Check, Download, Star, Loader2 } from 'lucide-react';
+import { Check, Download, Star, Loader2, AlertCircle, RefreshCw } from 'lucide-react';
 
 export interface ThemePreviewGalleryProps {
   activeTheme: string;
   selectedTheme: string;
   onSelectTheme: (slug: string) => void;
   onSetDefaultTheme: (slug: string) => void;
-  previewPdfUrl: string;
+  /** Object URL of the rendered preview PDF, or null while unavailable. */
+  previewPdfUrl: string | null;
+  previewLoading?: boolean;
+  previewError?: string | null;
+  onRetryPreview?: () => void;
   onDownloadPdf?: (slug: string) => void;
   isSavingDefault?: boolean;
 }
@@ -19,10 +22,12 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
   onSelectTheme,
   onSetDefaultTheme,
   previewPdfUrl,
+  previewLoading = false,
+  previewError = null,
+  onRetryPreview,
   onDownloadPdf,
   isSavingDefault = false,
 }) => {
-  const [iframeLoading, setIframeLoading] = useState<boolean>(true);
   const [filterCategory, setFilterCategory] = useState<string>('All');
 
   const categories = ['All', ...Array.from(new Set(THEME_CATALOG.map((t) => t.category)))];
@@ -32,7 +37,17 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
       ? THEME_CATALOG
       : THEME_CATALOG.filter((t) => t.category === filterCategory);
 
-  const currentMeta = findThemeMetadata(selectedTheme) ?? THEME_CATALOG[0];
+  // A profile saved before a theme was retired can still point at it; that
+  // theme keeps rendering, so describe it instead of silently showing Folio.
+  const currentMeta: ThemeMetadata = findThemeMetadata(selectedTheme) ?? {
+    slug: selectedTheme,
+    name: selectedTheme,
+    category: 'Legacy',
+    description:
+      'This theme is still installed for existing profiles but is no longer part of the curated gallery.',
+    badges: ['Legacy'],
+    engine: 'resumed',
+  };
   const isDefault = selectedTheme === activeTheme;
 
   return (
@@ -142,7 +157,6 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
                 type="button"
                 onClick={() => {
                   if (theme.slug !== selectedTheme) {
-                    setIframeLoading(true);
                     onSelectTheme(theme.slug);
                   }
                 }}
@@ -336,7 +350,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
           </div>
         </div>
 
-        {/* PDF Preview Frame with loader */}
+        {/* PDF Preview Frame with loader / error state */}
         <div
           style={{
             position: 'relative',
@@ -348,7 +362,7 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
             justifyContent: 'center',
           }}
         >
-          {iframeLoading && (
+          {previewLoading && (
             <div
               style={{
                 position: 'absolute',
@@ -384,21 +398,53 @@ export const ThemePreviewGallery: React.FC<ThemePreviewGalleryProps> = ({
             </div>
           )}
 
-          <iframe
-            key={previewPdfUrl}
-            src={previewPdfUrl}
-            title={`${currentMeta.name} Resume Preview`}
-            style={{
-              width: '100%',
-              height: '100%',
-              minHeight: '650px',
-              border: 'none',
-              backgroundColor: '#ffffff',
-            }}
-            onLoad={() => {
-              setIframeLoading(false);
-            }}
-          />
+          {previewError && !previewLoading && (
+            <div
+              role="alert"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '2rem',
+                textAlign: 'center',
+              }}
+            >
+              <AlertCircle style={{ width: '2rem', height: '2rem', color: 'var(--danger)' }} />
+              <p style={{ fontSize: '0.85rem', color: 'var(--text-primary)', margin: 0 }}>
+                Could not render the {currentMeta.name} preview.
+              </p>
+              <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', margin: 0 }}>
+                {previewError}
+              </p>
+              {onRetryPreview && (
+                <button
+                  type="button"
+                  onClick={onRetryPreview}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <RefreshCw style={{ width: '0.875rem', height: '0.875rem' }} />
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+
+          {previewPdfUrl && !previewError && (
+            <iframe
+              key={previewPdfUrl}
+              src={previewPdfUrl}
+              title={`${currentMeta.name} Resume Preview`}
+              style={{
+                width: '100%',
+                height: '100%',
+                minHeight: '650px',
+                border: 'none',
+                backgroundColor: '#ffffff',
+              }}
+            />
+          )}
         </div>
       </div>
     </div>

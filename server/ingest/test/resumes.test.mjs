@@ -183,15 +183,32 @@ test('resumes API: upload valid schema, reject invalid schema, switch active, de
   assert.equal(parsedBody.resumeJson.basics.email, 'jane.doe@example.com');
 });
 
+async function registerUser(app, email) {
+  const regRes = await app.inject({
+    method: 'POST',
+    url: '/api/v1/auth/register',
+    payload: { email, password: 'password123' },
+  });
+  return { Authorization: `Bearer ${JSON.parse(regRes.body).token}` };
+}
+
 test('GET /api/v1/master-resume/preview-pdf proxies to tailor and returns PDF', async () => {
   const db = openDb({ path: ':memory:' });
+  const upstreamCalls = [];
   const server = http.createServer((req, res) => {
     if (req.url?.startsWith('/api/v1/master-resume/preview-pdf') && req.method === 'POST') {
-      res.writeHead(200, {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': 'inline; filename="master-resume-folio.pdf"',
+      let body = '';
+      req.on('data', (chunk) => {
+        body += chunk;
       });
-      res.end(Buffer.from('%PDF-1.4 Mock'));
+      req.on('end', () => {
+        upstreamCalls.push(body);
+        res.writeHead(200, {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': 'inline; filename="master-resume-folio.pdf"',
+        });
+        res.end(Buffer.from('%PDF-1.4 Mock'));
+      });
       return;
     }
     res.writeHead(404);
@@ -203,15 +220,16 @@ test('GET /api/v1/master-resume/preview-pdf proxies to tailor and returns PDF', 
   process.env.TAILOR_PORT = String(port);
 
   try {
-    const app = await buildApp({ db, config: { API_KEYS: 'test-api-key' } });
-    const headers = { authorization: 'Bearer test-api-key' };
+    const app = await buildApp({ db, jwtSecret: 'test-secret' });
+    const headers = await registerUser(app, 'preview-get@test.com');
 
-    await app.inject({
+    const upload = await app.inject({
       method: 'POST',
       url: '/api/v1/resumes',
       headers,
       payload: { title: 'Master', resumeJson: SAMPLE_RESUME, setActive: true },
     });
+    assert.equal(upload.statusCode, 201);
 
     const res = await app.inject({
       method: 'GET',
@@ -222,7 +240,112 @@ test('GET /api/v1/master-resume/preview-pdf proxies to tailor and returns PDF', 
     assert.equal(res.statusCode, 200);
     assert.equal(res.headers['content-type'], 'application/pdf');
     assert.ok(res.headers['content-disposition'].includes('inline'));
+    // Previews must never be reused from the browser cache: they are per-draft.
+    assert.equal(res.headers['cache-control'], 'no-store');
     assert.equal(res.body, '%PDF-1.4 Mock');
+    assert.ok(upstreamCalls.length === 1);
+    assert.ok(upstreamCalls[0].includes('"jsonresume-theme-folio"'));
+  } finally {
+    server.close();
+    delete process.env.TAILOR_PORT;
+  }
+});
+
+test('POST /api/v1/master-resume/preview-pdf forwards the unsaved draft', async () => {
+  const db = openDb({ path: ':memory:' });
+  const upstreamBodies = [];
+  const server = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => {
+      body += chunk;
+    });
+    req.on('end', () => {
+      upstreamBodies.push(JSON.parse(body));
+      res.writeHead(200, { 'Content-Type': 'application/pdf' });
+      res.end(Buffer.from('%PDF-1.4 Mock'));
+    });
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  process.env.TAILOR_PORT = String(server.address().port);
+
+  try {
+    const app = await buildApp({ db, jwtSecret: 'test-secret' });
+    const headers = await registerUser(app, 'preview-post@test.com');
+    const draft = { ...SAMPLE_RESUME, basics: { ...SAMPLE_RESUME.basics, name: 'Draft Name' } };
+
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/v1/master-resume/preview-pdf',
+      headers,
+      payload: { theme: 'jsonresume-theme-pro', resume: draft },
+    });
+
+    assert.equal(res.statusCode, 200);
+    assert.equal(upstreamBodies.length, 1);
+    assert.equal(upstreamBodies[0].resume.basics.name, 'Draft Name');
+    assert.equal(upstreamBodies[0].theme, 'jsonresume-theme-pro');
+  } finally {
+    server.close();
+    delete process.env.TAILOR_PORT;
+  }
+});
+
+test('preview-pdf rejects unsupported theme names without calling the tailor', async () => {
+  const db = openDb({ path: ':memory:' });
+  let upstreamCalls = 0;
+  const server = http.createServer((req, res) => {
+    upstreamCalls += 1;
+    res.writeHead(200, { 'Content-Type': 'application/pdf' });
+    res.end(Buffer.from('%PDF-1.4 Mock'));
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  process.env.TAILOR_PORT = String(server.address().port);
+
+  try {
+    const app = await buildApp({ db, jwtSecret: 'test-secret' });
+    const headers = await registerUser(app, 'preview-bad-theme@test.com');
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/master-resume/preview-pdf?theme=../../etc/passwd',
+      headers,
+    });
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(JSON.parse(res.body).error, 'invalid_theme');
+    assert.equal(upstreamCalls, 0);
+  } finally {
+    server.close();
+    delete process.env.TAILOR_PORT;
+  }
+});
+
+test('preview-pdf never falls back to the operator master resume', async () => {
+  const db = openDb({ path: ':memory:' });
+  let upstreamCalls = 0;
+  const server = http.createServer((req, res) => {
+    upstreamCalls += 1;
+    res.writeHead(200, { 'Content-Type': 'application/pdf' });
+    res.end(Buffer.from('%PDF-1.4 Mock'));
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  process.env.TAILOR_PORT = String(server.address().port);
+
+  try {
+    const app = await buildApp({ db, jwtSecret: 'test-secret' });
+    const headers = await registerUser(app, 'preview-no-resume@test.com');
+    // No resume has been uploaded for this user.
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-folio',
+      headers,
+    });
+
+    assert.equal(res.statusCode, 400);
+    assert.equal(JSON.parse(res.body).error, 'resume_missing');
+    assert.equal(upstreamCalls, 0);
   } finally {
     server.close();
     delete process.env.TAILOR_PORT;

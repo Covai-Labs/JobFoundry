@@ -282,3 +282,57 @@ async def test_master_resume_preview_pdf_post_with_resume_payload(
     assert renderer.calls[0]["theme"] == "jsonresume-theme-pro"
     assert renderer.calls[0]["resume"]["basics"]["name"] == "Custom Candidate"
 
+
+async def test_master_resume_preview_pdf_is_never_browser_cached(
+    settings: Settings, sample_resume: dict
+) -> None:
+    renderer = RecordingRenderer()
+    async with _client_for(settings, sample_resume, renderer, master_resume=sample_resume) as client:
+        response = await client.get("/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-folio")
+
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+
+
+async def test_master_resume_preview_pdf_cache_key_tracks_resume_changes(
+    settings: Settings, sample_resume: dict
+) -> None:
+    renderer = RecordingRenderer()
+    edited_resume = {
+        **sample_resume,
+        "basics": {**sample_resume["basics"], "summary": "Edited summary."},
+    }
+    async with _client_for(settings, sample_resume, renderer, master_resume=None) as client:
+        first = await client.post(
+            "/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-pro",
+            json={"resume": sample_resume},
+        )
+        edited = await client.post(
+            "/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-pro",
+            json={"resume": edited_resume},
+        )
+        # Re-requesting the original draft must hit its own cache entry.
+        again = await client.post(
+            "/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-pro",
+            json={"resume": sample_resume},
+        )
+
+    assert first.status_code == 200, first.text
+    assert edited.status_code == 200, edited.text
+    assert again.status_code == 200, again.text
+    assert len(renderer.calls) == 2
+    assert renderer.calls[0]["resume"] == sample_resume
+    assert renderer.calls[1]["resume"] == edited_resume
+
+
+async def test_master_resume_preview_pdf_without_any_resume_returns_400(
+    settings: Settings, sample_resume: dict
+) -> None:
+    renderer = RecordingRenderer()
+    async with _client_for(settings, sample_resume, renderer, master_resume=None) as client:
+        response = await client.get("/api/v1/master-resume/preview-pdf?theme=jsonresume-theme-folio")
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "resume_missing"
+    assert renderer.calls == []
+

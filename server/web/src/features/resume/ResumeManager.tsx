@@ -1,5 +1,4 @@
-/* eslint-disable no-unused-vars, @typescript-eslint/no-unused-vars */
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Ajv, { ErrorObject } from 'ajv';
 import addFormats from 'ajv-formats';
 import {
@@ -58,6 +57,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   const [selectedTheme, setSelectedTheme] = useState<string>('jsonresume-theme-folio');
   const [savingDefaultTheme, setSavingDefaultTheme] = useState<boolean>(false);
 
+  // Theme preview states (blob URLs, because the PDF is fetched with an
+  // Authorization header and iframes cannot send one)
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [previewLoading, setPreviewLoading] = useState<boolean>(false);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const previewObjectUrl = useRef<string | null>(null);
+  const previewBlob = useRef<{ theme: string; blob: Blob } | null>(null);
+
   // AI Raw Resume Converter states
   const [showAiConvertModal, setShowAiConvertModal] = useState<boolean>(false);
   const [rawResumeText, setRawResumeText] = useState<string>('');
@@ -112,6 +119,40 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
       });
   }, []);
 
+  const loadThemePreview = useCallback(
+    async (themeSlug: string) => {
+      setPreviewLoading(true);
+      setPreviewError(null);
+      try {
+        const blob = await api.getMasterResumePreviewPdf(themeSlug, parsedResume);
+        const url = window.URL.createObjectURL(blob);
+        if (previewObjectUrl.current) window.URL.revokeObjectURL(previewObjectUrl.current);
+        previewObjectUrl.current = url;
+        previewBlob.current = { theme: themeSlug, blob };
+        setPreviewUrl(url);
+      } catch (err: unknown) {
+        previewBlob.current = null;
+        setPreviewUrl(null);
+        setPreviewError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setPreviewLoading(false);
+      }
+    },
+    [parsedResume]
+  );
+
+  useEffect(() => {
+    if (editorMode !== 'preview' || validationErrors.length > 0) return;
+    void loadThemePreview(selectedTheme);
+  }, [editorMode, selectedTheme, loadThemePreview, validationErrors.length]);
+
+  useEffect(
+    () => () => {
+      if (previewObjectUrl.current) window.URL.revokeObjectURL(previewObjectUrl.current);
+    },
+    []
+  );
+
   const handleSetDefaultTheme = async (themeSlug: string) => {
     setSavingDefaultTheme(true);
     setError(null);
@@ -132,14 +173,21 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     }
   };
 
+  const safeFilenamePart = (value: string) =>
+    value.replace(/[^a-z0-9._ -]+/gi, '_').trim() || 'Resume';
+
   const handleDownloadPreviewPdf = async (themeSlug: string) => {
     try {
-      const blob = await api.downloadMasterResumePreviewPdf(themeSlug);
+      const cached = previewBlob.current;
+      const blob =
+        cached && cached.theme === themeSlug
+          ? cached.blob
+          : await api.getMasterResumePreviewPdf(themeSlug, parsedResume);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       const meta = findThemeMetadata(themeSlug);
-      a.download = `${title || 'Master-Resume'}-${meta?.name ?? themeSlug}.pdf`;
+      a.download = `${safeFilenamePart(title || 'Master-Resume')}-${meta?.name ?? themeSlug}.pdf`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -705,7 +753,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 selectedTheme={selectedTheme}
                 onSelectTheme={setSelectedTheme}
                 onSetDefaultTheme={handleSetDefaultTheme}
-                previewPdfUrl={api.getMasterResumePreviewPdfUrl(selectedTheme)}
+                previewPdfUrl={previewUrl}
+                previewLoading={previewLoading}
+                previewError={previewError}
+                onRetryPreview={() => void loadThemePreview(selectedTheme)}
                 onDownloadPdf={handleDownloadPreviewPdf}
                 isSavingDefault={savingDefaultTheme}
               />

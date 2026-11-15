@@ -54,4 +54,39 @@ describe('ThemePreviewGallery', () => {
     fireEvent.click(button);
     expect(onSetDefaultTheme).toHaveBeenCalledWith('jsonresume-theme-jake-technical');
   });
+
+  it('shows a retryable error instead of an empty preview when rendering fails', () => {
+    const onRetryPreview = vi.fn();
+    render(
+      <ThemePreviewGallery
+        activeTheme="jsonresume-theme-folio"
+        selectedTheme="jsonresume-theme-folio"
+        onSelectTheme={vi.fn()}
+        onSetDefaultTheme={vi.fn()}
+        previewPdfUrl={null}
+        previewError="tailor unavailable"
+        onRetryPreview={onRetryPreview}
+      />
+    );
+
+    expect(screen.getByRole('alert')).toBeInTheDocument();
+    expect(screen.getByText(/tailor unavailable/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /retry/i }));
+    expect(onRetryPreview).toHaveBeenCalled();
+  });
+
+  it('describes a theme that is no longer in the curated catalog', () => {
+    render(
+      <ThemePreviewGallery
+        activeTheme="jsonresume-theme-folio-concise"
+        selectedTheme="jsonresume-theme-folio-concise"
+        onSelectTheme={vi.fn()}
+        onSetDefaultTheme={vi.fn()}
+        previewPdfUrl={null}
+      />
+    );
+
+    expect(screen.getAllByText(/Legacy/).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText(/no longer part of the curated gallery/i)).toBeInTheDocument();
+  });
 });

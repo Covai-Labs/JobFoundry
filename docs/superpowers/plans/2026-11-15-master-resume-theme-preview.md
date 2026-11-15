@@ -15,7 +15,7 @@
 
 ## Global Constraints
 - Curated themes: `jsonresume-theme-folio`, `jsonresume-theme-stackoverflow`, `jsonresume-theme-pro`, `jsonresume-theme-harvard-classic`, `jsonresume-theme-jake-technical`, `jsonresume-theme-awesome-professional`, `jsonresume-theme-compact-developer`, `jsonresume-theme-charter-serif`, `jsonresume-theme-diplomat-cv`, `jsonresume-theme-ledger-professional`, `jsonresume-theme-stewardship-cv`, `jsonresume-theme-europass-inspired`, `jsonresume-theme-first-role`, `jsonresume-theme-academic-classic`.
-- Remove `jsonresume-theme-folio-concise` from active allowlists.
+- Retire `jsonresume-theme-folio-concise` from the gallery while keeping it allow-listed so profiles that already selected it keep rendering.
 - Preview generation is scoped strictly to Master Resume data; tailored resumes are not previewed across all themes.
 - Selected theme persists in user profile settings (`tailor_theme`), leaving master resume JSON free of presentation metadata.
 - Previews are cached at `DATA_DIR/artifacts/master-previews/{sha256_hash}/{theme}.pdf`.
@@ -359,7 +359,7 @@ git commit -m "feat(api): add master resume preview-pdf endpoint with sha256 cac
 - Test: `jobfoundry/server/web/src/features/resume/__tests__/ResumeManager.test.tsx`
 
 **Interfaces:**
-- Consumes: `THEME_CATALOG`, `api.getMasterResumePreviewPdfUrl(theme)`, `api.updateSettings()`.
+- Consumes: `THEME_CATALOG`, `api.getMasterResumePreviewPdf(theme, draftResume)`, `api.updateSettings()`.
 - Produces: Visual theme switcher and embedded PDF preview in `ResumeManager`.
 
 - [ ] **Step 1: Write failing tests for ThemePreviewGallery**
@@ -417,9 +417,12 @@ Expected: FAIL (module not found).
 1. In `jobfoundry/server/web/src/api/client.ts`:
 Add:
 ```typescript
-getMasterResumePreviewPdfUrl(theme: string): string {
-  const base = `${this.baseUrl}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(theme)}`;
-  return this.apiKey ? `${base}&api_key=${encodeURIComponent(this.apiKey)}` : base;
+async getMasterResumePreviewPdf(
+  theme: string,
+  resume?: Record<string, unknown>
+): Promise<Blob> {
+  // POST the draft resume and authenticate with the Authorization header: an
+  // iframe `src` cannot send credentials, and keys must stay out of URLs.
 }
 ```
 

@@ -73,6 +73,9 @@ describe('ResumeManager', () => {
       settings: { tailor_theme: 'jsonresume-theme-jake-technical' },
       meta: {},
     } as unknown as SystemSettingsResponse);
+    const previewSpy = vi
+      .spyOn(api, 'getMasterResumePreviewPdf')
+      .mockResolvedValue(new Blob(['%PDF-1.4'], { type: 'application/pdf' }));
 
     render(<ResumeManager />);
 
@@ -86,6 +89,43 @@ describe('ResumeManager', () => {
     await waitFor(() => {
       expect(screen.getByText('Resume Themes')).toBeDefined();
     });
+
+    // The preview is fetched with credentials and sends the in-editor draft,
+    // not the saved resume record.
+    await waitFor(() => {
+      expect(previewSpy).toHaveBeenCalledWith(
+        'jsonresume-theme-jake-technical',
+        expect.objectContaining({ basics: expect.objectContaining({ name: 'Alex Mercer' }) })
+      );
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTitle(/Jake Technical Resume Preview/i)).toBeDefined();
+    });
+  });
+
+  it('shows a retryable error when the preview render fails', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+    vi.spyOn(api, 'getSettings').mockResolvedValue({
+      settings: { tailor_theme: 'jsonresume-theme-folio' },
+      meta: {},
+    } as unknown as SystemSettingsResponse);
+    vi.spyOn(api, 'getMasterResumePreviewPdf').mockRejectedValue(
+      new Error('Failed to render the preview for jsonresume-theme-folio')
+    );
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Alex Mercer')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /theme preview/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toBeDefined();
+    });
+    expect(screen.getByRole('button', { name: /retry/i })).toBeDefined();
   });
 
   it('switches to Raw JSON tab and reflects live edits back to Form Editor', async () => {

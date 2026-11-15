@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from resume_ops_api.core.config import Settings, get_settings
+from resume_ops_api.core.config import DEFAULT_ALLOWED_THEMES, Settings, get_settings
 
 
 # ---------------------------------------------------------------------------
@@ -75,7 +75,7 @@ class TestSettingsDefaults:
     def test_default_theme_and_allowed_themes(self) -> None:
         settings = _clean_settings()
         assert settings.default_theme == "jsonresume-theme-folio"
-        assert len(settings.allowed_themes) == 15
+        assert settings.allowed_themes == list(DEFAULT_ALLOWED_THEMES)
         assert "jsonresume-theme-folio" in settings.allowed_themes
         assert "jsonresume-theme-folio-concise" in settings.allowed_themes
 
@@ -154,9 +154,9 @@ class TestSettingsEnvironmentOverrides:
         assert settings.strategy_model == "anthropic/claude-3-opus"
         assert settings.work_model == "anthropic/claude-3-sonnet"
 
-    def test_default_allowed_themes_contains_all_14_themes(self) -> None:
+    def test_default_allowed_themes_covers_the_curated_gallery(self) -> None:
         settings = _clean_settings()
-        expected_themes = [
+        curated_themes = [
             "jsonresume-theme-folio",
             "jsonresume-theme-stackoverflow",
             "jsonresume-theme-pro",
@@ -171,12 +171,15 @@ class TestSettingsEnvironmentOverrides:
             "jsonresume-theme-europass-inspired",
             "jsonresume-theme-first-role",
             "jsonresume-theme-academic-classic",
-            "jsonresume-theme-folio-concise",
         ]
-        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
-        assert len(settings.allowed_themes) == 15
-        for theme in expected_themes:
+        assert settings.allowed_themes == list(DEFAULT_ALLOWED_THEMES)
+        for theme in curated_themes:
             assert theme in settings.allowed_themes
+        # Retired from the gallery, kept allow-listed so existing profiles render.
+        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
+        assert set(settings.allowed_themes) - set(curated_themes) == {
+            "jsonresume-theme-folio-concise"
+        }
 
     def test_default_theme_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
         monkeypatch.setenv("DEFAULT_THEME", "jsonresume-theme-even")
@@ -253,10 +256,7 @@ class TestSettingsFieldValidators:
 
     def test_parse_allowed_themes_from_none_returns_default(self) -> None:
         settings = _clean_settings(allowed_themes=None)  # type: ignore[arg-type]
-        assert len(settings.allowed_themes) == 15
-        assert "jsonresume-theme-folio" in settings.allowed_themes
-        assert "jsonresume-theme-folio-concise" in settings.allowed_themes
-        assert "jsonresume-theme-stackoverflow" in settings.allowed_themes
+        assert settings.allowed_themes == list(DEFAULT_ALLOWED_THEMES)
         assert "jsonresume-theme-pro" in settings.allowed_themes
 
     def test_default_theme_strips_whitespace(self) -> None:

@@ -29,7 +29,7 @@ RUN npm ci --omit=dev --workspace=server/ingest
 # --- Stage 3: Final All-in-One Runtime ---
 FROM python:3.14-slim
 
-ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-folio-concise@1.3.0 jsonresume-theme-stackoverflow jsonresume-theme-pro jsonresume-theme-harvard-classic jsonresume-theme-jake-technical jsonresume-theme-awesome-professional jsonresume-theme-compact-developer jsonresume-theme-charter-serif jsonresume-theme-diplomat-cv jsonresume-theme-ledger-professional jsonresume-theme-stewardship-cv jsonresume-theme-europass-inspired jsonresume-theme-first-role jsonresume-theme-academic-classic"
+ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-folio-concise@1.3.0 jsonresume-theme-stackoverflow@3.3.0 jsonresume-theme-pro@0.2.0 jsonresume-theme-harvard-classic@0.2.0 jsonresume-theme-jake-technical@0.2.0 jsonresume-theme-awesome-professional@0.2.0 jsonresume-theme-compact-developer@0.2.0 jsonresume-theme-charter-serif@0.2.0 jsonresume-theme-diplomat-cv@0.2.0 jsonresume-theme-ledger-professional@0.2.0 jsonresume-theme-stewardship-cv@0.2.0 jsonresume-theme-europass-inspired@0.2.0 jsonresume-theme-first-role@0.2.0 jsonresume-theme-academic-classic@0.2.0"
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

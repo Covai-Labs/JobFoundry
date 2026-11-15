@@ -75,9 +75,62 @@ async def list_themes(container: ServiceContainer = Depends(get_container)) -> T
     )
 
 
+# Preview cache policy. PDFs live in content-addressed directories under
+# `DATA_DIR/artifacts/master-previews` and are pruned opportunistically.
+PREVIEW_CACHE_VERSION = "1"
+PREVIEW_CACHE_MAX_DIRS = 64
+PREVIEW_CACHE_TTL_SECONDS = 7 * 24 * 3600
+PREVIEW_PRUNE_INTERVAL_SECONDS = 3600
+_last_preview_prune = 0.0
+
+
 def _compute_resume_hash(resume: dict[str, Any]) -> str:
     serialized = json.dumps(resume, sort_keys=True, ensure_ascii=True)
-    return hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()
+    # Bumping `PREVIEW_CACHE_VERSION` invalidates cached PDFs left behind by an
+    # older renderer/theme version.
+    return f"v{PREVIEW_CACHE_VERSION}-{digest}"
+
+
+def _preview_pdf_response(pdf_path: Path, theme: str) -> FileResponse:
+    return FileResponse(
+        pdf_path,
+        media_type="application/pdf",
+        content_disposition_type="inline",
+        filename=f"master-resume-{theme}.pdf",
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+def _prune_preview_cache(preview_root: Path) -> None:
+    """Drop stale/overflowing preview directories.
+
+    Previews are content-addressed, so every edit creates a new directory. Run
+    this opportunistically (at most once per hour) instead of keeping an
+    unbounded tree of personal PDFs on disk.
+    """
+    global _last_preview_prune
+    now = time.monotonic()
+    if now - _last_preview_prune < PREVIEW_PRUNE_INTERVAL_SECONDS:
+        return
+    _last_preview_prune = now
+
+    try:
+        entries = sorted(
+            (entry for entry in preview_root.iterdir() if entry.is_dir()),
+            key=lambda entry: entry.stat().st_mtime,
+            reverse=True,
+        )
+    except OSError:
+        return
+
+    cutoff = time.time() - PREVIEW_CACHE_TTL_SECONDS
+    for index, entry in enumerate(entries):
+        try:
+            if index >= PREVIEW_CACHE_MAX_DIRS or entry.stat().st_mtime < cutoff:
+                shutil.rmtree(entry, ignore_errors=True)
+        except OSError:
+            continue
 
 
 async def _handle_master_resume_preview(
@@ -95,28 +148,20 @@ async def _handle_master_resume_preview(
     resolved_theme = container.theme_service.resolve(theme)
     resume_hash = _compute_resume_hash(effective_resume)
 
-    preview_dir = container.settings.artifacts_dir / "master-previews" / resume_hash
+    preview_root = container.settings.artifacts_dir / "master-previews"
+    preview_dir = preview_root / resume_hash
     pdf_path = preview_dir / f"{resolved_theme}.pdf"
 
     if pdf_path.is_file() and pdf_path.stat().st_size > 0:
-        return FileResponse(
-            pdf_path,
-            media_type="application/pdf",
-            content_disposition_type="inline",
-            filename=f"master-resume-{resolved_theme}.pdf",
-        )
+        return _preview_pdf_response(pdf_path, resolved_theme)
 
     # Acquire concurrency semaphore to throttle Chromium processes
     async with container.render_semaphore:
         # Recheck cache after waiting for semaphore
         if pdf_path.is_file() and pdf_path.stat().st_size > 0:
-            return FileResponse(
-                pdf_path,
-                media_type="application/pdf",
-                content_disposition_type="inline",
-                filename=f"master-resume-{resolved_theme}.pdf",
-            )
+            return _preview_pdf_response(pdf_path, resolved_theme)
 
+        _prune_preview_cache(preview_root)
         preview_dir.mkdir(parents=True, exist_ok=True)
         # Use an isolated temporary directory so concurrent renders don't overwrite output.pdf
         with tempfile.TemporaryDirectory() as temp_dir_str:
@@ -136,12 +181,7 @@ async def _handle_master_resume_preview(
             shutil.copyfile(rendered_path, temp_target)
             temp_target.replace(pdf_path)
 
-    return FileResponse(
-        pdf_path,
-        media_type="application/pdf",
-        content_disposition_type="inline",
-        filename=f"master-resume-{resolved_theme}.pdf",
-    )
+    return _preview_pdf_response(pdf_path, resolved_theme)
 
 
 @router.get("/api/v1/master-resume/preview-pdf")
@@ -161,7 +201,6 @@ async def post_master_resume_preview_pdf(
     effective_theme = payload.theme if (payload and payload.theme) else theme
     resume_data = payload.resume if payload else None
     return await _handle_master_resume_preview(resume_data, effective_theme, container)
-
 
 
 def _encode_pdf(path: Path) -> str:

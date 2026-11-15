@@ -6,6 +6,28 @@ from pathlib import Path
 from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Single source of truth for `ALLOWED_THEMES`. The web gallery
+# (`server/web/src/features/resume/themeCatalog.ts`) renders the 14 curated
+# themes; `jsonresume-theme-folio-concise` is retired from that gallery but
+# stays allow-listed so profiles that already selected it keep rendering.
+DEFAULT_ALLOWED_THEMES: tuple[str, ...] = (
+    "jsonresume-theme-folio",
+    "jsonresume-theme-folio-concise",
+    "jsonresume-theme-stackoverflow",
+    "jsonresume-theme-pro",
+    "jsonresume-theme-harvard-classic",
+    "jsonresume-theme-jake-technical",
+    "jsonresume-theme-awesome-professional",
+    "jsonresume-theme-compact-developer",
+    "jsonresume-theme-charter-serif",
+    "jsonresume-theme-diplomat-cv",
+    "jsonresume-theme-ledger-professional",
+    "jsonresume-theme-stewardship-cv",
+    "jsonresume-theme-europass-inspired",
+    "jsonresume-theme-first-role",
+    "jsonresume-theme-academic-classic",
+)
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
@@ -101,25 +123,7 @@ class Settings(BaseSettings):
             )
         return self
     default_theme: str = "jsonresume-theme-folio"
-    allowed_themes: list[str] = Field(
-        default_factory=lambda: [
-            "jsonresume-theme-folio",
-            "jsonresume-theme-folio-concise",
-            "jsonresume-theme-stackoverflow",
-            "jsonresume-theme-pro",
-            "jsonresume-theme-harvard-classic",
-            "jsonresume-theme-jake-technical",
-            "jsonresume-theme-awesome-professional",
-            "jsonresume-theme-compact-developer",
-            "jsonresume-theme-charter-serif",
-            "jsonresume-theme-diplomat-cv",
-            "jsonresume-theme-ledger-professional",
-            "jsonresume-theme-stewardship-cv",
-            "jsonresume-theme-europass-inspired",
-            "jsonresume-theme-first-role",
-            "jsonresume-theme-academic-classic",
-        ]
-    )
+    allowed_themes: list[str] = Field(default_factory=lambda: list(DEFAULT_ALLOWED_THEMES))
     max_concurrent_jobs: int = 2
     callback_timeout_seconds: int = 5
     openai_api_key: str | None = None
@@ -167,23 +171,7 @@ class Settings(BaseSettings):
     @classmethod
     def parse_allowed_themes(cls, value: object) -> list[str]:
         if value is None:
-            return [
-                "jsonresume-theme-folio",
-                "jsonresume-theme-folio-concise",
-                "jsonresume-theme-stackoverflow",
-                "jsonresume-theme-pro",
-                "jsonresume-theme-harvard-classic",
-                "jsonresume-theme-jake-technical",
-                "jsonresume-theme-awesome-professional",
-                "jsonresume-theme-compact-developer",
-                "jsonresume-theme-charter-serif",
-                "jsonresume-theme-diplomat-cv",
-                "jsonresume-theme-ledger-professional",
-                "jsonresume-theme-stewardship-cv",
-                "jsonresume-theme-europass-inspired",
-                "jsonresume-theme-first-role",
-                "jsonresume-theme-academic-classic",
-            ]
+            return list(DEFAULT_ALLOWED_THEMES)
         if isinstance(value, str):
             return [item.strip() for item in value.split(",") if item.strip()]
         if isinstance(value, list):

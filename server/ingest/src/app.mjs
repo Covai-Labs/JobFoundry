@@ -883,98 +883,112 @@ export function buildApp({
     return { apiKey: newKey };
   });
 
-  // --- RESUME MANAGEMENT ROUTES ---
+  // --- MASTER RESUME THEME PREVIEW ---
 
-  // GET /api/v1/master-resume/preview-pdf
-  app.get('/api/v1/master-resume/preview-pdf', async (request, reply) => {
-    if (!authenticate(request, reply)) return;
-    const theme = request.query?.theme || 'jsonresume-theme-folio';
-    const active = getActiveResume(db, request.user.id);
-    let resumeData = null;
-    if (active?.resume) {
-      resumeData = active.resume;
-    } else {
-      const allResumes = getUserResumes(db, request.user.id);
-      if (allResumes.length > 0 && allResumes[0].resume) {
-        resumeData = allResumes[0].resume;
-      }
+  // Chromium-backed, so keep it cheap per client: every miss costs a render.
+  const MASTER_RESUME_PREVIEW_RATE_LIMIT = 20;
+  const THEME_SLUG_PATTERN = /^[a-z0-9][a-z0-9-]{0,63}$/;
+
+  function resolveUserResume(userId) {
+    const active = getActiveResume(db, userId);
+    if (active?.resume) return active.resume;
+    const allResumes = getUserResumes(db, userId);
+    if (allResumes.length > 0 && allResumes[0].resume) return allResumes[0].resume;
+    return null;
+  }
+
+  // Proxy a single theme preview to the tailor service. `resumeOverride` lets
+  // the editor preview an unsaved draft; otherwise the saved active resume is
+  // used. Never fall through to the tailor's own master resume: that is the
+  // operator's profile and must not leak to other users.
+  async function proxyMasterResumePreview(request, reply, resumeOverride) {
+    const requestedTheme = request.query?.theme || request.body?.theme || 'jsonresume-theme-folio';
+    if (!THEME_SLUG_PATTERN.test(requestedTheme)) {
+      return reply.code(400).send({ error: 'invalid_theme', message: 'Unsupported theme name.' });
     }
 
-    const tailorPort = process.env.TAILOR_PORT || 8081;
-    const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
-
-    try {
-      const resp = await safeFetch(
-        `${resumeOpsUrl.replace(/\/$/, '')}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(theme)}`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          signal: AbortSignal.timeout(60000),
-          redirect: 'error',
-          body: JSON.stringify({ resume: resumeData, theme }),
-        }
-      );
-
-      if (!resp.ok) {
-        const errorText = await resp.text().catch(() => '');
-        return reply.code(resp.status).send({ error: errorText || 'Failed to render preview PDF' });
-      }
-
-      const pdfBuffer = Buffer.from(await resp.arrayBuffer());
-      reply
-        .header('Content-Type', 'application/pdf')
-        .header('Content-Disposition', `inline; filename="master-resume-${theme}.pdf"`)
-        .header('Cache-Control', 'private, max-age=3600')
-        .send(pdfBuffer);
-    } catch (err) {
-      request.log.error(err, 'Failed to proxy master-resume preview-pdf');
-      return reply.code(500).send({ error: 'Failed to generate resume preview' });
-    }
-  });
-
-  // POST /api/v1/master-resume/preview-pdf
-  app.post('/api/v1/master-resume/preview-pdf', async (request, reply) => {
-    if (!authenticate(request, reply)) return;
-    const theme = request.query?.theme || request.body?.theme || 'jsonresume-theme-folio';
-    let resumeData = request.body?.resume || null;
+    const resumeData = resumeOverride || resolveUserResume(request.user.id);
     if (!resumeData) {
-      const active = getActiveResume(db, request.user.id);
-      if (active?.resume) {
-        resumeData = active.resume;
-      }
+      return reply.code(400).send({
+        error: 'resume_missing',
+        message: 'Save a master resume before previewing themes.',
+      });
     }
 
     const tailorPort = process.env.TAILOR_PORT || 8081;
-    const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+    const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`.replace(/\/$/, '');
 
     try {
       const resp = await safeFetch(
-        `${resumeOpsUrl.replace(/\/$/, '')}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(theme)}`,
+        `${resumeOpsUrl}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(requestedTheme)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           signal: AbortSignal.timeout(60000),
           redirect: 'error',
-          body: JSON.stringify({ resume: resumeData, theme }),
+          body: JSON.stringify({ resume: resumeData, theme: requestedTheme }),
         }
       );
 
       if (!resp.ok) {
         const errorText = await resp.text().catch(() => '');
-        return reply.code(resp.status).send({ error: errorText || 'Failed to render preview PDF' });
+        let body = null;
+        try {
+          body = JSON.parse(errorText);
+        } catch {
+          // Upstream returned plain text; fall back to it below.
+        }
+        return reply.code(resp.status).send({
+          error: body?.message || body?.error || errorText || 'Failed to render preview PDF',
+          code: body?.code,
+        });
       }
 
       const pdfBuffer = Buffer.from(await resp.arrayBuffer());
-      reply
-        .header('Content-Type', 'application/pdf')
-        .header('Content-Disposition', `inline; filename="master-resume-${theme}.pdf"`)
-        .header('Cache-Control', 'private, max-age=3600')
-        .send(pdfBuffer);
+      return (
+        reply
+          .header('Content-Type', 'application/pdf')
+          .header('Content-Disposition', `inline; filename="master-resume-${requestedTheme}.pdf"`)
+          // Previews are per-resume; a cached copy would hide edits made since.
+          .header('Cache-Control', 'no-store')
+          .send(pdfBuffer)
+      );
     } catch (err) {
       request.log.error(err, 'Failed to proxy master-resume preview-pdf');
       return reply.code(500).send({ error: 'Failed to generate resume preview' });
     }
-  });
+  }
+
+  const masterResumePreviewRouteOptions = {
+    config: { rateLimit: { max: MASTER_RESUME_PREVIEW_RATE_LIMIT, timeWindow: '1 minute' } },
+    rateLimit: { max: MASTER_RESUME_PREVIEW_RATE_LIMIT, timeWindow: '1 minute' },
+  };
+
+  // GET renders the saved resume (simple links); POST accepts a draft payload.
+  app.get(
+    '/api/v1/master-resume/preview-pdf',
+    masterResumePreviewRouteOptions,
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, MASTER_RESUME_PREVIEW_RATE_LIMIT)) return;
+      if (!authenticate(request, reply)) return;
+      return proxyMasterResumePreview(request, reply);
+    }
+  );
+
+  app.post(
+    '/api/v1/master-resume/preview-pdf',
+    masterResumePreviewRouteOptions,
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, MASTER_RESUME_PREVIEW_RATE_LIMIT)) return;
+      if (!authenticate(request, reply)) return;
+      const draft = request.body?.resume;
+      return proxyMasterResumePreview(
+        request,
+        reply,
+        draft && typeof draft === 'object' ? draft : undefined
+      );
+    }
+  );
 
   // GET /api/v1/resumes
   app.get('/api/v1/resumes', async (request, reply) => {

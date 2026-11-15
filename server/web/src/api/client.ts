@@ -494,21 +494,36 @@ export class ApiClient {
     return response.text();
   }
 
-  getMasterResumePreviewPdfUrl(theme: string): string {
-    const base = `${this.baseUrl}/api/v1/master-resume/preview-pdf?theme=${encodeURIComponent(theme)}`;
-    return this.apiKey ? `${base}&api_key=${encodeURIComponent(this.apiKey)}` : base;
-  }
-
-  async downloadMasterResumePreviewPdf(theme: string): Promise<Blob> {
-    const url = this.getMasterResumePreviewPdfUrl(theme);
-    const headers: Record<string, string> = {};
+  /**
+   * Render a master-resume preview PDF for one theme.
+   *
+   * The resume JSON is POSTed so the editor can preview an unsaved draft, and
+   * the request is authenticated with the `Authorization` header: an iframe
+   * `src` cannot carry credentials, and keys must never travel in a URL.
+   */
+  async getMasterResumePreviewPdf(theme: string, resume?: Record<string, unknown>): Promise<Blob> {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
     if (this.apiKey) {
       headers['Authorization'] = `Bearer ${this.apiKey}`;
     }
-    const response = await fetch(url, { headers });
+
+    const response = await fetch(`${this.baseUrl}/api/v1/master-resume/preview-pdf`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ theme, resume }),
+    });
+
     if (!response.ok) {
-      throw new ApiError(response.status, `Failed to download preview for ${theme}`);
+      let message = `Failed to render the preview for ${theme}`;
+      try {
+        const body = await response.json();
+        message = body.error || body.message || message;
+      } catch {
+        // Response wasn't JSON
+      }
+      throw new ApiError(response.status, message);
     }
+
     return response.blob();
   }
 

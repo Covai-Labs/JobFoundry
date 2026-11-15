@@ -13,7 +13,7 @@ import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/T
 import { useToast } from '../../context/ToastContext';
 import { ScraperSettingsTab } from './ScraperSettingsTab';
 import { ResumeManager } from '../resume/ResumeManager';
-import { THEME_CATALOG } from '../resume/themeCatalog';
+import { THEME_CATALOG, findThemeMetadata } from '../resume/themeCatalog';
 import { ExtensionSyncView } from '../sync/ExtensionSyncView';
 import { RegistrationControls } from '../auth/RegistrationControls';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
@@ -3333,6 +3333,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onChange={(e) => handleFieldChange('tailor_theme', e.target.value)}
                         className="input-text"
                       >
+                        {
+                          // Keep a profile's stored theme selectable even once it
+                          // is retired from the curated gallery, otherwise saving
+                          // the form would silently rewrite it to the first option.
+                          findThemeMetadata(formSettings.tailor_theme) === undefined && (
+                            <option value={formSettings.tailor_theme}>
+                              {formSettings.tailor_theme} (legacy)
+                            </option>
+                          )
+                        }
                         {THEME_CATALOG.map((theme) => (
                           <option key={theme.slug} value={theme.slug}>
                             {theme.name} ({theme.badges.join(', ')})
