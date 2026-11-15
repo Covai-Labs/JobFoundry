@@ -238,65 +238,72 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
           </button>
 
           <button
-            type="button"
-            onClick={cycleColorMode}
-            className="btn btn-secondary btn-sm"
-            title={`Color Mode: ${colorMode} (Click to cycle)`}
-            aria-label="Cycle Color Mode"
-          >
-            {colorMode === 'system' ? (
-              <Laptop size={15} />
-            ) : resolvedMode === 'dark' ? (
-              <Moon size={15} />
-            ) : (
-              <Sun size={15} />
-            )}
-          </button>
-
-          <button
             onClick={() => setIsAddJobOpen(true)}
-            className="btn btn-secondary btn-sm"
+            className="btn btn-primary btn-sm add-job-btn"
             style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
           >
             <Plus size={15} /> Add Job
           </button>
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="btn btn-secondary btn-sm"
-            title="Refresh jobs from server"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-          >
-            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Refreshing...' : 'Refresh'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsSupportOpen(true)}
-            className="btn btn-secondary btn-sm"
-            title="Support JobFoundry (GitHub, Sponsor)"
-            aria-label="Support JobFoundry"
-            style={{ color: 'var(--color-red, #ef4444)' }}
-          >
-            <Heart size={15} />
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className={`btn btn-secondary btn-sm ${isSettingsOpen ? 'btn-primary' : ''}`}
-            title="Settings & Themes"
-            aria-label="Settings"
-          >
-            <Settings size={16} />
-          </button>
-          <button
-            onClick={logout}
-            className="btn btn-secondary btn-sm"
-            title="Sign out"
-            aria-label="Sign out"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <LogOut size={16} />
-          </button>
+
+          <div className="nav-divider" />
+
+          <div className="nav-utilities">
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              className="btn btn-icon btn-sm"
+              title="Refresh jobs from server"
+              aria-label="Refresh jobs from server"
+            >
+              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
+            </button>
+
+            <button
+              type="button"
+              onClick={cycleColorMode}
+              className="btn btn-icon btn-sm"
+              title={`Color Mode: ${colorMode} (Click to cycle)`}
+              aria-label="Cycle Color Mode"
+            >
+              {colorMode === 'system' ? (
+                <Laptop size={15} />
+              ) : resolvedMode === 'dark' ? (
+                <Moon size={15} />
+              ) : (
+                <Sun size={15} />
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsSupportOpen(true)}
+              className="btn btn-icon btn-sm"
+              title="Support JobFoundry (GitHub, Sponsor)"
+              aria-label="Support JobFoundry"
+              style={{ color: 'var(--color-red, #ef4444)' }}
+            >
+              <Heart size={15} />
+            </button>
+
+            <button
+              onClick={() => navigate('/settings')}
+              className={`btn btn-icon btn-sm ${isSettingsOpen ? 'active' : ''}`}
+              title="Settings & Themes"
+              aria-label="Settings"
+            >
+              <Settings size={15} />
+            </button>
+
+            <button
+              onClick={logout}
+              className="btn btn-icon btn-sm"
+              title="Sign out"
+              aria-label="Sign out"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <LogOut size={15} />
+            </button>
+          </div>
         </div>
       </header>
 
@@ -316,7 +323,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
               <div className="stat-icon-wrapper" style={{ color: 'var(--color-blue)' }}>
                 <Briefcase size={22} />
               </div>
-              <div>
+              <div className="stat-info">
                 <div className="stat-val">{totalJobs}</div>
                 <div className="stat-label">Total Ingested Jobs</div>
               </div>
@@ -334,7 +341,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
               <div className="stat-icon-wrapper" style={{ color: 'var(--color-green)' }}>
                 <Target size={22} />
               </div>
-              <div>
+              <div className="stat-info">
                 <div className="stat-val">{avgScore}%</div>
                 <div className="stat-label">Average Fit Score</div>
               </div>
@@ -352,7 +359,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
               <div className="stat-icon-wrapper" style={{ color: 'var(--color-purple)' }}>
                 <Sparkles size={22} />
               </div>
-              <div>
+              <div className="stat-info">
                 <div className="stat-val">{tailoredCount}</div>
                 <div className="stat-label">Tailored Resumes</div>
               </div>
@@ -370,7 +377,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
               <div className="stat-icon-wrapper" style={{ color: 'var(--color-amber)' }}>
                 <Flame size={22} />
               </div>
-              <div>
+              <div className="stat-info">
                 <div className="stat-val">{highFitCount}</div>
                 <div className="stat-label">Qualified (≥ {settings.threshold}%)</div>
               </div>

@@ -48,6 +48,8 @@
   --shadow-card: 0 4px 20px rgba(0, 0, 0, 0.25);
 
   --bg-input: rgba(0, 0, 0, 0.3);
+  --btn-secondary-bg: rgba(255, 255, 255, 0.06);
+  --btn-secondary-hover-bg: rgba(255, 255, 255, 0.1);
   --kbd-bg: rgba(255, 255, 255, 0.08);
   --kbd-border: rgba(255, 255, 255, 0.15);
   --kbd-border-bottom: rgba(255, 255, 255, 0.25);
@@ -64,6 +66,8 @@ html.light {
   --bg-glass: rgba(255, 255, 255, 0.88);
   --bg-kanban: #e9eef4;
   --bg-input: #ffffff;
+  --btn-secondary-bg: #f1f5f9;
+  --btn-secondary-hover-bg: #e2e8f0;
   --kbd-bg: rgba(0, 0, 0, 0.06);
   --kbd-border: rgba(0, 0, 0, 0.12);
   --kbd-border-bottom: rgba(0, 0, 0, 0.22);
@@ -219,7 +223,47 @@ h6 {
 .nav-actions {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.65rem;
+}
+
+.nav-divider {
+  width: 1px;
+  height: 20px;
+  background: var(--border-subtle);
+  margin: 0 0.15rem;
+}
+
+.nav-utilities {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.btn-icon {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--text-secondary);
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.btn-icon:hover:not(:disabled) {
+  background: var(--btn-secondary-bg);
+  color: var(--text-primary);
+  border-color: var(--border-subtle);
+}
+
+.btn-icon.active {
+  background: var(--accent-primary);
+  color: #fff;
+  border-color: var(--accent-primary);
 }
 
 .main-content {
@@ -233,7 +277,7 @@ h6 {
 /* Stats Bar */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 1rem;
   margin-bottom: 2rem;
 }
@@ -241,12 +285,30 @@ h6 {
 .stat-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
-  padding: 1.25rem;
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
   display: flex;
   align-items: center;
   gap: 1rem;
   box-shadow: var(--shadow-sm);
+  transition:
+    transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.stat-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--border-focus);
+  box-shadow: var(--shadow-md);
+}
+
+.stat-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 .settings-card {
@@ -489,18 +551,33 @@ h6 {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-subtle);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.stat-card:hover .stat-icon-wrapper {
+  transform: scale(1.05);
 }
 
 .stat-val {
-  font-size: 1.5rem;
+  font-size: 1.65rem;
   font-weight: 700;
   font-family: var(--font-display);
+  color: var(--text-primary);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
 }
 
 .stat-label {
   font-size: 0.8rem;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 /* Filters Bar */
@@ -763,13 +840,13 @@ h6 {
 }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--btn-secondary-bg);
   color: var(--text-primary);
   border-color: var(--border-subtle);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--btn-secondary-hover-bg);
 }
 
 .btn-sm {
@@ -1222,13 +1299,14 @@ h6 {
 
 .triage-list-header {
   padding: 0.75rem 1rem;
-  background: rgba(0, 0, 0, 0.25);
+  background: var(--bg-secondary);
   border-bottom: 1px solid var(--border-subtle);
   display: flex;
   justify-content: space-between;
   align-items: center;
   font-size: 0.8rem;
-  color: var(--text-muted);
+  font-weight: 500;
+  color: var(--text-secondary);
 }
 
 .triage-list-scroll {
