@@ -98,7 +98,7 @@ describe('PipelineFunnel Component', () => {
   });
 
   it('fetches funnel stats via API when data prop is omitted', async () => {
-    vi.mocked(api.getFunnelStats).mockResolvedValue(mockFunnelData);
+    const funnelSpy = vi.spyOn(api, 'getFunnelStats').mockResolvedValue(mockFunnelData);
 
     render(<PipelineFunnel />);
 
@@ -108,7 +108,7 @@ describe('PipelineFunnel Component', () => {
       expect(screen.getByText('Application Conversion Funnel')).toBeInTheDocument();
     });
 
-    expect(vi.mocked(api.getFunnelStats)).toHaveBeenCalledTimes(1);
+    expect(funnelSpy).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('funnel-count-captured')).toHaveTextContent('10');
   });
 

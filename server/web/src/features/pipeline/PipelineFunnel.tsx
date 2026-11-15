@@ -11,7 +11,8 @@ export type { FunnelData, FunnelStageData } from '../../api/client';
 export interface PipelineFunnelProps {
   data?: FunnelData;
   loading?: boolean;
-  onStageClick?: (_stageId: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  onStageClick?: (stageId: string) => void;
   className?: string;
 }
 
@@ -27,24 +28,30 @@ const DEFAULT_STAGE_COLOR: StageColorConfig = {
   bg: 'rgba(59, 130, 246, 0.12)',
 };
 
-const STAGE_COLORS: Record<string, StageColorConfig | undefined> = {
-  captured: DEFAULT_STAGE_COLOR,
-  tailored: {
-    bar: 'var(--color-purple, #8b5cf6)',
-    text: '#8b5cf6',
-    bg: 'rgba(139, 92, 246, 0.12)',
-  },
-  applied: { bar: 'var(--color-cyan, #06b6d4)', text: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)' },
-  interview: {
-    bar: 'var(--color-amber, #f59e0b)',
-    text: '#f59e0b',
-    bg: 'rgba(245, 158, 11, 0.12)',
-  },
-  offer: { bar: 'var(--color-green, #10b981)', text: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' },
-};
+const STAGE_COLORS = new Map<string, StageColorConfig>([
+  ['captured', DEFAULT_STAGE_COLOR],
+  [
+    'tailored',
+    {
+      bar: 'var(--color-purple, #8b5cf6)',
+      text: '#8b5cf6',
+      bg: 'rgba(139, 92, 246, 0.12)',
+    },
+  ],
+  ['applied', { bar: 'var(--color-cyan, #06b6d4)', text: '#06b6d4', bg: 'rgba(6, 182, 212, 0.12)' }],
+  [
+    'interview',
+    {
+      bar: 'var(--color-amber, #f59e0b)',
+      text: '#f59e0b',
+      bg: 'rgba(245, 158, 11, 0.12)',
+    },
+  ],
+  ['offer', { bar: 'var(--color-green, #10b981)', text: '#10b981', bg: 'rgba(16, 185, 129, 0.12)' }],
+]);
 
 function getStageColor(stageId: string): StageColorConfig {
-  return STAGE_COLORS[stageId] ?? DEFAULT_STAGE_COLOR;
+  return STAGE_COLORS.get(stageId) ?? DEFAULT_STAGE_COLOR;
 }
 
 /**
