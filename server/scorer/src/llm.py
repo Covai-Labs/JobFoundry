@@ -223,8 +223,11 @@ class LiteLLMClient:
     ) -> ScoreResult:
         settings = llm_settings or {}
         model = settings.get("model") or self.model
-        api_key = settings.get("api_key") or self.api_key
-        api_base = settings.get("api_base") or self.api_base
+        # Presence-based, not truthiness-based: an explicit empty value means
+        # "this credential scope has no key/base", and must not silently fall
+        # back to the operator's client default (a different scope entirely).
+        api_key = settings["api_key"] if "api_key" in settings else self.api_key
+        api_base = settings["api_base"] if "api_base" in settings else self.api_base
         resume_str = format_resume_for_prompt(resume)
         timeout = float(settings.get("timeout", 90.0))
 

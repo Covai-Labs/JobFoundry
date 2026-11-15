@@ -173,13 +173,23 @@ class JobStore:
         elif model == "openrouter/auto":
             model = "openrouter/openrouter/auto"
 
-        api_base = pick("scorer_api_base", "default_llm_api_base", defaults.get("api_base"))
-
-        api_key = ""
+        # A feature that opts out of the gateway owns its credentials: key, model
+        # and base URL. It must never inherit default_llm_api_base or the gateway
+        # key, which may belong to a different provider (that mismatch sent an
+        # OpenRouter key to a self-hosted LiteLLM proxy and 401'd).
         if inherit:
-            api_key = user_settings.get("default_llm_api_key") or user_settings.get("scorer_api_key", "")
+            api_base = pick("scorer_api_base", "default_llm_api_base", defaults.get("api_base"))
+            api_key = (
+                user_settings.get("default_llm_api_key")
+                or user_settings.get("scorer_api_key", "")
+            )
         else:
-            api_key = user_settings.get("scorer_api_key") or user_settings.get("default_llm_api_key", "")
+            api_base = (
+                user_settings.get("scorer_api_base")
+                or system.get("scorer_api_base")
+                or ""
+            )
+            api_key = user_settings.get("scorer_api_key") or ""
 
         return {
             "model": model,
@@ -273,7 +283,6 @@ class JobStore:
             (
                 user_settings.get("tailor_api_base")
                 or system.get("tailor_api_base")
-                or fallback.get("api_base")
                 or ""
             )
             if tailor_provider_override

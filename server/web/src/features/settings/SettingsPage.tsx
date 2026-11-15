@@ -51,7 +51,14 @@ import {
   FileSpreadsheet,
   Archive,
 } from 'lucide-react';
-import { LLM_PROVIDERS, detectProviderFromModel, ALL_RECOMMENDED_MODELS } from './llmCatalog';
+import {
+  LLM_PROVIDERS,
+  detectProviderFromModel,
+  ALL_RECOMMENDED_MODELS,
+  providerDefaultBase,
+  resolveEffectiveEndpoint,
+  type EffectiveEndpoint,
+} from './llmCatalog';
 
 interface SettingsPageProps {
   settings: AppSettings;
@@ -95,6 +102,39 @@ function getInitialTab(): SettingsTab {
   }
   return 'gateway';
 }
+
+/**
+ * Shows the endpoint a connection test will actually hit, so an inherited or
+ * provider-default route can never be mistaken for a custom override.
+ */
+const LlmTestTarget: React.FC<{ id: string; target: EffectiveEndpoint }> = ({ id, target }) => (
+  <div
+    data-testid={`test-llm-target-${id}`}
+    style={{
+      marginTop: '0.35rem',
+      fontSize: '0.76rem',
+      color: 'var(--text-muted)',
+      display: 'flex',
+      alignItems: 'baseline',
+      gap: '0.35rem',
+      flexWrap: 'wrap',
+    }}
+  >
+    <span style={{ fontWeight: 600 }}>Testing against:</span>
+    <code
+      style={{
+        fontSize: '0.74rem',
+        padding: '0.05rem 0.35rem',
+        borderRadius: 'var(--radius-sm)',
+        background: 'var(--bg-input)',
+        border: '1px solid var(--border-subtle)',
+      }}
+    >
+      {target.url || 'model-prefix routing (no base URL)'}
+    </code>
+    <span style={{ opacity: 0.85 }}>— {target.note}</span>
+  </div>
+);
 
 interface InheritedCustomModelSectionProps {
   id: string;
@@ -557,6 +597,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     message?: string;
     error?: string;
     latencyMs?: number;
+    apiBase?: string;
   } | null>(null);
 
   // Advanced AI Overrides Accordion State under Gateway
@@ -593,6 +634,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     message?: string;
     error?: string;
     latencyMs?: number;
+    apiBase?: string;
   } | null>(null);
   const [defaultPromptTemplates, setDefaultPromptTemplates] = useState<
     Partial<PromptTemplateDefaults>
@@ -605,6 +647,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     message?: string;
     error?: string;
     latencyMs?: number;
+    apiBase?: string;
   } | null>(null);
 
   const [testingTailorLlm, setTestingTailorLlm] = useState(false);
@@ -613,6 +656,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     message?: string;
     error?: string;
     latencyMs?: number;
+    apiBase?: string;
   } | null>(null);
 
   const [isDirty, setIsDirty] = useState(false);
@@ -1065,7 +1109,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       setDefaultTestResult(null);
       try {
         const model = formSettings.default_llm_model || 'openrouter/openrouter/free';
-        const apiBase = formSettings.default_llm_api_base;
+        const apiBase = gatewayTestTarget.url;
         const apiKey = editingDefaultKey ? newDefaultKey : formSettings.default_llm_api_key;
         const provider = selectedDefaultProvider;
         const res = await api.testLlmConnection({
@@ -1083,7 +1127,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setDefaultTestResult({ success: false, error: msg });
+        setDefaultTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || gatewayTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingDefaultLlm(false);
@@ -1100,9 +1148,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               : formSettings.scorer_model || formSettings.default_llm_model) ||
             'openrouter/openrouter/free'
           : formSettings.scorer_model;
-        const apiBase = isInherited
-          ? formSettings.default_llm_api_base
-          : formSettings.scorer_api_base;
+        const apiBase = scorerTestTarget.url;
         const apiKey = isInherited
           ? editingDefaultKey
             ? newDefaultKey
@@ -1126,7 +1172,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setTestResult({ success: false, error: msg });
+        setTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || scorerTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingLlm(false);
@@ -1143,9 +1193,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               : formSettings.tailor_model || formSettings.default_llm_model) ||
             'openrouter/openrouter/free'
           : formSettings.tailor_model;
-        const apiBase = isInherited
-          ? formSettings.default_llm_api_base
-          : formSettings.tailor_api_base;
+        const apiBase = tailorTestTarget.url;
         const apiKey = isInherited
           ? editingDefaultKey
             ? newDefaultKey
@@ -1169,7 +1217,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setTailorTestResult({ success: false, error: msg });
+        setTailorTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || tailorTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingTailorLlm(false);
@@ -1186,9 +1238,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               : formSettings.copilot_model || formSettings.default_llm_model) ||
             'openrouter/openrouter/free'
           : formSettings.copilot_model;
-        const apiBase = isInherited
-          ? formSettings.default_llm_api_base
-          : formSettings.copilot_api_base;
+        const apiBase = copilotTestTarget.url;
         const apiKey = isInherited
           ? editingDefaultKey
             ? newDefaultKey
@@ -1212,7 +1262,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         }
       } catch (err: any) {
         const msg = err?.message || 'Connection test failed';
-        setCopilotTestResult({ success: false, error: msg });
+        setCopilotTestResult({
+          success: false,
+          error: msg,
+          apiBase: err?.details?.apiBase || copilotTestTarget.url,
+        });
         toast.error(msg);
       } finally {
         setTestingCopilotLlm(false);
@@ -1266,6 +1320,52 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       </span>
     );
   };
+
+  // Effective test targets, mirrored from the backend resolver so the UI can
+  // state exactly which endpoint "Test Connection" will call.
+  const gatewayTestTarget = resolveEffectiveEndpoint({
+    inherit: true,
+    gatewayBase: formSettings.default_llm_api_base,
+    gatewayProvider: selectedDefaultProvider,
+    gatewayModel: formSettings.default_llm_model,
+  });
+  const scorerTestTarget = resolveEffectiveEndpoint({
+    inherit: formSettings.scorer_inherit_default !== false,
+    gatewayBase: formSettings.default_llm_api_base,
+    gatewayProvider: selectedDefaultProvider,
+    gatewayModel: formSettings.default_llm_model,
+    featureBase: formSettings.scorer_api_base,
+    featureProvider: selectedScorerProvider,
+    featureModel: formSettings.scorer_model,
+  });
+  const tailorTestTarget = resolveEffectiveEndpoint({
+    inherit: formSettings.tailor_inherit_default !== false,
+    gatewayBase: formSettings.default_llm_api_base,
+    gatewayProvider: selectedDefaultProvider,
+    gatewayModel: formSettings.default_llm_model,
+    featureBase: formSettings.tailor_api_base,
+    featureProvider: selectedTailorProvider,
+    featureModel: formSettings.tailor_model,
+  });
+  const copilotTestTarget = resolveEffectiveEndpoint({
+    inherit: formSettings.copilot_inherit_default !== false,
+    gatewayBase: formSettings.default_llm_api_base,
+    gatewayProvider: selectedDefaultProvider,
+    gatewayModel: formSettings.default_llm_model,
+    featureBase: formSettings.copilot_api_base,
+    featureProvider: selectedCopilotProvider,
+    featureModel: formSettings.copilot_model,
+  });
+  const scorerDefaultBase = providerDefaultBase(selectedScorerProvider, formSettings.scorer_model);
+  const tailorDefaultBase = providerDefaultBase(selectedTailorProvider, formSettings.tailor_model);
+  const copilotDefaultBase = providerDefaultBase(
+    selectedCopilotProvider,
+    formSettings.copilot_model
+  );
+  const gatewayDefaultBase = providerDefaultBase(
+    selectedDefaultProvider,
+    formSettings.default_llm_model
+  );
 
   return (
     <div className="settings-container">
@@ -2210,7 +2310,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               handleFieldChange('default_llm_api_base', e.target.value)
                             }
                             className="input-text"
-                            placeholder="https://openrouter.ai/api/v1"
+                            placeholder={
+                              gatewayDefaultBase
+                                ? `Default: ${gatewayDefaultBase}`
+                                : 'Optional — leave blank to route by model prefix'
+                            }
                           />
                         </div>
                       )}
@@ -2240,6 +2344,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             Send a minimal 1-token test prompt via LiteLLM to verify model routing
                             and credentials.
                           </div>
+                          <LlmTestTarget id="gateway" target={gatewayTestTarget} />
                         </div>
                         <button
                           type="button"
@@ -2290,10 +2395,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             <AlertTriangle size={16} />
                           )}
                           <span>
-                            {defaultTestResult.message || defaultTestResult.error}
-                            {defaultTestResult.latencyMs !== undefined
-                              ? ` (${defaultTestResult.latencyMs}ms)`
-                              : ''}
+                            <span>
+                              {defaultTestResult.message || defaultTestResult.error}
+                              {defaultTestResult.latencyMs !== undefined
+                                ? ` (${defaultTestResult.latencyMs}ms)`
+                                : ''}
+                            </span>
+                            {defaultTestResult.apiBase ? (
+                              <span style={{ display: 'block', fontSize: '0.75rem', opacity: 0.8 }}>
+                                Endpoint: {defaultTestResult.apiBase}
+                              </span>
+                            ) : null}
                           </span>
                         </div>
                       )}
@@ -2947,7 +3059,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                         Reset to Default Route
                                       </button>
                                     )}
-                                    {renderSourceBadge('scorer_api_base')}
+                                    {formSettings.scorer_api_base?.trim()
+                                      ? renderSourceBadge('scorer_api_base')
+                                      : null}
                                   </div>
                                 </div>
                                 <input
@@ -2957,7 +3071,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                     handleFieldChange('scorer_api_base', e.target.value)
                                   }
                                   className="input-text"
-                                  placeholder={p?.defaultBase || 'https://openrouter.ai/api/v1'}
+                                  placeholder={
+                                    scorerDefaultBase
+                                      ? `Default: ${scorerDefaultBase}`
+                                      : 'Optional — leave blank to route by model prefix'
+                                  }
                                 />
                                 <span
                                   style={{
@@ -2969,7 +3087,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 >
                                   {requiresBaseUrl
                                     ? 'Local/Gateway endpoints (e.g. http://localhost:11434 for Ollama).'
-                                    : 'Cloud providers route automatically; custom base URL is only needed for private reverse proxies or gateways.'}
+                                    : `Cloud providers route automatically${
+                                        scorerDefaultBase
+                                          ? ` to ${scorerDefaultBase}`
+                                          : ' from the model prefix'
+                                      }. Set a URL only for a private reverse proxy or gateway.`}
                                 </span>
                               </div>
                             );
@@ -3029,6 +3151,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               : 'custom scorer credentials'}
                             .
                           </div>
+                          <LlmTestTarget id="scorer" target={scorerTestTarget} />
                         </div>
                         <button
                           type="button"
@@ -3073,10 +3196,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             <AlertTriangle size={16} />
                           )}
                           <span>
-                            {testResult.message || testResult.error}
-                            {testResult.latencyMs !== undefined
-                              ? ` (${testResult.latencyMs}ms)`
-                              : ''}
+                            <span>
+                              {testResult.message || testResult.error}
+                              {testResult.latencyMs !== undefined
+                                ? ` (${testResult.latencyMs}ms)`
+                                : ''}
+                            </span>
+                            {testResult.apiBase ? (
+                              <span style={{ display: 'block', fontSize: '0.75rem', opacity: 0.8 }}>
+                                Endpoint: {testResult.apiBase}
+                              </span>
+                            ) : null}
                           </span>
                         </div>
                       )}
@@ -3337,7 +3467,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                       handleFieldChange('tailor_api_base', e.target.value)
                                     }
                                     className="input-text"
-                                    placeholder={p?.defaultBase || 'https://api.openai.com/v1'}
+                                    placeholder={
+                                      tailorDefaultBase
+                                        ? `Default: ${tailorDefaultBase}`
+                                        : 'Optional — leave blank to route by model prefix'
+                                    }
                                   />
                                 </div>
                               );
@@ -4151,6 +4285,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               : 'custom tailor credentials'}
                             .
                           </div>
+                          <LlmTestTarget id="tailor" target={tailorTestTarget} />
                         </div>
                         <button
                           type="button"
@@ -4197,10 +4332,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             <AlertTriangle size={16} />
                           )}
                           <span>
-                            {tailorTestResult.message || tailorTestResult.error}
-                            {tailorTestResult.latencyMs !== undefined
-                              ? ` (${tailorTestResult.latencyMs}ms)`
-                              : ''}
+                            <span>
+                              {tailorTestResult.message || tailorTestResult.error}
+                              {tailorTestResult.latencyMs !== undefined
+                                ? ` (${tailorTestResult.latencyMs}ms)`
+                                : ''}
+                            </span>
+                            {tailorTestResult.apiBase ? (
+                              <span style={{ display: 'block', fontSize: '0.75rem', opacity: 0.8 }}>
+                                Endpoint: {tailorTestResult.apiBase}
+                              </span>
+                            ) : null}
                           </span>
                         </div>
                       )}
@@ -4489,7 +4631,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                     handleFieldChange('copilot_api_base', e.target.value)
                                   }
                                   className="input-text"
-                                  placeholder={p?.defaultBase || 'https://api.openai.com/v1'}
+                                  placeholder={
+                                    copilotDefaultBase
+                                      ? `Default: ${copilotDefaultBase}`
+                                      : 'Optional — leave blank to route by model prefix'
+                                  }
                                 />
                               </div>
                             );
@@ -4537,6 +4683,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             : 'custom copilot credentials'}
                           .
                         </div>
+                        <LlmTestTarget id="copilot" target={copilotTestTarget} />
                       </div>
                       <button
                         type="button"
@@ -4586,10 +4733,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           <AlertTriangle size={16} />
                         )}
                         <span>
-                          {copilotTestResult.message || copilotTestResult.error}
-                          {copilotTestResult.latencyMs !== undefined
-                            ? ` (${copilotTestResult.latencyMs}ms)`
-                            : ''}
+                          <span>
+                            {copilotTestResult.message || copilotTestResult.error}
+                            {copilotTestResult.latencyMs !== undefined
+                              ? ` (${copilotTestResult.latencyMs}ms)`
+                              : ''}
+                          </span>
+                          {copilotTestResult.apiBase ? (
+                            <span style={{ display: 'block', fontSize: '0.75rem', opacity: 0.8 }}>
+                              Endpoint: {copilotTestResult.apiBase}
+                            </span>
+                          ) : null}
                         </span>
                       </div>
                     )}

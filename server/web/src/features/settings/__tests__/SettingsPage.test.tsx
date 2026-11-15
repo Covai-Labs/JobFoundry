@@ -185,6 +185,27 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('shows the effective endpoint for a custom scorer without a base URL override', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
+
+    const target = await screen.findByTestId('test-llm-target-scorer');
+    expect(target).toHaveTextContent(/Testing against:/i);
+    // The scorer opts out of the gateway and has no base URL, so the provider
+    // default is used — not an inherited gateway/proxy URL.
+    expect(target).toHaveTextContent('https://openrouter.ai/api/v1');
+
+    // The empty field must not look like it holds a value.
+    fireEvent.click(screen.getByRole('button', { name: /Advanced: Custom Endpoint Base URL/i }));
+    expect(
+      screen.getByPlaceholderText('Default: https://openrouter.ai/api/v1')
+    ).toBeInTheDocument();
+  });
+
   it('updates settings and saves successfully', async () => {
     const updateSpy = vi.spyOn(api, 'updateSettings').mockResolvedValue({
       ok: true,

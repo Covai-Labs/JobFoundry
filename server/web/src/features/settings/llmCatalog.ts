@@ -356,7 +356,13 @@ export const LLM_PROVIDERS: LlmProviderMeta[] = [
   },
 ];
 
-export function detectProviderFromModel(modelString: string): string {
+/**
+ * Infers a provider id from a model identifier. Returns '' when unknown, so
+ * base-URL resolution can route by model prefix instead of guessing.
+ * Keep in sync with `inferProviderFromModel` in
+ * `server/ingest/src/settings/llm-resolve.mjs`.
+ */
+export function inferProviderFromModel(modelString: string): string {
   const s = (modelString || '').toLowerCase().trim();
   if (s.startsWith('openrouter/')) return 'openrouter';
   if (s.startsWith('groq/')) return 'groq';
@@ -371,7 +377,94 @@ export function detectProviderFromModel(modelString: string): string {
   if (s.startsWith('ibm/') || s.includes('granite')) return 'ibm';
   if (s.startsWith('mistral/') || s.includes('leanstral')) return 'mistral';
   if (s.startsWith('gpt-') || s.startsWith('openai/') || s.startsWith('o3-')) return 'openai';
-  return 'openrouter';
+  return '';
+}
+
+/** UI-facing detection: unknown models default to OpenRouter, the default provider. */
+export function detectProviderFromModel(modelString: string): string {
+  const inferred = inferProviderFromModel(modelString);
+  return inferred === '' ? 'openrouter' : inferred;
+}
+
+/**
+ * Public OpenAI-compatible endpoints. Providers without an entry are routed by
+ * LiteLLM from the model prefix and must not be given a synthetic base URL.
+ * Keep in sync with `server/ingest/src/settings/llm-resolve.mjs`.
+ */
+export const PROVIDER_DEFAULT_BASES = new Map<string, string>([
+  ['openrouter', 'https://openrouter.ai/api/v1'],
+  ['openai', 'https://api.openai.com/v1'],
+  ['groq', 'https://api.groq.com/openai/v1'],
+  ['deepseek', 'https://api.deepseek.com/v1'],
+  ['ollama', 'http://localhost:11434/v1'],
+  ['custom', ''],
+]);
+
+/**
+ * Public endpoint for an explicitly selected provider. An unsupported provider
+ * resolves to '' so LiteLLM routes from the model prefix — it must never borrow
+ * another provider's endpoint. Model inference only applies when no provider was
+ * selected at all.
+ */
+export function providerDefaultBase(providerId?: string, model?: string): string {
+  const p = (providerId ?? '').toLowerCase();
+  if (p) {
+    return PROVIDER_DEFAULT_BASES.get(p) ?? '';
+  }
+  return PROVIDER_DEFAULT_BASES.get(inferProviderFromModel(model ?? '')) ?? '';
+}
+
+export interface EffectiveEndpoint {
+  /** URL actually used, or '' when the provider routes by model prefix. */
+  url: string;
+  /** Short human-readable provenance, e.g. "custom override". */
+  note: string;
+}
+
+/**
+ * Mirrors the backend resolution so the UI can show the endpoint a connection
+ * test will really hit. A feature that does not inherit never reuses the
+ * Default Gateway's base URL.
+ */
+export function resolveEffectiveEndpoint(args: {
+  inherit: boolean;
+  gatewayBase?: string;
+  gatewayProvider?: string;
+  gatewayModel?: string;
+  featureBase?: string;
+  featureProvider?: string;
+  featureModel?: string;
+}): EffectiveEndpoint {
+  const gatewayBase = (args.gatewayBase ?? '').trim();
+  if (args.inherit) {
+    if (gatewayBase) {
+      return { url: gatewayBase, note: 'inherited from Default AI Gateway' };
+    }
+    const fallback = providerDefaultBase(args.gatewayProvider, args.gatewayModel);
+    return fallback
+      ? { url: fallback, note: 'Default AI Gateway provider default' }
+      : { url: '', note: 'Default AI Gateway routes by model prefix' };
+  }
+
+  const featureBase = (args.featureBase ?? '').trim();
+  if (featureBase) {
+    const note =
+      gatewayBase && gatewayBase !== featureBase
+        ? 'custom override — the Default Gateway base URL is not used'
+        : 'custom override';
+    return { url: featureBase, note };
+  }
+  const fallback = providerDefaultBase(args.featureProvider, args.featureModel);
+  if (fallback) {
+    return { url: fallback, note: 'provider default — no custom override' };
+  }
+  const customProvider = (args.featureProvider ?? '').toLowerCase() === 'custom';
+  return {
+    url: '',
+    note: customProvider
+      ? 'custom provider needs an explicit Base URL — the gateway proxy is not used'
+      : 'provider routes by model prefix — no custom override',
+  };
 }
 
 export const ALL_RECOMMENDED_MODELS: LlmModelRecommendation[] = Array.from(

@@ -153,3 +153,78 @@ def test_log_safe_strips_bidirectional_formatting():
     cleaned = _log_safe("job-1\u202eevil\u2066text\u2069")
     for invisible in ("\u202e", "\u2066", "\u2069"):
         assert invisible not in cleaned
+
+
+class _CapturingCompletions:
+    def __init__(self):
+        self.kwargs = None
+
+    async def create(self, **kwargs):
+        self.kwargs = kwargs
+        raise RuntimeError("captured")
+
+
+class _CapturingChat:
+    def __init__(self):
+        self.completions = _CapturingCompletions()
+
+
+class _CapturingClient:
+    def __init__(self):
+        self.chat = _CapturingChat()
+
+
+@pytest.mark.asyncio
+async def test_empty_scope_credentials_do_not_fall_back_to_client_defaults():
+    """A per-user scope with no key/base must not send the operator's client creds.
+
+    `store.get_user_effective_llm` returns explicit empty strings when the user
+    has no key for an opted-out feature. Truthiness-based fallback then silently
+    used the operator-level `self.api_key` / `self.api_base` — the same
+    cross-scope leak that sent a user's OpenRouter key to a gateway proxy.
+    """
+    client = LiteLLMClient(
+        model="operator-model",
+        api_key="operator-key",
+        api_base="https://operator.example/v1",
+    )
+    capturing = _CapturingClient()
+    client.client = capturing
+
+    with pytest.raises(RuntimeError):
+        await client.score(
+            {"id": "j1", "title": "t"},
+            {},
+            llm_settings={"api_key": "", "api_base": ""},
+        )
+
+    kwargs = capturing.chat.completions.kwargs
+    assert kwargs is not None
+    assert "api_key" not in kwargs
+    assert "api_base" not in kwargs
+
+
+@pytest.mark.asyncio
+async def test_explicit_scope_credentials_win_over_client_defaults():
+    client = LiteLLMClient(
+        model="operator-model",
+        api_key="operator-key",
+        api_base="https://operator.example/v1",
+    )
+    capturing = _CapturingClient()
+    client.client = capturing
+
+    with pytest.raises(RuntimeError):
+        await client.score(
+            {"id": "j1", "title": "t"},
+            {},
+            llm_settings={
+                "api_key": "user-key",
+                # Public IP literal: passes the SSRF guard without DNS.
+                "api_base": "https://93.184.216.34/v1",
+            },
+        )
+
+    kwargs = capturing.chat.completions.kwargs
+    assert kwargs["api_key"] == "user-key"
+    assert kwargs["api_base"] == "https://93.184.216.34/v1"
