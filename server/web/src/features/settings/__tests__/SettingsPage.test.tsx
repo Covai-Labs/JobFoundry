@@ -272,10 +272,9 @@ describe('SettingsPage', () => {
     const chip = screen.getByRole('button', { name: /DeepSeek V4\.1 Flash/i });
     fireEvent.click(chip);
 
-    const modelInput = screen.getByPlaceholderText(
-      'openrouter/z-ai/glm-5.3-flash'
-    ) as HTMLInputElement;
-    expect(modelInput.value).toBe('deepseek/deepseek-v4.1-flash');
+    expect(screen.getByPlaceholderText('openrouter/z-ai/glm-5.3-flash')).toHaveValue(
+      'deepseek/deepseek-v4.1-flash'
+    );
   });
 
   it('switches to AI Resume Tailor tab, inherits scorer settings, and tests connection', async () => {
@@ -476,9 +475,7 @@ describe('SettingsPage', () => {
     fireEvent.change(modelInput, { target: { value: 'my-custom-mistral' } });
 
     // Custom Gateway should remain selected
-    expect((screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement).value).toBe(
-      'custom'
-    );
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
   });
 
   it('preserves custom gateway provider and editable URL when typing model names', async () => {
@@ -491,9 +488,7 @@ describe('SettingsPage', () => {
     fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
       target: { value: 'custom' },
     });
-    expect((screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement).value).toBe(
-      'custom'
-    );
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
 
     // Editable base URL input should be rendered
     const baseUrlInput = screen.getByPlaceholderText('http://localhost:8000/v1');
@@ -506,9 +501,7 @@ describe('SettingsPage', () => {
     fireEvent.change(defaultModelInput, { target: { value: 'openai/my-proxied-model' } });
 
     // Custom provider must remain selected and base URL remains editable
-    expect((screen.getByLabelText(/Primary LLM Provider/i) as HTMLSelectElement).value).toBe(
-      'custom'
-    );
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
     expect(screen.getByPlaceholderText('http://localhost:8000/v1')).toBeInTheDocument();
   });
 
