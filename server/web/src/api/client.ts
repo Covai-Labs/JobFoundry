@@ -116,11 +116,11 @@ export class ApiClient {
   }
 
   /**
-   * Send an authenticated API request and decode its JSON response.
+   * Send an authenticated API request and return the raw Response.
    *
    * @throws {ApiError} When the server returns a non-success status.
    */
-  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  private async requestRaw(path: string, options: RequestInit = {}): Promise<Response> {
     const url = `${this.baseUrl}${path}`;
     const headers: Record<string, string> = {
       ...(options.headers as Record<string, string>),
@@ -160,7 +160,27 @@ export class ApiClient {
       throw new ApiError(response.status, errorMessage, details);
     }
 
+    return response;
+  }
+
+  /**
+   * Send an authenticated API request and decode its JSON response.
+   *
+   * @throws {ApiError} When the server returns a non-success status.
+   */
+  private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const response = await this.requestRaw(path, options);
     return response.json();
+  }
+
+  /**
+   * Send an authenticated API request and return its binary blob response.
+   *
+   * @throws {ApiError} When the server returns a non-success status.
+   */
+  private async requestBlob(path: string, options: RequestInit = {}): Promise<Blob> {
+    const response = await this.requestRaw(path, options);
+    return response.blob();
   }
 
   // --- Auth Endpoints ---
@@ -502,29 +522,10 @@ export class ApiClient {
    * `src` cannot carry credentials, and keys must never travel in a URL.
    */
   async getMasterResumePreviewPdf(theme: string, resume?: Record<string, unknown>): Promise<Blob> {
-    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-    if (this.apiKey) {
-      headers['Authorization'] = `Bearer ${this.apiKey}`;
-    }
-
-    const response = await fetch(`${this.baseUrl}/api/v1/master-resume/preview-pdf`, {
+    return this.requestBlob('/api/v1/master-resume/preview-pdf', {
       method: 'POST',
-      headers,
       body: JSON.stringify({ theme, resume }),
     });
-
-    if (!response.ok) {
-      let message = `Failed to render the preview for ${theme}`;
-      try {
-        const body = await response.json();
-        message = body.error || body.message || message;
-      } catch {
-        // Response wasn't JSON
-      }
-      throw new ApiError(response.status, message);
-    }
-
-    return response.blob();
   }
 
   async downloadExport(

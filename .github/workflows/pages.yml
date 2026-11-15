@@ -59,7 +59,7 @@ jobs:
       - name: Build architecture graph
         continue-on-error: true
         run: |
-          uv tool install 'graphifyy==0.9.86'
+          uv tool install --no-build 'graphifyy==0.9.86'
           graphify update .
           cp graphify-out/graph.html site/dist/graph.html
           cp graphify-out/GRAPH_REPORT.md site/dist/graph-report.md
