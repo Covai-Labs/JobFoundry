@@ -10,6 +10,7 @@ import {
   isMaskedSecret,
   isRegisteredUser,
 } from '../src/settings/settings.mjs';
+import { resolveFeatureLlmConfig } from '../src/settings/llm-resolve.mjs';
 
 function insertUser(db, id, email = `${id}@example.com`, apiKey = `jf-key-${id}`) {
   const now = Date.now();
@@ -247,4 +248,38 @@ test('per-user getEffectiveSetting and secret preservation', () => {
   assert.equal(isolated.settings.scorer_api_key, '');
   assert.equal(isolated.meta.scorer_api_key.source, 'default');
   assert.equal(isolated.meta.scorer_api_key.hasCustomKey, false);
+});
+
+test('cleared base URL override stops fallback to env and uses provider default', () => {
+  const db = new Database(':memory:');
+  migrate(db);
+  insertUser(db, 'bob');
+
+  const fakeEnv = {
+    OPENAI_BASE_URL: 'https://proxy.internal.co/v1',
+  };
+
+  // With no user setting, tailor resolves to provider default instead of OPENAI_BASE_URL for openrouter
+  updateSettings(
+    db,
+    {
+      tailor_inherit_default: false,
+      tailor_provider: 'openrouter',
+      tailor_model: 'openrouter/openrouter/free',
+    },
+    'bob'
+  );
+  const initial = resolveFeatureLlmConfig(db, 'tailor', { userId: 'bob', env: fakeEnv });
+  assert.equal(initial.apiBase, 'https://openrouter.ai/api/v1');
+
+  // Storing a custom override
+  updateSettings(db, { tailor_api_base: 'https://custom-tailor.example.com/v1' }, 'bob');
+  const custom = resolveFeatureLlmConfig(db, 'tailor', { userId: 'bob', env: fakeEnv });
+  assert.equal(custom.apiBase, 'https://custom-tailor.example.com/v1');
+
+  // Clearing override by saving empty string ''
+  updateSettings(db, { tailor_api_base: '' }, 'bob');
+  const cleared = resolveFeatureLlmConfig(db, 'tailor', { userId: 'bob', env: fakeEnv });
+  assert.equal(cleared.apiBase, 'https://openrouter.ai/api/v1');
+  assert.equal(cleared.apiBaseSource, 'provider-default');
 });

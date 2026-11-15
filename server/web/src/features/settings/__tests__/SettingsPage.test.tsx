@@ -199,11 +199,12 @@ describe('SettingsPage', () => {
     // default is used — not an inherited gateway/proxy URL.
     expect(target).toHaveTextContent('https://openrouter.ai/api/v1');
 
-    // The empty field must not look like it holds a value.
-    fireEvent.click(screen.getByRole('button', { name: /Advanced: Custom Endpoint Base URL/i }));
+    // Built-in providers display their fixed endpoint as read-only text, preventing
+    // confusion with custom proxy overrides.
     expect(
-      screen.getByPlaceholderText('Default: https://openrouter.ai/api/v1')
+      screen.getByText('https://openrouter.ai/api/v1', { selector: 'span' })
     ).toBeInTheDocument();
+    expect(screen.getByText('Fixed Built-in')).toBeInTheDocument();
   });
 
   it('updates settings and saves successfully', async () => {
@@ -241,7 +242,7 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('renders provider pills and allows selecting recommended models', async () => {
+  it('renders provider dropdown and allows selecting recommended models', async () => {
     renderComponent();
     await waitFor(() => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
@@ -249,13 +250,16 @@ describe('SettingsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
-    // Verify provider pills exist
-    expect(screen.getByRole('button', { name: /^Google Gemini$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^DeepSeek$/ })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /^OpenAI$/ })).toBeInTheDocument();
+    // Verify provider dropdown exists with known options
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'Google Gemini' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'DeepSeek' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'OpenAI' })).toBeInTheDocument();
 
-    // Click DeepSeek provider pill
-    fireEvent.click(screen.getByRole('button', { name: /^DeepSeek$/ }));
+    // Select DeepSeek provider
+    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
+      target: { value: 'deepseek' },
+    });
 
     // Verify recommendations for DeepSeek render
     await waitFor(() => {
@@ -268,10 +272,9 @@ describe('SettingsPage', () => {
     const chip = screen.getByRole('button', { name: /DeepSeek V4\.1 Flash/i });
     fireEvent.click(chip);
 
-    const modelInput = screen.getByPlaceholderText(
-      'openrouter/z-ai/glm-5.3-flash'
-    ) as HTMLInputElement;
-    expect(modelInput.value).toBe('deepseek/deepseek-v4.1-flash');
+    expect(screen.getByPlaceholderText('openrouter/z-ai/glm-5.3-flash')).toHaveValue(
+      'deepseek/deepseek-v4.1-flash'
+    );
   });
 
   it('switches to AI Resume Tailor tab, inherits scorer settings, and tests connection', async () => {
@@ -458,7 +461,9 @@ describe('SettingsPage', () => {
     fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
     // Select Custom Gateway provider
-    fireEvent.click(screen.getByRole('button', { name: /Custom \/ Self-Hosted Gateway/i }));
+    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
+      target: { value: 'custom' },
+    });
 
     // Fallback header should state other providers
     expect(
@@ -470,9 +475,34 @@ describe('SettingsPage', () => {
     fireEvent.change(modelInput, { target: { value: 'my-custom-mistral' } });
 
     // Custom Gateway should remain selected
-    expect(
-      screen.getByRole('button', { name: /Custom \/ Self-Hosted Gateway/i })
-    ).toBeInTheDocument();
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
+  });
+
+  it('preserves custom gateway provider and editable URL when typing model names', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    // Gateway tab is active by default; select Custom Gateway provider
+    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
+      target: { value: 'custom' },
+    });
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
+
+    // Editable base URL input should be rendered
+    const baseUrlInput = screen.getByPlaceholderText('http://localhost:8000/v1');
+    expect(baseUrlInput).toBeInTheDocument();
+
+    // Type a model with or without prefix
+    const defaultModelInput = screen.getByDisplayValue(
+      'openrouter/google/gemini-2.0-flash-exp:free'
+    );
+    fireEvent.change(defaultModelInput, { target: { value: 'openai/my-proxied-model' } });
+
+    // Custom provider must remain selected and base URL remains editable
+    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
+    expect(screen.getByPlaceholderText('http://localhost:8000/v1')).toBeInTheDocument();
   });
 
   it('allows editing API key with inline Save and Cancel options', async () => {

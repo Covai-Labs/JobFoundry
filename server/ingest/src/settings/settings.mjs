@@ -610,14 +610,26 @@ export function getEffectiveSettingWithSource(db, key, { userId = null, env = pr
   const userSettings = getUserSettings(db, userId);
   if (userSettings.has(key)) {
     const row = userSettings.get(key);
-    if (row.value !== undefined && row.value !== '') {
-      return { value: coerceValue(row.value, spec.type), source: 'user' };
+    if (row.value !== undefined) {
+      if (spec.secret) {
+        if (row.value !== '' && !isMaskedSecret(row.value)) {
+          return { value: coerceValue(row.value, spec.type), source: 'user' };
+        }
+      } else {
+        return { value: coerceValue(row.value, spec.type), source: 'user' };
+      }
     }
   }
 
   const row = db.prepare('SELECT value FROM system_settings WHERE key = ?').get(key);
-  if (row && row.value !== undefined && row.value !== '') {
-    return { value: coerceValue(row.value, spec.type), source: 'system' };
+  if (row && row.value !== undefined) {
+    if (spec.secret) {
+      if (row.value !== '' && !isMaskedSecret(row.value)) {
+        return { value: coerceValue(row.value, spec.type), source: 'system' };
+      }
+    } else {
+      return { value: coerceValue(row.value, spec.type), source: 'system' };
+    }
   }
 
   const envVal = getEnvValue(spec.env, env);

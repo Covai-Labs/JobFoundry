@@ -136,6 +136,98 @@ const LlmTestTarget: React.FC<{ id: string; target: EffectiveEndpoint }> = ({ id
   </div>
 );
 
+interface CompactRecommendedModelsProps {
+  title: string;
+  models: { id: string; name: string; tier?: string; description?: string }[];
+  currentModel?: string;
+  onSelectModel: (id: string) => void;
+  icon?: 'zap' | 'sparkles';
+}
+
+const CompactRecommendedModels: React.FC<CompactRecommendedModelsProps> = ({
+  title,
+  models,
+  currentModel,
+  onSelectModel,
+  icon = 'zap',
+}) => {
+  if (!models || models.length === 0) return null;
+
+  return (
+    <div
+      style={{
+        marginBottom: '0.75rem',
+        padding: '0.5rem 0.75rem',
+        background: 'var(--bg-input, rgba(255,255,255,0.02))',
+        border: '1px dashed var(--border-subtle)',
+        borderRadius: 'var(--radius-md)',
+      }}
+    >
+      <div
+        style={{
+          fontSize: '0.78rem',
+          fontWeight: 600,
+          color: 'var(--text-secondary)',
+          marginBottom: '0.4rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.35rem',
+        }}
+      >
+        {icon === 'zap' ? (
+          <Zap size={13} style={{ color: 'var(--accent-primary)' }} />
+        ) : (
+          <Sparkles size={13} style={{ color: 'var(--accent-primary)' }} />
+        )}
+        {title}
+      </div>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+        {models.map((m) => {
+          const isCurrent = currentModel === m.id;
+          return (
+            <button
+              key={m.id}
+              type="button"
+              onClick={() => onSelectModel(m.id)}
+              style={{
+                padding: '0.25rem 0.55rem',
+                borderRadius: 'var(--radius-sm)',
+                fontSize: '0.75rem',
+                border: isCurrent
+                  ? '1px solid var(--accent-primary)'
+                  : '1px solid var(--border-subtle)',
+                background: isCurrent ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
+                color: isCurrent ? 'var(--accent-primary)' : 'var(--text-primary)',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+              }}
+              title={m.description}
+            >
+              <span>{m.name}</span>
+              {m.tier && (
+                <span
+                  style={{
+                    fontSize: '0.68rem',
+                    padding: '0.05rem 0.3rem',
+                    borderRadius: '3px',
+                    background: isCurrent ? 'var(--accent-primary)' : 'var(--border-subtle)',
+                    color: isCurrent ? '#fff' : 'var(--text-muted)',
+                  }}
+                >
+                  {m.tier === 'fast' ? 'Fast' : 'Reasoning'}
+                </span>
+              )}
+              {isCurrent && <Check size={11} />}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
 interface InheritedCustomModelSectionProps {
   id: string;
   label: string;
@@ -171,77 +263,13 @@ const InheritedCustomModelSection: React.FC<InheritedCustomModelSectionProps> = 
 
   return (
     <>
-      {modelsToShow.length > 0 && (
-        <div
-          style={{
-            marginBottom: '1rem',
-            padding: '0.75rem',
-            background: 'var(--bg-input, rgba(255,255,255,0.02))',
-            border: '1px dashed var(--border-subtle)',
-            borderRadius: 'var(--radius-md)',
-          }}
-        >
-          <div
-            style={{
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              marginBottom: '0.5rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-            }}
-          >
-            {icon === 'zap' ? (
-              <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
-            ) : (
-              <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
-            )}
-            Recommended {featureName} Models ({providerMeta.name}):
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-            {modelsToShow.map((m) => {
-              const isCurrent = value === m.id;
-              return (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => onChange(m.id)}
-                  style={{
-                    padding: '0.35rem 0.65rem',
-                    borderRadius: 'var(--radius-sm)',
-                    fontSize: '0.78rem',
-                    border: isCurrent
-                      ? '1px solid var(--accent-primary)'
-                      : '1px solid var(--border-subtle)',
-                    background: isCurrent ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
-                    color: isCurrent ? 'var(--accent-primary)' : 'var(--text-primary)',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.35rem',
-                  }}
-                  title={m.description}
-                >
-                  <span>{m.name}</span>
-                  <span
-                    style={{
-                      fontSize: '0.7rem',
-                      padding: '0.1rem 0.35rem',
-                      borderRadius: '3px',
-                      background: isCurrent ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                      color: isCurrent ? '#fff' : 'var(--text-muted)',
-                    }}
-                  >
-                    {m.tier === 'fast' ? 'Fast' : 'Reasoning'}
-                  </span>
-                  {isCurrent && <Check size={12} />}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      <CompactRecommendedModels
+        title={`Recommended ${featureName} Models (${providerMeta.name}):`}
+        models={modelsToShow}
+        currentModel={value}
+        onSelectModel={onChange}
+        icon={icon}
+      />
 
       <div>
         <label
@@ -590,7 +618,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       'openrouter'
     );
   });
-  const [showDefaultEndpointOverride, setShowDefaultEndpointOverride] = useState<boolean>(false);
   const [testingDefaultLlm, setTestingDefaultLlm] = useState(false);
   const [defaultTestResult, setDefaultTestResult] = useState<{
     success: boolean;
@@ -611,7 +638,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       'openrouter'
     );
   });
-  const [showScorerEndpointOverride, setShowScorerEndpointOverride] = useState<boolean>(false);
 
   const [selectedTailorProvider, setSelectedTailorProvider] = useState<string>(() => {
     return (
@@ -620,14 +646,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       'openrouter'
     );
   });
-  const [showTailorEndpointOverride, setShowTailorEndpointOverride] = useState<boolean>(false);
   const [showTailorPromptTemplates, setShowTailorPromptTemplates] = useState<boolean>(false);
 
   // Copilot Settings State
   const [editingCopilotKey, setEditingCopilotKey] = useState(false);
   const [newCopilotKey, setNewCopilotKey] = useState('');
   const [selectedCopilotProvider, setSelectedCopilotProvider] = useState<string>('openrouter');
-  const [showCopilotEndpointOverride, setShowCopilotEndpointOverride] = useState<boolean>(false);
   const [testingCopilotLlm, setTestingCopilotLlm] = useState(false);
   const [copilotTestResult, setCopilotTestResult] = useState<{
     success: boolean;
@@ -697,33 +721,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           } else if (backendSettings.scorer_provider) {
             setSelectedDefaultProvider(backendSettings.scorer_provider);
           }
-          if (backendSettings.default_llm_api_base) {
-            setShowDefaultEndpointOverride(true);
-          }
 
           if (backendSettings.scorer_provider) {
             setSelectedScorerProvider(backendSettings.scorer_provider);
           } else if (backendSettings.scorer_model) {
             setSelectedScorerProvider(detectProviderFromModel(backendSettings.scorer_model));
           }
-          if (backendSettings.scorer_api_base) {
-            setShowScorerEndpointOverride(true);
-          }
           if (backendSettings.tailor_provider) {
             setSelectedTailorProvider(backendSettings.tailor_provider);
           } else if (backendSettings.tailor_model) {
             setSelectedTailorProvider(detectProviderFromModel(backendSettings.tailor_model));
           }
-          if (backendSettings.tailor_api_base) {
-            setShowTailorEndpointOverride(true);
-          }
           if (backendSettings.copilot_provider) {
             setSelectedCopilotProvider(backendSettings.copilot_provider);
           } else if (backendSettings.copilot_model) {
             setSelectedCopilotProvider(detectProviderFromModel(backendSettings.copilot_model));
-          }
-          if (backendSettings.copilot_api_base) {
-            setShowCopilotEndpointOverride(true);
           }
           if (backendSettings.observability_provider) {
             setActiveObservabilityProvider(
@@ -813,7 +825,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     handleFieldChange('default_llm_provider', providerId);
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      setShowDefaultEndpointOverride(true);
       if (!formSettings.default_llm_api_base && providerMeta.defaultBase) {
         handleFieldChange('default_llm_api_base', providerMeta.defaultBase);
       }
@@ -836,7 +847,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     handleFieldChange('scorer_provider', providerId);
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      setShowScorerEndpointOverride(true);
       if (!formSettings.scorer_api_base && providerMeta.defaultBase) {
         handleFieldChange('scorer_api_base', providerMeta.defaultBase);
       }
@@ -855,7 +865,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     handleFieldChange('tailor_provider', providerId);
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      setShowTailorEndpointOverride(true);
       if (!formSettings.tailor_api_base && providerMeta.defaultBase) {
         handleFieldChange('tailor_api_base', providerMeta.defaultBase);
       }
@@ -874,7 +883,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     handleFieldChange('copilot_provider', providerId);
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      setShowCopilotEndpointOverride(true);
       if (!formSettings.copilot_api_base && providerMeta.defaultBase) {
         handleFieldChange('copilot_api_base', providerMeta.defaultBase);
       }
@@ -1321,6 +1329,202 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     );
   };
 
+  const renderProviderSelect = (
+    selectedId: string,
+    onSelect: (providerId: string) => void,
+    label: string,
+    id: string
+  ) => {
+    return (
+      <div style={{ marginBottom: '1.25rem' }}>
+        <label
+          htmlFor={id}
+          style={{
+            display: 'block',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            marginBottom: '0.4rem',
+          }}
+        >
+          {label}
+        </label>
+        <select
+          id={id}
+          value={selectedId}
+          onChange={(e) => onSelect(e.target.value)}
+          className="input-text"
+          style={{ maxWidth: '420px', cursor: 'pointer', padding: '0.45rem 0.65rem' }}
+          aria-label={label}
+        >
+          <optgroup label="Hosted Cloud Providers">
+            {LLM_PROVIDERS.filter((p) => !p.isLocal && !p.isCustom).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </optgroup>
+          <optgroup label="Local & Self-Hosted">
+            {LLM_PROVIDERS.filter((p) => p.isLocal || p.isCustom).map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.isLocal ? `🏠 ${p.name}` : `⚙️ ${p.name}`}
+              </option>
+            ))}
+          </optgroup>
+        </select>
+      </div>
+    );
+  };
+
+  const renderEndpointBaseUrlSection = (
+    providerId: string,
+    currentBase: string | undefined,
+    onBaseChange: (val: string) => void,
+    label = 'Endpoint Base URL',
+    sourceBadgeKey?: string,
+    id = 'llm-base-url'
+  ) => {
+    const p = LLM_PROVIDERS.find((x) => x.id === providerId);
+    const isCustomOrLocal = Boolean(p?.isCustom || p?.isLocal);
+    const fixedBase = providerDefaultBase(providerId);
+
+    if (isCustomOrLocal) {
+      return (
+        <div style={{ marginBottom: '1.25rem' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              marginBottom: '0.35rem',
+            }}
+          >
+            <label htmlFor={id} style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+              {label} (Custom / Self-Hosted)
+            </label>
+            {sourceBadgeKey && currentBase?.trim() ? renderSourceBadge(sourceBadgeKey) : null}
+          </div>
+          <input
+            id={id}
+            type="text"
+            value={currentBase || ''}
+            onChange={(e) => onBaseChange(e.target.value)}
+            className="input-text"
+            placeholder={p?.defaultBase || 'http://localhost:8000/v1'}
+          />
+          <span
+            style={{
+              fontSize: '0.75rem',
+              color: 'var(--text-muted)',
+              marginTop: '0.25rem',
+              display: 'block',
+            }}
+          >
+            {p?.keyHelp || 'Specify your local endpoint or custom OpenAI-compatible proxy URL.'}
+          </span>
+        </div>
+      );
+    }
+
+    const hasExistingOverride = Boolean(
+      currentBase && currentBase.trim() && currentBase.trim() !== fixedBase
+    );
+
+    return (
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: '0.35rem',
+          }}
+        >
+          <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>{label}</label>
+          {sourceBadgeKey && hasExistingOverride ? renderSourceBadge(sourceBadgeKey) : null}
+        </div>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            padding: '0.5rem 0.75rem',
+            borderRadius: 'var(--radius-md)',
+            background: 'var(--bg-input, rgba(255,255,255,0.02))',
+            border: '1px solid var(--border-subtle)',
+            fontSize: '0.82rem',
+            color: 'var(--text-secondary)',
+          }}
+        >
+          <Lock size={13} style={{ color: 'var(--text-muted)' }} />
+          <span style={{ fontFamily: 'monospace', flex: 1, wordBreak: 'break-all' }}>
+            {fixedBase || 'LiteLLM native prefix routing (no custom URL needed)'}
+          </span>
+          <span
+            style={{
+              fontSize: '0.7rem',
+              padding: '0.15rem 0.45rem',
+              borderRadius: '4px',
+              background: 'rgba(99, 102, 241, 0.1)',
+              color: 'var(--accent-primary)',
+              fontWeight: 500,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {fixedBase ? 'Fixed Built-in' : 'Native Routing'}
+          </span>
+        </div>
+        {hasExistingOverride && (
+          <div
+            style={{
+              marginTop: '0.4rem',
+              padding: '0.4rem 0.6rem',
+              borderRadius: 'var(--radius-sm)',
+              background: 'rgba(245, 158, 11, 0.08)',
+              border: '1px solid rgba(245, 158, 11, 0.25)',
+              fontSize: '0.76rem',
+              color: 'var(--text-primary)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+            }}
+          >
+            <span>
+              Stored custom override:{' '}
+              <code style={{ color: 'var(--accent-warning, #f59e0b)' }}>{currentBase}</code>
+            </span>
+            <button
+              type="button"
+              onClick={() => onBaseChange('')}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: 'var(--accent-primary)',
+                textDecoration: 'underline',
+                cursor: 'pointer',
+                fontSize: '0.75rem',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              Clear override
+            </button>
+          </div>
+        )}
+        <span
+          style={{
+            fontSize: '0.74rem',
+            color: 'var(--text-muted)',
+            marginTop: '0.25rem',
+            display: 'block',
+          }}
+        >
+          Built-in endpoints are locked to prevent credential leaks. To use a custom proxy, switch
+          provider to &ldquo;Custom / Self-Hosted Gateway&rdquo;.
+        </span>
+      </div>
+    );
+  };
+
   // Effective test targets, mirrored from the backend resolver so the UI can
   // state exactly which endpoint "Test Connection" will call.
   const gatewayTestTarget = resolveEffectiveEndpoint({
@@ -1356,16 +1560,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     featureProvider: selectedCopilotProvider,
     featureModel: formSettings.copilot_model,
   });
-  const scorerDefaultBase = providerDefaultBase(selectedScorerProvider, formSettings.scorer_model);
-  const tailorDefaultBase = providerDefaultBase(selectedTailorProvider, formSettings.tailor_model);
-  const copilotDefaultBase = providerDefaultBase(
-    selectedCopilotProvider,
-    formSettings.copilot_model
-  );
-  const gatewayDefaultBase = providerDefaultBase(
-    selectedDefaultProvider,
-    formSettings.default_llm_model
-  );
 
   return (
     <div className="settings-container">
@@ -1944,196 +2138,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     </p>
 
                     {/* Primary Provider Selector */}
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <label
-                        style={{
-                          display: 'block',
-                          fontSize: '0.85rem',
-                          fontWeight: 600,
-                          marginBottom: '0.5rem',
-                        }}
-                      >
-                        Primary LLM Provider
-                      </label>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                        {LLM_PROVIDERS.map((p) => {
-                          const isSelected = selectedDefaultProvider === p.id;
-                          return (
-                            <button
-                              key={p.id}
-                              type="button"
-                              onClick={() => handleSelectDefaultProvider(p.id)}
-                              style={{
-                                padding: '0.4rem 0.75rem',
-                                borderRadius: 'var(--radius-md)',
-                                fontSize: '0.82rem',
-                                fontWeight: isSelected ? 600 : 400,
-                                border: isSelected
-                                  ? '1.5px solid var(--accent-primary)'
-                                  : '1px solid var(--border-subtle)',
-                                background: isSelected
-                                  ? 'rgba(99, 102, 241, 0.12)'
-                                  : 'var(--bg-card)',
-                                color: isSelected
-                                  ? 'var(--accent-primary)'
-                                  : 'var(--text-secondary)',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                                transition: 'all 0.15s ease',
-                              }}
-                            >
-                              {p.isLocal && (
-                                <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>🏠</span>
-                              )}
-                              {p.name}
-                              {isSelected && <Check size={13} style={{ strokeWidth: 3 }} />}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    {renderProviderSelect(
+                      selectedDefaultProvider,
+                      handleSelectDefaultProvider,
+                      'Primary LLM Provider',
+                      'default-llm-provider-select'
+                    )}
 
-                    {/* Recommended Models */}
-                    {(() => {
-                      const providerMeta =
-                        LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider) ||
-                        LLM_PROVIDERS[0];
-                      const recommended = providerMeta.recommendedModels;
-                      const isFallback = recommended.length === 0;
-                      const modelsToShow = !isFallback
-                        ? recommended
-                        : LLM_PROVIDERS.flatMap((p) => p.recommendedModels).slice(0, 5);
-
-                      return (
-                        <div
-                          style={{
-                            marginBottom: '1.25rem',
-                            padding: '0.75rem',
-                            background: 'var(--bg-input, rgba(255,255,255,0.02))',
-                            border: '1px dashed var(--border-subtle)',
-                            borderRadius: 'var(--radius-md)',
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontSize: '0.8rem',
-                              fontWeight: 600,
-                              color: 'var(--text-secondary)',
-                              marginBottom: '0.5rem',
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '0.35rem',
-                            }}
-                          >
-                            <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
-                            Recommended Models ({providerMeta.name}):
-                          </div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                            {modelsToShow.map((m) => {
-                              const isCurrent = formSettings.default_llm_model === m.id;
-                              return (
-                                <button
-                                  key={m.id}
-                                  type="button"
-                                  onClick={() => {
-                                    handleFieldChange('default_llm_model', m.id);
-                                    setIsDirty(true);
-                                  }}
-                                  style={{
-                                    padding: '0.35rem 0.65rem',
-                                    borderRadius: 'var(--radius-sm)',
-                                    fontSize: '0.78rem',
-                                    border: isCurrent
-                                      ? '1px solid var(--accent-primary)'
-                                      : '1px solid var(--border-subtle)',
-                                    background: isCurrent
-                                      ? 'rgba(99, 102, 241, 0.15)'
-                                      : 'var(--bg-card)',
-                                    color: isCurrent
-                                      ? 'var(--accent-primary)'
-                                      : 'var(--text-primary)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem',
-                                  }}
-                                  title={m.description}
-                                >
-                                  <span>{m.name}</span>
-                                  <span
-                                    style={{
-                                      fontSize: '0.7rem',
-                                      padding: '0.1rem 0.35rem',
-                                      borderRadius: '3px',
-                                      background: isCurrent
-                                        ? 'var(--accent-primary)'
-                                        : 'var(--border-subtle)',
-                                      color: isCurrent ? '#fff' : 'var(--text-muted)',
-                                    }}
-                                  >
-                                    {m.tier}
-                                  </span>
-                                  {isCurrent && <Check size={12} />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    })()}
-
-                    {/* Default Model ID input */}
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '0.35rem',
-                        }}
-                      >
-                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                          Default Model Identifier (e.g. openrouter/model or openai/model)
-                        </label>
-                      </div>
-                      <input
-                        type="text"
-                        list="default-model-suggestions"
-                        value={formSettings.default_llm_model || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          handleFieldChange('default_llm_model', val);
-                          const detected = detectProviderFromModel(val);
-                          if (detected && detected !== selectedDefaultProvider) {
-                            setSelectedDefaultProvider(detected);
-                            handleFieldChange('default_llm_provider', detected);
-                          }
-                        }}
-                        className="input-text"
-                        placeholder="openrouter/openrouter/free"
-                        required
-                      />
-                      <datalist id="default-model-suggestions">
-                        {ALL_RECOMMENDED_MODELS.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name} ({m.provider}) - {m.description}
-                          </option>
-                        ))}
-                      </datalist>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--text-muted)',
-                          marginTop: '0.25rem',
-                          display: 'block',
-                        }}
-                      >
-                        This model is used across AI Fit Scorer, Resume Tailoring, and Copilot by
-                        default.
-                      </span>
-                    </div>
+                    {/* Fixed Built-in or Custom Base URL */}
+                    {renderEndpointBaseUrlSection(
+                      selectedDefaultProvider,
+                      formSettings.default_llm_api_base,
+                      (val) => handleFieldChange('default_llm_api_base', val),
+                      'Gateway Endpoint Base URL',
+                      'default_llm_api_base',
+                      'default-llm-api-base'
+                    )}
 
                     {/* API Key */}
                     <div style={{ marginBottom: '1.25rem' }}>
@@ -2247,77 +2267,92 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       </span>
                     </div>
 
-                    {/* Custom Endpoint Base URL / Proxy */}
-                    <div style={{ marginBottom: '1.5rem' }}>
-                      {!showDefaultEndpointOverride ? (
-                        <button
-                          type="button"
-                          onClick={() => setShowDefaultEndpointOverride(true)}
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: 'var(--accent-primary)',
-                            fontSize: '0.8rem',
-                            cursor: 'pointer',
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.35rem',
+                    {/* Recommended Models (Compact) */}
+                    {(() => {
+                      const providerMeta =
+                        LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider) ||
+                        LLM_PROVIDERS[0];
+                      const recommended = providerMeta.recommendedModels;
+                      const isFallback = recommended.length === 0;
+                      const modelsToShow = !isFallback
+                        ? recommended
+                        : LLM_PROVIDERS.flatMap((p) => p.recommendedModels).slice(0, 5);
+
+                      return (
+                        <CompactRecommendedModels
+                          title={`Recommended Models (${providerMeta.name}):`}
+                          models={modelsToShow}
+                          currentModel={formSettings.default_llm_model}
+                          onSelectModel={(id) => {
+                            handleFieldChange('default_llm_model', id);
+                            setIsDirty(true);
                           }}
-                        >
-                          <ChevronRight size={14} /> Advanced: Custom Endpoint Base URL / Proxy
-                        </button>
-                      ) : (
-                        <div
-                          style={{
-                            padding: '0.75rem 1rem',
-                            borderRadius: 'var(--radius-md)',
-                            border: '1px solid var(--border-subtle)',
-                            background: 'var(--bg-input)',
-                          }}
-                        >
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: '0.35rem',
-                            }}
-                          >
-                            <label style={{ fontSize: '0.82rem', fontWeight: 600 }}>
-                              Custom Endpoint Base URL
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setShowDefaultEndpointOverride(false);
-                                handleFieldChange('default_llm_api_base', '');
-                              }}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--text-muted)',
-                                fontSize: '0.75rem',
-                                cursor: 'pointer',
-                              }}
-                            >
-                              Reset / Hide
-                            </button>
-                          </div>
-                          <input
-                            type="url"
-                            value={formSettings.default_llm_api_base || ''}
-                            onChange={(e) =>
-                              handleFieldChange('default_llm_api_base', e.target.value)
-                            }
-                            className="input-text"
-                            placeholder={
-                              gatewayDefaultBase
-                                ? `Default: ${gatewayDefaultBase}`
-                                : 'Optional — leave blank to route by model prefix'
-                            }
-                          />
-                        </div>
-                      )}
+                          icon="zap"
+                        />
+                      );
+                    })()}
+
+                    {/* Default Model ID input */}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '0.35rem',
+                        }}
+                      >
+                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                          Default Model Identifier (e.g. openrouter/model or openai/model)
+                        </label>
+                      </div>
+                      <input
+                        type="text"
+                        list="default-model-suggestions"
+                        value={formSettings.default_llm_model || ''}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          handleFieldChange('default_llm_model', val);
+                          const current = LLM_PROVIDERS.find(
+                            (p) => p.id === selectedDefaultProvider
+                          );
+                          const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
+                            val.toLowerCase().startsWith(`${p.id}/`)
+                          );
+                          const detected = detectProviderFromModel(val);
+                          if (
+                            hasKnownPrefix &&
+                            !current?.isCustom &&
+                            !current?.isLocal &&
+                            detected &&
+                            detected !== selectedDefaultProvider
+                          ) {
+                            setSelectedDefaultProvider(detected);
+                            handleFieldChange('default_llm_provider', detected);
+                          }
+                        }}
+                        className="input-text"
+                        placeholder="openrouter/openrouter/free"
+                        required
+                      />
+                      <datalist id="default-model-suggestions">
+                        {ALL_RECOMMENDED_MODELS.map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.name} ({m.provider}) - {m.description}
+                          </option>
+                        ))}
+                      </datalist>
+                      <span
+                        style={{
+                          fontSize: '0.75rem',
+                          color: 'var(--text-muted)',
+                          marginTop: '0.25rem',
+                          display: 'block',
+                        }}
+                      >
+                        This model is used across AI Fit Scorer, Resume Tailoring, and Copilot by
+                        default.
+                      </span>
                     </div>
 
                     {/* Test Connection */}
@@ -2691,213 +2726,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     {formSettings.scorer_inherit_default === false && (
                       <>
                         {/* Primary Provider Selector */}
-                        <div style={{ marginBottom: '1.25rem' }}>
-                          <label
-                            style={{
-                              display: 'block',
-                              fontSize: '0.85rem',
-                              fontWeight: 600,
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            Primary LLM Provider
-                          </label>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                            {LLM_PROVIDERS.map((p) => {
-                              const isSelected = selectedScorerProvider === p.id;
-                              return (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => handleSelectScorerProvider(p.id)}
-                                  style={{
-                                    padding: '0.4rem 0.75rem',
-                                    borderRadius: 'var(--radius-md)',
-                                    fontSize: '0.82rem',
-                                    fontWeight: isSelected ? 600 : 400,
-                                    border: isSelected
-                                      ? '1.5px solid var(--accent-primary)'
-                                      : '1px solid var(--border-subtle)',
-                                    background: isSelected
-                                      ? 'rgba(99, 102, 241, 0.12)'
-                                      : 'var(--bg-card)',
-                                    color: isSelected
-                                      ? 'var(--accent-primary)'
-                                      : 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem',
-                                    transition: 'all 0.15s ease',
-                                  }}
-                                >
-                                  {p.isLocal && (
-                                    <span style={{ fontSize: '0.7rem', opacity: 0.8 }}>🏠</span>
-                                  )}
-                                  {p.name}
-                                  {isSelected && <Check size={13} style={{ strokeWidth: 3 }} />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                        {renderProviderSelect(
+                          selectedScorerProvider,
+                          handleSelectScorerProvider,
+                          'Primary LLM Provider',
+                          'scorer-llm-provider-select'
+                        )}
 
-                        {/* Recommended Fast Models */}
-                        {(() => {
-                          const providerMeta =
-                            LLM_PROVIDERS.find((p) => p.id === selectedScorerProvider) ||
-                            LLM_PROVIDERS[0];
-                          const fastModels = providerMeta.recommendedModels.filter(
-                            (m) => m.tier === 'fast'
-                          );
-                          const isFallback = fastModels.length === 0;
-                          const modelsToShow = !isFallback
-                            ? fastModels
-                            : LLM_PROVIDERS.flatMap((p) => p.recommendedModels)
-                                .filter((m) => m.tier === 'fast')
-                                .slice(0, 4);
-
-                          return (
-                            <div
-                              style={{
-                                marginBottom: '1.25rem',
-                                padding: '0.75rem',
-                                background: 'var(--bg-input, rgba(255,255,255,0.02))',
-                                border: '1px dashed var(--border-subtle)',
-                                borderRadius: 'var(--radius-md)',
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600,
-                                  color: 'var(--text-secondary)',
-                                  marginBottom: '0.5rem',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                }}
-                              >
-                                <Zap size={14} style={{ color: 'var(--accent-primary)' }} />
-                                {isFallback
-                                  ? 'Recommended Fast Screening Models (other providers):'
-                                  : `Recommended Fast Screening Models (${providerMeta.name}):`}
-                              </div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                {modelsToShow.map((m) => {
-                                  const isCurrent = formSettings.scorer_model === m.id;
-                                  return (
-                                    <button
-                                      key={m.id}
-                                      type="button"
-                                      onClick={() => {
-                                        handleFieldChange('scorer_model', m.id);
-                                        setIsDirty(true);
-                                      }}
-                                      style={{
-                                        padding: '0.35rem 0.65rem',
-                                        borderRadius: 'var(--radius-sm)',
-                                        fontSize: '0.78rem',
-                                        border: isCurrent
-                                          ? '1px solid var(--accent-primary)'
-                                          : '1px solid var(--border-subtle)',
-                                        background: isCurrent
-                                          ? 'rgba(99, 102, 241, 0.15)'
-                                          : 'var(--bg-card)',
-                                        color: isCurrent
-                                          ? 'var(--accent-primary)'
-                                          : 'var(--text-primary)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.35rem',
-                                      }}
-                                      title={m.description}
-                                    >
-                                      <span>{m.name}</span>
-                                      <span
-                                        style={{
-                                          fontSize: '0.7rem',
-                                          padding: '0.1rem 0.35rem',
-                                          borderRadius: '3px',
-                                          background: isCurrent
-                                            ? 'var(--accent-primary)'
-                                            : 'var(--border-subtle)',
-                                          color: isCurrent ? '#fff' : 'var(--text-muted)',
-                                        }}
-                                      >
-                                        Fast
-                                      </span>
-                                      {isCurrent && <Check size={12} />}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
-                          );
-                        })()}
-
-                        {/* Model ID input + datalist */}
-                        <div style={{ marginBottom: '1.25rem' }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: '0.35rem',
-                            }}
-                          >
-                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                              Scorer Model Identifier (e.g. openrouter/model or openai/model)
-                            </label>
-                          </div>
-                          <input
-                            type="text"
-                            list="scorer-model-suggestions"
-                            value={formSettings.scorer_model}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              handleFieldChange('scorer_model', val);
-                              const current = LLM_PROVIDERS.find(
-                                (p) => p.id === selectedScorerProvider
-                              );
-                              const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
-                                val.toLowerCase().startsWith(`${p.id}/`)
-                              );
-                              const detected = detectProviderFromModel(val);
-                              if (
-                                hasKnownPrefix &&
-                                !current?.isCustom &&
-                                !current?.isLocal &&
-                                detected !== selectedScorerProvider
-                              ) {
-                                setSelectedScorerProvider(detected);
-                                handleFieldChange('scorer_provider', detected);
-                              }
-                            }}
-                            className="input-text"
-                            placeholder="openrouter/z-ai/glm-5.3-flash"
-                            required
-                          />
-                          <datalist id="scorer-model-suggestions">
-                            {ALL_RECOMMENDED_MODELS.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} ({m.provider}) - {m.description}
-                              </option>
-                            ))}
-                          </datalist>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--text-muted)',
-                              marginTop: '0.25rem',
-                              display: 'block',
-                            }}
-                          >
-                            LiteLLM supports 2,500+ models. Select from quick recommendations or
-                            type any valid model identifier.
-                          </span>
-                        </div>
+                        {/* Fixed Built-in or Custom Base URL */}
+                        {renderEndpointBaseUrlSection(
+                          selectedScorerProvider,
+                          formSettings.scorer_api_base,
+                          (val) => handleFieldChange('scorer_api_base', val),
+                          'LLM Endpoint Base URL',
+                          'scorer_api_base',
+                          'scorer-api-base'
+                        )}
 
                         {/* API Key */}
                         <div style={{ marginBottom: '1.25rem' }}>
@@ -3013,113 +2857,100 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           </span>
                         </div>
 
-                        {/* Endpoint Base URL (Smart Toggle / Override) */}
+                        {/* Recommended Fast Models (Compact) */}
                         {(() => {
-                          const p = LLM_PROVIDERS.find((x) => x.id === selectedScorerProvider);
-                          const requiresBaseUrl = Boolean(p?.isLocal || p?.isCustom);
-                          const isShowing =
-                            requiresBaseUrl ||
-                            showScorerEndpointOverride ||
-                            Boolean(formSettings.scorer_api_base);
-
-                          if (isShowing) {
-                            return (
-                              <div style={{ marginBottom: '1.5rem' }}>
-                                <div
-                                  style={{
-                                    display: 'flex',
-                                    justifyContent: 'space-between',
-                                    alignItems: 'center',
-                                    marginBottom: '0.35rem',
-                                  }}
-                                >
-                                  <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                                    LLM Endpoint Base URL{' '}
-                                    {requiresBaseUrl ? '' : '(Custom Override)'}
-                                  </label>
-                                  <div
-                                    style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-                                  >
-                                    {!requiresBaseUrl && (
-                                      <button
-                                        type="button"
-                                        onClick={() => {
-                                          setShowScorerEndpointOverride(false);
-                                          handleFieldChange('scorer_api_base', '');
-                                        }}
-                                        style={{
-                                          background: 'none',
-                                          border: 'none',
-                                          color: 'var(--text-muted)',
-                                          fontSize: '0.75rem',
-                                          cursor: 'pointer',
-                                          textDecoration: 'underline',
-                                        }}
-                                      >
-                                        Reset to Default Route
-                                      </button>
-                                    )}
-                                    {formSettings.scorer_api_base?.trim()
-                                      ? renderSourceBadge('scorer_api_base')
-                                      : null}
-                                  </div>
-                                </div>
-                                <input
-                                  type="text"
-                                  value={formSettings.scorer_api_base}
-                                  onChange={(e) =>
-                                    handleFieldChange('scorer_api_base', e.target.value)
-                                  }
-                                  className="input-text"
-                                  placeholder={
-                                    scorerDefaultBase
-                                      ? `Default: ${scorerDefaultBase}`
-                                      : 'Optional — leave blank to route by model prefix'
-                                  }
-                                />
-                                <span
-                                  style={{
-                                    fontSize: '0.75rem',
-                                    color: 'var(--text-muted)',
-                                    marginTop: '0.25rem',
-                                    display: 'block',
-                                  }}
-                                >
-                                  {requiresBaseUrl
-                                    ? 'Local/Gateway endpoints (e.g. http://localhost:11434 for Ollama).'
-                                    : `Cloud providers route automatically${
-                                        scorerDefaultBase
-                                          ? ` to ${scorerDefaultBase}`
-                                          : ' from the model prefix'
-                                      }. Set a URL only for a private reverse proxy or gateway.`}
-                                </span>
-                              </div>
-                            );
-                          }
+                          const providerMeta =
+                            LLM_PROVIDERS.find((p) => p.id === selectedScorerProvider) ||
+                            LLM_PROVIDERS[0];
+                          const fastModels = providerMeta.recommendedModels.filter(
+                            (m) => m.tier === 'fast'
+                          );
+                          const isFallback = fastModels.length === 0;
+                          const modelsToShow = !isFallback
+                            ? fastModels
+                            : LLM_PROVIDERS.flatMap((p) => p.recommendedModels)
+                                .filter((m) => m.tier === 'fast')
+                                .slice(0, 4);
 
                           return (
-                            <div style={{ marginBottom: '1.5rem' }}>
-                              <button
-                                type="button"
-                                onClick={() => setShowScorerEndpointOverride(true)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: 'var(--accent-primary)',
-                                  fontSize: '0.8rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                  padding: '0.2rem 0',
-                                }}
-                              >
-                                <ChevronRight size={14} /> Advanced: Custom Endpoint Base URL /
-                                Proxy
-                              </button>
-                            </div>
+                            <CompactRecommendedModels
+                              title={
+                                isFallback
+                                  ? 'Recommended Fast Screening Models (other providers):'
+                                  : `Recommended Fast Screening Models (${providerMeta.name}):`
+                              }
+                              models={modelsToShow}
+                              currentModel={formSettings.scorer_model}
+                              onSelectModel={(id) => {
+                                handleFieldChange('scorer_model', id);
+                                setIsDirty(true);
+                              }}
+                              icon="zap"
+                            />
                           );
                         })()}
+
+                        {/* Model ID input + datalist */}
+                        <div style={{ marginBottom: '1.25rem' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '0.35rem',
+                            }}
+                          >
+                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                              Scorer Model Identifier (e.g. openrouter/model or openai/model)
+                            </label>
+                          </div>
+                          <input
+                            type="text"
+                            list="scorer-model-suggestions"
+                            value={formSettings.scorer_model}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              handleFieldChange('scorer_model', val);
+                              const current = LLM_PROVIDERS.find(
+                                (p) => p.id === selectedScorerProvider
+                              );
+                              const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
+                                val.toLowerCase().startsWith(`${p.id}/`)
+                              );
+                              const detected = detectProviderFromModel(val);
+                              if (
+                                hasKnownPrefix &&
+                                !current?.isCustom &&
+                                !current?.isLocal &&
+                                detected !== selectedScorerProvider
+                              ) {
+                                setSelectedScorerProvider(detected);
+                                handleFieldChange('scorer_provider', detected);
+                              }
+                            }}
+                            className="input-text"
+                            placeholder="openrouter/z-ai/glm-5.3-flash"
+                            required
+                          />
+                          <datalist id="scorer-model-suggestions">
+                            {ALL_RECOMMENDED_MODELS.map((m) => (
+                              <option key={m.id} value={m.id}>
+                                {m.name} ({m.provider}) - {m.description}
+                              </option>
+                            ))}
+                          </datalist>
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--text-muted)',
+                              marginTop: '0.25rem',
+                              display: 'block',
+                            }}
+                          >
+                            LiteLLM supports 2,500+ models. Select from quick recommendations or
+                            type any valid model identifier.
+                          </span>
+                        </div>
                       </>
                     )}
 
@@ -3299,52 +3130,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             borderRadius: 'var(--radius-md)',
                           }}
                         >
-                          <div style={{ marginBottom: '1rem' }}>
-                            <label
-                              style={{
-                                display: 'block',
-                                fontSize: '0.85rem',
-                                fontWeight: 600,
-                                marginBottom: '0.5rem',
-                              }}
-                            >
-                              Tailor Dedicated Provider
-                            </label>
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                              {LLM_PROVIDERS.map((p) => {
-                                const isSelected = selectedTailorProvider === p.id;
-                                return (
-                                  <button
-                                    key={p.id}
-                                    type="button"
-                                    onClick={() => handleSelectTailorProvider(p.id)}
-                                    style={{
-                                      padding: '0.35rem 0.65rem',
-                                      borderRadius: 'var(--radius-md)',
-                                      fontSize: '0.8rem',
-                                      fontWeight: isSelected ? 600 : 400,
-                                      border: isSelected
-                                        ? '1.5px solid var(--accent-primary)'
-                                        : '1px solid var(--border-subtle)',
-                                      background: isSelected
-                                        ? 'rgba(99, 102, 241, 0.12)'
-                                        : 'var(--bg-card)',
-                                      color: isSelected
-                                        ? 'var(--accent-primary)'
-                                        : 'var(--text-secondary)',
-                                      cursor: 'pointer',
-                                      display: 'flex',
-                                      alignItems: 'center',
-                                      gap: '0.35rem',
-                                    }}
-                                  >
-                                    {p.name}
-                                    {isSelected && <Check size={12} />}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
+                          {/* Tailor Dedicated Provider */}
+                          {renderProviderSelect(
+                            selectedTailorProvider,
+                            handleSelectTailorProvider,
+                            'Tailor Dedicated Provider',
+                            'tailor-llm-provider-select'
+                          )}
+
+                          {/* Fixed Built-in or Custom Base URL */}
+                          {renderEndpointBaseUrlSection(
+                            selectedTailorProvider,
+                            formSettings.tailor_api_base,
+                            (val) => handleFieldChange('tailor_api_base', val),
+                            'Dedicated Endpoint Base URL',
+                            'tailor_api_base',
+                            'tailor-api-base'
+                          )}
 
                           {/* Dedicated Tailor Key */}
                           <div style={{ marginBottom: '1rem' }}>
@@ -3438,66 +3240,9 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               </div>
                             )}
                           </div>
-
-                          {/* Tailor Base URL */}
-                          {(() => {
-                            const p = LLM_PROVIDERS.find((x) => x.id === selectedTailorProvider);
-                            const requiresBase = Boolean(p?.isLocal || p?.isCustom);
-                            if (
-                              requiresBase ||
-                              showTailorEndpointOverride ||
-                              Boolean(formSettings.tailor_api_base)
-                            ) {
-                              return (
-                                <div>
-                                  <label
-                                    style={{
-                                      fontSize: '0.85rem',
-                                      fontWeight: 500,
-                                      display: 'block',
-                                      marginBottom: '0.35rem',
-                                    }}
-                                  >
-                                    Dedicated Endpoint Base URL
-                                  </label>
-                                  <input
-                                    type="text"
-                                    value={formSettings.tailor_api_base}
-                                    onChange={(e) =>
-                                      handleFieldChange('tailor_api_base', e.target.value)
-                                    }
-                                    className="input-text"
-                                    placeholder={
-                                      tailorDefaultBase
-                                        ? `Default: ${tailorDefaultBase}`
-                                        : 'Optional — leave blank to route by model prefix'
-                                    }
-                                  />
-                                </div>
-                              );
-                            }
-                            return (
-                              <button
-                                type="button"
-                                onClick={() => setShowTailorEndpointOverride(true)}
-                                style={{
-                                  background: 'none',
-                                  border: 'none',
-                                  color: 'var(--accent-primary)',
-                                  fontSize: '0.8rem',
-                                  cursor: 'pointer',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                }}
-                              >
-                                <ChevronRight size={14} /> Custom Tailor Base URL (Optional)
-                              </button>
-                            );
-                          })()}
                         </div>
 
-                        {/* Recommended Tailoring & Reasoning Models */}
+                        {/* Recommended Tailoring & Reasoning Models (Compact) */}
                         {(() => {
                           const effectiveProvider = selectedTailorProvider;
                           const providerMeta = LLM_PROVIDERS.find(
@@ -3514,82 +3259,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 .slice(0, 5);
 
                           return (
-                            <div
-                              style={{
-                                marginBottom: '1.25rem',
-                                padding: '0.75rem',
-                                background: 'var(--bg-input, rgba(255,255,255,0.02))',
-                                border: '1px dashed var(--border-subtle)',
-                                borderRadius: 'var(--radius-md)',
-                              }}
-                            >
-                              <div
-                                style={{
-                                  fontSize: '0.8rem',
-                                  fontWeight: 600,
-                                  color: 'var(--text-secondary)',
-                                  marginBottom: '0.5rem',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.35rem',
-                                }}
-                              >
-                                <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
-                                {isFallback
+                            <CompactRecommendedModels
+                              title={
+                                isFallback
                                   ? 'Recommended Tailoring & Deep Reasoning Models (other providers):'
-                                  : `Recommended Tailoring & Deep Reasoning Models (${providerMeta?.name || 'Selected Provider'}):`}
-                              </div>
-                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                                {modelsToShow.map((m) => {
-                                  const isCurrent = formSettings.tailor_model === m.id;
-                                  return (
-                                    <button
-                                      key={m.id}
-                                      type="button"
-                                      onClick={() => {
-                                        handleFieldChange('tailor_model', m.id);
-                                        setIsDirty(true);
-                                      }}
-                                      style={{
-                                        padding: '0.35rem 0.65rem',
-                                        borderRadius: 'var(--radius-sm)',
-                                        fontSize: '0.78rem',
-                                        border: isCurrent
-                                          ? '1px solid var(--accent-primary)'
-                                          : '1px solid var(--border-subtle)',
-                                        background: isCurrent
-                                          ? 'rgba(99, 102, 241, 0.15)'
-                                          : 'var(--bg-card)',
-                                        color: isCurrent
-                                          ? 'var(--accent-primary)'
-                                          : 'var(--text-primary)',
-                                        cursor: 'pointer',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '0.35rem',
-                                      }}
-                                      title={m.description}
-                                    >
-                                      <span>{m.name}</span>
-                                      <span
-                                        style={{
-                                          fontSize: '0.7rem',
-                                          padding: '0.1rem 0.35rem',
-                                          borderRadius: '3px',
-                                          background: isCurrent
-                                            ? 'var(--accent-primary)'
-                                            : 'var(--border-subtle)',
-                                          color: isCurrent ? '#fff' : 'var(--text-muted)',
-                                        }}
-                                      >
-                                        Reasoning
-                                      </span>
-                                      {isCurrent && <Check size={12} />}
-                                    </button>
-                                  );
-                                })}
-                              </div>
-                            </div>
+                                  : `Recommended Tailoring & Deep Reasoning Models (${providerMeta?.name || 'Selected Provider'}):`
+                              }
+                              models={modelsToShow}
+                              currentModel={formSettings.tailor_model}
+                              onSelectModel={(id) => {
+                                handleFieldChange('tailor_model', id);
+                                setIsDirty(true);
+                              }}
+                              icon="sparkles"
+                            />
                           );
                         })()}
 
@@ -4434,52 +4117,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           borderRadius: 'var(--radius-md)',
                         }}
                       >
-                        <div style={{ marginBottom: '1rem' }}>
-                          <label
-                            style={{
-                              display: 'block',
-                              fontSize: '0.85rem',
-                              fontWeight: 600,
-                              marginBottom: '0.5rem',
-                            }}
-                          >
-                            Copilot Dedicated Provider
-                          </label>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
-                            {LLM_PROVIDERS.map((p) => {
-                              const isSelected = selectedCopilotProvider === p.id;
-                              return (
-                                <button
-                                  key={p.id}
-                                  type="button"
-                                  onClick={() => handleSelectCopilotProvider(p.id)}
-                                  style={{
-                                    padding: '0.35rem 0.65rem',
-                                    borderRadius: 'var(--radius-md)',
-                                    fontSize: '0.8rem',
-                                    fontWeight: isSelected ? 600 : 400,
-                                    border: isSelected
-                                      ? '1.5px solid var(--accent-primary)'
-                                      : '1px solid var(--border-subtle)',
-                                    background: isSelected
-                                      ? 'rgba(99, 102, 241, 0.12)'
-                                      : 'var(--bg-card)',
-                                    color: isSelected
-                                      ? 'var(--accent-primary)'
-                                      : 'var(--text-secondary)',
-                                    cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.35rem',
-                                  }}
-                                >
-                                  {p.name}
-                                  {isSelected && <Check size={12} />}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
+                        {/* Copilot Dedicated Provider */}
+                        {renderProviderSelect(
+                          selectedCopilotProvider,
+                          handleSelectCopilotProvider,
+                          'Copilot Dedicated Provider',
+                          'copilot-llm-provider-select'
+                        )}
+
+                        {/* Fixed Built-in or Custom Base URL */}
+                        {renderEndpointBaseUrlSection(
+                          selectedCopilotProvider,
+                          formSettings.copilot_api_base,
+                          (val) => handleFieldChange('copilot_api_base', val),
+                          'Copilot Endpoint Base URL',
+                          'copilot_api_base',
+                          'copilot-api-base'
+                        )}
 
                         {/* Dedicated Copilot Key */}
                         <div style={{ marginBottom: '1rem' }}>
@@ -4602,63 +4256,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             ))}
                           </datalist>
                         </div>
-
-                        {/* Copilot Base URL */}
-                        {(() => {
-                          const p = LLM_PROVIDERS.find((x) => x.id === selectedCopilotProvider);
-                          const requiresBase = Boolean(p?.isLocal || p?.isCustom);
-                          if (
-                            requiresBase ||
-                            showCopilotEndpointOverride ||
-                            Boolean(formSettings.copilot_api_base)
-                          ) {
-                            return (
-                              <div>
-                                <label
-                                  style={{
-                                    fontSize: '0.85rem',
-                                    fontWeight: 500,
-                                    display: 'block',
-                                    marginBottom: '0.35rem',
-                                  }}
-                                >
-                                  Copilot Endpoint Base URL
-                                </label>
-                                <input
-                                  type="text"
-                                  value={formSettings.copilot_api_base || ''}
-                                  onChange={(e) =>
-                                    handleFieldChange('copilot_api_base', e.target.value)
-                                  }
-                                  className="input-text"
-                                  placeholder={
-                                    copilotDefaultBase
-                                      ? `Default: ${copilotDefaultBase}`
-                                      : 'Optional — leave blank to route by model prefix'
-                                  }
-                                />
-                              </div>
-                            );
-                          }
-                          return (
-                            <button
-                              type="button"
-                              onClick={() => setShowCopilotEndpointOverride(true)}
-                              style={{
-                                background: 'none',
-                                border: 'none',
-                                color: 'var(--accent-primary)',
-                                fontSize: '0.8rem',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.35rem',
-                              }}
-                            >
-                              <ChevronRight size={14} /> Custom Endpoint Base URL (Optional)
-                            </button>
-                          );
-                        })()}
                       </div>
                     )}
 
