@@ -5,10 +5,13 @@ import { Check, Download, Star, Loader2 } from 'lucide-react';
 export interface ThemePreviewGalleryProps {
   activeTheme: string;
   selectedTheme: string;
-  onSelectTheme: (_slug: string) => void;
-  onSetDefaultTheme: (_slug: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onSelectTheme: (slug: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onSetDefaultTheme: (slug: string) => void;
   previewPdfUrl: string;
-  onDownloadPdf?: (_slug: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onDownloadPdf?: (slug: string) => void;
   isSavingDefault?: boolean;
 }
 

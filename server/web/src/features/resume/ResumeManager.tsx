@@ -28,8 +28,10 @@ addFormatsFn(ajv);
 const schemaValidator = ajv.compile(resumeSchema);
 
 export interface ResumeManagerProps {
-  onActiveResumeChange?: (_hasActive: boolean) => void;
-  onThemeChange?: (_theme: string) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onActiveResumeChange?: (hasActive: boolean) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  onThemeChange?: (theme: string) => void;
 }
 
 export const ResumeManager: React.FC<ResumeManagerProps> = ({
@@ -127,7 +129,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     api
       .getSettings()
       .then((s) => {
-        const theme = s.settings?.tailor_theme;
+        const theme = s.settings.tailor_theme;
         if (theme) {
           setActiveTheme(theme);
           setSelectedTheme(theme);
