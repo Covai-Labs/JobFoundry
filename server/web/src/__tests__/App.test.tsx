@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { App } from '../App';
 import { Job } from '../types/job';
 
@@ -73,5 +73,36 @@ describe('App', () => {
       },
       { timeout: 10000 }
     );
+  });
+
+  it('opens and closes user menu dropdown with appearance and navigation options', async () => {
+    localStorage.setItem('jf_auth_token', 'valid-jwt-token');
+    localStorage.setItem(
+      'jf_auth_user',
+      JSON.stringify({ id: 'u1', email: 'test@example.com', name: 'Tester', apiKey: 'jf_test' })
+    );
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText('Tester')).toBeInTheDocument();
+    });
+
+    // Dropdown should be initially closed
+    expect(screen.queryByText('Appearance')).not.toBeInTheDocument();
+
+    // Click trigger to open
+    const trigger = screen.getByLabelText('User account and settings menu');
+    fireEvent.click(trigger);
+
+    // Dropdown items visible
+    expect(screen.getByText('Appearance')).toBeInTheDocument();
+    expect(screen.getByText('Settings & Themes')).toBeInTheDocument();
+    expect(screen.getByText('Support JobFoundry')).toBeInTheDocument();
+    expect(screen.getByText('Sign out')).toBeInTheDocument();
+
+    // Escape closes menu
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByText('Appearance')).not.toBeInTheDocument();
   });
 });

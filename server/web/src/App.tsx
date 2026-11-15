@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -44,6 +44,7 @@ import {
   Moon,
   Sun,
   Heart,
+  ChevronDown,
 } from 'lucide-react';
 
 interface DashboardContentProps {
@@ -150,8 +151,8 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   onJobDeleted,
   onStatusChange,
 }) => {
-  const { logout } = useAuth();
-  const { colorMode, cycleColorMode, resolvedMode } = useTheme();
+  const { user, logout } = useAuth();
+  const { colorMode, setColorMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -159,6 +160,8 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   const [isAddJobOpen, setIsAddJobOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const [feedInitialFilters, setFeedInitialFilters] = useState<any>(undefined);
 
   // Global shortcut for Command Palette
@@ -172,6 +175,45 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
+
+  // Click outside and escape handler for user menu dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false);
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isUserMenuOpen]);
+
+  const userInitials = (() => {
+    if (user?.name && user.name.trim()) {
+      const parts = user.name.trim().split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    if (user?.email && user.email.trim()) {
+      return user.email.trim().slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  })();
+
+  const userDisplayName = user?.name || user?.email?.split('@')[0] || 'Account';
 
   // Metrics
   const totalJobs = jobs.length;
@@ -238,71 +280,140 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
           </button>
 
           <button
+            type="button"
             onClick={() => setIsAddJobOpen(true)}
             className="btn btn-primary btn-sm add-job-btn"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            <Plus size={15} /> Add Job
+            <Plus size={15} /> <span>Add Job</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onRefresh}
+            disabled={loading}
+            className="btn btn-secondary btn-sm"
+            title="Refresh jobs from server"
+            aria-label="Refresh jobs from server"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
           </button>
 
           <div className="nav-divider" />
 
-          <div className="nav-utilities">
-            <button
-              onClick={onRefresh}
-              disabled={loading}
-              className="btn btn-icon btn-sm"
-              title="Refresh jobs from server"
-              aria-label="Refresh jobs from server"
-            >
-              <RefreshCw size={15} className={loading ? 'animate-spin' : ''} />
-            </button>
-
+          {/* User Account & Settings Dropdown */}
+          <div className="user-menu-container" ref={userMenuRef}>
             <button
               type="button"
-              onClick={cycleColorMode}
-              className="btn btn-icon btn-sm"
-              title={`Color Mode: ${colorMode} (Click to cycle)`}
-              aria-label="Cycle Color Mode"
+              onClick={() => setIsUserMenuOpen((prev) => !prev)}
+              className={`user-menu-trigger ${isUserMenuOpen ? 'active' : ''}`}
+              aria-expanded={isUserMenuOpen}
+              aria-haspopup="true"
+              aria-label="User account and settings menu"
             >
-              {colorMode === 'system' ? (
-                <Laptop size={15} />
-              ) : resolvedMode === 'dark' ? (
-                <Moon size={15} />
-              ) : (
-                <Sun size={15} />
-              )}
+              <div className="user-avatar-badge">{userInitials}</div>
+              <span className="user-display-name">{userDisplayName}</span>
+              <ChevronDown
+                size={14}
+                className={`user-menu-chevron ${isUserMenuOpen ? 'open' : ''}`}
+              />
             </button>
 
-            <button
-              type="button"
-              onClick={() => setIsSupportOpen(true)}
-              className="btn btn-icon btn-sm"
-              title="Support JobFoundry (GitHub, Sponsor)"
-              aria-label="Support JobFoundry"
-              style={{ color: 'var(--color-red, #ef4444)' }}
-            >
-              <Heart size={15} />
-            </button>
+            {isUserMenuOpen && (
+              <div className="user-menu-dropdown" role="menu">
+                <div className="user-menu-profile-header">
+                  <div className="user-avatar-badge lg">{userInitials}</div>
+                  <div className="user-menu-profile-info">
+                    <div className="user-menu-name">{userDisplayName}</div>
+                    <div className="user-menu-email">{user?.email || 'Logged in'}</div>
+                  </div>
+                </div>
 
-            <button
-              onClick={() => navigate('/settings')}
-              className={`btn btn-icon btn-sm ${isSettingsOpen ? 'active' : ''}`}
-              title="Settings & Themes"
-              aria-label="Settings"
-            >
-              <Settings size={15} />
-            </button>
+                <div className="user-menu-section">
+                  <div className="user-menu-section-label">Appearance</div>
+                  <div className="theme-toggle-group" role="radiogroup" aria-label="Theme mode">
+                    <button
+                      type="button"
+                      className={`theme-chip ${colorMode === 'light' ? 'active' : ''}`}
+                      onClick={() => setColorMode('light')}
+                      role="radio"
+                      aria-checked={colorMode === 'light'}
+                      title="Light theme"
+                    >
+                      <Sun size={13} />
+                      <span>Light</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`theme-chip ${colorMode === 'dark' ? 'active' : ''}`}
+                      onClick={() => setColorMode('dark')}
+                      role="radio"
+                      aria-checked={colorMode === 'dark'}
+                      title="Dark theme"
+                    >
+                      <Moon size={13} />
+                      <span>Dark</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`theme-chip ${colorMode === 'system' ? 'active' : ''}`}
+                      onClick={() => setColorMode('system')}
+                      role="radio"
+                      aria-checked={colorMode === 'system'}
+                      title="System theme"
+                    >
+                      <Laptop size={13} />
+                      <span>System</span>
+                    </button>
+                  </div>
+                </div>
 
-            <button
-              onClick={logout}
-              className="btn btn-icon btn-sm"
-              title="Sign out"
-              aria-label="Sign out"
-              style={{ color: 'var(--text-muted)' }}
-            >
-              <LogOut size={15} />
-            </button>
+                <div className="user-menu-divider" />
+
+                <button
+                  type="button"
+                  className={`user-menu-item ${isSettingsOpen ? 'active' : ''}`}
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    navigate('/settings');
+                  }}
+                  role="menuitem"
+                >
+                  <Settings size={15} />
+                  <span>Settings & Themes</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="user-menu-item"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setIsSupportOpen(true);
+                  }}
+                  role="menuitem"
+                >
+                  <Heart size={15} style={{ color: 'var(--color-red, #ef4444)' }} />
+                  <span>Support JobFoundry</span>
+                </button>
+
+                <div className="user-menu-divider" />
+
+                <button
+                  type="button"
+                  className="user-menu-item user-menu-item-danger"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    logout();
+                  }}
+                  role="menuitem"
+                >
+                  <LogOut size={15} />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </header>
