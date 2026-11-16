@@ -140,13 +140,13 @@ export const JobFeed: React.FC<JobFeedProps> = ({
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
           target.isContentEditable ||
-          target.closest('.user-menu-dropdown') ||
-          target.closest('.user-menu-container') ||
-          (!isHelpModalOpen && target.closest('.modal-content')))
+          Boolean(target.closest('.user-menu-dropdown')) ||
+          Boolean(target.closest('.user-menu-container')) ||
+          (!isHelpModalOpen && Boolean(target.closest('.modal-content'))))
       );
 
       if (isInputFocused) {
-        if (e.key === 'Escape') {
+        if (e.key === 'Escape' && target) {
           target.blur();
         }
         return;
@@ -175,9 +175,9 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 
       // If any other modal dialog or open popup menu is present, do not execute feed triage shortcuts
       if (
-        document.querySelector('.user-menu-dropdown') ||
-        document.querySelector('[role="dialog"]') ||
-        document.querySelector('.modal-backdrop')
+        Boolean(document.querySelector('.user-menu-dropdown')) ||
+        Boolean(document.querySelector('[role="dialog"]')) ||
+        Boolean(document.querySelector('.modal-backdrop'))
       ) {
         return;
       }

@@ -228,20 +228,30 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   }, [isUserMenuOpen]);
 
   const userInitials = (() => {
-    if (user?.name && user.name.trim()) {
-      const parts = user.name.trim().split(/\s+/);
+    const name = user?.name?.trim();
+    if (name) {
+      const parts = name.split(/\s+/);
       if (parts.length >= 2) {
         return (parts[0][0] + parts[1][0]).toUpperCase();
       }
       return parts[0].slice(0, 2).toUpperCase();
     }
-    if (user?.email && user.email.trim()) {
-      return user.email.trim().slice(0, 2).toUpperCase();
+    const email = user?.email?.trim();
+    if (email) {
+      return email.slice(0, 2).toUpperCase();
     }
     return 'U';
   })();
 
-  const userDisplayName = user?.name || user?.email?.split('@')[0] || 'Account';
+  const userDisplayName = (() => {
+    const name = user?.name?.trim();
+    if (name) return name;
+    if (user?.email) {
+      const prefix = user.email.split('@')[0];
+      if (prefix) return prefix;
+    }
+    return 'Account';
+  })();
 
   const isStandalonePage =
     location.pathname.startsWith('/tracker/pipeline') ||
@@ -344,7 +354,9 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             <button
               ref={userTriggerRef}
               type="button"
-              onClick={() => setIsUserMenuOpen((prev) => !prev)}
+              onClick={() => {
+                setIsUserMenuOpen((prev) => !prev);
+              }}
               className={`user-menu-trigger ${isUserMenuOpen ? 'active' : ''}`}
               aria-expanded={isUserMenuOpen}
               aria-label="User account and settings menu"
@@ -363,7 +375,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                   <div className="user-avatar-badge lg">{userInitials}</div>
                   <div className="user-menu-profile-info">
                     <div className="user-menu-name">{userDisplayName}</div>
-                    <div className="user-menu-email">{user?.email || 'Logged in'}</div>
+                    <div className="user-menu-email">{user?.email ?? 'Logged in'}</div>
                   </div>
                 </div>
 
@@ -373,7 +385,9 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                     <button
                       type="button"
                       className={`theme-chip ${colorMode === 'light' ? 'active' : ''}`}
-                      onClick={() => setColorMode('light')}
+                      onClick={() => {
+                        setColorMode('light');
+                      }}
                       aria-pressed={colorMode === 'light'}
                       title="Light theme"
                     >
@@ -383,7 +397,9 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                     <button
                       type="button"
                       className={`theme-chip ${colorMode === 'dark' ? 'active' : ''}`}
-                      onClick={() => setColorMode('dark')}
+                      onClick={() => {
+                        setColorMode('dark');
+                      }}
                       aria-pressed={colorMode === 'dark'}
                       title="Dark theme"
                     >
@@ -393,7 +409,9 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                     <button
                       type="button"
                       className={`theme-chip ${colorMode === 'system' ? 'active' : ''}`}
-                      onClick={() => setColorMode('system')}
+                      onClick={() => {
+                        setColorMode('system');
+                      }}
                       aria-pressed={colorMode === 'system'}
                       title="System theme"
                     >
@@ -506,7 +524,11 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
               path="/tracker/pipeline"
               element={
                 <TrackerLayout currentView="pipeline">
-                  <PipelineView onSelectJob={(jobId) => navigate(`/jobs/${jobId}`)} />
+                  <PipelineView
+                    onSelectJob={(jobId) => {
+                      navigate(`/jobs/${jobId}`);
+                    }}
+                  />
                 </TrackerLayout>
               }
             />
