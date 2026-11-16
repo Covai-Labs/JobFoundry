@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   BrowserRouter,
   Routes,
@@ -36,14 +36,12 @@ import {
   RefreshCw,
   Settings,
   LogOut,
-  Target,
-  Sparkles,
-  Flame,
   Search,
   Laptop,
   Moon,
   Sun,
   Heart,
+  ChevronDown,
 } from 'lucide-react';
 
 interface DashboardContentProps {
@@ -139,6 +137,36 @@ const TrackerRoute: React.FC<{
   );
 };
 
+const TrackerLayout: React.FC<{
+  currentView: 'board' | 'pipeline';
+  children: React.ReactNode;
+}> = ({ currentView, children }) => {
+  return (
+    <div className="tracker-page">
+      <div className="tracker-view-header">
+        <nav className="tracker-view-switcher" aria-label="Tracker views">
+          <NavLink
+            to="/tracker"
+            end
+            className={() => `tracker-view-tab ${currentView === 'board' ? 'active' : ''}`}
+          >
+            <Kanban size={15} />
+            <span>Board</span>
+          </NavLink>
+          <NavLink
+            to="/tracker/pipeline"
+            className={() => `tracker-view-tab ${currentView === 'pipeline' ? 'active' : ''}`}
+          >
+            <Activity size={15} />
+            <span>Pipeline & Analytics</span>
+          </NavLink>
+        </nav>
+      </div>
+      <div className="tracker-view-content">{children}</div>
+    </div>
+  );
+};
+
 const DashboardLayout: React.FC<DashboardContentProps> = ({
   settings,
   onSaveSettings,
@@ -150,8 +178,8 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   onJobDeleted,
   onStatusChange,
 }) => {
-  const { logout } = useAuth();
-  const { colorMode, cycleColorMode, resolvedMode } = useTheme();
+  const { user, logout } = useAuth();
+  const { colorMode, setColorMode } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -159,7 +187,9 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   const [isAddJobOpen, setIsAddJobOpen] = useState(false);
   const [isPaletteOpen, setIsPaletteOpen] = useState(false);
   const [isSupportOpen, setIsSupportOpen] = useState(false);
-  const [feedInitialFilters, setFeedInitialFilters] = useState<any>(undefined);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
+  const userTriggerRef = useRef<HTMLButtonElement>(null);
 
   // Global shortcut for Command Palette
   useEffect(() => {
@@ -173,17 +203,60 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Metrics
-  const totalJobs = jobs.length;
-  const scoredJobs = jobs.filter((j) => j.fit_score !== null && j.fit_score !== undefined);
-  const avgScore = scoredJobs.length
-    ? Math.round(scoredJobs.reduce((acc, j) => acc + (j.fit_score || 0), 0) / scoredJobs.length)
-    : 0;
-  const tailoredCount = jobs.filter((j) => j.status === 'tailored' || j.tailored_resume_id).length;
-  const highFitCount = jobs.filter((j) => (j.fit_score || 0) >= settings.threshold).length;
+  // Click outside and escape handler for user menu dropdown
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsUserMenuOpen(false);
+        userTriggerRef.current?.focus();
+      }
+    };
+
+    if (isUserMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleKeyDown);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isUserMenuOpen]);
+
+  const userInitials = (() => {
+    const name = user ? user.name.trim() : '';
+    if (name) {
+      const parts = name.split(/\s+/);
+      if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+      }
+      return parts[0].slice(0, 2).toUpperCase();
+    }
+    const email = user ? user.email.trim() : '';
+    if (email) {
+      return email.slice(0, 2).toUpperCase();
+    }
+    return 'U';
+  })();
+
+  const userDisplayName = (() => {
+    const name = user ? user.name.trim() : '';
+    if (name) return name;
+    if (user) {
+      const prefix = user.email.split('@')[0];
+      if (prefix) return prefix;
+    }
+    return 'Account';
+  })();
 
   const isStandalonePage =
-    location.pathname.startsWith('/pipeline') || location.pathname.startsWith('/settings');
+    location.pathname.startsWith('/tracker/pipeline') ||
+    location.pathname.startsWith('/pipeline') ||
+    location.pathname.startsWith('/settings');
 
   return (
     <div className="app-container">
@@ -207,20 +280,27 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
         </Link>
 
         <nav className="nav-tabs">
-          <NavLink to="/feed" className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}>
+          <NavLink
+            to="/feed"
+            className={({ isActive }) =>
+              `nav-tab ${isActive || location.pathname.startsWith('/jobs') ? 'active' : ''}`
+            }
+          >
             <Briefcase size={16} /> Job Feed
           </NavLink>
           <NavLink
             to="/tracker"
-            className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}
+            className={({ isActive }) =>
+              `nav-tab ${
+                isActive ||
+                location.pathname.startsWith('/tracker') ||
+                location.pathname.startsWith('/pipeline')
+                  ? 'active'
+                  : ''
+              }`
+            }
           >
             <Kanban size={16} /> Tracker
-          </NavLink>
-          <NavLink
-            to="/pipeline"
-            className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}
-          >
-            <Activity size={16} /> Pipeline Monitor
           </NavLink>
         </nav>
 
@@ -239,145 +319,155 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
 
           <button
             type="button"
-            onClick={cycleColorMode}
-            className="btn btn-secondary btn-sm"
-            title={`Color Mode: ${colorMode} (Click to cycle)`}
-            aria-label="Cycle Color Mode"
+            onClick={() => setIsAddJobOpen(true)}
+            className="btn btn-primary btn-sm add-job-btn"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
-            {colorMode === 'system' ? (
-              <Laptop size={15} />
-            ) : resolvedMode === 'dark' ? (
-              <Moon size={15} />
-            ) : (
-              <Sun size={15} />
-            )}
+            <Plus size={15} /> <span>Add Job</span>
           </button>
 
           <button
-            onClick={() => setIsAddJobOpen(true)}
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-          >
-            <Plus size={15} /> Add Job
-          </button>
-          <button
+            type="button"
             onClick={onRefresh}
             disabled={loading}
             className="btn btn-secondary btn-sm"
             title="Refresh jobs from server"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            aria-label="Refresh jobs from server"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
             <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
-            {loading ? 'Refreshing...' : 'Refresh'}
+            <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
           </button>
-          <button
-            type="button"
-            onClick={() => setIsSupportOpen(true)}
-            className="btn btn-secondary btn-sm"
-            title="Support JobFoundry (GitHub, Sponsor)"
-            aria-label="Support JobFoundry"
-            style={{ color: 'var(--color-red, #ef4444)' }}
+
+          <div className="nav-divider" />
+
+          {/* User Account & Settings Dropdown */}
+          <div
+            className="user-menu-container"
+            ref={userMenuRef}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                setIsUserMenuOpen(false);
+              }
+            }}
           >
-            <Heart size={15} />
-          </button>
-          <button
-            onClick={() => navigate('/settings')}
-            className={`btn btn-secondary btn-sm ${isSettingsOpen ? 'btn-primary' : ''}`}
-            title="Settings & Themes"
-            aria-label="Settings"
-          >
-            <Settings size={16} />
-          </button>
-          <button
-            onClick={logout}
-            className="btn btn-secondary btn-sm"
-            title="Sign out"
-            aria-label="Sign out"
-            style={{ color: 'var(--text-muted)' }}
-          >
-            <LogOut size={16} />
-          </button>
+            <button
+              ref={userTriggerRef}
+              type="button"
+              onClick={() => {
+                setIsUserMenuOpen((prev) => !prev);
+              }}
+              className={`user-menu-trigger ${isUserMenuOpen ? 'active' : ''}`}
+              aria-expanded={isUserMenuOpen}
+              aria-label="User account and settings menu"
+            >
+              <div className="user-avatar-badge">{userInitials}</div>
+              <span className="user-display-name">{userDisplayName}</span>
+              <ChevronDown
+                size={14}
+                className={`user-menu-chevron ${isUserMenuOpen ? 'open' : ''}`}
+              />
+            </button>
+
+            {isUserMenuOpen && (
+              <div className="user-menu-dropdown">
+                <div className="user-menu-profile-header">
+                  <div className="user-avatar-badge lg">{userInitials}</div>
+                  <div className="user-menu-profile-info">
+                    <div className="user-menu-name">{userDisplayName}</div>
+                    <div className="user-menu-email">{user ? user.email : 'Logged in'}</div>
+                  </div>
+                </div>
+
+                <div className="user-menu-section">
+                  <div className="user-menu-section-label">Appearance</div>
+                  <div className="theme-toggle-group" aria-label="Theme mode">
+                    <button
+                      type="button"
+                      className={`theme-chip ${colorMode === 'light' ? 'active' : ''}`}
+                      onClick={() => {
+                        setColorMode('light');
+                      }}
+                      aria-pressed={colorMode === 'light'}
+                      title="Light theme"
+                    >
+                      <Sun size={13} />
+                      <span>Light</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`theme-chip ${colorMode === 'dark' ? 'active' : ''}`}
+                      onClick={() => {
+                        setColorMode('dark');
+                      }}
+                      aria-pressed={colorMode === 'dark'}
+                      title="Dark theme"
+                    >
+                      <Moon size={13} />
+                      <span>Dark</span>
+                    </button>
+                    <button
+                      type="button"
+                      className={`theme-chip ${colorMode === 'system' ? 'active' : ''}`}
+                      onClick={() => {
+                        setColorMode('system');
+                      }}
+                      aria-pressed={colorMode === 'system'}
+                      title="System theme"
+                    >
+                      <Laptop size={13} />
+                      <span>System</span>
+                    </button>
+                  </div>
+                </div>
+
+                <div className="user-menu-divider" />
+
+                <button
+                  type="button"
+                  className={`user-menu-item ${isSettingsOpen ? 'active' : ''}`}
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    navigate('/settings');
+                  }}
+                >
+                  <Settings size={15} />
+                  <span>Settings & Themes</span>
+                </button>
+
+                <button
+                  type="button"
+                  className="user-menu-item"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    setIsSupportOpen(true);
+                  }}
+                >
+                  <Heart size={15} style={{ color: 'var(--color-red, #ef4444)' }} />
+                  <span>Support JobFoundry</span>
+                </button>
+
+                <div className="user-menu-divider" />
+
+                <button
+                  type="button"
+                  className="user-menu-item user-menu-item-danger"
+                  onClick={() => {
+                    setIsUserMenuOpen(false);
+                    logout();
+                  }}
+                >
+                  <LogOut size={15} />
+                  <span>Sign out</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="main-content">
-        {!isStandalonePage && (
-          <div className="stats-grid">
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ status: 'all', minScore: undefined });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title="Click to view all jobs in feed"
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-blue)' }}>
-                <Briefcase size={22} />
-              </div>
-              <div>
-                <div className="stat-val">{totalJobs}</div>
-                <div className="stat-label">Total Ingested Jobs</div>
-              </div>
-            </div>
-
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ minScore: 50 });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title="Click to view jobs with ≥ 50% match"
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-green)' }}>
-                <Target size={22} />
-              </div>
-              <div>
-                <div className="stat-val">{avgScore}%</div>
-                <div className="stat-label">Average Fit Score</div>
-              </div>
-            </div>
-
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ status: 'tailored' });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title="Click to view tailored jobs"
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-purple)' }}>
-                <Sparkles size={22} />
-              </div>
-              <div>
-                <div className="stat-val">{tailoredCount}</div>
-                <div className="stat-label">Tailored Resumes</div>
-              </div>
-            </div>
-
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ minScore: settings.threshold });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title={`Click to view qualified jobs (≥ ${settings.threshold}%)`}
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-amber)' }}>
-                <Flame size={22} />
-              </div>
-              <div>
-                <div className="stat-val">{highFitCount}</div>
-                <div className="stat-label">Qualified (≥ {settings.threshold}%)</div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {error && (
           <div
             style={{
@@ -409,7 +499,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                 <JobFeed
                   jobs={jobs}
                   threshold={settings.threshold}
-                  initialFilters={feedInitialFilters}
                   onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                   onJobUpdated={onJobUpdated}
                   onJobDeleted={onJobDeleted}
@@ -420,31 +509,44 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             <Route
               path="/tracker"
               element={
-                <TrackerRoute
-                  jobs={jobs}
-                  threshold={settings.threshold}
-                  onStatusChange={onStatusChange}
-                  onJobUpdated={onJobUpdated}
-                  onJobDeleted={onJobDeleted}
-                />
+                <TrackerLayout currentView="board">
+                  <TrackerRoute
+                    jobs={jobs}
+                    threshold={settings.threshold}
+                    onStatusChange={onStatusChange}
+                    onJobUpdated={onJobUpdated}
+                    onJobDeleted={onJobDeleted}
+                  />
+                </TrackerLayout>
+              }
+            />
+            <Route
+              path="/tracker/pipeline"
+              element={
+                <TrackerLayout currentView="pipeline">
+                  <PipelineView
+                    onSelectJob={(jobId) => {
+                      navigate(`/jobs/${jobId}`);
+                    }}
+                  />
+                </TrackerLayout>
               }
             />
             <Route
               path="/tracker/:id"
               element={
-                <TrackerRoute
-                  jobs={jobs}
-                  threshold={settings.threshold}
-                  onStatusChange={onStatusChange}
-                  onJobUpdated={onJobUpdated}
-                  onJobDeleted={onJobDeleted}
-                />
+                <TrackerLayout currentView="board">
+                  <TrackerRoute
+                    jobs={jobs}
+                    threshold={settings.threshold}
+                    onStatusChange={onStatusChange}
+                    onJobUpdated={onJobUpdated}
+                    onJobDeleted={onJobDeleted}
+                  />
+                </TrackerLayout>
               }
             />
-            <Route
-              path="/pipeline"
-              element={<PipelineView onSelectJob={(jobId) => navigate(`/jobs/${jobId}`)} />}
-            />
+            <Route path="/pipeline" element={<Navigate to="/tracker/pipeline" replace />} />
             <Route
               path="/jobs/:id"
               element={
@@ -452,7 +554,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                   <JobFeed
                     jobs={jobs}
                     threshold={settings.threshold}
-                    initialFilters={feedInitialFilters}
                     onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                     onJobUpdated={onJobUpdated}
                     onJobDeleted={onJobDeleted}
