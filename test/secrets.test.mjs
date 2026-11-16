@@ -5,7 +5,7 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const SECRET_PATTERNS = [
-  { name: 'Google API Key', regex: /\bAIza[0-9A-Za-z_-]{35}\b/g },
+  { name: 'Google API Key', regex: /\bAIza[0-9A-Za-z_-]{35}(?![0-9A-Za-z_-])/g },
   { name: 'OpenAI API Key', regex: /\bsk-(?:proj-)?[A-Za-z0-9_-]{32,}\b/g },
   { name: 'Anthropic API Key', regex: /\bsk-ant-[A-Za-z0-9_-]{32,}\b/g },
   {
@@ -23,7 +23,7 @@ const SECRET_PATTERNS = [
   {
     name: 'AWS Secret Access Key',
     regex:
-      /(?:aws_secret_access_key|aws_secret_key|secret_access_key)\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})["']?/gi,
+      /(?:aws_secret_access_key|aws_secret_key|secret_access_key)["']?\s*[:=]\s*["']?([A-Za-z0-9/+=]{40})["']?/gi,
   },
 ];
 
@@ -56,15 +56,16 @@ const BINARY_EXTENSIONS = new Set([
 ]);
 
 const isStagedMode = process.env.CHECK_STAGED === '1' || process.argv.includes('--staged');
+const repoRoot = path.resolve(import.meta.dirname, '..');
 
 test('repository contains no un-sanitized secrets or live credentials', () => {
   const targetFiles = isStagedMode
-    ? execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR'], {
+    ? execFileSync('git', ['diff', '--cached', '--name-only', '--diff-filter=ACMR', '-z'], {
         encoding: 'utf8',
       })
-        .split('\n')
+        .split('\0')
         .filter(Boolean)
-    : execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+    : execFileSync('git', ['ls-files', '-z'], { encoding: 'utf8' }).split('\0').filter(Boolean);
 
   const violations = [];
 
@@ -72,19 +73,28 @@ test('repository contains no un-sanitized secrets or live credentials', () => {
     const ext = path.extname(relPath).toLowerCase();
     if (BINARY_EXTENSIONS.has(ext)) continue;
 
+    const fullPath = path.resolve(repoRoot, relPath);
+    if (!fullPath.startsWith(repoRoot + path.sep) && fullPath !== repoRoot) {
+      throw new Error(`Path traversal detected: ${relPath}`);
+    }
+
+    if (!isStagedMode && !fs.existsSync(fullPath)) continue;
+
     let content;
     try {
       if (isStagedMode) {
         // Read directly from git index (staged blob) without invoking shell
         content = execFileSync('git', ['show', `:${relPath}`], {
           encoding: 'utf8',
-          maxBuffer: 20 * 1024 * 1024,
+          maxBuffer: 50 * 1024 * 1024,
         });
       } else {
-        content = fs.readFileSync(relPath, 'utf8');
+        content = fs.readFileSync(fullPath, 'utf8');
       }
-    } catch {
-      continue;
+    } catch (err) {
+      throw new Error(`Failed to read file ${relPath} for secrets scan: ${err.message}`, {
+        cause: err,
+      });
     }
 
     for (const pattern of SECRET_PATTERNS) {

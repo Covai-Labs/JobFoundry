@@ -48,12 +48,12 @@ jobs:
         with:
           node-version: 26
           cache: npm
-      - run: npm ci
+      - run: npm ci --ignore-scripts
+      - name: Prepare extension
+        run: npm --workspace=extension run postinstall
       - name: Run extension tests
         run: npm run extension:test
-      - name: Build Firefox extension
-        run: npm --workspace=extension run build:firefox
-      - name: Lint Firefox extension bundle
+      - name: Build & lint Firefox extension
         run: npm run extension:lint
 
   python:
