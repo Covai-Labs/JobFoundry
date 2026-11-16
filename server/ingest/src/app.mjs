@@ -21,7 +21,7 @@ try {
   );
 } catch {}
 
-import { randomUUID, createHash } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { normalizeJob } from './jobs/normalize.mjs';
 import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
 import { analyzeRepost, normalizeCompany } from './jobs/detect-reposts.mjs';
@@ -874,12 +874,9 @@ export function buildApp({
       }
 
       // Check user-isolated in-memory cache
-      const keyHash = effectiveKey
-        ? createHash('sha256').update(effectiveKey).digest('hex').slice(0, 16)
-        : 'nokey';
-      const cacheKey = `${userId}|${effectiveProvider}|${directBase}|${keyHash}`;
+      const cacheKey = `${userId}|${rawFeature}|${effectiveProvider}|${directBase}`;
       const cached = modelsCache.get(cacheKey);
-      if (cached && cached.expiresAt > Date.now()) {
+      if (cached && cached.expiresAt > Date.now() && cached.credential === effectiveKey) {
         return { success: true, models: cached.models, cached: true };
       }
 
@@ -920,6 +917,7 @@ export function buildApp({
         if (models.length > 0) {
           modelsCache.set(cacheKey, {
             models,
+            credential: effectiveKey,
             expiresAt: Date.now() + MODELS_CACHE_TTL_MS,
           });
         }
