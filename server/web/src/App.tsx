@@ -144,13 +144,11 @@ const TrackerLayout: React.FC<{
   return (
     <div className="tracker-page">
       <div className="tracker-view-header">
-        <div className="tracker-view-switcher" role="tablist" aria-label="Tracker views">
+        <nav className="tracker-view-switcher" aria-label="Tracker views">
           <NavLink
             to="/tracker"
             end
             className={() => `tracker-view-tab ${currentView === 'board' ? 'active' : ''}`}
-            role="tab"
-            aria-selected={currentView === 'board'}
           >
             <Kanban size={15} />
             <span>Board</span>
@@ -158,13 +156,11 @@ const TrackerLayout: React.FC<{
           <NavLink
             to="/tracker/pipeline"
             className={() => `tracker-view-tab ${currentView === 'pipeline' ? 'active' : ''}`}
-            role="tab"
-            aria-selected={currentView === 'pipeline'}
           >
             <Activity size={15} />
             <span>Pipeline & Analytics</span>
           </NavLink>
-        </div>
+        </nav>
       </div>
       <div className="tracker-view-content">{children}</div>
     </div>
@@ -336,7 +332,15 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
           <div className="nav-divider" />
 
           {/* User Account & Settings Dropdown */}
-          <div className="user-menu-container" ref={userMenuRef}>
+          <div
+            className="user-menu-container"
+            ref={userMenuRef}
+            onBlur={(e) => {
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) {
+                setIsUserMenuOpen(false);
+              }
+            }}
+          >
             <button
               ref={userTriggerRef}
               type="button"

@@ -106,7 +106,7 @@ describe('App', () => {
     expect(screen.queryByText('Appearance')).not.toBeInTheDocument();
   });
 
-  it('renders tracker with sub-view switcher tabs and switches between Board and Pipeline', async () => {
+  it('renders tracker with sub-view switcher links and switches between Board and Pipeline', async () => {
     localStorage.setItem('jf_auth_token', 'valid-jwt-token');
     localStorage.setItem(
       'jf_auth_user',
@@ -117,11 +117,11 @@ describe('App', () => {
     render(<App />);
 
     await waitFor(() => {
-      expect(screen.getByRole('tab', { name: /board/i })).toBeInTheDocument();
-      expect(screen.getByRole('tab', { name: /pipeline & analytics/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /board/i })).toBeInTheDocument();
+      expect(screen.getByRole('link', { name: /pipeline & analytics/i })).toBeInTheDocument();
     });
 
-    const pipelineTab = screen.getByRole('tab', { name: /pipeline & analytics/i });
+    const pipelineTab = screen.getByRole('link', { name: /pipeline & analytics/i });
     fireEvent.click(pipelineTab);
 
     await waitFor(() => {

@@ -384,7 +384,7 @@ h6 {
 
 .user-menu-email {
   font-size: 0.75rem;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -400,7 +400,7 @@ h6 {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--text-muted);
+  color: var(--text-secondary);
   margin-bottom: 0.35rem;
   padding: 0 0.15rem;
 }
@@ -471,7 +471,7 @@ h6 {
 }
 
 .user-menu-item-danger {
-  color: var(--text-muted);
+  color: var(--text-secondary);
 }
 
 .user-menu-item-danger:hover {

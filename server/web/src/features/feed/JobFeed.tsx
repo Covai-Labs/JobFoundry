@@ -133,16 +133,16 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   // Global keyboard shortcuts for triage station
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const target = e.target as HTMLElement;
+      const target = e.target instanceof HTMLElement ? e.target : null;
       const isInputFocused = Boolean(
         target &&
         (target.tagName === 'INPUT' ||
           target.tagName === 'TEXTAREA' ||
           target.tagName === 'SELECT' ||
           target.isContentEditable ||
-          target.closest?.('.user-menu-dropdown') ||
-          target.closest?.('.user-menu-container') ||
-          target.closest?.('.modal-content'))
+          target.closest('.user-menu-dropdown') ||
+          target.closest('.user-menu-container') ||
+          (!isHelpModalOpen && target.closest('.modal-content')))
       );
 
       if (isInputFocused) {

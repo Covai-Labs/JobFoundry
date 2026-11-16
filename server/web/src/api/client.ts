@@ -595,7 +595,7 @@ export class ApiClient {
       ok: boolean;
       stats: { total: number; unscored: number; scored: number; tailored: number; failed: number };
     }>('/api/v1/pipeline/stats');
-    return res.stats;
+    return res?.stats ?? { total: 0, unscored: 0, scored: 0, tailored: 0, failed: 0 };
   }
 
   async getFunnelStats(): Promise<FunnelData> {
@@ -614,7 +614,7 @@ export class ApiClient {
     const res = await this.request<{ ok: boolean; jobs: any[] }>(
       `/api/v1/pipeline/jobs${qs ? `?${qs}` : ''}`
     );
-    return res.jobs;
+    return res?.jobs ?? [];
   }
 
   async getTailoredResume(id: string): Promise<Record<string, any> | null> {
