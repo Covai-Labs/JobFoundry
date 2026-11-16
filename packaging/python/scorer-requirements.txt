@@ -55,7 +55,7 @@ distro==1.9.0
     # via openai
 docstring-parser==0.18.0
     # via instructor
-fastapi==0.162.7
+fastapi==0.163.1
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 fastuuid==0.14.0 ; python_full_version < '3.15'
     # via litellm
@@ -82,14 +82,14 @@ hpack==4.2.0
     # via h2
 httpcore==1.0.9
     # via httpx
-httpcore2==2.16.0 ; sys_platform != 'emscripten'
+httpcore2==2.16.2 ; sys_platform != 'emscripten'
     # via httpx2
 httpx==0.28.1
     # via
     #   jobfoundry-scorer (server/scorer/pyproject.toml)
     #   huggingface-hub
     #   litellm
-httpx2==2.16.0
+httpx2==2.16.2
     # via openai
 httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
     # via httpx2
@@ -184,7 +184,7 @@ referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-regex==2026.11.9
+regex==2026.11.15
     # via
     #   instructor
     #   tiktoken
