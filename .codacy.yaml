@@ -7,3 +7,4 @@ exclude_paths:
   - 'extension/scripts/ports/**'
   - 'server/ingest/src/vendored/**'
   - 'templates/**'
+  - '**/package-lock.json'
