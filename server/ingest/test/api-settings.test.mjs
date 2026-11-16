@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import http from 'node:http';
 import { buildApp } from '../src/app.mjs';
 import { openDb } from '../src/db/index.mjs';
 
@@ -168,6 +169,133 @@ test('per-user settings API isolates settings between users', async () => {
     });
     assert.equal(badBase.statusCode, 400);
   } finally {
+    await app.close();
+  }
+});
+
+test('POST /api/v1/settings/fetch-models retrieves models and caches results', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({
+    db,
+    apiKeys: ['test-api-key'],
+    serverUrl: 'http://localhost:8080',
+    logger: false,
+  });
+
+  // Mock OpenAI-compatible server
+  const server = http.createServer((req, res) => {
+    if (req.url === '/v1/models') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          data: [
+            { id: 'custom-model-1', name: 'Custom Model 1' },
+            { id: 'custom-model-whisper', name: 'Whisper 1' },
+            { id: 'custom-model-2', name: 'Custom Model 2' },
+          ],
+        })
+      );
+      return;
+    }
+    res.writeHead(404);
+    res.end();
+  });
+
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = server.address().port;
+  const mockBase = `http://127.0.0.1:${port}/v1`;
+  const prevAllowed = process.env.ALLOWED_LLM_BASES;
+  process.env.ALLOWED_LLM_BASES = `http://127.0.0.1:${port}`;
+
+  try {
+    // 1. Unauthorized fails
+    const unauth = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+    });
+    assert.equal(unauth.statusCode, 401);
+
+    // 2. Invalid feature fails
+    const badFeature = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: { feature: 'invalid-feature' },
+    });
+    assert.equal(badFeature.statusCode, 400);
+
+    // 3. Successful fetch
+    const fetchResp = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: {
+        feature: 'gateway',
+        provider: 'custom',
+        apiBase: mockBase,
+      },
+    });
+    assert.equal(fetchResp.statusCode, 200);
+    const data = JSON.parse(fetchResp.payload);
+    assert.equal(data.success, true);
+    assert.equal(data.cached, false);
+    assert.equal(data.models.length, 2);
+    assert.equal(data.models[0].id, 'custom-model-1');
+    assert.equal(data.models[1].id, 'custom-model-2');
+
+    // 4. Second fetch is cached
+    const cachedResp = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: {
+        feature: 'gateway',
+        provider: 'custom',
+        apiBase: mockBase,
+      },
+    });
+    assert.equal(cachedResp.statusCode, 200);
+    const cachedData = JSON.parse(cachedResp.payload);
+    assert.equal(cachedData.success, true);
+    assert.equal(cachedData.cached, true);
+    assert.equal(cachedData.models.length, 2);
+
+    // 5. OpenRouter provider automatically prefixes model IDs
+    const openrouterResp = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: {
+        feature: 'gateway',
+        provider: 'openrouter',
+        apiKey: 'sk-or-test-key-1',
+        apiBase: mockBase,
+      },
+    });
+    assert.equal(openrouterResp.statusCode, 200);
+    const openrouterData = JSON.parse(openrouterResp.payload);
+    assert.equal(openrouterData.success, true);
+    assert.equal(openrouterData.models[0].id, 'openrouter/custom-model-1');
+
+    // 6. Cache isolation across distinct credentials
+    const differentKeyResp = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: {
+        feature: 'gateway',
+        provider: 'openrouter',
+        apiKey: 'sk-or-test-key-2',
+        apiBase: mockBase,
+      },
+    });
+    assert.equal(differentKeyResp.statusCode, 200);
+    const diffData = JSON.parse(differentKeyResp.payload);
+    assert.equal(diffData.cached, false);
+  } finally {
+    if (prevAllowed === undefined) delete process.env.ALLOWED_LLM_BASES;
+    else process.env.ALLOWED_LLM_BASES = prevAllowed;
+    server.close();
     await app.close();
   }
 });

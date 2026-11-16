@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Keyboard } from 'lucide-react';
+import { getModKey } from '../../lib/platform';
 
 interface KeyboardHelpModalProps {
   isOpen: boolean;
@@ -172,7 +173,8 @@ export const KeyboardHelpModal: React.FC<KeyboardHelpModalProps> = ({ isOpen, on
             >
               <span style={{ color: 'var(--text-secondary)' }}>Focus search filter</span>
               <span>
-                <kbd className="kbd-pill">/</kbd> or <kbd className="kbd-pill">Ctrl+K</kbd>
+                <kbd className="kbd-pill">/</kbd> or{' '}
+                <kbd className="kbd-pill">{getModKey().label}+K</kbd>
               </span>
 
               <span style={{ color: 'var(--text-secondary)' }}>Open / close this cheatsheet</span>

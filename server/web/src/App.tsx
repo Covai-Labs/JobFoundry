@@ -28,6 +28,7 @@ import { ToastProvider, useToast } from './context/ToastContext';
 import { SkeletonFeed } from './components/Skeleton';
 import { CommandPalette } from './components/CommandPalette';
 import { SupportModal } from './components/SupportModal';
+import { getModKey } from './lib/platform';
 import {
   Briefcase,
   Kanban,
@@ -309,12 +310,12 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             type="button"
             onClick={() => setIsPaletteOpen(true)}
             className="cmd-k-btn"
-            title="Open Command Palette (Cmd + K / Ctrl + K)"
+            title={`Open Command Palette (${getModKey().label} + K)`}
             aria-label="Command Palette"
           >
             <Search size={14} />
             <span>Search</span>
-            <kbd className="cmd-k-badge">⌘K</kbd>
+            <kbd className="cmd-k-badge">{getModKey().text}</kbd>
           </button>
 
           <button
