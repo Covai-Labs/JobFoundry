@@ -29,7 +29,8 @@ interface ToastContextType {
   info: (message: string, title?: string) => void;
   warning: (message: string, title?: string) => void;
   /** Success toast with a single call-to-action, e.g. Undo. */
-  undoable: (_message: string, _label: string, _onClick: () => void | Promise<void>) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  undoable: (message: string, label: string, onClick: () => void | Promise<void>) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);

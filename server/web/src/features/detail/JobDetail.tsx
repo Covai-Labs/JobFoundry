@@ -37,7 +37,8 @@ import {
 export interface JobDetailProps {
   job: Job | null;
   threshold?: number;
-  onStatusChange: (_jobId: string, _newStatus: JobStatus) => void | Promise<void>;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  onStatusChange: (jobId: string, newStatus: JobStatus) => void | Promise<void>;
   onJobUpdated: (updatedJob: Job) => void;
   onDeleteJob?: (jobId: string) => void;
   /** Called after a successful delete (e.g. modal shell closes itself). */

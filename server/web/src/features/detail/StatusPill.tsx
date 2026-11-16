@@ -6,7 +6,8 @@ import { Popover } from '../../components/Popover';
 
 interface StatusPillProps {
   status: JobStatus;
-  onChange: (_next: JobStatus) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  onChange: (next: JobStatus) => void;
 }
 
 interface StageOptionProps {
