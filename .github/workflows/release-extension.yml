@@ -62,6 +62,7 @@ jobs:
           npm --workspace=extension run zip
           npm --workspace=extension run zip:edge
           npm --workspace=extension run zip:firefox
+          npm --workspace=extension run lint:ext
           mkdir -p dist-extension
           cp -f extension/.output/*.zip dist-extension/ 2>/dev/null || true
           cp -f .output/*.zip dist-extension/ 2>/dev/null || true
@@ -124,6 +125,9 @@ jobs:
 
       - name: Build Firefox extension with WXT
         run: npm --workspace=extension run build:firefox
+
+      - name: Validate Firefox extension package
+        run: npm --workspace=extension run lint:ext
 
       - name: Check AMO credentials
         id: check-creds

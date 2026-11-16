@@ -14,6 +14,7 @@
     "zip": "wxt zip",
     "zip:edge": "wxt zip -b edge",
     "zip:firefox": "wxt zip -b firefox",
+    "lint:ext": "web-ext lint --source-dir .output/firefox-mv3",
     "gen:provider-index": "node scripts/gen-provider-index.mjs",
     "pretest": "node scripts/gen-provider-index.mjs",
     "test": "node --test test/*.test.mjs",
