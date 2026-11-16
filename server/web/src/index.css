@@ -1181,6 +1181,12 @@ h6 {
   overflow: hidden;
 }
 
+/* Job detail reuses the triage workbench, which needs room for the header
+   action row and the two-column fit/diff views. */
+.modal-content-wide {
+  max-width: 1200px;
+}
+
 .modal-header {
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid var(--border-subtle);

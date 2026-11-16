@@ -29,28 +29,8 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        style={{ position: 'relative' }}
-      >
+      <div className="modal-content modal-content-wide" onClick={(e) => e.stopPropagation()}>
         <ErrorBoundary fallbackTitle="Job Details Rendering Error">
-          <button
-            onClick={onClose}
-            className="btn btn-secondary btn-sm"
-            aria-label="Close job details"
-            style={{
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              borderRadius: 'var(--radius-full)',
-              width: '32px',
-              height: '32px',
-              padding: 0,
-            }}
-          >
-            ✕
-          </button>
           <JobDetail
             job={job}
             threshold={threshold}

@@ -52,6 +52,27 @@ describe('JobDetailModal external job link', () => {
     expect(screen.getByRole('link', { name: /Open Posting/ })).toHaveAttribute('href', expected);
   });
 
+  it('keeps a single close control in the header action row', () => {
+    const onClose = vi.fn();
+    render(
+      <JobDetailModal
+        job={baseJob}
+        onClose={onClose}
+        onStatusChange={vi.fn()}
+        onJobUpdated={vi.fn()}
+      />
+    );
+
+    const actions = document.querySelector('.triage-workbench-actions');
+    const closeButtons = screen.getAllByRole('button', { name: /close job details/i });
+
+    expect(closeButtons).toHaveLength(1);
+    expect(actions).toContainElement(closeButtons[0]);
+
+    fireEvent.click(closeButtons[0]);
+    expect(onClose).toHaveBeenCalled();
+  });
+
   it('renders re-score buttons and triggers rescoreJob on click', async () => {
     const { api } = await import('../../../api/client');
     const spy = vi.spyOn(api, 'rescoreJob').mockResolvedValue({

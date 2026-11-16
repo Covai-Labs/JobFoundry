@@ -571,6 +571,18 @@ export const JobDetail: React.FC<JobDetailProps> = ({
               </div>
             )}
           </Popover>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn btn-secondary btn-sm btn-icon-only"
+              aria-label="Close job details"
+              title="Close job details"
+            >
+              <X size={15} />
+            </button>
+          )}
         </div>
       </div>
 
