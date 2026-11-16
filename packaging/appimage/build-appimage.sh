@@ -213,36 +213,9 @@ echo "[appimage] installing ingest production dependencies..."
 # ------------------------------------------------------------------------------
 echo "[appimage] installing PDF toolchain..."
 mkdir -p "$STAGE/node-tools"
-cat > "$STAGE/node-tools/package.json" <<'EOF'
-{
-  "name": "jobfoundry-node-tools",
-  "version": "0.1.0",
-  "private": true,
-  "description": "Bundled PDF toolchain for the JobFoundry AppImage (folio-export + themes).",
-  "license": "AGPL-3.0-only",
-  "dependencies": {
-    "jsonresume-theme-folio": "^1.3.1",
-    "jsonresume-theme-folio-concise": "1.3.0",
-    "jsonresume-theme-stackoverflow": "3.3.0",
-    "jsonresume-theme-pro": "0.2.0",
-    "jsonresume-theme-harvard-classic": "0.2.0",
-    "jsonresume-theme-jake-technical": "0.2.0",
-    "jsonresume-theme-awesome-professional": "0.2.0",
-    "jsonresume-theme-compact-developer": "0.2.0",
-    "jsonresume-theme-charter-serif": "0.2.0",
-    "jsonresume-theme-diplomat-cv": "0.2.0",
-    "jsonresume-theme-ledger-professional": "0.2.0",
-    "jsonresume-theme-stewardship-cv": "0.2.0",
-    "jsonresume-theme-europass-inspired": "0.2.0",
-    "jsonresume-theme-first-role": "0.2.0",
-    "jsonresume-theme-academic-classic": "0.2.0",
-    "resumed": "^7.0.0",
-    "puppeteer": "^24.0.0"
-  }
-}
-EOF
+cp "$REPO_ROOT/packaging/node-tools/package.json" "$REPO_ROOT/packaging/node-tools/package-lock.json" "$STAGE/node-tools/"
 (cd "$STAGE/node-tools" && \
-  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm install --omit=dev --no-audit --no-fund)
+  PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true npm ci --omit=dev --ignore-scripts)
 [ -x "$STAGE/node-tools/node_modules/.bin/folio-export" ] \
   || { echo "[appimage] ERROR: folio-export binary missing after install" >&2; exit 1; }
 [ -x "$STAGE/node-tools/node_modules/.bin/resumed" ] \
