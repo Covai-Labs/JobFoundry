@@ -259,6 +259,39 @@ test('POST /api/v1/settings/fetch-models retrieves models and caches results', a
     assert.equal(cachedData.success, true);
     assert.equal(cachedData.cached, true);
     assert.equal(cachedData.models.length, 2);
+
+    // 5. OpenRouter provider automatically prefixes model IDs
+    const openrouterResp = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: {
+        feature: 'gateway',
+        provider: 'openrouter',
+        apiKey: 'sk-or-test-key-1',
+        apiBase: mockBase,
+      },
+    });
+    assert.equal(openrouterResp.statusCode, 200);
+    const openrouterData = JSON.parse(openrouterResp.payload);
+    assert.equal(openrouterData.success, true);
+    assert.equal(openrouterData.models[0].id, 'openrouter/custom-model-1');
+
+    // 6. Cache isolation across distinct credentials
+    const differentKeyResp = await app.inject({
+      method: 'POST',
+      url: '/api/v1/settings/fetch-models',
+      headers: { authorization: 'Bearer test-api-key' },
+      payload: {
+        feature: 'gateway',
+        provider: 'openrouter',
+        apiKey: 'sk-or-test-key-2',
+        apiBase: mockBase,
+      },
+    });
+    assert.equal(differentKeyResp.statusCode, 200);
+    const diffData = JSON.parse(differentKeyResp.payload);
+    assert.equal(diffData.cached, false);
   } finally {
     if (prevAllowed === undefined) delete process.env.ALLOWED_LLM_BASES;
     else process.env.ALLOWED_LLM_BASES = prevAllowed;

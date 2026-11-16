@@ -21,7 +21,7 @@ try {
   );
 } catch {}
 
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { normalizeJob } from './jobs/normalize.mjs';
 import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
 import { analyzeRepost, normalizeCompany } from './jobs/detect-reposts.mjs';
@@ -660,6 +660,167 @@ export function buildApp({
     }
   );
 
+  // Helper functions for safe, modular model discovery
+  function trimTrailingSlashes(str) {
+    let s = String(str || '');
+    while (s.endsWith('/')) {
+      s = s.slice(0, -1);
+    }
+    return s;
+  }
+
+  function isMatchingHost(urlStr, targetDomain) {
+    if (!urlStr) return false;
+    try {
+      const hostname = new URL(urlStr).hostname.toLowerCase();
+      return hostname === targetDomain || hostname.endsWith(`.${targetDomain}`);
+    } catch {
+      return false;
+    }
+  }
+
+  function isOllamaUrl(urlStr) {
+    if (!urlStr) return false;
+    try {
+      const u = new URL(urlStr);
+      return u.port === '11434';
+    } catch {
+      return false;
+    }
+  }
+
+  async function fetchOllamaModels(directBase) {
+    const baseHost = trimTrailingSlashes(directBase || 'http://127.0.0.1:11434');
+    const host = baseHost.endsWith('/v1') ? baseHost.slice(0, -3) : baseHost;
+    const tagResp = await safeFetch(`${host}/api/tags`, {
+      headers: { Accept: 'application/json' },
+      signal: AbortSignal.timeout(8000),
+      redirect: 'error',
+    });
+    if (!tagResp.ok) {
+      const text = await tagResp.text().catch(() => '');
+      return {
+        status: tagResp.status,
+        error: `Ollama endpoint returned HTTP ${tagResp.status}: ${text.slice(0, 200)}`,
+        models: [],
+      };
+    }
+    const data = await tagResp.json();
+    const models = (data.models || []).map((m) => {
+      const name = m.name || m.model || '';
+      return { id: `ollama/${name}`, name };
+    });
+    return { status: 200, models };
+  }
+
+  async function fetchAnthropicModels(directBase, effectiveKey) {
+    const base = trimTrailingSlashes(directBase || 'https://api.anthropic.com/v1');
+    const endpoint = base.endsWith('/models') ? base : `${base}/models`;
+    const resp = await safeFetch(endpoint, {
+      headers: {
+        'x-api-key': effectiveKey || '',
+        'anthropic-version': '2023-06-01',
+      },
+      signal: AbortSignal.timeout(10000),
+      redirect: 'error',
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      return {
+        status: resp.status,
+        error: `Anthropic API returned HTTP ${resp.status}: ${text.slice(0, 200)}`,
+        models: [],
+      };
+    }
+    const data = await resp.json();
+    const models = (data.data || []).map((m) => ({
+      id: m.id,
+      name: m.display_name || m.id,
+    }));
+    return { status: 200, models };
+  }
+
+  async function fetchGoogleModels(effectiveKey) {
+    if (!effectiveKey) {
+      return {
+        status: 400,
+        error: 'Google Gemini API key required to fetch models',
+        models: [],
+      };
+    }
+    const resp = await safeFetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(effectiveKey)}`,
+      {
+        signal: AbortSignal.timeout(10000),
+        redirect: 'error',
+      }
+    );
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      return {
+        status: resp.status,
+        error: `Google API returned HTTP ${resp.status}: ${text.slice(0, 200)}`,
+        models: [],
+      };
+    }
+    const data = await resp.json();
+    const models = (data.models || [])
+      .filter((m) => m.name && (m.supportedGenerationMethods || []).includes('generateContent'))
+      .map((m) => {
+        const cleanId = m.name.replace(/^models\//, '');
+        return { id: `gemini/${cleanId}`, name: m.displayName || cleanId };
+      });
+    return { status: 200, models };
+  }
+
+  async function fetchOpenAiCompatibleModels(directBase, effectiveProvider, effectiveKey) {
+    const base = trimTrailingSlashes(directBase);
+    const endpoint = base.endsWith('/models') ? base : `${base}/models`;
+    const headers = { Accept: 'application/json' };
+    if (effectiveKey) {
+      headers.Authorization = `Bearer ${effectiveKey}`;
+    }
+    const resp = await safeFetch(endpoint, {
+      headers,
+      signal: AbortSignal.timeout(10000),
+      redirect: 'error',
+    });
+    if (!resp.ok) {
+      const text = await resp.text().catch(() => '');
+      return {
+        status: resp.status,
+        error: `Endpoint returned HTTP ${resp.status}: ${text.slice(0, 200)}`,
+        models: [],
+      };
+    }
+    const data = await resp.json();
+    const list = Array.isArray(data) ? data : data.data || [];
+    const models = list
+      .filter((m) => {
+        const id = String(m.id || '').toLowerCase();
+        return (
+          !id.includes('whisper') &&
+          !id.includes('tts') &&
+          !id.includes('dall-e') &&
+          !id.includes('embedding') &&
+          !id.includes('moderation')
+        );
+      })
+      .map((m) => {
+        const id = m.id;
+        let formattedId = id;
+        if (effectiveProvider === 'openrouter') {
+          formattedId = id.startsWith('openrouter/') ? id : `openrouter/${id}`;
+        } else if (effectiveProvider === 'groq' && !id.startsWith('groq/')) {
+          formattedId = `groq/${id}`;
+        } else if (effectiveProvider === 'deepseek' && !id.startsWith('deepseek/')) {
+          formattedId = `deepseek/${id}`;
+        }
+        return { id: formattedId, name: m.name || m.id };
+      });
+    return { status: 200, models };
+  }
+
   // In-memory cache for live fetched models: cacheKey -> { models: [...], expiresAt: timestamp }
   const modelsCache = new Map();
   const MODELS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
@@ -691,7 +852,6 @@ export function buildApp({
 
       const resolved = resolveFeatureLlmConfig(db, rawFeature, { userId });
       const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
-      const effectiveKey = hasExplicitKey ? apiKey : resolved.apiKey;
       const requestScoped = Boolean(apiKey || provider || apiBase);
       const effectiveProvider = requestScoped
         ? provider || resolved.provider || ''
@@ -702,138 +862,43 @@ export function buildApp({
         '';
       const directBase = explicitBase || defaultBaseForProvider(effectiveProvider);
 
-      // Check in-memory cache
-      const cacheKey = `${effectiveProvider}|${directBase}|${effectiveKey ? effectiveKey.slice(0, 8) : 'nokey'}`;
+      // Only reuse saved key when effective provider and base match its saved configuration
+      let effectiveKey = '';
+      if (hasExplicitKey) {
+        effectiveKey = apiKey;
+      } else if (
+        resolved.provider === effectiveProvider &&
+        (!explicitBase || explicitBase === resolved.apiBase)
+      ) {
+        effectiveKey = resolved.apiKey;
+      }
+
+      // Check user-isolated in-memory cache
+      const keyHash = effectiveKey
+        ? createHash('sha256').update(effectiveKey).digest('hex').slice(0, 16)
+        : 'nokey';
+      const cacheKey = `${userId}|${effectiveProvider}|${directBase}|${keyHash}`;
       const cached = modelsCache.get(cacheKey);
       if (cached && cached.expiresAt > Date.now()) {
         return { success: true, models: cached.models, cached: true };
       }
 
       try {
-        let models = [];
-        // Ollama tags
-        if (effectiveProvider === 'ollama' || (directBase && directBase.includes('11434'))) {
-          const host = (directBase || 'http://127.0.0.1:11434').replace(/\/v1\/?$/, '');
-          const tagResp = await safeFetch(`${host}/api/tags`, {
-            headers: { Accept: 'application/json' },
-            signal: AbortSignal.timeout(8000),
-            redirect: 'error',
-          });
-          if (tagResp.ok) {
-            const data = await tagResp.json();
-            models = (data.models || []).map((m) => {
-              const name = m.name || m.model || '';
-              return { id: `ollama/${name}`, name };
-            });
-          }
+        let result;
+        if (effectiveProvider === 'ollama' || isOllamaUrl(directBase)) {
+          result = await fetchOllamaModels(directBase);
         } else if (
           effectiveProvider === 'anthropic' ||
-          (directBase && directBase.includes('anthropic.com'))
+          isMatchingHost(directBase, 'anthropic.com')
         ) {
-          const resp = await safeFetch('https://api.anthropic.com/v1/models', {
-            headers: {
-              'x-api-key': effectiveKey || '',
-              'anthropic-version': '2023-06-01',
-            },
-            signal: AbortSignal.timeout(10000),
-            redirect: 'error',
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            models = (data.data || []).map((m) => ({
-              id: m.id,
-              name: m.display_name || m.id,
-            }));
-          } else {
-            const text = await resp.text().catch(() => '');
-            return reply.code(resp.status).send({
-              success: false,
-              error: `Anthropic API returned ${resp.status}: ${text.slice(0, 200)}`,
-              models: [],
-            });
-          }
+          result = await fetchAnthropicModels(directBase, effectiveKey);
         } else if (
           effectiveProvider === 'google' &&
-          (!directBase || directBase.includes('googleapis.com'))
+          (!directBase || isMatchingHost(directBase, 'googleapis.com'))
         ) {
-          if (!effectiveKey) {
-            return reply.code(400).send({
-              success: false,
-              error: 'Google Gemini API key required to fetch models',
-              models: [],
-            });
-          }
-          const resp = await safeFetch(
-            `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(effectiveKey)}`,
-            {
-              signal: AbortSignal.timeout(10000),
-              redirect: 'error',
-            }
-          );
-          if (resp.ok) {
-            const data = await resp.json();
-            models = (data.models || [])
-              .filter(
-                (m) => m.name && (m.supportedGenerationMethods || []).includes('generateContent')
-              )
-              .map((m) => {
-                const cleanId = m.name.replace(/^models\//, '');
-                return { id: `gemini/${cleanId}`, name: m.displayName || cleanId };
-              });
-          } else {
-            const text = await resp.text().catch(() => '');
-            return reply.code(resp.status).send({
-              success: false,
-              error: `Google API returned ${resp.status}: ${text.slice(0, 200)}`,
-              models: [],
-            });
-          }
+          result = await fetchGoogleModels(effectiveKey);
         } else if (directBase) {
-          // Standard OpenAI-compatible / OpenRouter / Groq / DeepSeek / Custom
-          const endpoint = directBase.endsWith('/models')
-            ? directBase
-            : `${directBase.replace(/\/+$/, '')}/models`;
-          const headers = { Accept: 'application/json' };
-          if (effectiveKey) {
-            headers.Authorization = `Bearer ${effectiveKey}`;
-          }
-          const resp = await safeFetch(endpoint, {
-            headers,
-            signal: AbortSignal.timeout(10000),
-            redirect: 'error',
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            const list = Array.isArray(data) ? data : data.data || [];
-            models = list
-              .filter((m) => {
-                const id = String(m.id || '').toLowerCase();
-                return (
-                  !id.includes('whisper') &&
-                  !id.includes('tts') &&
-                  !id.includes('dall-e') &&
-                  !id.includes('embedding') &&
-                  !id.includes('moderation')
-                );
-              })
-              .map((m) => {
-                const id = m.id;
-                let formattedId = id;
-                if (effectiveProvider === 'groq' && !id.startsWith('groq/')) {
-                  formattedId = `groq/${id}`;
-                } else if (effectiveProvider === 'deepseek' && !id.startsWith('deepseek/')) {
-                  formattedId = `deepseek/${id}`;
-                }
-                return { id: formattedId, name: m.name || m.id };
-              });
-          } else {
-            const text = await resp.text().catch(() => '');
-            return reply.code(resp.status).send({
-              success: false,
-              error: `Endpoint returned HTTP ${resp.status}: ${text.slice(0, 200)}`,
-              models: [],
-            });
-          }
+          result = await fetchOpenAiCompatibleModels(directBase, effectiveProvider, effectiveKey);
         } else {
           return reply.code(400).send({
             success: false,
@@ -843,7 +908,15 @@ export function buildApp({
           });
         }
 
-        // Cache successful non-empty result
+        if (result.status !== 200) {
+          return reply.code(result.status).send({
+            success: false,
+            error: result.error || 'Failed to fetch models',
+            models: [],
+          });
+        }
+
+        const models = result.models || [];
         if (models.length > 0) {
           modelsCache.set(cacheKey, {
             models,

@@ -161,14 +161,14 @@ const ModelSelectionRow: React.FC<ModelSelectionRowProps> = ({
   onChange,
   datalistId,
   tipText,
-  fallbackModels,
-  isFetching,
-  fetchedModels,
+  fallbackModels = [],
+  isFetching = false,
+  fetchedModels = [],
   onFetch,
   helpText,
   providerName,
 }) => {
-  const models = fetchedModels.length > 0 ? fetchedModels : fallbackModels;
+  const models = (fetchedModels.length > 0 ? fetchedModels : fallbackModels) || [];
 
   return (
     <div style={{ marginBottom: '1.25rem' }}>
@@ -302,7 +302,6 @@ interface InheritedCustomModelSectionProps {
   selectedDefaultProvider?: string;
   datalistId: string;
   featureName: string;
-  icon?: 'zap' | 'sparkles';
   onFetchModels?: () => void;
   isFetching?: boolean;
   fetchedModels?: { id: string; name: string }[];
@@ -329,7 +328,6 @@ const InheritedCustomModelSection: React.FC<InheritedCustomModelSectionProps> = 
     : providerMeta.recommendedModels;
   const fallbackModels =
     matchingTierModels.length > 0 ? matchingTierModels : providerMeta.recommendedModels;
-  const models = fetchedModels.length > 0 ? fetchedModels : fallbackModels;
 
   const tipText =
     preferredTier === 'fast'
@@ -337,121 +335,21 @@ const InheritedCustomModelSection: React.FC<InheritedCustomModelSectionProps> = 
       : `Tip: For ${featureName}, choose reasoning and thinking models for deep nuance and ATS compliance.`;
 
   return (
-    <>
-      <div
-        className="model-tip-banner"
-        style={{
-          padding: '0.6rem 0.85rem',
-          borderRadius: 'var(--radius-sm)',
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-subtle)',
-          fontSize: '0.8rem',
-          color: 'var(--text-secondary)',
-          marginBottom: '0.65rem',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '0.5rem',
-        }}
-      >
-        <Sparkles size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
-        <span>{tipText}</span>
-      </div>
-
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label
-          htmlFor={id}
-          style={{
-            display: 'block',
-            fontSize: '0.85rem',
-            fontWeight: 500,
-            marginBottom: '0.35rem',
-          }}
-        >
-          {label}
-        </label>
-        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-          <input
-            id={id}
-            type="text"
-            list={datalistId}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            className="input-text"
-            style={{ flex: 1 }}
-            placeholder={placeholder}
-            required
-          />
-
-          {models.length > 0 && (
-            <select
-              aria-label={`Select model for ${label}`}
-              value=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  onChange(e.target.value);
-                }
-              }}
-              className="input-select"
-              style={{
-                maxWidth: '190px',
-                fontSize: '0.8rem',
-                padding: '0.45rem 0.5rem',
-              }}
-            >
-              <option value="">
-                {fetchedModels.length > 0
-                  ? `Pick (${fetchedModels.length} fetched)...`
-                  : 'Pick model...'}
-              </option>
-              {models.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name || m.id}
-                </option>
-              ))}
-            </select>
-          )}
-
-          {onFetchModels && (
-            <button
-              type="button"
-              onClick={onFetchModels}
-              disabled={isFetching}
-              className="btn btn-secondary btn-sm"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.35rem',
-                whiteSpace: 'nowrap',
-                padding: '0.45rem 0.75rem',
-              }}
-              title={`Fetch live models from ${providerMeta.name}`}
-            >
-              <RefreshCw size={12} className={isFetching ? 'spin' : ''} />
-              <span>{isFetching ? 'Fetching...' : 'Fetch Models'}</span>
-            </button>
-          )}
-        </div>
-
-        <datalist id={datalistId}>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name || m.id}
-            </option>
-          ))}
-        </datalist>
-
-        <span
-          style={{
-            fontSize: '0.75rem',
-            color: 'var(--text-muted)',
-            marginTop: '0.25rem',
-            display: 'block',
-          }}
-        >
-          Enter any model available through your {providerMeta.name || 'Default Gateway'} account.
-        </span>
-      </div>
-    </>
+    <ModelSelectionRow
+      id={id}
+      label={label}
+      placeholder={placeholder}
+      value={value}
+      onChange={onChange}
+      fallbackModels={fallbackModels}
+      datalistId={datalistId}
+      tipText={tipText}
+      onFetch={onFetchModels || (() => {})}
+      isFetching={isFetching}
+      fetchedModels={fetchedModels}
+      providerName={providerMeta.name}
+      helpText={`Enter any model available through your ${providerMeta.name || 'Default Gateway'} account.`}
+    />
   );
 };
 
@@ -967,6 +865,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const handleSelectDefaultProvider = (providerId: string) => {
     setSelectedDefaultProvider(providerId);
     handleFieldChange('default_llm_provider', providerId);
+    setFetchedModelsMap((prev) => ({ ...prev, gateway: [] }));
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
       if (!formSettings.default_llm_api_base && providerMeta.defaultBase) {
@@ -989,6 +888,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const handleSelectScorerProvider = (providerId: string) => {
     setSelectedScorerProvider(providerId);
     handleFieldChange('scorer_provider', providerId);
+    setFetchedModelsMap((prev) => ({ ...prev, scorer: [] }));
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
       if (!formSettings.scorer_api_base && providerMeta.defaultBase) {
@@ -1007,6 +907,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const handleSelectTailorProvider = (providerId: string) => {
     setSelectedTailorProvider(providerId);
     handleFieldChange('tailor_provider', providerId);
+    setFetchedModelsMap((prev) => ({ ...prev, tailor: [] }));
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
       if (!formSettings.tailor_api_base && providerMeta.defaultBase) {
@@ -1025,6 +926,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const handleSelectCopilotProvider = (providerId: string) => {
     setSelectedCopilotProvider(providerId);
     handleFieldChange('copilot_provider', providerId);
+    setFetchedModelsMap((prev) => ({ ...prev, copilot: [] }));
     const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
     if (providerMeta?.isLocal || providerMeta?.isCustom) {
       if (!formSettings.copilot_api_base && providerMeta.defaultBase) {
@@ -2868,7 +2770,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         selectedDefaultProvider={selectedDefaultProvider}
                         datalistId="scorer-model-suggestions"
                         featureName="Scorer"
-                        icon="zap"
                         onFetchModels={() =>
                           handleFetchModels(
                             'scorer',
@@ -3237,7 +3138,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         selectedDefaultProvider={selectedDefaultProvider}
                         datalistId="tailor-model-suggestions"
                         featureName="Tailoring"
-                        icon="sparkles"
                         onFetchModels={() =>
                           handleFetchModels(
                             'tailor',
@@ -4228,7 +4128,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         selectedDefaultProvider={selectedDefaultProvider}
                         datalistId="copilot-model-suggestions"
                         featureName="Copilot"
-                        icon="sparkles"
                         onFetchModels={() =>
                           handleFetchModels(
                             'copilot',

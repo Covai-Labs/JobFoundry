@@ -654,7 +654,7 @@ export class ApiClient {
     apiKey?: string;
     apiBase?: string;
     provider?: string;
-    feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot' | string;
+    feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot';
   }): Promise<TestLlmResponse> {
     return this.request<TestLlmResponse>('/api/v1/settings/test-llm', {
       method: 'POST',
@@ -667,7 +667,7 @@ export class ApiClient {
     apiKey?: string;
     apiBase?: string;
     provider?: string;
-    feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot' | string;
+    feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot';
   }): Promise<FetchModelsResponse> {
     return this.request<FetchModelsResponse>('/api/v1/settings/fetch-models', {
       method: 'POST',
