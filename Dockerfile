@@ -79,9 +79,9 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 # 3. Install PDF and resume export toolchain with pinned lockfile
-COPY packaging/node-tools/package.json packaging/node-tools/package-lock.json /opt/node-tools/
-RUN cd /opt/node-tools \
-    && npm ci --omit=dev --ignore-scripts \
+WORKDIR /opt/node-tools
+COPY packaging/node-tools/package.json packaging/node-tools/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts \
     && ln -s /opt/node-tools/node_modules/.bin/* /usr/local/bin/
 
 # 4. Install uv for fast Python dependency installation
