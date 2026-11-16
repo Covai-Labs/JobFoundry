@@ -36,9 +36,6 @@ import {
   RefreshCw,
   Settings,
   LogOut,
-  Target,
-  Sparkles,
-  Flame,
   Search,
   Laptop,
   Moon,
@@ -140,6 +137,40 @@ const TrackerRoute: React.FC<{
   );
 };
 
+const TrackerLayout: React.FC<{
+  currentView: 'board' | 'pipeline';
+  children: React.ReactNode;
+}> = ({ currentView, children }) => {
+  return (
+    <div className="tracker-page">
+      <div className="tracker-view-header">
+        <div className="tracker-view-switcher" role="tablist" aria-label="Tracker views">
+          <NavLink
+            to="/tracker"
+            end
+            className={() => `tracker-view-tab ${currentView === 'board' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={currentView === 'board'}
+          >
+            <Kanban size={15} />
+            <span>Board</span>
+          </NavLink>
+          <NavLink
+            to="/tracker/pipeline"
+            className={() => `tracker-view-tab ${currentView === 'pipeline' ? 'active' : ''}`}
+            role="tab"
+            aria-selected={currentView === 'pipeline'}
+          >
+            <Activity size={15} />
+            <span>Pipeline & Analytics</span>
+          </NavLink>
+        </div>
+      </div>
+      <div className="tracker-view-content">{children}</div>
+    </div>
+  );
+};
+
 const DashboardLayout: React.FC<DashboardContentProps> = ({
   settings,
   onSaveSettings,
@@ -163,7 +194,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const userTriggerRef = useRef<HTMLButtonElement>(null);
-  const [feedInitialFilters, setFeedInitialFilters] = useState<any>(undefined);
 
   // Global shortcut for Command Palette
   useEffect(() => {
@@ -217,17 +247,10 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
 
   const userDisplayName = user?.name || user?.email?.split('@')[0] || 'Account';
 
-  // Metrics
-  const totalJobs = jobs.length;
-  const scoredJobs = jobs.filter((j) => j.fit_score !== null && j.fit_score !== undefined);
-  const avgScore = scoredJobs.length
-    ? Math.round(scoredJobs.reduce((acc, j) => acc + (j.fit_score || 0), 0) / scoredJobs.length)
-    : 0;
-  const tailoredCount = jobs.filter((j) => j.status === 'tailored' || j.tailored_resume_id).length;
-  const highFitCount = jobs.filter((j) => (j.fit_score || 0) >= settings.threshold).length;
-
   const isStandalonePage =
-    location.pathname.startsWith('/pipeline') || location.pathname.startsWith('/settings');
+    location.pathname.startsWith('/tracker/pipeline') ||
+    location.pathname.startsWith('/pipeline') ||
+    location.pathname.startsWith('/settings');
 
   return (
     <div className="app-container">
@@ -251,20 +274,27 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
         </Link>
 
         <nav className="nav-tabs">
-          <NavLink to="/feed" className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}>
+          <NavLink
+            to="/feed"
+            className={({ isActive }) =>
+              `nav-tab ${isActive || location.pathname.startsWith('/jobs') ? 'active' : ''}`
+            }
+          >
             <Briefcase size={16} /> Job Feed
           </NavLink>
           <NavLink
             to="/tracker"
-            className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}
+            className={({ isActive }) =>
+              `nav-tab ${
+                isActive ||
+                location.pathname.startsWith('/tracker') ||
+                location.pathname.startsWith('/pipeline')
+                  ? 'active'
+                  : ''
+              }`
+            }
           >
             <Kanban size={16} /> Tracker
-          </NavLink>
-          <NavLink
-            to="/pipeline"
-            className={({ isActive }) => `nav-tab ${isActive ? 'active' : ''}`}
-          >
-            <Activity size={16} /> Pipeline Monitor
           </NavLink>
         </nav>
 
@@ -416,82 +446,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
 
       {/* Main Content */}
       <main className="main-content">
-        {!isStandalonePage && (
-          <div className="stats-grid">
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ status: 'all', minScore: undefined });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title="Click to view all jobs in feed"
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-blue)' }}>
-                <Briefcase size={22} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-val">{totalJobs}</div>
-                <div className="stat-label">Total Ingested Jobs</div>
-              </div>
-            </div>
-
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ minScore: 50 });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title="Click to view jobs with ≥ 50% match"
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-green)' }}>
-                <Target size={22} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-val">{avgScore}%</div>
-                <div className="stat-label">Average Fit Score</div>
-              </div>
-            </div>
-
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ status: 'tailored' });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title="Click to view tailored jobs"
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-purple)' }}>
-                <Sparkles size={22} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-val">{tailoredCount}</div>
-                <div className="stat-label">Tailored Resumes</div>
-              </div>
-            </div>
-
-            <div
-              className="stat-card"
-              onClick={() => {
-                setFeedInitialFilters({ minScore: settings.threshold });
-                navigate('/feed');
-              }}
-              style={{ cursor: 'pointer' }}
-              title={`Click to view qualified jobs (≥ ${settings.threshold}%)`}
-            >
-              <div className="stat-icon-wrapper" style={{ color: 'var(--color-amber)' }}>
-                <Flame size={22} />
-              </div>
-              <div className="stat-info">
-                <div className="stat-val">{highFitCount}</div>
-                <div className="stat-label">Qualified (≥ {settings.threshold}%)</div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {error && (
           <div
             style={{
@@ -523,7 +477,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                 <JobFeed
                   jobs={jobs}
                   threshold={settings.threshold}
-                  initialFilters={feedInitialFilters}
                   onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                   onJobUpdated={onJobUpdated}
                   onJobDeleted={onJobDeleted}
@@ -534,31 +487,40 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             <Route
               path="/tracker"
               element={
-                <TrackerRoute
-                  jobs={jobs}
-                  threshold={settings.threshold}
-                  onStatusChange={onStatusChange}
-                  onJobUpdated={onJobUpdated}
-                  onJobDeleted={onJobDeleted}
-                />
+                <TrackerLayout currentView="board">
+                  <TrackerRoute
+                    jobs={jobs}
+                    threshold={settings.threshold}
+                    onStatusChange={onStatusChange}
+                    onJobUpdated={onJobUpdated}
+                    onJobDeleted={onJobDeleted}
+                  />
+                </TrackerLayout>
+              }
+            />
+            <Route
+              path="/tracker/pipeline"
+              element={
+                <TrackerLayout currentView="pipeline">
+                  <PipelineView onSelectJob={(jobId) => navigate(`/jobs/${jobId}`)} />
+                </TrackerLayout>
               }
             />
             <Route
               path="/tracker/:id"
               element={
-                <TrackerRoute
-                  jobs={jobs}
-                  threshold={settings.threshold}
-                  onStatusChange={onStatusChange}
-                  onJobUpdated={onJobUpdated}
-                  onJobDeleted={onJobDeleted}
-                />
+                <TrackerLayout currentView="board">
+                  <TrackerRoute
+                    jobs={jobs}
+                    threshold={settings.threshold}
+                    onStatusChange={onStatusChange}
+                    onJobUpdated={onJobUpdated}
+                    onJobDeleted={onJobDeleted}
+                  />
+                </TrackerLayout>
               }
             />
-            <Route
-              path="/pipeline"
-              element={<PipelineView onSelectJob={(jobId) => navigate(`/jobs/${jobId}`)} />}
-            />
+            <Route path="/pipeline" element={<Navigate to="/tracker/pipeline" replace />} />
             <Route
               path="/jobs/:id"
               element={
@@ -566,7 +528,6 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                   <JobFeed
                     jobs={jobs}
                     threshold={settings.threshold}
-                    initialFilters={feedInitialFilters}
                     onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                     onJobUpdated={onJobUpdated}
                     onJobDeleted={onJobDeleted}

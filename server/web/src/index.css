@@ -799,7 +799,7 @@ h6 {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   padding: 1.25rem;
-  margin-bottom: 2rem;
+  margin-bottom: 0.85rem;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -1119,6 +1119,60 @@ h6 {
   align-items: center;
   justify-content: flex-end;
   gap: 0.75rem;
+}
+
+/* Tracker View & Sub-Navigation */
+.tracker-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.tracker-view-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--border-subtle);
+  padding-bottom: 0.85rem;
+}
+
+.tracker-view-switcher {
+  display: inline-flex;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 3px;
+  gap: 3px;
+}
+
+.tracker-view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.95rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  text-decoration: none;
+  background: transparent;
+  transition: all 0.15s ease;
+  cursor: pointer;
+}
+
+.tracker-view-tab:hover {
+  color: var(--text-primary);
+  background: var(--btn-secondary-hover-bg);
+}
+
+.tracker-view-tab.active {
+  background: var(--accent-primary);
+  color: #ffffff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.tracker-view-content {
+  min-width: 0;
 }
 
 /* Kanban Board */

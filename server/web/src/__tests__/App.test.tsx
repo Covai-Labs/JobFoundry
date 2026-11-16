@@ -67,8 +67,8 @@ describe('App', () => {
       () => {
         expect(screen.getByText('Job')).toBeInTheDocument();
         expect(screen.getByText('Foundry')).toBeInTheDocument();
-        expect(screen.getByText('Total Ingested Jobs')).toBeInTheDocument();
-        expect(screen.getByText('Average Fit Score')).toBeInTheDocument();
+        expect(screen.getByText('Job Feed')).toBeInTheDocument();
+        expect(screen.getByText('Tracker')).toBeInTheDocument();
         expect(screen.getAllByText('Lead Architect').length).toBeGreaterThanOrEqual(1);
       },
       { timeout: 10000 }
@@ -104,5 +104,28 @@ describe('App', () => {
     // Escape closes menu
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByText('Appearance')).not.toBeInTheDocument();
+  });
+
+  it('renders tracker with sub-view switcher tabs and switches between Board and Pipeline', async () => {
+    localStorage.setItem('jf_auth_token', 'valid-jwt-token');
+    localStorage.setItem(
+      'jf_auth_user',
+      JSON.stringify({ id: 'u1', email: 'test@example.com', name: 'Tester', apiKey: 'jf_test' })
+    );
+    window.history.pushState({}, '', '/tracker');
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('tab', { name: /board/i })).toBeInTheDocument();
+      expect(screen.getByRole('tab', { name: /pipeline & analytics/i })).toBeInTheDocument();
+    });
+
+    const pipelineTab = screen.getByRole('tab', { name: /pipeline & analytics/i });
+    fireEvent.click(pipelineTab);
+
+    await waitFor(() => {
+      expect(window.location.pathname).toBe('/tracker/pipeline');
+    });
   });
 });

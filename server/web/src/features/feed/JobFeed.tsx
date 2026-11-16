@@ -355,55 +355,6 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       {/* Keyboard Help Modal */}
       <KeyboardHelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
 
-      {/* Keyboard Shortcut Hint Bar */}
-      <div
-        className="keyboard-hint-bar"
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Quick Triage:</span>
-          <span className="keyboard-hint-item">
-            <span className="kbd-pill">J</span> / <span className="kbd-pill">K</span> Next/Prev
-          </span>
-          <span className="keyboard-hint-item">
-            <span className="kbd-pill">O</span> Open Post
-          </span>
-          <span className="keyboard-hint-item">
-            <span className="kbd-pill">S</span> Save
-          </span>
-          <span className="keyboard-hint-item">
-            <span className="kbd-pill">E</span> Archive
-          </span>
-          <span className="keyboard-hint-item">
-            <span className="kbd-pill">A</span> Apply
-          </span>
-          <span className="keyboard-hint-item">
-            <span className="kbd-pill">T</span> Tailor
-          </span>
-          <span className="keyboard-hint-item">
-            <span className="kbd-pill">/</span> Search
-          </span>
-        </div>
-        <button
-          onClick={() => setIsHelpModalOpen(true)}
-          className="btn btn-secondary btn-sm"
-          style={{
-            fontSize: '0.75rem',
-            padding: '0.2rem 0.5rem',
-            display: 'inline-flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-            marginLeft: 'auto',
-          }}
-          title="View all shortcuts (press ?)"
-        >
-          <Keyboard size={13} /> Shortcuts{' '}
-          <span className="kbd-pill" style={{ marginLeft: 2 }}>
-            ?
-          </span>
-        </button>
-      </div>
-
       {/* Filters and Sorting Bar */}
       <div
         className="filters-bar"
@@ -523,6 +474,55 @@ export const JobFeed: React.FC<JobFeedProps> = ({
             <LayoutGrid size={14} /> Cards
           </button>
         </div>
+      </div>
+
+      {/* Keyboard Shortcut Hint Bar */}
+      <div
+        className="keyboard-hint-bar"
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+          <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Quick Triage:</span>
+          <span className="keyboard-hint-item">
+            <span className="kbd-pill">J</span> / <span className="kbd-pill">K</span> Next/Prev
+          </span>
+          <span className="keyboard-hint-item">
+            <span className="kbd-pill">O</span> Open Post
+          </span>
+          <span className="keyboard-hint-item">
+            <span className="kbd-pill">S</span> Save
+          </span>
+          <span className="keyboard-hint-item">
+            <span className="kbd-pill">E</span> Archive
+          </span>
+          <span className="keyboard-hint-item">
+            <span className="kbd-pill">A</span> Apply
+          </span>
+          <span className="keyboard-hint-item">
+            <span className="kbd-pill">T</span> Tailor
+          </span>
+          <span className="keyboard-hint-item">
+            <span className="kbd-pill">/</span> Search
+          </span>
+        </div>
+        <button
+          onClick={() => setIsHelpModalOpen(true)}
+          className="btn btn-secondary btn-sm"
+          style={{
+            fontSize: '0.75rem',
+            padding: '0.2rem 0.5rem',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.3rem',
+            marginLeft: 'auto',
+          }}
+          title="View all shortcuts (press ?)"
+        >
+          <Keyboard size={13} /> Shortcuts{' '}
+          <span className="kbd-pill" style={{ marginLeft: 2 }}>
+            ?
+          </span>
+        </button>
       </div>
 
       {/* Results Header Info */}

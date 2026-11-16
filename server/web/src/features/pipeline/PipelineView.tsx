@@ -65,8 +65,8 @@ export const PipelineView: React.FC<{
         api.getActiveResume().catch(() => null),
         api.getFunnelStats().catch(() => null),
       ]);
-      setStats(statsData);
-      setJobs(jobsData);
+      setStats(statsData || { total: 0, unscored: 0, scored: 0, tailored: 0, failed: 0 });
+      setJobs(Array.isArray(jobsData) ? jobsData : []);
       setActiveResumeLoaded(Boolean(activeResume?.resume));
       if (funnelRes) {
         setFunnelData(funnelRes);
