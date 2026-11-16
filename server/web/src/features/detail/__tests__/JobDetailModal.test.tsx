@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { JobDetailModal } from '../JobDetailModal';
 import { Job } from '../../../types/job';
 
@@ -38,7 +38,7 @@ describe('JobDetailModal external job link', () => {
     (url) => {
       renderModal(url);
 
-      expect(screen.getByRole('link', { name: /View Original/ })).toHaveAttribute('href', '#');
+      expect(screen.getByRole('link', { name: /Open Posting/ })).toHaveAttribute('href', '#');
     }
   );
 
@@ -49,7 +49,7 @@ describe('JobDetailModal external job link', () => {
   ])('preserves supported HTTP(S) URL %s', (url, expected) => {
     renderModal(url);
 
-    expect(screen.getByRole('link', { name: /View Original/ })).toHaveAttribute('href', expected);
+    expect(screen.getByRole('link', { name: /Open Posting/ })).toHaveAttribute('href', expected);
   });
 
   it('renders re-score buttons and triggers rescoreJob on click', async () => {
@@ -69,9 +69,10 @@ describe('JobDetailModal external job link', () => {
       />
     );
 
-    const rescoreBtn = screen.getByRole('button', { name: /^Re-score$/ });
+    const rescoreBtn = screen.getByRole('button', { name: /^More job actions$/i });
     expect(rescoreBtn).toBeInTheDocument();
-    rescoreBtn.click();
+    fireEvent.click(rescoreBtn);
+    fireEvent.click(screen.getByRole('menuitem', { name: /^Re-score$/ }));
 
     expect(spy).toHaveBeenCalledWith('job-1');
   });

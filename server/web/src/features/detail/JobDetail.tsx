@@ -6,12 +6,17 @@ import { TailorButton } from '../tailor/TailorButton';
 import { ArtifactViewer } from '../artifacts/ArtifactViewer';
 import { ResumeDiffView } from '../diff/ResumeDiffView';
 import { CopilotView } from '../copilot/CopilotView';
-import { KANBAN_COLUMNS } from '../tracker/trackerUtils';
+import { StatusPill } from './StatusPill';
+import { Popover } from '../../components/Popover';
+import { getNextAction } from '../../lib/jobStages';
 import {
   ExternalLink,
   Sparkles,
   RefreshCw,
   Trash2,
+  CheckCircle2,
+  ArrowRight,
+  MoreHorizontal,
   MapPin,
   Check,
   X,
@@ -430,6 +435,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({
   const scoreCat = getScoreCategory(job.fit_score, threshold);
   const isTailored = job.status === 'tailored' || Boolean(job.tailored_resume_id);
   const missingDescription = !job.description || job.description.trim().length < 50;
+  const primaryAction = getNextAction(job.status);
 
   return (
     <div className="triage-workbench">
@@ -466,24 +472,29 @@ export const JobDetail: React.FC<JobDetailProps> = ({
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Ingested {new Date(job.created_at).toLocaleDateString()}
             </span>
+            <StatusPill status={job.status} onChange={(next) => onStatusChange(job.id, next)} />
           </div>
         </div>
 
         {/* Top Header Actions */}
         <div className="triage-workbench-actions">
-          <select
-            value={job.status}
-            onChange={(e) => onStatusChange(job.id, e.target.value as JobStatus)}
-            className="select-input"
-            style={{ padding: '0.35rem 0.65rem', fontSize: '0.8rem', fontWeight: 500 }}
-            title="Update pipeline status"
-          >
-            {KANBAN_COLUMNS.map((col) => (
-              <option key={col.id} value={col.id}>
-                {col.title}
-              </option>
-            ))}
-          </select>
+          {primaryAction && (
+            <button
+              type="button"
+              onClick={() =>
+                primaryAction.kind === 'status' && onStatusChange(job.id, primaryAction.to)
+              }
+              className="btn btn-primary btn-sm stage-primary-action"
+              title={primaryAction.title}
+            >
+              {primaryAction.kind === 'status' && primaryAction.to === 'applied' ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <ArrowRight size={14} />
+              )}
+              {primaryAction.label}
+            </button>
+          )}
 
           <a
             href={safeHref(job.url)}
@@ -491,45 +502,75 @@ export const JobDetail: React.FC<JobDetailProps> = ({
             rel="noopener noreferrer"
             className="btn btn-secondary btn-sm"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Open posting in new tab (press O)"
+            title="Open the original posting in a new tab (press O)"
           >
-            <ExternalLink size={13} /> View Original
+            <ExternalLink size={13} /> Open Posting
           </a>
-
-          <button
-            onClick={handleRescore}
-            disabled={rescoring}
-            className="btn btn-secondary btn-sm"
-            title="Re-run AI fit scoring against current master resume"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
-          >
-            <RefreshCw size={13} className={rescoring ? 'animate-spin' : ''} />
-            {rescoring ? 'Scoring...' : 'Re-score'}
-          </button>
 
           <TailorButton job={job} onTailored={onJobUpdated} />
 
-          <button
-            onClick={handleCopyLink}
-            className="btn btn-secondary btn-sm"
-            title="Copy shareable job link"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+          <Popover
+            align="end"
+            className="job-overflow"
+            trigger={({ open, toggle }) => (
+              <button
+                type="button"
+                onClick={toggle}
+                className="btn btn-secondary btn-sm btn-icon-only"
+                aria-haspopup="menu"
+                aria-expanded={open}
+                aria-label="More job actions"
+                title="More actions"
+              >
+                <MoreHorizontal size={15} />
+              </button>
+            )}
           >
-            <Link2 size={13} />
-            {copiedLink ? 'Copied' : 'Copy Link'}
-          </button>
-
-          {onDeleteJob && (
-            <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="btn btn-secondary btn-sm"
-              title="Delete job from database"
-              style={{ color: 'var(--color-red)' }}
-            >
-              <Trash2 size={13} />
-            </button>
-          )}
+            {(close) => (
+              <div className="job-overflow-menu" role="menu" aria-label="More job actions">
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    close();
+                    handleRescore();
+                  }}
+                  disabled={rescoring}
+                >
+                  <RefreshCw size={13} className={rescoring ? 'animate-spin' : ''} />
+                  {rescoring ? 'Scoring...' : 'Re-score'}
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    handleCopyLink();
+                  }}
+                >
+                  <Link2 size={13} />
+                  {copiedLink ? 'Copied' : 'Copy Link'}
+                </button>
+                {onDeleteJob && (
+                  <>
+                    <div className="job-overflow-separator" role="presentation" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      className="is-danger"
+                      onClick={() => {
+                        close();
+                        handleDelete();
+                      }}
+                      disabled={deleting}
+                    >
+                      <Trash2 size={13} />
+                      Delete job
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
+          </Popover>
         </div>
       </div>
 

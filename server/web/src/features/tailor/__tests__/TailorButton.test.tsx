@@ -35,7 +35,7 @@ describe('TailorButton', () => {
     expect(spy).toHaveBeenCalledWith('job-123');
   });
 
-  it('renders Tailored badge and Re-tailor button when job is already tailored', async () => {
+  it('renders Re-tailor without duplicating the Tailored badge when job is already tailored', async () => {
     const tailoredJob: Job = {
       ...mockJob,
       status: 'tailored',
@@ -49,9 +49,10 @@ describe('TailorButton', () => {
 
     render(<TailorButton job={tailoredJob} onTailored={onTailored} />);
 
-    expect(screen.getByText(/Tailored ✓/)).toBeInTheDocument();
+    // The stage pill owns the "Tailored" state; this control only re-runs it.
+    expect(screen.queryByText(/Tailored ✓/)).not.toBeInTheDocument();
 
-    const retailorBtn = screen.getByRole('button', { name: /🔄 Re-tailor/ });
+    const retailorBtn = screen.getByRole('button', { name: /Re-tailor/ });
     expect(retailorBtn).toBeInTheDocument();
 
     fireEvent.click(retailorBtn);

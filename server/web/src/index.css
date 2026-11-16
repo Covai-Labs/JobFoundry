@@ -208,6 +208,7 @@ h6 {
   cursor: pointer;
   text-decoration: none;
   transition: all 0.15s ease;
+  white-space: nowrap;
 }
 
 .nav-tab:hover {
@@ -803,15 +804,54 @@ h6 {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
+  gap: 0.75rem;
+}
+
+/* Sort, stage, source, score + view switch stay together as one block so a
+   narrow window wraps them as a unit instead of leaving one select orphaned. */
+.filters-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  margin-left: auto;
+}
+
+.filters-controls .select-input {
+  padding: 0.5rem 0.7rem;
+  font-size: 0.8rem;
 }
 
 .search-input-wrapper {
-  flex: 1;
-  min-width: 250px;
+  flex: 1 1 240px;
+  min-width: 200px;
   position: relative;
   display: flex;
   align-items: center;
+}
+
+@media (max-width: 900px) {
+  .filters-controls {
+    width: 100%;
+    margin-left: 0;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .filters-controls .select-input,
+  .filters-controls .filters-clear {
+    width: 100%;
+  }
+}
+
+@media (max-width: 560px) {
+  .filters-bar {
+    padding: 0.9rem;
+  }
+
+  .filters-controls {
+    grid-template-columns: 1fr;
+  }
 }
 
 .search-icon {
@@ -855,6 +895,13 @@ h6 {
   gap: 1.5rem;
 }
 
+@media (max-width: 700px) {
+  .job-grid {
+    grid-template-columns: 1fr;
+    gap: 1rem;
+  }
+}
+
 .job-card {
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
@@ -870,6 +917,42 @@ h6 {
   cursor: pointer;
   position: relative;
   overflow: hidden;
+}
+
+.job-card-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 1.25rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.job-card-date {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.job-card-actions {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-left: auto;
+}
+
+.job-card-actions .btn {
+  padding: 0.35rem 0.65rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+.job-card-apply {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
 }
 
 .job-card:hover {
@@ -1672,6 +1755,7 @@ h6 {
 
 .triage-workbench-title-area {
   flex: 1;
+  min-width: 0;
 }
 
 .triage-workbench-actions {
@@ -1775,7 +1859,8 @@ h6 {
 
 .toast-container {
   position: fixed;
-  top: 1.25rem;
+  /* Clear the sticky navbar so toasts never sit on top of nav actions. */
+  top: 4.5rem;
   right: 1.25rem;
   z-index: 1000;
   display: flex;
@@ -2223,4 +2308,379 @@ h6 {
   background: var(--bg-primary);
   border: 1px solid var(--border-subtle);
   color: var(--text-muted);
+}
+
+/* ==========================================================================
+   Stage Model: popovers, status pill, overflow menu
+   ========================================================================== */
+
+.popover {
+  position: relative;
+  display: inline-flex;
+}
+
+.popover-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  z-index: 200;
+  min-width: 190px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  padding: 0.35rem;
+  backdrop-filter: blur(16px);
+  animation: popover-pop 0.14s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.popover-panel-end {
+  right: 0;
+}
+
+.popover-panel-start {
+  left: 0;
+}
+
+@keyframes popover-pop {
+  from {
+    opacity: 0;
+    transform: translateY(-4px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* --- Stage coloured dot (driven by data-stage on any element) --- */
+.stage-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--stage-color, var(--text-muted));
+  flex-shrink: 0;
+}
+
+[data-stage='new'] {
+  --stage-color: var(--color-blue);
+}
+[data-stage='saved'] {
+  --stage-color: var(--accent-primary);
+}
+[data-stage='tailored'] {
+  --stage-color: var(--color-purple);
+}
+[data-stage='applied'] {
+  --stage-color: var(--color-cyan);
+}
+[data-stage='interview'] {
+  --stage-color: var(--color-amber);
+}
+[data-stage='offer'] {
+  --stage-color: var(--color-green);
+}
+[data-stage='rejected'],
+[data-stage='rejected_by_score'] {
+  --stage-color: var(--color-red);
+}
+[data-stage='archived'],
+[data-stage='invalid_job'] {
+  --stage-color: var(--text-muted);
+}
+[data-stage='score_failed'] {
+  --stage-color: var(--color-amber);
+}
+
+/* --- Labelled status pill --- */
+.stage-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.18rem 0.22rem 0.18rem 0.62rem;
+  border-radius: var(--radius-full);
+  background: var(--btn-secondary-bg);
+  background: color-mix(in srgb, var(--stage-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--stage-color) 45%, transparent);
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.15s ease;
+}
+
+.stage-pill:hover {
+  background: color-mix(in srgb, var(--stage-color) 24%, transparent);
+  border-color: color-mix(in srgb, var(--stage-color) 75%, transparent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--stage-color) 14%, transparent);
+}
+
+.stage-pill.is-open {
+  background: color-mix(in srgb, var(--stage-color) 28%, transparent);
+  border-color: var(--stage-color);
+}
+
+.stage-pill:active {
+  transform: translateY(1px);
+}
+
+.stage-pill:focus-visible {
+  outline: 2px solid var(--stage-color);
+  outline-offset: 2px;
+}
+
+.stage-pill-label {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--stage-color);
+  font-weight: 700;
+  opacity: 0.85;
+}
+
+.stage-pill-value {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--stage-color);
+}
+
+.stage-pill-caret {
+  width: 17px;
+  height: 17px;
+  padding: 0.16rem;
+  border-radius: 50%;
+  flex-shrink: 0;
+  color: var(--stage-color);
+  background: color-mix(in srgb, var(--stage-color) 22%, transparent);
+}
+
+/* --- Stage menu --- */
+.stage-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 205px;
+}
+
+.stage-menu-heading {
+  padding: 0.35rem 0.5rem 0.2rem;
+  font-size: 0.62rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.stage-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.4rem 0.5rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.stage-menu-item:hover {
+  background: var(--btn-secondary-bg);
+  color: var(--text-primary);
+}
+
+.stage-menu-item.is-current {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.stage-menu-item-label {
+  flex: 1;
+}
+
+.stage-menu-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0.35rem 0.25rem;
+}
+
+/* --- Job overflow (kebab) menu --- */
+.job-overflow-menu {
+  display: flex;
+  flex-direction: column;
+  min-width: 175px;
+}
+
+.job-overflow-menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.45rem 0.55rem;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.job-overflow-menu button:hover:not(:disabled) {
+  background: var(--btn-secondary-bg);
+  color: var(--text-primary);
+}
+
+.job-overflow-menu button.is-danger {
+  color: var(--color-red);
+}
+
+.job-overflow-menu button.is-danger:hover:not(:disabled) {
+  background: var(--color-red-bg);
+}
+
+.job-overflow-menu button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.job-overflow-separator {
+  height: 1px;
+  background: var(--border-subtle);
+  margin: 0.3rem 0.25rem;
+}
+
+.btn-icon-only {
+  padding: 0.35rem 0.5rem;
+}
+
+/* --- Toast action (e.g. Undo) --- */
+.toast-action {
+  margin-top: 0.4rem;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent-primary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.toast-action:hover {
+  text-decoration: underline;
+}
+
+.stage-primary-action {
+  font-weight: 600;
+}
+
+/* --- Narrow-screen handling for the triage workbench --- */
+@media (max-width: 1200px) {
+  .triage-workbench-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.9rem;
+  }
+
+  .triage-workbench-actions {
+    width: 100%;
+  }
+
+  .triage-workbench-tabs {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .triage-workbench-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .triage-tab-btn {
+    white-space: nowrap;
+  }
+
+  .triage-workbench-body {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .triage-workbench-header {
+    padding: 1rem;
+  }
+
+  .job-card {
+    padding: 1rem;
+  }
+
+  .job-card-footer-actions {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.6rem;
+  }
+
+  .job-card-actions {
+    justify-content: flex-start;
+    width: 100%;
+  }
+}
+
+/* --- Feed results meta line --- */
+.feed-results-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 0.75rem 0 1.25rem 0;
+  padding: 0 0.25rem;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+}
+
+/* --- Sticky navbar on small screens: actions on row 1, tabs on row 2 --- */
+@media (max-width: 1080px) {
+  .navbar {
+    flex-wrap: wrap;
+    padding: 0.75rem 1rem;
+    gap: 0.6rem;
+  }
+
+  .nav-brand {
+    font-size: 1.1rem;
+  }
+
+  .nav-tabs {
+    order: 3;
+    /* Full-width second row: the two tabs split it evenly, like a segmented
+       control, instead of leaving one squeezed into the action row. */
+    flex: 0 0 100%;
+  }
+
+  .nav-tab {
+    flex: 1;
+    justify-content: center;
+  }
+
+  .nav-actions {
+    margin-left: auto;
+    gap: 0.4rem;
+  }
+
+  /* Keep the icon, drop the label so the action row stays on one line. */
+  .cmd-k-btn span,
+  .cmd-k-badge,
+  .add-job-btn span,
+  .nav-actions .btn span,
+  .user-display-name {
+    display: none;
+  }
+}
+
+@media (max-width: 560px) {
+  .feed-results-meta {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.35rem;
+  }
 }

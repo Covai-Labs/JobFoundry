@@ -57,7 +57,8 @@ describe('JobDetail unification (workbench shell === modal shell)', () => {
     ['modal', () => render(<JobDetailModal job={baseJob} onClose={vi.fn()} {...noopHandlers} />)],
   ])('%s renders the same Re-score affordance', (_name, renderShell) => {
     const { unmount } = renderShell();
-    expect(screen.getByRole('button', { name: /^Re-score$/ })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /More job actions/i }));
+    expect(screen.getByRole('menuitem', { name: /Re-score/ })).toBeInTheDocument();
     unmount();
   });
 
@@ -69,9 +70,10 @@ describe('JobDetail unification (workbench shell === modal shell)', () => {
     Object.assign(window.navigator, { clipboard: { writeText } });
 
     const { unmount } = renderShell();
-    fireEvent.click(screen.getByRole('button', { name: /Copy Link/ }));
+    fireEvent.click(screen.getByRole('button', { name: /More job actions/i }));
+    fireEvent.click(screen.getByRole('menuitem', { name: /Copy Link/ }));
     expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/jobs/job-1`);
-    expect(await screen.findByRole('button', { name: /Copied/ })).toBeInTheDocument();
+    expect(await screen.findByRole('menuitem', { name: /Copied/ })).toBeInTheDocument();
     unmount();
   });
 
@@ -85,6 +87,49 @@ describe('JobDetail unification (workbench shell === modal shell)', () => {
     expect(screen.getByText('Original Source URL')).toBeInTheDocument();
     expect(screen.getByText('jobs.example.com')).toBeInTheDocument();
     unmount();
+  });
+
+  it('derives the primary action from the current stage', () => {
+    const onStatusChange = vi.fn();
+    const { rerender } = render(
+      <JobWorkbench job={baseJob} onStatusChange={onStatusChange} onJobUpdated={vi.fn()} />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: /Mark Applied/ }));
+    expect(onStatusChange).toHaveBeenCalledWith('job-1', 'applied');
+
+    rerender(
+      <JobWorkbench
+        job={{ ...baseJob, status: 'applied' }}
+        onStatusChange={onStatusChange}
+        onJobUpdated={vi.fn()}
+      />
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Log Interview/ }));
+    expect(onStatusChange).toHaveBeenCalledWith('job-1', 'interview');
+  });
+
+  it('shows no primary action once the job is closed out', () => {
+    render(
+      <JobWorkbench
+        job={{ ...baseJob, status: 'rejected' }}
+        onStatusChange={vi.fn()}
+        onJobUpdated={vi.fn()}
+      />
+    );
+    expect(screen.queryByRole('button', { name: /Mark Applied/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Log Interview/ })).not.toBeInTheDocument();
+  });
+
+  it('exposes the stage menu with grouped pipeline options', () => {
+    const onStatusChange = vi.fn();
+    render(<JobWorkbench job={baseJob} onStatusChange={onStatusChange} onJobUpdated={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole('button', { name: /Pipeline stage/i }));
+    expect(screen.getByText('Closed & system')).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('option', { name: 'Saved' }));
+    expect(onStatusChange).toHaveBeenCalledWith('job-1', 'saved');
   });
 
   it('cleans up temporary textarea when copy URL fallback fails', async () => {

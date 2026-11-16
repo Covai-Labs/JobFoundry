@@ -29,6 +29,7 @@ import { SkeletonFeed } from './components/Skeleton';
 import { CommandPalette } from './components/CommandPalette';
 import { SupportModal } from './components/SupportModal';
 import { getModKey } from './lib/platform';
+import { STATUS_LABELS } from './lib/jobStages';
 import {
   Briefcase,
   Kanban,
@@ -322,6 +323,8 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
             type="button"
             onClick={() => setIsAddJobOpen(true)}
             className="btn btn-primary btn-sm add-job-btn"
+            aria-label="Add job"
+            title="Add job manually"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
           >
             <Plus size={15} /> <span>Add Job</span>
@@ -661,10 +664,25 @@ const DashboardRoot: React.FC = () => {
   }, [user, fetchJobs]);
 
   const handleStatusChange = async (jobId: string, newStatus: JobStatus) => {
+    const previousStatus = jobs.find((j) => j.id === jobId)?.status;
     try {
       const updated = await api.updateStatus(jobId, newStatus);
       setJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
-      toast.success(`Job marked as "${newStatus}"`);
+
+      const label = STATUS_LABELS[newStatus] ?? newStatus;
+      if (previousStatus && previousStatus !== newStatus) {
+        toast.undoable(`Marked ${label}`, 'Undo', async () => {
+          try {
+            const reverted = await api.updateStatus(jobId, previousStatus);
+            setJobs((prev) => prev.map((j) => (j.id === jobId ? reverted : j)));
+            toast.success(`Moved back to ${STATUS_LABELS[previousStatus] ?? previousStatus}`);
+          } catch (err: any) {
+            toast.error(`Could not undo: ${err.message || 'Unknown error'}`);
+          }
+        });
+      } else {
+        toast.success(`Stage set to ${label}`);
+      }
     } catch (err: any) {
       toast.error(`Failed to update status: ${err.message || 'Unknown error'}`);
     }

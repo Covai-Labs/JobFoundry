@@ -17,6 +17,7 @@ export interface ToastItem {
   message: string;
   title?: string;
   duration?: number;
+  action?: { label: string; onClick: () => void };
 }
 
 interface ToastContextType {
@@ -27,6 +28,8 @@ interface ToastContextType {
   error: (message: string, title?: string) => void;
   info: (message: string, title?: string) => void;
   warning: (message: string, title?: string) => void;
+  /** Success toast with a single call-to-action, e.g. Undo. */
+  undoable: (message: string, label: string, onClick: () => void) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -97,6 +100,18 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     [addToast]
   );
 
+  const undoable = useCallback(
+    (message: string, label: string, onClick: () => void) => {
+      addToast({
+        type: 'success',
+        message,
+        duration: 6000,
+        action: { label, onClick },
+      });
+    },
+    [addToast]
+  );
+
   const contextValue = useMemo(
     () => ({
       toasts,
@@ -106,8 +121,9 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       error,
       info,
       warning,
+      undoable,
     }),
-    [toasts, addToast, removeToast, success, error, info, warning]
+    [toasts, addToast, removeToast, success, error, info, warning, undoable]
   );
 
   return (
@@ -127,6 +143,18 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
             <div className="toast-content">
               {t.title && <div className="toast-title">{t.title}</div>}
               <div className="toast-message">{t.message}</div>
+              {t.action && (
+                <button
+                  type="button"
+                  className="toast-action"
+                  onClick={() => {
+                    t.action?.onClick();
+                    removeToast(t.id);
+                  }}
+                >
+                  {t.action.label}
+                </button>
+              )}
             </div>
             <button
               type="button"

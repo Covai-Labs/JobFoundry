@@ -6,7 +6,17 @@ import { TriageListItem } from './TriageListItem';
 import { JobWorkbench } from './JobWorkbench';
 import { KeyboardHelpModal } from './KeyboardHelpModal';
 import { filterJobs, FilterCriteria } from '../filters/filterUtils';
-import { Search, LayoutList, LayoutGrid, X, Keyboard } from 'lucide-react';
+import {
+  ACTIONABLE_FILTER,
+  CLOSED_STATUSES,
+  PIPELINE_STATUSES,
+  STATUS_LABELS,
+} from '../../lib/jobStages';
+import { useMediaQuery } from '../../lib/useMediaQuery';
+import { Search, LayoutList, LayoutGrid, X, Keyboard, CheckCircle2 } from 'lucide-react';
+
+/** Below this width the split triage station collapses to cards. */
+const SPLIT_VIEW_MIN_WIDTH = 1080;
 
 interface JobFeedProps {
   jobs: Job[];
@@ -40,7 +50,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 }) => {
   const [filters, setFilters] = useState<FilterCriteria>({
     search: initialFilters?.search ?? '',
-    status: initialFilters?.status ?? 'all',
+    status: initialFilters?.status ?? ACTIONABLE_FILTER,
     source: initialFilters?.source ?? 'all',
     minScore: initialFilters?.minScore,
   });
@@ -50,6 +60,12 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     const saved = localStorage.getItem('jf_feed_view_mode');
     return saved === 'grid' ? 'grid' : 'split';
   });
+
+  // The two-pane triage station needs ~1050px to stay usable. Below that the
+  // feed falls back to cards without overwriting the saved preference, so the
+  // split view returns when the window grows again.
+  const isNarrowViewport = useMediaQuery(`(max-width: ${SPLIT_VIEW_MIN_WIDTH}px)`);
+  const effectiveViewMode: 'split' | 'grid' = isNarrowViewport ? 'grid' : viewMode;
 
   const [activeJobId, setActiveJobId] = useState<string | null>(externalSelectedJobId || null);
 
@@ -120,14 +136,23 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   }, [externalSelectedJobId]);
 
   // Keep active job valid within current filtered/sorted view
+  const previousJobIdsRef = useRef<string[]>([]);
   useEffect(() => {
-    if (sortedAndFilteredJobs.length > 0) {
-      if (!activeJobId || !sortedAndFilteredJobs.some((j) => j.id === activeJobId)) {
-        setActiveJobId(sortedAndFilteredJobs[0].id);
-      }
-    } else {
+    const ids = sortedAndFilteredJobs.map((j) => j.id);
+    const previousIds = previousJobIdsRef.current;
+
+    if (ids.length === 0) {
       setActiveJobId(null);
+    } else if (!activeJobId || !ids.includes(activeJobId)) {
+      // When the active job leaves the queue (e.g. it was just marked
+      // Applied), advance to whatever now occupies its slot rather than
+      // snapping back to the top of the list.
+      const previousIndex = activeJobId ? previousIds.indexOf(activeJobId) : 0;
+      const nextIndex = Math.min(Math.max(previousIndex, 0), ids.length - 1);
+      setActiveJobId(ids[nextIndex]);
     }
+
+    previousJobIdsRef.current = ids;
   }, [sortedAndFilteredJobs, activeJobId]);
 
   // Global keyboard shortcuts for triage station
@@ -338,14 +363,23 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 
   const hasActiveFilters =
     Boolean(filters.search) ||
-    filters.status !== 'all' ||
+    (filters.status !== 'all' && filters.status !== ACTIONABLE_FILTER) ||
     filters.source !== 'all' ||
     filters.minScore !== undefined;
+
+  const isQueueView = (filters.status ?? ACTIONABLE_FILTER) === ACTIONABLE_FILTER;
+
+  // How many jobs the queue is holding back, so hiding applied work is never
+  // silent.
+  const hiddenCount = useMemo(() => {
+    if (!isQueueView) return 0;
+    return filterJobs(jobs, { ...filters, status: 'all' }).length - sortedAndFilteredJobs.length;
+  }, [jobs, filters, isQueueView, sortedAndFilteredJobs.length]);
 
   const resetFilters = () => {
     setFilters({
       search: '',
-      status: 'all',
+      status: ACTIONABLE_FILTER,
       source: 'all',
       minScore: undefined,
     });
@@ -363,123 +397,134 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       <KeyboardHelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
 
       {/* Filters and Sorting Bar */}
-      <div
-        className="filters-bar"
-        style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}
-      >
-        <div className="search-input-wrapper" style={{ flex: '1 1 240px', minWidth: '200px' }}>
+      <div className="filters-bar">
+        <div className="search-input-wrapper">
           <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}>
             <Search size={15} />
           </span>
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search title, company, skills... (Press / to focus)"
+            placeholder="Search title, company, skills…"
             value={filters.search || ''}
             onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
             className="input-text"
           />
         </div>
 
-        {/* Sort Controls */}
-        <select
-          value={sortOption}
-          onChange={(e) => setSortOption(e.target.value as SortOption)}
-          className="select-input"
-          style={{ fontWeight: 600, borderLeft: '3px solid var(--accent-primary)' }}
-          title="Sort jobs list"
-        >
-          <option value="score_desc">Highest Fit Score</option>
-          <option value="score_asc">Lowest Fit Score</option>
-          <option value="created_desc">Newest Ingested</option>
-          <option value="created_asc">Oldest Ingested</option>
-          <option value="company_asc">Company (A → Z)</option>
-          <option value="title_asc">Role Title (A → Z)</option>
-          <option value="status">Application Status</option>
-        </select>
-
-        <select
-          value={filters.status || 'all'}
-          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          className="select-input"
-        >
-          <option value="all">All Statuses</option>
-          <option value="new">New</option>
-          <option value="saved">Saved</option>
-          <option value="tailored">Tailored</option>
-          <option value="applied">Applied</option>
-          <option value="interview">Interview</option>
-          <option value="offer">Offer</option>
-          <option value="archived">Archived</option>
-          <option value="rejected">Rejected</option>
-          <option value="rejected_by_score">Rejected By Score</option>
-          <option value="invalid_job">Invalid / Non-Job</option>
-          <option value="score_failed">Score Failed (Setup Required)</option>
-        </select>
-
-        <select
-          value={filters.source || 'all'}
-          onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
-          className="select-input"
-        >
-          <option value="all">All Sources</option>
-          {availableSources.map((source) => (
-            <option key={source} value={source}>
-              {source}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.minScore !== undefined ? String(filters.minScore) : 'all'}
-          onChange={(e) =>
-            setFilters((f) => ({
-              ...f,
-              minScore: e.target.value === 'all' ? undefined : Number(e.target.value),
-            }))
-          }
-          className="select-input"
-        >
-          <option value="all">All Fit Scores</option>
-          <option value={String(threshold)}>Qualified (≥ {threshold}%)</option>
-          <option value="50">Medium Fit (≥ 50%)</option>
-          <option value="0">Any Scored</option>
-        </select>
-
-        {hasActiveFilters && (
-          <button
-            onClick={resetFilters}
-            className="btn btn-secondary btn-sm"
-            style={{
-              fontSize: '0.8rem',
-              padding: '0.35rem 0.75rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.3rem',
-            }}
+        <div className="filters-controls">
+          {/* Sort Controls */}
+          <select
+            value={sortOption}
+            onChange={(e) => setSortOption(e.target.value as SortOption)}
+            className="select-input"
+            style={{ fontWeight: 600, borderLeft: '3px solid var(--accent-primary)' }}
+            title="Sort jobs list"
           >
-            <X size={13} /> Clear
-          </button>
-        )}
+            <option value="score_desc">Highest Fit Score</option>
+            <option value="score_asc">Lowest Fit Score</option>
+            <option value="created_desc">Newest Ingested</option>
+            <option value="created_asc">Oldest Ingested</option>
+            <option value="company_asc">Company (A → Z)</option>
+            <option value="title_asc">Role Title (A → Z)</option>
+            <option value="status">Application Status</option>
+          </select>
 
-        {/* View Mode Switcher */}
-        <div className="view-segmented-control" style={{ marginLeft: 'auto' }}>
-          <button
-            type="button"
-            className={`view-toggle-btn ${viewMode === 'split' ? 'active' : ''}`}
-            onClick={() => handleViewModeChange('split')}
-            title="Split Triage View"
+          <select
+            value={filters.status || ACTIONABLE_FILTER}
+            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+            className="select-input"
+            aria-label="Filter by pipeline stage"
+            title="Filter by pipeline stage"
           >
-            <LayoutList size={14} /> Split View
-          </button>
-          <button
-            type="button"
-            className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-            onClick={() => handleViewModeChange('grid')}
-            title="Grid Cards View"
+            <optgroup label="Queue">
+              <option value={ACTIONABLE_FILTER}>Needs Action</option>
+              <option value="all">All Stages</option>
+            </optgroup>
+            <optgroup label="Pipeline">
+              {PIPELINE_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Closed & system">
+              {CLOSED_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {STATUS_LABELS[status]}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+
+          <select
+            value={filters.source || 'all'}
+            onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
+            className="select-input"
+            aria-label="Filter by source"
           >
-            <LayoutGrid size={14} /> Cards
-          </button>
+            <option value="all">All Sources</option>
+            {availableSources.map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.minScore !== undefined ? String(filters.minScore) : 'all'}
+            onChange={(e) =>
+              setFilters((f) => ({
+                ...f,
+                minScore: e.target.value === 'all' ? undefined : Number(e.target.value),
+              }))
+            }
+            className="select-input"
+            aria-label="Filter by fit score"
+          >
+            <option value="all">All Fit Scores</option>
+            <option value={String(threshold)}>Qualified (≥ {threshold}%)</option>
+            <option value="50">Medium Fit (≥ 50%)</option>
+            <option value="0">Any Scored</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="btn btn-secondary btn-sm filters-clear"
+              style={{
+                fontSize: '0.8rem',
+                padding: '0.35rem 0.75rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+              }}
+            >
+              <X size={13} /> Clear
+            </button>
+          )}
+
+          {/* View Mode Switcher — split view is hidden when the viewport can't fit it */}
+          {!isNarrowViewport && (
+            <div className="view-segmented-control">
+              <button
+                type="button"
+                className={`view-toggle-btn ${effectiveViewMode === 'split' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('split')}
+                title="Split Triage View"
+              >
+                <LayoutList size={14} /> Split View
+              </button>
+              <button
+                type="button"
+                className={`view-toggle-btn ${effectiveViewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('grid')}
+                title="Grid Cards View"
+              >
+                <LayoutGrid size={14} /> Cards
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -533,22 +578,32 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       </div>
 
       {/* Results Header Info */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          margin: '0.75rem 0 1.25rem 0',
-          padding: '0 0.25rem',
-          fontSize: '0.85rem',
-          color: 'var(--text-secondary)',
-        }}
-      >
+      <div className="feed-results-meta">
         <div>
           Showing <strong>{sortedAndFilteredJobs.length}</strong> of {jobs.length} jobs
           {hasActiveFilters && (
             <span style={{ marginLeft: '0.5rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
               (filtered)
+            </span>
+          )}
+          {hiddenCount > 0 && (
+            <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>
+              · {hiddenCount} applied/closed hidden
+              <button
+                type="button"
+                onClick={() => setFilters((f) => ({ ...f, status: 'all' }))}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-primary)',
+                  cursor: 'pointer',
+                  padding: '0 0.25rem',
+                  font: 'inherit',
+                  fontWeight: 500,
+                }}
+              >
+                Show all
+              </button>
             </span>
           )}
         </div>
@@ -568,7 +623,29 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 
       {/* Content Rendering: Empty State, Split Triage Station, or Cards Grid */}
       {sortedAndFilteredJobs.length === 0 ? (
-        hasActiveFilters ? (
+        isQueueView && jobs.length > 0 ? (
+          <div className="empty-state">
+            <CheckCircle2
+              size={34}
+              style={{ color: 'var(--color-green)', marginBottom: '0.75rem' }}
+            />
+            <h3
+              style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}
+            >
+              You&apos;re all caught up
+            </h3>
+            <p style={{ fontSize: '0.875rem' }}>
+              Nothing needs action right now. Applied and closed jobs live in the Tracker.
+            </p>
+            <button
+              onClick={() => setFilters((f) => ({ ...f, status: 'all' }))}
+              className="btn btn-secondary btn-sm"
+              style={{ marginTop: '1rem' }}
+            >
+              View applied &amp; closed
+            </button>
+          </div>
+        ) : hasActiveFilters ? (
           <div className="empty-state">
             <h3
               style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}
@@ -766,7 +843,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
             </div>
           </div>
         )
-      ) : viewMode === 'split' ? (
+      ) : effectiveViewMode === 'split' ? (
         <div className="triage-station">
           {/* Master List Pane */}
           <div className="triage-list-container">
