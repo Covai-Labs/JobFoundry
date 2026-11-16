@@ -16,6 +16,7 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
   rejected_by_score: 'Rejected by Score',
   invalid_job: 'Invalid Job',
   score_failed: 'Score Failed',
+  tailor_failed: 'Tailor Failed',
 };
 
 /** Stages a candidate actively moves through. */
@@ -35,6 +36,7 @@ export const CLOSED_STATUSES: readonly JobStatus[] = [
   'rejected_by_score',
   'invalid_job',
   'score_failed',
+  'tailor_failed',
 ];
 
 /**
@@ -47,6 +49,7 @@ export const ACTIONABLE_STATUSES: readonly JobStatus[] = [
   'saved',
   'tailored',
   'score_failed',
+  'tailor_failed',
 ];
 
 export function isActionableStatus(status: JobStatus): boolean {

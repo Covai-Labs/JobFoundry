@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { JobStatus } from '../../types/job';
 import { CLOSED_STATUSES, PIPELINE_STATUSES, STATUS_LABELS } from '../../lib/jobStages';
@@ -18,8 +18,8 @@ interface StageOptionProps {
 const StageOption: React.FC<StageOptionProps> = ({ status, current, onSelect }) => (
   <button
     type="button"
-    role="option"
-    aria-selected={current}
+    role="menuitemradio"
+    aria-checked={current}
     data-stage={status}
     className={`stage-menu-item ${current ? 'is-current' : ''}`}
     onClick={onSelect}
@@ -34,30 +34,46 @@ const StageOption: React.FC<StageOptionProps> = ({ status, current, onSelect }) 
  * Labelled stage control. Reads as state ("Stage: Tailored") and opens the
  * full pipeline in groups, instead of pretending to be another action button.
  */
-export const StatusPill: React.FC<StatusPillProps> = ({ status, onChange }) => (
-  <Popover
-    align="start"
-    className="stage-pill-popover"
-    trigger={({ open, toggle }) => (
-      <button
-        type="button"
-        className={`stage-pill ${open ? 'is-open' : ''}`}
-        data-stage={status}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={`Pipeline stage: ${STATUS_LABELS[status]}. Change stage`}
-        title="Change pipeline stage"
-        onClick={toggle}
-      >
-        <span className="stage-dot" aria-hidden="true" />
-        <span className="stage-pill-label">Stage</span>
-        <span className="stage-pill-value">{STATUS_LABELS[status]}</span>
-        <ChevronDown size={12} className="stage-pill-caret" aria-hidden="true" />
-      </button>
-    )}
-  >
-    {(close) => (
-      <div className="stage-menu" role="listbox" aria-label="Pipeline stage">
+export const StatusPill: React.FC<StatusPillProps> = ({ status, onChange }) => {
+  const [open, setOpen] = useState(false);
+  const close = useCallback(() => {
+    setOpen(false);
+  }, []);
+
+  const select = (option: JobStatus) => {
+    close();
+    if (option !== status) {
+      onChange(option);
+    }
+  };
+
+  return (
+    <Popover
+      open={open}
+      onClose={close}
+      align="start"
+      className="stage-pill-popover"
+      trigger={
+        <button
+          type="button"
+          className={`stage-pill ${open ? 'is-open' : ''}`}
+          data-stage={status}
+          aria-haspopup="menu"
+          aria-expanded={open}
+          aria-label={`Pipeline stage: ${STATUS_LABELS[status]}. Change stage`}
+          title="Change pipeline stage"
+          onClick={() => {
+            setOpen((value) => !value);
+          }}
+        >
+          <span className="stage-dot" aria-hidden="true" />
+          <span className="stage-pill-label">Stage</span>
+          <span className="stage-pill-value">{STATUS_LABELS[status]}</span>
+          <ChevronDown size={12} className="stage-pill-caret" aria-hidden="true" />
+        </button>
+      }
+    >
+      <div className="stage-menu" role="menu" aria-label="Pipeline stage">
         <div className="stage-menu-heading">Pipeline</div>
         {PIPELINE_STATUSES.map((option) => (
           <StageOption
@@ -65,13 +81,12 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status, onChange }) => (
             status={option}
             current={option === status}
             onSelect={() => {
-              close();
-              if (option !== status) onChange(option);
+              select(option);
             }}
           />
         ))}
 
-        <div className="stage-menu-separator" role="presentation" />
+        <div className="stage-menu-separator" aria-hidden="true" />
         <div className="stage-menu-heading">Closed &amp; system</div>
         {CLOSED_STATUSES.map((option) => (
           <StageOption
@@ -79,12 +94,11 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status, onChange }) => (
             status={option}
             current={option === status}
             onSelect={() => {
-              close();
-              if (option !== status) onChange(option);
+              select(option);
             }}
           />
         ))}
       </div>
-    )}
-  </Popover>
-);
+    </Popover>
+  );
+};

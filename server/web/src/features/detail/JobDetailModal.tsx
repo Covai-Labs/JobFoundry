@@ -7,7 +7,7 @@ interface JobDetailModalProps {
   job: Job | null;
   threshold?: number;
   onClose: () => void;
-  onStatusChange: (jobId: string, newStatus: JobStatus) => void;
+  onStatusChange: (jobId: string, newStatus: JobStatus) => void | Promise<void>;
   onJobUpdated: (updatedJob: Job) => void;
   onDeleteJob?: (jobId: string) => void;
 }
@@ -29,7 +29,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal-content modal-content-wide" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="modal-content modal-content-wide"
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
+      >
         <ErrorBoundary fallbackTitle="Job Details Rendering Error">
           <JobDetail
             job={job}

@@ -2358,6 +2358,12 @@ h6 {
   }
 }
 
+@media (prefers-reduced-motion: reduce) {
+  .popover-panel {
+    animation: none;
+  }
+}
+
 /* --- Stage coloured dot (driven by data-stage on any element) --- */
 .stage-dot {
   width: 6px;
@@ -2433,6 +2439,13 @@ h6 {
 .stage-pill:focus-visible {
   outline: 2px solid var(--stage-color);
   outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stage-pill {
+    transition: none;
+    transform: none;
+  }
 }
 
 .stage-pill-label {

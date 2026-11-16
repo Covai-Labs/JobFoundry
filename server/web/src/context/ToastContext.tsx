@@ -17,7 +17,7 @@ export interface ToastItem {
   message: string;
   title?: string;
   duration?: number;
-  action?: { label: string; onClick: () => void };
+  action?: { label: string; onClick: () => void | Promise<void> };
 }
 
 interface ToastContextType {
@@ -29,7 +29,7 @@ interface ToastContextType {
   info: (message: string, title?: string) => void;
   warning: (message: string, title?: string) => void;
   /** Success toast with a single call-to-action, e.g. Undo. */
-  undoable: (message: string, label: string, onClick: () => void) => void;
+  undoable: (message: string, label: string, onClick: () => void | Promise<void>) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);
@@ -101,7 +101,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   );
 
   const undoable = useCallback(
-    (message: string, label: string, onClick: () => void) => {
+    (message: string, label: string, onClick: () => void | Promise<void>) => {
       addToast({
         type: 'success',
         message,
@@ -148,7 +148,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
                   type="button"
                   className="toast-action"
                   onClick={() => {
-                    t.action?.onClick();
+                    void t.action?.onClick();
                     removeToast(t.id);
                   }}
                 >

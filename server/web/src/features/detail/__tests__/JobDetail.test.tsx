@@ -128,7 +128,7 @@ describe('JobDetail unification (workbench shell === modal shell)', () => {
     fireEvent.click(screen.getByRole('button', { name: /Pipeline stage/i }));
     expect(screen.getByText('Closed & system')).toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('option', { name: 'Saved' }));
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'Saved' }));
     expect(onStatusChange).toHaveBeenCalledWith('job-1', 'saved');
   });
 

@@ -669,13 +669,17 @@ const DashboardRoot: React.FC = () => {
       const updated = await api.updateStatus(jobId, newStatus);
       setJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
 
-      const label = STATUS_LABELS[newStatus] ?? newStatus;
+      const label = STATUS_LABELS[newStatus];
       if (previousStatus && previousStatus !== newStatus) {
         toast.undoable(`Marked ${label}`, 'Undo', async () => {
           try {
+            const current = jobs.find((j) => j.id === jobId)?.status;
+            if (current && current !== newStatus) {
+              return;
+            }
             const reverted = await api.updateStatus(jobId, previousStatus);
             setJobs((prev) => prev.map((j) => (j.id === jobId ? reverted : j)));
-            toast.success(`Moved back to ${STATUS_LABELS[previousStatus] ?? previousStatus}`);
+            toast.success(`Moved back to ${STATUS_LABELS[previousStatus]}`);
           } catch (err: any) {
             toast.error(`Could not undo: ${err.message || 'Unknown error'}`);
           }

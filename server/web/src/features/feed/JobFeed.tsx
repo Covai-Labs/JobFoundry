@@ -6,6 +6,7 @@ import { TriageListItem } from './TriageListItem';
 import { JobWorkbench } from './JobWorkbench';
 import { KeyboardHelpModal } from './KeyboardHelpModal';
 import { filterJobs, FilterCriteria } from '../filters/filterUtils';
+import { FeedEmptyState } from './FeedEmptyState';
 import {
   ACTIONABLE_FILTER,
   CLOSED_STATUSES,
@@ -13,7 +14,7 @@ import {
   STATUS_LABELS,
 } from '../../lib/jobStages';
 import { useMediaQuery } from '../../lib/useMediaQuery';
-import { Search, LayoutList, LayoutGrid, X, Keyboard, CheckCircle2 } from 'lucide-react';
+import { Search, LayoutList, LayoutGrid, X, Keyboard } from 'lucide-react';
 
 /** Below this width the split triage station collapses to cards. */
 const SPLIT_VIEW_MIN_WIDTH = 1080;
@@ -202,7 +203,8 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       if (
         Boolean(document.querySelector('.user-menu-dropdown')) ||
         Boolean(document.querySelector('[role="dialog"]')) ||
-        Boolean(document.querySelector('.modal-backdrop'))
+        Boolean(document.querySelector('.modal-backdrop')) ||
+        Boolean(document.querySelector('.popover-panel'))
       ) {
         return;
       }
@@ -221,7 +223,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
         return;
       }
 
-      if (sortedAndFilteredJobs.length === 0) return;
+      if (sortedAndFilteredJobs.length === 0 || effectiveViewMode !== 'split') return;
 
       const currentIndex = sortedAndFilteredJobs.findIndex((j) => j.id === activeJobId);
 
@@ -391,6 +393,76 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     );
   }, [sortedAndFilteredJobs, activeJobId]);
 
+  // Decide what fills the feed before rendering so each branch stays readable.
+  let content: React.ReactNode;
+  if (sortedAndFilteredJobs.length === 0) {
+    content = (
+      <FeedEmptyState
+        isQueueView={isQueueView}
+        hasActiveFilters={hasActiveFilters}
+        totalJobs={jobs.length}
+        hasActiveResume={hasActiveResume}
+        isExtensionPaired={isExtensionPaired}
+        onShowAll={() => {
+          setFilters((f) => ({ ...f, status: 'all' }));
+        }}
+        onResetFilters={resetFilters}
+      />
+    );
+  } else if (effectiveViewMode === 'split') {
+    content = (
+      <div className="triage-station">
+        {/* Master List Pane */}
+        <div className="triage-list-container">
+          <div className="triage-list-header">
+            <span>Jobs Queue ({sortedAndFilteredJobs.length})</span>
+            <span>Use J / K to step</span>
+          </div>
+          <div className="triage-list-scroll">
+            {sortedAndFilteredJobs.map((job) => (
+              <div key={job.id} data-job-id={job.id}>
+                <TriageListItem
+                  job={job}
+                  threshold={threshold}
+                  isActive={job.id === activeJob?.id}
+                  onSelect={() => setActiveJobId(job.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Workbench Detail Pane */}
+        <JobWorkbench
+          job={activeJob}
+          threshold={threshold}
+          onStatusChange={onStatusChange || (() => {})}
+          onJobUpdated={(updated) => {
+            if (onJobUpdated) onJobUpdated(updated);
+          }}
+          onDeleteJob={(deletedId) => {
+            if (onJobDeleted) onJobDeleted(deletedId);
+          }}
+        />
+      </div>
+    );
+  } else {
+    content = (
+      <div className="job-grid">
+        {sortedAndFilteredJobs.map((job) => (
+          <JobCard
+            key={job.id}
+            job={job}
+            threshold={threshold}
+            onSelect={onSelectJob}
+            onTailored={onJobUpdated}
+            onStatusChange={onStatusChange}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Keyboard Help Modal */}
@@ -407,7 +479,9 @@ export const JobFeed: React.FC<JobFeedProps> = ({
             type="text"
             placeholder="Search title, company, skills…"
             value={filters.search || ''}
-            onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, search: e.target.value }));
+            }}
             className="input-text"
           />
         </div>
@@ -416,7 +490,9 @@ export const JobFeed: React.FC<JobFeedProps> = ({
           {/* Sort Controls */}
           <select
             value={sortOption}
-            onChange={(e) => setSortOption(e.target.value as SortOption)}
+            onChange={(e) => {
+              setSortOption(e.target.value as SortOption);
+            }}
             className="select-input"
             style={{ fontWeight: 600, borderLeft: '3px solid var(--accent-primary)' }}
             title="Sort jobs list"
@@ -431,8 +507,10 @@ export const JobFeed: React.FC<JobFeedProps> = ({
           </select>
 
           <select
-            value={filters.status || ACTIONABLE_FILTER}
-            onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
+            value={filters.status ?? ACTIONABLE_FILTER}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, status: e.target.value }));
+            }}
             className="select-input"
             aria-label="Filter by pipeline stage"
             title="Filter by pipeline stage"
@@ -459,7 +537,9 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 
           <select
             value={filters.source || 'all'}
-            onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, source: e.target.value }));
+            }}
             className="select-input"
             aria-label="Filter by source"
           >
@@ -473,12 +553,12 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 
           <select
             value={filters.minScore !== undefined ? String(filters.minScore) : 'all'}
-            onChange={(e) =>
+            onChange={(e) => {
               setFilters((f) => ({
                 ...f,
                 minScore: e.target.value === 'all' ? undefined : Number(e.target.value),
-              }))
-            }
+              }));
+            }}
             className="select-input"
             aria-label="Filter by fit score"
           >
@@ -591,7 +671,9 @@ export const JobFeed: React.FC<JobFeedProps> = ({
               · {hiddenCount} applied/closed hidden
               <button
                 type="button"
-                onClick={() => setFilters((f) => ({ ...f, status: 'all' }))}
+                onClick={() => {
+                  setFilters((f) => ({ ...f, status: 'all' }));
+                }}
                 style={{
                   background: 'none',
                   border: 'none',
@@ -622,276 +704,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       </div>
 
       {/* Content Rendering: Empty State, Split Triage Station, or Cards Grid */}
-      {sortedAndFilteredJobs.length === 0 ? (
-        isQueueView && jobs.length > 0 ? (
-          <div className="empty-state">
-            <CheckCircle2
-              size={34}
-              style={{ color: 'var(--color-green)', marginBottom: '0.75rem' }}
-            />
-            <h3
-              style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}
-            >
-              You&apos;re all caught up
-            </h3>
-            <p style={{ fontSize: '0.875rem' }}>
-              Nothing needs action right now. Applied and closed jobs live in the Tracker.
-            </p>
-            <button
-              onClick={() => setFilters((f) => ({ ...f, status: 'all' }))}
-              className="btn btn-secondary btn-sm"
-              style={{ marginTop: '1rem' }}
-            >
-              View applied &amp; closed
-            </button>
-          </div>
-        ) : hasActiveFilters ? (
-          <div className="empty-state">
-            <h3
-              style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}
-            >
-              No jobs match your filters
-            </h3>
-            <p style={{ fontSize: '0.875rem' }}>
-              Try broadening your search query or reset the status and source filters.
-            </p>
-            <button
-              onClick={resetFilters}
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: '1rem' }}
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : hasActiveResume === null ? (
-          <div
-            className="onboarding-hero"
-            style={{
-              opacity: 0.6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '200px',
-            }}
-          >
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Loading setup status...
-            </span>
-          </div>
-        ) : hasActiveResume === false ? (
-          /* Step 1: AI Model -> Step 2: Master Resume -> Step 3: Ingestion */
-          <div className="onboarding-hero">
-            <div className="onboarding-hero-header">
-              <div className="onboarding-hero-title">
-                <span>🚀</span> Welcome to JobFoundry!
-              </div>
-              <p className="onboarding-hero-subtitle">
-                Set up your career command center in 3 steps to unlock automated AI scoring, match
-                evaluation, and tailored resumes.
-              </p>
-            </div>
-
-            <div className="onboarding-steps">
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Step 1 • AI Settings</span>
-                  <div className="onboarding-step-title">Configure AI Model & Key</div>
-                  <div className="onboarding-step-desc">
-                    Verify your LLM model (OpenRouter, OpenAI, or Anthropic) used to screen jobs and
-                    tailor applications.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=gateway"
-                  className="btn btn-primary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Configure AI Gateway →
-                </a>
-              </div>
-
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Step 2 • Master Profile</span>
-                  <div className="onboarding-step-title">Upload Master Resume</div>
-                  <div className="onboarding-step-desc">
-                    Add your master JSON Resume to anchor job evaluations and experience bullet
-                    tailoring.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=profile"
-                  className="btn btn-primary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Set Up Resume →
-                </a>
-              </div>
-
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Step 3 • Ingestion</span>
-                  <div className="onboarding-step-title">Connect Job Sources</div>
-                  <div className="onboarding-step-desc">
-                    Pair the browser extension for 1-click capture or configure automated portal
-                    scrapers.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=sync"
-                  className="btn btn-secondary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Connect Sources →
-                </a>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Resume is present, waiting for first job scan/capture */
-          <div className="onboarding-hero">
-            <div className="onboarding-hero-header">
-              <div className="onboarding-hero-title">
-                <span>⚡</span> Master Profile Ready — Let&apos;s Ingest Jobs!
-              </div>
-              <p className="onboarding-hero-subtitle">
-                Your Master Resume and AI Fit Scorer are ready. Ingest your first listings to start
-                seeing match scores and tailored resumes.
-              </p>
-            </div>
-
-            <div className="onboarding-steps">
-              {isExtensionPaired ? (
-                <div
-                  className="onboarding-step-card"
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.05)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                  }}
-                >
-                  <div>
-                    <span
-                      className="onboarding-step-badge"
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: 'var(--color-green, #10b981)',
-                        borderColor: 'rgba(16, 185, 129, 0.3)',
-                      }}
-                    >
-                      ✓ Extension Paired & Ready
-                    </span>
-                    <div className="onboarding-step-title">Capture Jobs as You Browse</div>
-                    <div className="onboarding-step-desc">
-                      Your extension is paired. Browse LinkedIn, Indeed, Greenhouse, or Lever and
-                      click the JobFoundry extension icon to capture jobs. Or add a listing manually
-                      via + Add Job above.
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '0.6rem',
-                      marginTop: '0.5rem',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <a
-                      href="/settings?tab=sync"
-                      className="btn btn-secondary btn-sm"
-                      style={{ textDecoration: 'none', textAlign: 'center' }}
-                    >
-                      Extension Settings →
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                <div className="onboarding-step-card">
-                  <div>
-                    <span className="onboarding-step-badge">Browser Extension</span>
-                    <div className="onboarding-step-title">1-Click Live Capture</div>
-                    <div className="onboarding-step-desc">
-                      Browse jobs naturally on LinkedIn, Indeed, Greenhouse, or Lever and capture in
-                      1 click.
-                    </div>
-                  </div>
-                  <a
-                    href="/settings?tab=sync"
-                    className="btn btn-primary btn-sm"
-                    style={{ textDecoration: 'none', textAlign: 'center' }}
-                  >
-                    Pair Extension →
-                  </a>
-                </div>
-              )}
-
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Portal Catalog</span>
-                  <div className="onboarding-step-title">Automated Feeds</div>
-                  <div className="onboarding-step-desc">
-                    Activate automated scrapers from Himalayas, RemoteOK, Arbeitnow, and 30+ boards.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=scrapers"
-                  className="btn btn-secondary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Configure Portals →
-                </a>
-              </div>
-            </div>
-          </div>
-        )
-      ) : effectiveViewMode === 'split' ? (
-        <div className="triage-station">
-          {/* Master List Pane */}
-          <div className="triage-list-container">
-            <div className="triage-list-header">
-              <span>Jobs Queue ({sortedAndFilteredJobs.length})</span>
-              <span>Use J / K to step</span>
-            </div>
-            <div className="triage-list-scroll">
-              {sortedAndFilteredJobs.map((job) => (
-                <div key={job.id} data-job-id={job.id}>
-                  <TriageListItem
-                    job={job}
-                    threshold={threshold}
-                    isActive={job.id === activeJob?.id}
-                    onSelect={() => setActiveJobId(job.id)}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Workbench Detail Pane */}
-          <JobWorkbench
-            job={activeJob}
-            threshold={threshold}
-            onStatusChange={onStatusChange || (() => {})}
-            onJobUpdated={(updated) => {
-              if (onJobUpdated) onJobUpdated(updated);
-            }}
-            onDeleteJob={(deletedId) => {
-              if (onJobDeleted) onJobDeleted(deletedId);
-            }}
-          />
-        </div>
-      ) : (
-        <div className="job-grid">
-          {sortedAndFilteredJobs.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              threshold={threshold}
-              onSelect={onSelectJob}
-              onTailored={onJobUpdated}
-              onStatusChange={onStatusChange}
-            />
-          ))}
-        </div>
-      )}
+      {content}
     </div>
   );
 };

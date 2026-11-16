@@ -39,6 +39,13 @@ export const TailorButton: React.FC<TailorButtonProps> = ({ job, onTailored, cla
     }
   };
 
+  let buttonLabel = 'Tailor CV';
+  if (loading) {
+    buttonLabel = 'Tailoring...';
+  } else if (isTailored) {
+    buttonLabel = 'Re-tailor';
+  }
+
   return (
     <div style={{ display: 'inline-flex', flexDirection: 'column', alignItems: 'flex-start' }}>
       <button
@@ -53,7 +60,7 @@ export const TailorButton: React.FC<TailorButtonProps> = ({ job, onTailored, cla
         style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
       >
         {isTailored ? <RefreshCw size={13} /> : <Sparkles size={13} />}
-        {loading ? 'Tailoring...' : isTailored ? 'Re-tailor' : 'Tailor CV'}
+        {buttonLabel}
       </button>
       {error && (
         <span

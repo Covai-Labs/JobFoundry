@@ -37,7 +37,7 @@ import {
 export interface JobDetailProps {
   job: Job | null;
   threshold?: number;
-  onStatusChange: (jobId: string, newStatus: JobStatus) => void;
+  onStatusChange: (jobId: string, newStatus: JobStatus) => void | Promise<void>;
   onJobUpdated: (updatedJob: Job) => void;
   onDeleteJob?: (jobId: string) => void;
   /** Called after a successful delete (e.g. modal shell closes itself). */
@@ -171,6 +171,7 @@ export const JobDetail: React.FC<JobDetailProps> = ({
   const [rescoreError, setRescoreError] = useState<string | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
   const [copiedUrl, setCopiedUrl] = useState(false);
+  const [overflowOpen, setOverflowOpen] = useState(false);
 
   const provenance = getCaptureChannelInfo(job?.source);
 
@@ -472,7 +473,12 @@ export const JobDetail: React.FC<JobDetailProps> = ({
             <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
               Ingested {new Date(job.created_at).toLocaleDateString()}
             </span>
-            <StatusPill status={job.status} onChange={(next) => onStatusChange(job.id, next)} />
+            <StatusPill
+              status={job.status}
+              onChange={(next) => {
+                void onStatusChange(job.id, next);
+              }}
+            />
           </div>
         </div>
 
@@ -481,9 +487,11 @@ export const JobDetail: React.FC<JobDetailProps> = ({
           {primaryAction && (
             <button
               type="button"
-              onClick={() =>
-                primaryAction.kind === 'status' && onStatusChange(job.id, primaryAction.to)
-              }
+              onClick={() => {
+                if (primaryAction.kind === 'status') {
+                  void onStatusChange(job.id, primaryAction.to);
+                }
+              }}
               className="btn btn-primary btn-sm stage-primary-action"
               title={primaryAction.title}
             >
@@ -510,66 +518,66 @@ export const JobDetail: React.FC<JobDetailProps> = ({
           <TailorButton job={job} onTailored={onJobUpdated} />
 
           <Popover
+            open={overflowOpen}
+            onClose={() => setOverflowOpen(false)}
             align="end"
             className="job-overflow"
-            trigger={({ open, toggle }) => (
+            trigger={
               <button
                 type="button"
-                onClick={toggle}
+                onClick={() => setOverflowOpen((value) => !value)}
                 className="btn btn-secondary btn-sm btn-icon-only"
                 aria-haspopup="menu"
-                aria-expanded={open}
+                aria-expanded={overflowOpen}
                 aria-label="More job actions"
                 title="More actions"
               >
                 <MoreHorizontal size={15} />
               </button>
-            )}
+            }
           >
-            {(close) => (
-              <div className="job-overflow-menu" role="menu" aria-label="More job actions">
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    close();
-                    handleRescore();
-                  }}
-                  disabled={rescoring}
-                >
-                  <RefreshCw size={13} className={rescoring ? 'animate-spin' : ''} />
-                  {rescoring ? 'Scoring...' : 'Re-score'}
-                </button>
-                <button
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    handleCopyLink();
-                  }}
-                >
-                  <Link2 size={13} />
-                  {copiedLink ? 'Copied' : 'Copy Link'}
-                </button>
-                {onDeleteJob && (
-                  <>
-                    <div className="job-overflow-separator" role="presentation" />
-                    <button
-                      type="button"
-                      role="menuitem"
-                      className="is-danger"
-                      onClick={() => {
-                        close();
-                        handleDelete();
-                      }}
-                      disabled={deleting}
-                    >
-                      <Trash2 size={13} />
-                      Delete job
-                    </button>
-                  </>
-                )}
-              </div>
-            )}
+            <div className="job-overflow-menu" role="menu" aria-label="More job actions">
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  setOverflowOpen(false);
+                  void handleRescore();
+                }}
+                disabled={rescoring}
+              >
+                <RefreshCw size={13} className={rescoring ? 'animate-spin' : ''} />
+                {rescoring ? 'Scoring...' : 'Re-score'}
+              </button>
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => {
+                  void handleCopyLink();
+                }}
+              >
+                <Link2 size={13} />
+                {copiedLink ? 'Copied' : 'Copy Link'}
+              </button>
+              {onDeleteJob && (
+                <>
+                  <div className="job-overflow-separator" aria-hidden="true" />
+                  <button
+                    type="button"
+                    role="menuitem"
+                    className="is-danger"
+                    onClick={() => {
+                      setOverflowOpen(false);
+                      void handleDelete();
+                    }}
+                    disabled={deleting}
+                  >
+                    <Trash2 size={13} />
+                    Delete job
+                  </button>
+                </>
+              )}
+            </div>
           </Popover>
 
           {onClose && (

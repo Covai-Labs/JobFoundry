@@ -13,6 +13,13 @@ interface JobCardProps {
   onStatusChange?: (jobId: string, status: JobStatus) => void;
 }
 
+function getStatusBadgeClass(status: JobStatus): string {
+  if (status === 'tailored') return 'badge-purple';
+  if (status === 'rejected_by_score' || status === 'rejected') return 'badge-red';
+  if (status === 'archived') return 'badge-muted';
+  return 'badge-blue';
+}
+
 export const JobCard: React.FC<JobCardProps> = ({
   job,
   threshold = 75,
@@ -50,18 +57,8 @@ export const JobCard: React.FC<JobCardProps> = ({
             </span>
           )}
           <span className="badge badge-indigo">{job.source}</span>
-          <span
-            className={`badge ${
-              job.status === 'tailored'
-                ? 'badge-purple'
-                : job.status === 'rejected_by_score' || job.status === 'rejected'
-                  ? 'badge-red'
-                  : job.status === 'archived'
-                    ? 'badge-muted'
-                    : 'badge-blue'
-            }`}
-          >
-            {STATUS_LABELS[job.status] ?? job.status.replace(/_/g, ' ')}
+          <span className={`badge ${getStatusBadgeClass(job.status)}`}>
+            {STATUS_LABELS[job.status]}
           </span>
           {job.repost_confidence === 'high' && (
             <span
