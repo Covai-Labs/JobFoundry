@@ -228,7 +228,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   }, [isUserMenuOpen]);
 
   const userInitials = (() => {
-    const name = user?.name?.trim();
+    const name = user ? user.name.trim() : '';
     if (name) {
       const parts = name.split(/\s+/);
       if (parts.length >= 2) {
@@ -236,7 +236,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
       }
       return parts[0].slice(0, 2).toUpperCase();
     }
-    const email = user?.email?.trim();
+    const email = user ? user.email.trim() : '';
     if (email) {
       return email.slice(0, 2).toUpperCase();
     }
@@ -244,9 +244,9 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   })();
 
   const userDisplayName = (() => {
-    const name = user?.name?.trim();
+    const name = user ? user.name.trim() : '';
     if (name) return name;
-    if (user?.email) {
+    if (user) {
       const prefix = user.email.split('@')[0];
       if (prefix) return prefix;
     }
@@ -375,7 +375,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                   <div className="user-avatar-badge lg">{userInitials}</div>
                   <div className="user-menu-profile-info">
                     <div className="user-menu-name">{userDisplayName}</div>
-                    <div className="user-menu-email">{user?.email ?? 'Logged in'}</div>
+                    <div className="user-menu-email">{user ? user.email : 'Logged in'}</div>
                   </div>
                 </div>
 
