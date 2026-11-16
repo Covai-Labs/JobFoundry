@@ -2,7 +2,8 @@ import React from 'react';
 import { Job, JobStatus } from '../../types/job';
 import { getScoreCategory, parseFitNotes, parseRepostStatus } from '../filters/filterUtils';
 import { TailorButton } from '../tailor/TailorButton';
-import { MapPin, Check } from 'lucide-react';
+import { getQuickApplyTarget, getStatusLabel } from '../../lib/jobStages';
+import { MapPin, Check, CheckCircle2 } from 'lucide-react';
 
 interface JobCardProps {
   job: Job;
@@ -10,6 +11,13 @@ interface JobCardProps {
   onSelect: (job: Job) => void;
   onTailored?: (updatedJob: Job) => void;
   onStatusChange?: (jobId: string, status: JobStatus) => void;
+}
+
+function getStatusBadgeClass(status: JobStatus): string {
+  if (status === 'tailored') return 'badge-purple';
+  if (status === 'rejected_by_score' || status === 'rejected') return 'badge-red';
+  if (status === 'archived') return 'badge-muted';
+  return 'badge-blue';
 }
 
 export const JobCard: React.FC<JobCardProps> = ({
@@ -22,6 +30,7 @@ export const JobCard: React.FC<JobCardProps> = ({
   const fitNotes = parseFitNotes(job.fit_notes);
   const repostInfo = parseRepostStatus(job.repost_status);
   const scoreCat = getScoreCategory(job.fit_score, threshold);
+  const quickApplyTarget = getQuickApplyTarget(job.status);
 
   return (
     <div className="job-card" onClick={() => onSelect(job)}>
@@ -48,18 +57,8 @@ export const JobCard: React.FC<JobCardProps> = ({
             </span>
           )}
           <span className="badge badge-indigo">{job.source}</span>
-          <span
-            className={`badge ${
-              job.status === 'tailored'
-                ? 'badge-purple'
-                : job.status === 'rejected_by_score' || job.status === 'rejected'
-                  ? 'badge-red'
-                  : job.status === 'archived'
-                    ? 'badge-muted'
-                    : 'badge-blue'
-            }`}
-          >
-            {job.status.replace(/_/g, ' ')}
+          <span className={`badge ${getStatusBadgeClass(job.status)}`}>
+            {getStatusLabel(job.status)}
           </span>
           {job.repost_confidence === 'high' && (
             <span
@@ -131,53 +130,21 @@ export const JobCard: React.FC<JobCardProps> = ({
         )}
       </div>
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginTop: '1.25rem',
-          paddingTop: '0.75rem',
-          borderTop: '1px solid var(--border-subtle)',
-        }}
-      >
-        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-          {new Date(job.created_at).toLocaleDateString()}
-        </span>
-        <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-          {onStatusChange && (
-            <select
-              aria-label="Job Status"
-              value={job.status}
-              onClick={(e) => e.stopPropagation()}
-              onChange={(e) => {
+      <div className="job-card-footer-actions">
+        <span className="job-card-date">{new Date(job.created_at).toLocaleDateString()}</span>
+        <div className="job-card-actions">
+          {onStatusChange && quickApplyTarget && (
+            <button
+              type="button"
+              onClick={(e) => {
                 e.stopPropagation();
-                onStatusChange(job.id, e.target.value as JobStatus);
+                onStatusChange(job.id, quickApplyTarget);
               }}
-              className="status-select"
-              style={{
-                background: 'var(--color-bg-subtle, #1e293b)',
-                color: 'var(--color-fg-default, #f8fafc)',
-                border: '1px solid var(--border-subtle, #334155)',
-                borderRadius: 'var(--radius-sm, 4px)',
-                padding: '0.2rem 0.45rem',
-                fontSize: '0.75rem',
-                cursor: 'pointer',
-              }}
-              title="Change pipeline status"
+              className="btn btn-primary btn-sm job-card-apply"
+              title="Record that you sent this application"
             >
-              <option value="new">New</option>
-              <option value="saved">Saved</option>
-              <option value="tailored">Tailored</option>
-              <option value="applied">Applied</option>
-              <option value="interview">Interview</option>
-              <option value="offer">Offer</option>
-              <option value="rejected">Rejected</option>
-              <option value="rejected_by_score">Rejected by Score</option>
-              <option value="archived">Archived</option>
-              <option value="score_failed">Score Failed</option>
-              <option value="invalid_job">Invalid Job</option>
-            </select>
+              <CheckCircle2 size={13} /> Mark Applied
+            </button>
           )}
           <TailorButton job={job} onTailored={onTailored} />
           <button

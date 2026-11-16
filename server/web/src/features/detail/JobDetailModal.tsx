@@ -7,7 +7,8 @@ interface JobDetailModalProps {
   job: Job | null;
   threshold?: number;
   onClose: () => void;
-  onStatusChange: (jobId: string, newStatus: JobStatus) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  onStatusChange: (jobId: string, newStatus: JobStatus) => void | Promise<void>;
   onJobUpdated: (updatedJob: Job) => void;
   onDeleteJob?: (jobId: string) => void;
 }
@@ -30,27 +31,12 @@ export const JobDetailModal: React.FC<JobDetailModalProps> = ({
   return (
     <div className="modal-backdrop" onClick={onClose}>
       <div
-        className="modal-content"
-        onClick={(e) => e.stopPropagation()}
-        style={{ position: 'relative' }}
+        className="modal-content modal-content-wide"
+        onClick={(e) => {
+          e.stopPropagation();
+        }}
       >
         <ErrorBoundary fallbackTitle="Job Details Rendering Error">
-          <button
-            onClick={onClose}
-            className="btn btn-secondary btn-sm"
-            aria-label="Close job details"
-            style={{
-              position: 'absolute',
-              top: '1rem',
-              right: '1rem',
-              borderRadius: 'var(--radius-full)',
-              width: '32px',
-              height: '32px',
-              padding: 0,
-            }}
-          >
-            ✕
-          </button>
           <JobDetail
             job={job}
             threshold={threshold}

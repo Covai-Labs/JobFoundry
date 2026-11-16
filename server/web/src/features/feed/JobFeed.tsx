@@ -6,7 +6,18 @@ import { TriageListItem } from './TriageListItem';
 import { JobWorkbench } from './JobWorkbench';
 import { KeyboardHelpModal } from './KeyboardHelpModal';
 import { filterJobs, FilterCriteria } from '../filters/filterUtils';
+import { FeedEmptyState } from './FeedEmptyState';
+import {
+  ACTIONABLE_FILTER,
+  CLOSED_STATUSES,
+  PIPELINE_STATUSES,
+  getStatusLabel,
+} from '../../lib/jobStages';
+import { useMediaQuery } from '../../lib/useMediaQuery';
 import { Search, LayoutList, LayoutGrid, X, Keyboard } from 'lucide-react';
+
+/** Below this width the split triage station collapses to cards. */
+const SPLIT_VIEW_MIN_WIDTH = 1080;
 
 interface JobFeedProps {
   jobs: Job[];
@@ -40,7 +51,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 }) => {
   const [filters, setFilters] = useState<FilterCriteria>({
     search: initialFilters?.search ?? '',
-    status: initialFilters?.status ?? 'all',
+    status: initialFilters?.status ?? ACTIONABLE_FILTER,
     source: initialFilters?.source ?? 'all',
     minScore: initialFilters?.minScore,
   });
@@ -50,6 +61,12 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     const saved = localStorage.getItem('jf_feed_view_mode');
     return saved === 'grid' ? 'grid' : 'split';
   });
+
+  // The two-pane triage station needs ~1050px to stay usable. Below that the
+  // feed falls back to cards without overwriting the saved preference, so the
+  // split view returns when the window grows again.
+  const isNarrowViewport = useMediaQuery(`(max-width: ${SPLIT_VIEW_MIN_WIDTH}px)`);
+  const effectiveViewMode: 'split' | 'grid' = isNarrowViewport ? 'grid' : viewMode;
 
   const [activeJobId, setActiveJobId] = useState<string | null>(externalSelectedJobId || null);
 
@@ -120,14 +137,25 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   }, [externalSelectedJobId]);
 
   // Keep active job valid within current filtered/sorted view
+  const previousJobIdsRef = useRef<string[]>([]);
   useEffect(() => {
-    if (sortedAndFilteredJobs.length > 0) {
-      if (!activeJobId || !sortedAndFilteredJobs.some((j) => j.id === activeJobId)) {
-        setActiveJobId(sortedAndFilteredJobs[0].id);
-      }
-    } else {
+    const ids = sortedAndFilteredJobs.map((j) => j.id);
+    const previousIds = previousJobIdsRef.current;
+
+    if (ids.length === 0) {
       setActiveJobId(null);
+    } else if (!activeJobId || !ids.includes(activeJobId)) {
+      // When the active job leaves the queue (e.g. it was just marked
+      // Applied), advance to whatever now occupies its slot rather than
+      // snapping back to the top of the list.
+      const targetId = activeJobId;
+      const previousIndex = targetId ? previousIds.findIndex((id) => id === targetId) : 0;
+      const nextIndex = Math.min(Math.max(previousIndex, 0), ids.length - 1);
+      const nextId = ids.at(nextIndex);
+      setActiveJobId(nextId ?? null);
     }
+
+    previousJobIdsRef.current = ids;
   }, [sortedAndFilteredJobs, activeJobId]);
 
   // Global keyboard shortcuts for triage station
@@ -177,7 +205,8 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       if (
         Boolean(document.querySelector('.user-menu-dropdown')) ||
         Boolean(document.querySelector('[role="dialog"]')) ||
-        Boolean(document.querySelector('.modal-backdrop'))
+        Boolean(document.querySelector('.modal-backdrop')) ||
+        Boolean(document.querySelector('.popover-panel'))
       ) {
         return;
       }
@@ -196,7 +225,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
         return;
       }
 
-      if (sortedAndFilteredJobs.length === 0) return;
+      if (sortedAndFilteredJobs.length === 0 || effectiveViewMode !== 'split') return;
 
       const currentIndex = sortedAndFilteredJobs.findIndex((j) => j.id === activeJobId);
 
@@ -338,14 +367,23 @@ export const JobFeed: React.FC<JobFeedProps> = ({
 
   const hasActiveFilters =
     Boolean(filters.search) ||
-    filters.status !== 'all' ||
+    (filters.status !== 'all' && filters.status !== ACTIONABLE_FILTER) ||
     filters.source !== 'all' ||
     filters.minScore !== undefined;
+
+  const isQueueView = (filters.status ?? ACTIONABLE_FILTER) === ACTIONABLE_FILTER;
+
+  // How many jobs the queue is holding back, so hiding applied work is never
+  // silent.
+  const hiddenCount = useMemo(() => {
+    if (!isQueueView) return 0;
+    return filterJobs(jobs, { ...filters, status: 'all' }).length - sortedAndFilteredJobs.length;
+  }, [jobs, filters, isQueueView, sortedAndFilteredJobs.length]);
 
   const resetFilters = () => {
     setFilters({
       search: '',
-      status: 'all',
+      status: ACTIONABLE_FILTER,
       source: 'all',
       minScore: undefined,
     });
@@ -357,129 +395,218 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     );
   }, [sortedAndFilteredJobs, activeJobId]);
 
+  // Decide what fills the feed before rendering so each branch stays readable.
+  let content: React.ReactNode;
+  if (sortedAndFilteredJobs.length === 0) {
+    content = (
+      <FeedEmptyState
+        isQueueView={isQueueView}
+        hasActiveFilters={hasActiveFilters}
+        totalJobs={jobs.length}
+        hasActiveResume={hasActiveResume}
+        isExtensionPaired={isExtensionPaired}
+        onShowAll={() => {
+          setFilters((f) => ({ ...f, status: 'all' }));
+        }}
+        onResetFilters={resetFilters}
+      />
+    );
+  } else if (effectiveViewMode === 'split') {
+    content = (
+      <div className="triage-station">
+        {/* Master List Pane */}
+        <div className="triage-list-container">
+          <div className="triage-list-header">
+            <span>Jobs Queue ({sortedAndFilteredJobs.length})</span>
+            <span>Use J / K to step</span>
+          </div>
+          <div className="triage-list-scroll">
+            {sortedAndFilteredJobs.map((job) => (
+              <div key={job.id} data-job-id={job.id}>
+                <TriageListItem
+                  job={job}
+                  threshold={threshold}
+                  isActive={job.id === activeJob?.id}
+                  onSelect={() => setActiveJobId(job.id)}
+                />
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Workbench Detail Pane */}
+        <JobWorkbench
+          job={activeJob}
+          threshold={threshold}
+          onStatusChange={onStatusChange || (() => {})}
+          onJobUpdated={(updated) => {
+            if (onJobUpdated) onJobUpdated(updated);
+          }}
+          onDeleteJob={(deletedId) => {
+            if (onJobDeleted) onJobDeleted(deletedId);
+          }}
+        />
+      </div>
+    );
+  } else {
+    content = (
+      <div className="job-grid">
+        {sortedAndFilteredJobs.map((job) => (
+          <JobCard
+            key={job.id}
+            job={job}
+            threshold={threshold}
+            onSelect={onSelectJob}
+            onTailored={onJobUpdated}
+            onStatusChange={onStatusChange}
+          />
+        ))}
+      </div>
+    );
+  }
+
   return (
     <div>
       {/* Keyboard Help Modal */}
       <KeyboardHelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
 
       {/* Filters and Sorting Bar */}
-      <div
-        className="filters-bar"
-        style={{ flexWrap: 'wrap', gap: '0.75rem', alignItems: 'center' }}
-      >
-        <div className="search-input-wrapper" style={{ flex: '1 1 240px', minWidth: '200px' }}>
+      <div className="filters-bar">
+        <div className="search-input-wrapper">
           <span className="search-icon" style={{ display: 'flex', alignItems: 'center' }}>
             <Search size={15} />
           </span>
           <input
             ref={searchInputRef}
             type="text"
-            placeholder="Search title, company, skills... (Press / to focus)"
+            placeholder="Search title, company, skills…"
             value={filters.search || ''}
-            onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, search: e.target.value }));
+            }}
             className="input-text"
           />
         </div>
 
-        {/* Sort Controls */}
-        <select
-          value={sortOption}
-          onChange={(e) => setSortOption(e.target.value as SortOption)}
-          className="select-input"
-          style={{ fontWeight: 600, borderLeft: '3px solid var(--accent-primary)' }}
-          title="Sort jobs list"
-        >
-          <option value="score_desc">Highest Fit Score</option>
-          <option value="score_asc">Lowest Fit Score</option>
-          <option value="created_desc">Newest Ingested</option>
-          <option value="created_asc">Oldest Ingested</option>
-          <option value="company_asc">Company (A → Z)</option>
-          <option value="title_asc">Role Title (A → Z)</option>
-          <option value="status">Application Status</option>
-        </select>
-
-        <select
-          value={filters.status || 'all'}
-          onChange={(e) => setFilters((f) => ({ ...f, status: e.target.value }))}
-          className="select-input"
-        >
-          <option value="all">All Statuses</option>
-          <option value="new">New</option>
-          <option value="saved">Saved</option>
-          <option value="tailored">Tailored</option>
-          <option value="applied">Applied</option>
-          <option value="interview">Interview</option>
-          <option value="offer">Offer</option>
-          <option value="archived">Archived</option>
-          <option value="rejected">Rejected</option>
-          <option value="rejected_by_score">Rejected By Score</option>
-          <option value="invalid_job">Invalid / Non-Job</option>
-          <option value="score_failed">Score Failed (Setup Required)</option>
-        </select>
-
-        <select
-          value={filters.source || 'all'}
-          onChange={(e) => setFilters((f) => ({ ...f, source: e.target.value }))}
-          className="select-input"
-        >
-          <option value="all">All Sources</option>
-          {availableSources.map((source) => (
-            <option key={source} value={source}>
-              {source}
-            </option>
-          ))}
-        </select>
-
-        <select
-          value={filters.minScore !== undefined ? String(filters.minScore) : 'all'}
-          onChange={(e) =>
-            setFilters((f) => ({
-              ...f,
-              minScore: e.target.value === 'all' ? undefined : Number(e.target.value),
-            }))
-          }
-          className="select-input"
-        >
-          <option value="all">All Fit Scores</option>
-          <option value={String(threshold)}>Qualified (≥ {threshold}%)</option>
-          <option value="50">Medium Fit (≥ 50%)</option>
-          <option value="0">Any Scored</option>
-        </select>
-
-        {hasActiveFilters && (
-          <button
-            onClick={resetFilters}
-            className="btn btn-secondary btn-sm"
-            style={{
-              fontSize: '0.8rem',
-              padding: '0.35rem 0.75rem',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.3rem',
+        <div className="filters-controls">
+          {/* Sort Controls */}
+          <select
+            value={sortOption}
+            onChange={(e) => {
+              setSortOption(e.target.value as SortOption);
             }}
+            className="select-input"
+            style={{ fontWeight: 600, borderLeft: '3px solid var(--accent-primary)' }}
+            title="Sort jobs list"
           >
-            <X size={13} /> Clear
-          </button>
-        )}
+            <option value="score_desc">Highest Fit Score</option>
+            <option value="score_asc">Lowest Fit Score</option>
+            <option value="created_desc">Newest Ingested</option>
+            <option value="created_asc">Oldest Ingested</option>
+            <option value="company_asc">Company (A → Z)</option>
+            <option value="title_asc">Role Title (A → Z)</option>
+            <option value="status">Application Status</option>
+          </select>
 
-        {/* View Mode Switcher */}
-        <div className="view-segmented-control" style={{ marginLeft: 'auto' }}>
-          <button
-            type="button"
-            className={`view-toggle-btn ${viewMode === 'split' ? 'active' : ''}`}
-            onClick={() => handleViewModeChange('split')}
-            title="Split Triage View"
+          <select
+            value={filters.status ?? ACTIONABLE_FILTER}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, status: e.target.value }));
+            }}
+            className="select-input"
+            aria-label="Filter by pipeline stage"
+            title="Filter by pipeline stage"
           >
-            <LayoutList size={14} /> Split View
-          </button>
-          <button
-            type="button"
-            className={`view-toggle-btn ${viewMode === 'grid' ? 'active' : ''}`}
-            onClick={() => handleViewModeChange('grid')}
-            title="Grid Cards View"
+            <optgroup label="Queue">
+              <option value={ACTIONABLE_FILTER}>Needs Action</option>
+              <option value="all">All Stages</option>
+            </optgroup>
+            <optgroup label="Pipeline">
+              {PIPELINE_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {getStatusLabel(status)}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Closed & system">
+              {CLOSED_STATUSES.map((status) => (
+                <option key={status} value={status}>
+                  {getStatusLabel(status)}
+                </option>
+              ))}
+            </optgroup>
+          </select>
+
+          <select
+            value={filters.source || 'all'}
+            onChange={(e) => {
+              setFilters((f) => ({ ...f, source: e.target.value }));
+            }}
+            className="select-input"
+            aria-label="Filter by source"
           >
-            <LayoutGrid size={14} /> Cards
-          </button>
+            <option value="all">All Sources</option>
+            {availableSources.map((source) => (
+              <option key={source} value={source}>
+                {source}
+              </option>
+            ))}
+          </select>
+
+          <select
+            value={filters.minScore !== undefined ? String(filters.minScore) : 'all'}
+            onChange={(e) => {
+              setFilters((f) => ({
+                ...f,
+                minScore: e.target.value === 'all' ? undefined : Number(e.target.value),
+              }));
+            }}
+            className="select-input"
+            aria-label="Filter by fit score"
+          >
+            <option value="all">All Fit Scores</option>
+            <option value={String(threshold)}>Qualified (≥ {threshold}%)</option>
+            <option value="50">Medium Fit (≥ 50%)</option>
+            <option value="0">Any Scored</option>
+          </select>
+
+          {hasActiveFilters && (
+            <button
+              onClick={resetFilters}
+              className="btn btn-secondary btn-sm filters-clear"
+              style={{
+                fontSize: '0.8rem',
+                padding: '0.35rem 0.75rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.3rem',
+              }}
+            >
+              <X size={13} /> Clear
+            </button>
+          )}
+
+          {/* View Mode Switcher — split view is hidden when the viewport can't fit it */}
+          {!isNarrowViewport && (
+            <div className="view-segmented-control">
+              <button
+                type="button"
+                className={`view-toggle-btn ${effectiveViewMode === 'split' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('split')}
+                title="Split Triage View"
+              >
+                <LayoutList size={14} /> Split View
+              </button>
+              <button
+                type="button"
+                className={`view-toggle-btn ${effectiveViewMode === 'grid' ? 'active' : ''}`}
+                onClick={() => handleViewModeChange('grid')}
+                title="Grid Cards View"
+              >
+                <LayoutGrid size={14} /> Cards
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -533,22 +660,34 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       </div>
 
       {/* Results Header Info */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          margin: '0.75rem 0 1.25rem 0',
-          padding: '0 0.25rem',
-          fontSize: '0.85rem',
-          color: 'var(--text-secondary)',
-        }}
-      >
+      <div className="feed-results-meta">
         <div>
           Showing <strong>{sortedAndFilteredJobs.length}</strong> of {jobs.length} jobs
           {hasActiveFilters && (
             <span style={{ marginLeft: '0.5rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
               (filtered)
+            </span>
+          )}
+          {hiddenCount > 0 && (
+            <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>
+              · {hiddenCount} applied/closed hidden
+              <button
+                type="button"
+                onClick={() => {
+                  setFilters((f) => ({ ...f, status: 'all' }));
+                }}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  color: 'var(--accent-primary)',
+                  cursor: 'pointer',
+                  padding: '0 0.25rem',
+                  font: 'inherit',
+                  fontWeight: 500,
+                }}
+              >
+                Show all
+              </button>
             </span>
           )}
         </div>
@@ -567,254 +706,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       </div>
 
       {/* Content Rendering: Empty State, Split Triage Station, or Cards Grid */}
-      {sortedAndFilteredJobs.length === 0 ? (
-        hasActiveFilters ? (
-          <div className="empty-state">
-            <h3
-              style={{ fontSize: '1.1rem', marginBottom: '0.5rem', color: 'var(--text-primary)' }}
-            >
-              No jobs match your filters
-            </h3>
-            <p style={{ fontSize: '0.875rem' }}>
-              Try broadening your search query or reset the status and source filters.
-            </p>
-            <button
-              onClick={resetFilters}
-              className="btn btn-primary btn-sm"
-              style={{ marginTop: '1rem' }}
-            >
-              Reset Filters
-            </button>
-          </div>
-        ) : hasActiveResume === null ? (
-          <div
-            className="onboarding-hero"
-            style={{
-              opacity: 0.6,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              minHeight: '200px',
-            }}
-          >
-            <span style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-              Loading setup status...
-            </span>
-          </div>
-        ) : hasActiveResume === false ? (
-          /* Step 1: AI Model -> Step 2: Master Resume -> Step 3: Ingestion */
-          <div className="onboarding-hero">
-            <div className="onboarding-hero-header">
-              <div className="onboarding-hero-title">
-                <span>🚀</span> Welcome to JobFoundry!
-              </div>
-              <p className="onboarding-hero-subtitle">
-                Set up your career command center in 3 steps to unlock automated AI scoring, match
-                evaluation, and tailored resumes.
-              </p>
-            </div>
-
-            <div className="onboarding-steps">
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Step 1 • AI Settings</span>
-                  <div className="onboarding-step-title">Configure AI Model & Key</div>
-                  <div className="onboarding-step-desc">
-                    Verify your LLM model (OpenRouter, OpenAI, or Anthropic) used to screen jobs and
-                    tailor applications.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=gateway"
-                  className="btn btn-primary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Configure AI Gateway →
-                </a>
-              </div>
-
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Step 2 • Master Profile</span>
-                  <div className="onboarding-step-title">Upload Master Resume</div>
-                  <div className="onboarding-step-desc">
-                    Add your master JSON Resume to anchor job evaluations and experience bullet
-                    tailoring.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=profile"
-                  className="btn btn-primary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Set Up Resume →
-                </a>
-              </div>
-
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Step 3 • Ingestion</span>
-                  <div className="onboarding-step-title">Connect Job Sources</div>
-                  <div className="onboarding-step-desc">
-                    Pair the browser extension for 1-click capture or configure automated portal
-                    scrapers.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=sync"
-                  className="btn btn-secondary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Connect Sources →
-                </a>
-              </div>
-            </div>
-          </div>
-        ) : (
-          /* Resume is present, waiting for first job scan/capture */
-          <div className="onboarding-hero">
-            <div className="onboarding-hero-header">
-              <div className="onboarding-hero-title">
-                <span>⚡</span> Master Profile Ready — Let&apos;s Ingest Jobs!
-              </div>
-              <p className="onboarding-hero-subtitle">
-                Your Master Resume and AI Fit Scorer are ready. Ingest your first listings to start
-                seeing match scores and tailored resumes.
-              </p>
-            </div>
-
-            <div className="onboarding-steps">
-              {isExtensionPaired ? (
-                <div
-                  className="onboarding-step-card"
-                  style={{
-                    background: 'rgba(16, 185, 129, 0.05)',
-                    border: '1px solid rgba(16, 185, 129, 0.3)',
-                  }}
-                >
-                  <div>
-                    <span
-                      className="onboarding-step-badge"
-                      style={{
-                        background: 'rgba(16, 185, 129, 0.15)',
-                        color: 'var(--color-green, #10b981)',
-                        borderColor: 'rgba(16, 185, 129, 0.3)',
-                      }}
-                    >
-                      ✓ Extension Paired & Ready
-                    </span>
-                    <div className="onboarding-step-title">Capture Jobs as You Browse</div>
-                    <div className="onboarding-step-desc">
-                      Your extension is paired. Browse LinkedIn, Indeed, Greenhouse, or Lever and
-                      click the JobFoundry extension icon to capture jobs. Or add a listing manually
-                      via + Add Job above.
-                    </div>
-                  </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      gap: '0.6rem',
-                      marginTop: '0.5rem',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <a
-                      href="/settings?tab=sync"
-                      className="btn btn-secondary btn-sm"
-                      style={{ textDecoration: 'none', textAlign: 'center' }}
-                    >
-                      Extension Settings →
-                    </a>
-                  </div>
-                </div>
-              ) : (
-                <div className="onboarding-step-card">
-                  <div>
-                    <span className="onboarding-step-badge">Browser Extension</span>
-                    <div className="onboarding-step-title">1-Click Live Capture</div>
-                    <div className="onboarding-step-desc">
-                      Browse jobs naturally on LinkedIn, Indeed, Greenhouse, or Lever and capture in
-                      1 click.
-                    </div>
-                  </div>
-                  <a
-                    href="/settings?tab=sync"
-                    className="btn btn-primary btn-sm"
-                    style={{ textDecoration: 'none', textAlign: 'center' }}
-                  >
-                    Pair Extension →
-                  </a>
-                </div>
-              )}
-
-              <div className="onboarding-step-card">
-                <div>
-                  <span className="onboarding-step-badge">Portal Catalog</span>
-                  <div className="onboarding-step-title">Automated Feeds</div>
-                  <div className="onboarding-step-desc">
-                    Activate automated scrapers from Himalayas, RemoteOK, Arbeitnow, and 30+ boards.
-                  </div>
-                </div>
-                <a
-                  href="/settings?tab=scrapers"
-                  className="btn btn-secondary btn-sm"
-                  style={{ textDecoration: 'none', textAlign: 'center' }}
-                >
-                  Configure Portals →
-                </a>
-              </div>
-            </div>
-          </div>
-        )
-      ) : viewMode === 'split' ? (
-        <div className="triage-station">
-          {/* Master List Pane */}
-          <div className="triage-list-container">
-            <div className="triage-list-header">
-              <span>Jobs Queue ({sortedAndFilteredJobs.length})</span>
-              <span>Use J / K to step</span>
-            </div>
-            <div className="triage-list-scroll">
-              {sortedAndFilteredJobs.map((job) => (
-                <div key={job.id} data-job-id={job.id}>
-                  <TriageListItem
-                    job={job}
-                    threshold={threshold}
-                    isActive={job.id === activeJob?.id}
-                    onSelect={() => setActiveJobId(job.id)}
-                  />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Workbench Detail Pane */}
-          <JobWorkbench
-            job={activeJob}
-            threshold={threshold}
-            onStatusChange={onStatusChange || (() => {})}
-            onJobUpdated={(updated) => {
-              if (onJobUpdated) onJobUpdated(updated);
-            }}
-            onDeleteJob={(deletedId) => {
-              if (onJobDeleted) onJobDeleted(deletedId);
-            }}
-          />
-        </div>
-      ) : (
-        <div className="job-grid">
-          {sortedAndFilteredJobs.map((job) => (
-            <JobCard
-              key={job.id}
-              job={job}
-              threshold={threshold}
-              onSelect={onSelectJob}
-              onTailored={onJobUpdated}
-              onStatusChange={onStatusChange}
-            />
-          ))}
-        </div>
-      )}
+      {content}
     </div>
   );
 };

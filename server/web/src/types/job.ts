@@ -16,7 +16,8 @@ export type JobStatus =
   | 'rejected'
   | 'archived'
   | 'invalid_job'
-  | 'score_failed';
+  | 'score_failed'
+  | 'tailor_failed';
 
 export interface Job {
   id: string;

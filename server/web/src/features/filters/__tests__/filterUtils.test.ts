@@ -65,6 +65,11 @@ describe('filterJobs', () => {
     expect(res[0].id).toBe('3');
   });
 
+  it('filters to the actionable queue', () => {
+    const res = filterJobs(mockJobs, { status: 'actionable' });
+    expect(res.map((j) => j.id)).toEqual(['1', '3']);
+  });
+
   it('filters by source', () => {
     const res = filterJobs(mockJobs, { source: 'indeed' });
     expect(res).toHaveLength(1);

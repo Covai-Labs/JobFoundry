@@ -27,58 +27,43 @@ describe('JobCard Component', () => {
     expect(screen.getByText('Antigravity Systems')).toBeInTheDocument();
   });
 
-  it('renders status select when onStatusChange is provided and triggers status update', () => {
+  it('marks a job applied in one click without selecting the card', () => {
     const onStatusChange = vi.fn();
     const onSelect = vi.fn();
     render(<JobCard job={mockJob} onSelect={onSelect} onStatusChange={onStatusChange} />);
 
-    const select = screen.getByRole('combobox', { name: /Job Status/i });
-    expect(select).toBeInTheDocument();
-    expect(select).toHaveValue('new');
+    const applyBtn = screen.getByRole('button', { name: /Mark Applied/i });
+    expect(applyBtn).toBeInTheDocument();
 
-    fireEvent.change(select, { target: { value: 'applied' } });
+    fireEvent.click(applyBtn);
     expect(onStatusChange).toHaveBeenCalledWith('job-999', 'applied');
-    // Ensure card onSelect was not triggered
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('renders status select with current status when job status is interview', () => {
-    const interviewJob: Job = { ...mockJob, status: 'interview' };
-    render(<JobCard job={interviewJob} onSelect={vi.fn()} onStatusChange={vi.fn()} />);
+  it('shows the current stage as a readable label', () => {
+    render(<JobCard job={{ ...mockJob, status: 'interview' }} onSelect={vi.fn()} />);
 
-    const select = screen.getByRole('combobox', { name: /Job Status/i });
-    expect(select).toBeInTheDocument();
-    expect(select).toHaveValue('interview');
+    expect(screen.getByText('Interview')).toBeInTheDocument();
   });
 
-  it('renders status select with current status for backend statuses like rejected_by_score, score_failed, and invalid_job', () => {
-    const systemJob: Job = { ...mockJob, status: 'rejected_by_score' };
+  it('hides the quick apply action once the job is past the apply loop', () => {
     const { rerender } = render(
-      <JobCard job={systemJob} onSelect={vi.fn()} onStatusChange={vi.fn()} />
-    );
-
-    let select = screen.getByRole('combobox', { name: /Job Status/i });
-    expect(select).toHaveValue('rejected_by_score');
-
-    rerender(
       <JobCard
-        job={{ ...mockJob, status: 'score_failed' }}
+        job={{ ...mockJob, status: 'applied' }}
         onSelect={vi.fn()}
         onStatusChange={vi.fn()}
       />
     );
-    select = screen.getByRole('combobox', { name: /Job Status/i });
-    expect(select).toHaveValue('score_failed');
+    expect(screen.queryByRole('button', { name: /Mark Applied/i })).not.toBeInTheDocument();
 
     rerender(
       <JobCard
-        job={{ ...mockJob, status: 'invalid_job' }}
+        job={{ ...mockJob, status: 'rejected_by_score' }}
         onSelect={vi.fn()}
         onStatusChange={vi.fn()}
       />
     );
-    select = screen.getByRole('combobox', { name: /Job Status/i });
-    expect(select).toHaveValue('invalid_job');
+    expect(screen.queryByRole('button', { name: /Mark Applied/i })).not.toBeInTheDocument();
   });
 
   it('renders repost badge only when repost_confidence is high', () => {

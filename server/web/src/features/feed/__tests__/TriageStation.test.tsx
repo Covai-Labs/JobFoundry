@@ -116,8 +116,9 @@ describe('TriageStation & Split View', () => {
     ).toBeInTheDocument();
     expect(screen.getByText('Unscored')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Retry Scoring/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /Re-score/i })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Re-calculate/i })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /More job actions/i }));
+    expect(screen.getByRole('menuitem', { name: /Re-score/i })).toBeInTheDocument();
   });
 
   it('renders JobFeed in Split View by default and allows toggling to Cards view', () => {
@@ -139,6 +140,31 @@ describe('TriageStation & Split View', () => {
     fireEvent.click(splitBtn);
 
     expect(localStorage.getItem('jf_feed_view_mode')).toBe('split');
+  });
+
+  it('keeps applied jobs out of the actionable queue until asked', () => {
+    const appliedJob: Job = {
+      ...mockJobs[1],
+      id: 'job-3',
+      title: 'Applied Role',
+      company: 'Gamma Inc',
+      status: 'applied',
+    };
+    render(<JobFeed jobs={[...mockJobs, appliedJob]} onSelectJob={vi.fn()} />);
+
+    expect(screen.queryByText('Applied Role')).not.toBeInTheDocument();
+    expect(screen.getByText(/1 applied\/closed hidden/i)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: /Show all/i }));
+    expect(screen.getByText('Applied Role')).toBeInTheDocument();
+  });
+
+  it('celebrates an empty actionable queue instead of showing onboarding', () => {
+    const appliedOnly: Job[] = mockJobs.map((job) => ({ ...job, status: 'applied' as const }));
+    render(<JobFeed jobs={appliedOnly} onSelectJob={vi.fn()} />);
+
+    expect(screen.getByText(/all caught up/i)).toBeInTheDocument();
+    expect(screen.queryByText(/Welcome to JobFoundry/i)).not.toBeInTheDocument();
   });
 
   it('navigates jobs using keyboard shortcut j and k', () => {

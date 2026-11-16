@@ -1,4 +1,5 @@
 import { Job, FitNotes } from '../../types/job';
+import { ACTIONABLE_FILTER, isActionableStatus } from '../../lib/jobStages';
 
 export interface FilterCriteria {
   search?: string;
@@ -34,7 +35,12 @@ export function filterJobs(jobs: Job[], criteria: FilterCriteria): Job[] {
 
     // 2. Status filter
     if (criteria.status && criteria.status !== 'all') {
-      if (job.status !== criteria.status) return false;
+      if (criteria.status === ACTIONABLE_FILTER) {
+        // The feed's default: only jobs that still want something from the user.
+        if (!isActionableStatus(job.status)) return false;
+      } else if (job.status !== criteria.status) {
+        return false;
+      }
     }
 
     // 3. Source filter

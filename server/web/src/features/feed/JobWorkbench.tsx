@@ -5,7 +5,8 @@ import { JobDetail } from '../detail/JobDetail';
 interface JobWorkbenchProps {
   job: Job | null;
   threshold?: number;
-  onStatusChange: (jobId: string, newStatus: JobStatus) => void;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars, no-unused-vars
+  onStatusChange: (jobId: string, newStatus: JobStatus) => void | Promise<void>;
   onJobUpdated: (updatedJob: Job) => void;
   onDeleteJob?: (jobId: string) => void;
 }
