@@ -662,6 +662,19 @@ export class ApiClient {
     });
   }
 
+  async fetchModels(payload: {
+    model?: string;
+    apiKey?: string;
+    apiBase?: string;
+    provider?: string;
+    feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot' | string;
+  }): Promise<FetchModelsResponse> {
+    return this.request<FetchModelsResponse>('/api/v1/settings/fetch-models', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
   async getExtensionConfig(): Promise<ExtensionConfig> {
     return this.request<ExtensionConfig>('/api/v1/extension/config');
   }
@@ -856,6 +869,13 @@ export interface TestLlmResponse {
   provider?: string;
   apiBase?: string;
   message?: string;
+  error?: string;
+}
+
+export interface FetchModelsResponse {
+  success: boolean;
+  models: { id: string; name: string }[];
+  cached?: boolean;
   error?: string;
 }
 

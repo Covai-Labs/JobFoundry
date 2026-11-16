@@ -660,6 +660,208 @@ export function buildApp({
     }
   );
 
+  // In-memory cache for live fetched models: cacheKey -> { models: [...], expiresAt: timestamp }
+  const modelsCache = new Map();
+  const MODELS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+
+  // POST /api/v1/settings/fetch-models - Query live models from provider endpoint
+  app.post(
+    '/api/v1/settings/fetch-models',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+      const userId = request.user.id;
+      const { provider, apiKey, apiBase, feature: rawFeature = 'gateway' } = request.body || {};
+      const ALLOWED_FEATURES = new Set(['gateway', 'scorer', 'tailor', 'copilot']);
+      if (!ALLOWED_FEATURES.has(rawFeature)) {
+        return reply.code(400).send({ success: false, error: 'invalid feature' });
+      }
+
+      const resolved = resolveFeatureLlmConfig(db, rawFeature, { userId });
+      const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
+      const effectiveKey = hasExplicitKey ? apiKey : resolved.apiKey;
+      const requestScoped = Boolean(apiKey || provider || apiBase);
+      const effectiveProvider = requestScoped
+        ? provider || resolved.provider || ''
+        : resolved.provider || provider || '';
+      const explicitBase =
+        normalizeApiBase(apiBase) ||
+        (requestScoped ? defaultBaseForProvider(effectiveProvider) : resolved.apiBase) ||
+        '';
+      const directBase = explicitBase || defaultBaseForProvider(effectiveProvider);
+
+      // Check in-memory cache
+      const cacheKey = `${effectiveProvider}|${directBase}|${effectiveKey ? effectiveKey.slice(0, 8) : 'nokey'}`;
+      const cached = modelsCache.get(cacheKey);
+      if (cached && cached.expiresAt > Date.now()) {
+        return { success: true, models: cached.models, cached: true };
+      }
+
+      try {
+        let models = [];
+        // Ollama tags
+        if (effectiveProvider === 'ollama' || (directBase && directBase.includes('11434'))) {
+          const host = (directBase || 'http://127.0.0.1:11434').replace(/\/v1\/?$/, '');
+          const tagResp = await safeFetch(`${host}/api/tags`, {
+            headers: { Accept: 'application/json' },
+            signal: AbortSignal.timeout(8000),
+            redirect: 'error',
+          });
+          if (tagResp.ok) {
+            const data = await tagResp.json();
+            models = (data.models || []).map((m) => {
+              const name = m.name || m.model || '';
+              return { id: `ollama/${name}`, name };
+            });
+          }
+        } else if (
+          effectiveProvider === 'anthropic' ||
+          (directBase && directBase.includes('anthropic.com'))
+        ) {
+          const resp = await safeFetch('https://api.anthropic.com/v1/models', {
+            headers: {
+              'x-api-key': effectiveKey || '',
+              'anthropic-version': '2023-06-01',
+            },
+            signal: AbortSignal.timeout(10000),
+            redirect: 'error',
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            models = (data.data || []).map((m) => ({
+              id: m.id,
+              name: m.display_name || m.id,
+            }));
+          } else {
+            const text = await resp.text().catch(() => '');
+            return reply.code(resp.status).send({
+              success: false,
+              error: `Anthropic API returned ${resp.status}: ${text.slice(0, 200)}`,
+              models: [],
+            });
+          }
+        } else if (
+          effectiveProvider === 'google' &&
+          (!directBase || directBase.includes('googleapis.com'))
+        ) {
+          if (!effectiveKey) {
+            return reply.code(400).send({
+              success: false,
+              error: 'Google Gemini API key required to fetch models',
+              models: [],
+            });
+          }
+          const resp = await safeFetch(
+            `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(effectiveKey)}`,
+            {
+              signal: AbortSignal.timeout(10000),
+              redirect: 'error',
+            }
+          );
+          if (resp.ok) {
+            const data = await resp.json();
+            models = (data.models || [])
+              .filter(
+                (m) => m.name && (m.supportedGenerationMethods || []).includes('generateContent')
+              )
+              .map((m) => {
+                const cleanId = m.name.replace(/^models\//, '');
+                return { id: `gemini/${cleanId}`, name: m.displayName || cleanId };
+              });
+          } else {
+            const text = await resp.text().catch(() => '');
+            return reply.code(resp.status).send({
+              success: false,
+              error: `Google API returned ${resp.status}: ${text.slice(0, 200)}`,
+              models: [],
+            });
+          }
+        } else if (directBase) {
+          // Standard OpenAI-compatible / OpenRouter / Groq / DeepSeek / Custom
+          const endpoint = directBase.endsWith('/models')
+            ? directBase
+            : `${directBase.replace(/\/+$/, '')}/models`;
+          const headers = { Accept: 'application/json' };
+          if (effectiveKey) {
+            headers.Authorization = `Bearer ${effectiveKey}`;
+          }
+          const resp = await safeFetch(endpoint, {
+            headers,
+            signal: AbortSignal.timeout(10000),
+            redirect: 'error',
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            const list = Array.isArray(data) ? data : data.data || [];
+            models = list
+              .filter((m) => {
+                const id = String(m.id || '').toLowerCase();
+                return (
+                  !id.includes('whisper') &&
+                  !id.includes('tts') &&
+                  !id.includes('dall-e') &&
+                  !id.includes('embedding') &&
+                  !id.includes('moderation')
+                );
+              })
+              .map((m) => {
+                const id = m.id;
+                let formattedId = id;
+                if (effectiveProvider === 'groq' && !id.startsWith('groq/')) {
+                  formattedId = `groq/${id}`;
+                } else if (effectiveProvider === 'deepseek' && !id.startsWith('deepseek/')) {
+                  formattedId = `deepseek/${id}`;
+                }
+                return { id: formattedId, name: m.name || m.id };
+              });
+          } else {
+            const text = await resp.text().catch(() => '');
+            return reply.code(resp.status).send({
+              success: false,
+              error: `Endpoint returned HTTP ${resp.status}: ${text.slice(0, 200)}`,
+              models: [],
+            });
+          }
+        } else {
+          return reply.code(400).send({
+            success: false,
+            error:
+              'No endpoint or API key available to fetch models. Please configure a provider and API key or base URL.',
+            models: [],
+          });
+        }
+
+        // Cache successful non-empty result
+        if (models.length > 0) {
+          modelsCache.set(cacheKey, {
+            models,
+            expiresAt: Date.now() + MODELS_CACHE_TTL_MS,
+          });
+        }
+
+        return { success: true, models, cached: false };
+      } catch (err) {
+        return reply.code(502).send({
+          success: false,
+          error: `Failed to fetch models: ${err.message}`,
+          models: [],
+        });
+      }
+    }
+  );
+
   // --- AUTHENTICATION ROUTES ---
 
   // GET /api/v1/auth/registration

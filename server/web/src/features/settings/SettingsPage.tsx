@@ -137,94 +137,157 @@ const LlmTestTarget: React.FC<{ id: string; target: EffectiveEndpoint }> = ({ id
   </div>
 );
 
-interface CompactRecommendedModelsProps {
-  title: string;
-  models: { id: string; name: string; tier?: string; description?: string }[];
-  currentModel?: string;
-  onSelectModel: (id: string) => void;
-  icon?: 'zap' | 'sparkles';
+interface ModelSelectionRowProps {
+  id: string;
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (val: string) => void;
+  datalistId: string;
+  tipText: string;
+  fallbackModels: { id: string; name: string; description?: string }[];
+  isFetching: boolean;
+  fetchedModels: { id: string; name: string }[];
+  onFetch: () => void;
+  helpText?: string;
+  providerName?: string;
 }
 
-const CompactRecommendedModels: React.FC<CompactRecommendedModelsProps> = ({
-  title,
-  models,
-  currentModel,
-  onSelectModel,
-  icon = 'zap',
+const ModelSelectionRow: React.FC<ModelSelectionRowProps> = ({
+  id,
+  label,
+  placeholder,
+  value,
+  onChange,
+  datalistId,
+  tipText,
+  fallbackModels,
+  isFetching,
+  fetchedModels,
+  onFetch,
+  helpText,
+  providerName,
 }) => {
-  if (!models || models.length === 0) return null;
+  const models = fetchedModels.length > 0 ? fetchedModels : fallbackModels;
 
   return (
-    <div
-      style={{
-        marginBottom: '0.75rem',
-        padding: '0.5rem 0.75rem',
-        background: 'var(--bg-input, rgba(255,255,255,0.02))',
-        border: '1px dashed var(--border-subtle)',
-        borderRadius: 'var(--radius-md)',
-      }}
-    >
+    <div style={{ marginBottom: '1.25rem' }}>
       <div
+        className="model-tip-banner"
         style={{
-          fontSize: '0.78rem',
-          fontWeight: 600,
+          padding: '0.6rem 0.85rem',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          fontSize: '0.8rem',
           color: 'var(--text-secondary)',
-          marginBottom: '0.4rem',
+          marginBottom: '0.65rem',
           display: 'flex',
           alignItems: 'center',
-          gap: '0.35rem',
+          gap: '0.5rem',
         }}
       >
-        {icon === 'zap' ? (
-          <Zap size={13} style={{ color: 'var(--accent-primary)' }} />
-        ) : (
-          <Sparkles size={13} style={{ color: 'var(--accent-primary)' }} />
+        <Sparkles size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+        <span>{tipText}</span>
+      </div>
+
+      <label
+        htmlFor={id}
+        style={{
+          display: 'block',
+          fontSize: '0.85rem',
+          fontWeight: 500,
+          marginBottom: '0.35rem',
+        }}
+      >
+        {label}
+      </label>
+
+      <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+        <input
+          id={id}
+          type="text"
+          list={datalistId}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="input-text"
+          style={{ flex: 1 }}
+          placeholder={placeholder}
+          required
+        />
+
+        {models.length > 0 && (
+          <select
+            aria-label={`Select model for ${label}`}
+            value=""
+            onChange={(e) => {
+              if (e.target.value) {
+                onChange(e.target.value);
+              }
+            }}
+            className="input-select"
+            style={{
+              maxWidth: '190px',
+              fontSize: '0.8rem',
+              padding: '0.45rem 0.5rem',
+            }}
+          >
+            <option value="">
+              {fetchedModels.length > 0
+                ? `Pick (${fetchedModels.length} fetched)...`
+                : 'Pick model...'}
+            </option>
+            {models.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name || m.id}
+              </option>
+            ))}
+          </select>
         )}
-        {title}
+
+        <button
+          type="button"
+          onClick={onFetch}
+          disabled={isFetching}
+          className="btn btn-secondary btn-sm"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.35rem',
+            whiteSpace: 'nowrap',
+            padding: '0.45rem 0.75rem',
+          }}
+          title={
+            providerName
+              ? `Fetch live models from ${providerName}`
+              : 'Fetch live models from endpoint'
+          }
+        >
+          <RefreshCw size={12} className={isFetching ? 'spin' : ''} />
+          <span>{isFetching ? 'Fetching...' : 'Fetch Models'}</span>
+        </button>
       </div>
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-        {models.map((m) => {
-          const isCurrent = currentModel === m.id;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => onSelectModel(m.id)}
-              style={{
-                padding: '0.25rem 0.55rem',
-                borderRadius: 'var(--radius-sm)',
-                fontSize: '0.75rem',
-                border: isCurrent
-                  ? '1px solid var(--accent-primary)'
-                  : '1px solid var(--border-subtle)',
-                background: isCurrent ? 'rgba(99, 102, 241, 0.15)' : 'var(--bg-card)',
-                color: isCurrent ? 'var(--accent-primary)' : 'var(--text-primary)',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.3rem',
-              }}
-              title={m.description}
-            >
-              <span>{m.name}</span>
-              {m.tier && (
-                <span
-                  style={{
-                    fontSize: '0.68rem',
-                    padding: '0.05rem 0.3rem',
-                    borderRadius: '3px',
-                    background: isCurrent ? 'var(--accent-primary)' : 'var(--border-subtle)',
-                    color: isCurrent ? '#fff' : 'var(--text-muted)',
-                  }}
-                >
-                  {m.tier === 'fast' ? 'Fast' : 'Reasoning'}
-                </span>
-              )}
-              {isCurrent && <Check size={11} />}
-            </button>
-          );
-        })}
-      </div>
+
+      <datalist id={datalistId}>
+        {models.map((m) => (
+          <option key={m.id} value={m.id}>
+            {m.name || m.id}
+          </option>
+        ))}
+      </datalist>
+
+      {helpText && (
+        <span
+          style={{
+            fontSize: '0.75rem',
+            color: 'var(--text-muted)',
+            marginTop: '0.25rem',
+            display: 'block',
+          }}
+        >
+          {helpText}
+        </span>
+      )}
     </div>
   );
 };
@@ -240,6 +303,9 @@ interface InheritedCustomModelSectionProps {
   datalistId: string;
   featureName: string;
   icon?: 'zap' | 'sparkles';
+  onFetchModels?: () => void;
+  isFetching?: boolean;
+  fetchedModels?: { id: string; name: string }[];
 }
 
 const InheritedCustomModelSection: React.FC<InheritedCustomModelSectionProps> = ({
@@ -252,27 +318,46 @@ const InheritedCustomModelSection: React.FC<InheritedCustomModelSectionProps> = 
   selectedDefaultProvider,
   datalistId,
   featureName,
-  icon = 'zap',
+  onFetchModels,
+  isFetching = false,
+  fetchedModels = [],
 }) => {
   const providerMeta =
     LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider) || LLM_PROVIDERS[0];
   const matchingTierModels = preferredTier
     ? providerMeta.recommendedModels.filter((m) => m.tier === preferredTier)
     : providerMeta.recommendedModels;
-  const modelsToShow =
+  const fallbackModels =
     matchingTierModels.length > 0 ? matchingTierModels : providerMeta.recommendedModels;
+  const models = fetchedModels.length > 0 ? fetchedModels : fallbackModels;
+
+  const tipText =
+    preferredTier === 'fast'
+      ? `Tip: For ${featureName}, choose high-throughput, fast models (e.g. Flash, Mini, Haiku) for low latency screening.`
+      : `Tip: For ${featureName}, choose reasoning and thinking models for deep nuance and ATS compliance.`;
 
   return (
     <>
-      <CompactRecommendedModels
-        title={`Recommended ${featureName} Models (${providerMeta.name}):`}
-        models={modelsToShow}
-        currentModel={value}
-        onSelectModel={onChange}
-        icon={icon}
-      />
+      <div
+        className="model-tip-banner"
+        style={{
+          padding: '0.6rem 0.85rem',
+          borderRadius: 'var(--radius-sm)',
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-subtle)',
+          fontSize: '0.8rem',
+          color: 'var(--text-secondary)',
+          marginBottom: '0.65rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '0.5rem',
+        }}
+      >
+        <Sparkles size={14} style={{ color: 'var(--accent-primary)', flexShrink: 0 }} />
+        <span>{tipText}</span>
+      </div>
 
-      <div>
+      <div style={{ marginBottom: '1.25rem' }}>
         <label
           htmlFor={id}
           style={{
@@ -284,23 +369,77 @@ const InheritedCustomModelSection: React.FC<InheritedCustomModelSectionProps> = 
         >
           {label}
         </label>
-        <input
-          id={id}
-          type="text"
-          list={datalistId}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className="input-text"
-          placeholder={placeholder}
-          required
-        />
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <input
+            id={id}
+            type="text"
+            list={datalistId}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="input-text"
+            style={{ flex: 1 }}
+            placeholder={placeholder}
+            required
+          />
+
+          {models.length > 0 && (
+            <select
+              aria-label={`Select model for ${label}`}
+              value=""
+              onChange={(e) => {
+                if (e.target.value) {
+                  onChange(e.target.value);
+                }
+              }}
+              className="input-select"
+              style={{
+                maxWidth: '190px',
+                fontSize: '0.8rem',
+                padding: '0.45rem 0.5rem',
+              }}
+            >
+              <option value="">
+                {fetchedModels.length > 0
+                  ? `Pick (${fetchedModels.length} fetched)...`
+                  : 'Pick model...'}
+              </option>
+              {models.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name || m.id}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {onFetchModels && (
+            <button
+              type="button"
+              onClick={onFetchModels}
+              disabled={isFetching}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+                padding: '0.45rem 0.75rem',
+              }}
+              title={`Fetch live models from ${providerMeta.name}`}
+            >
+              <RefreshCw size={12} className={isFetching ? 'spin' : ''} />
+              <span>{isFetching ? 'Fetching...' : 'Fetch Models'}</span>
+            </button>
+          )}
+        </div>
+
         <datalist id={datalistId}>
-          {providerMeta.recommendedModels.map((m) => (
+          {models.map((m) => (
             <option key={m.id} value={m.id}>
-              {m.name} ({m.tier === 'fast' ? 'Fast' : 'Reasoning'})
+              {m.name || m.id}
             </option>
           ))}
         </datalist>
+
         <span
           style={{
             fontSize: '0.75rem',
@@ -685,6 +824,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   } | null>(null);
 
   const [isDirty, setIsDirty] = useState(false);
+  const [fetchingModelsFeature, setFetchingModelsFeature] = useState<string | null>(null);
+  const [fetchedModelsMap, setFetchedModelsMap] = useState<
+    Record<string, { id: string; name: string }[]>
+  >({});
   const [hasActiveResume, setHasActiveResume] = useState(false);
   const [isExtensionPaired, setIsExtensionPaired] = useState(() => {
     return typeof window !== 'undefined' && localStorage.getItem('jf_extension_paired') === 'true';
@@ -1280,6 +1423,42 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       } finally {
         setTestingCopilotLlm(false);
       }
+    }
+  };
+
+  const handleFetchModels = async (
+    feature: 'gateway' | 'scorer' | 'tailor' | 'copilot',
+    provider: string,
+    apiKey: string,
+    apiBase: string,
+    model?: string
+  ) => {
+    setFetchingModelsFeature(feature);
+    try {
+      const res = await api.fetchModels({
+        feature,
+        provider,
+        apiKey,
+        apiBase,
+        model,
+      });
+      if (res.success && res.models && res.models.length > 0) {
+        setFetchedModelsMap((prev) => ({
+          ...prev,
+          [feature]: res.models,
+        }));
+        toast.success(
+          `Fetched ${res.models.length} models from endpoint${res.cached ? ' (cached)' : ''}`
+        );
+      } else if (res.models && res.models.length === 0) {
+        toast.info('No models returned by endpoint.');
+      } else {
+        toast.error(res.error || 'Failed to fetch models from endpoint');
+      }
+    } catch (err: any) {
+      toast.error(err?.message || 'Error connecting to model endpoint');
+    } finally {
+      setFetchingModelsFeature(null);
     }
   };
 
@@ -2273,93 +2452,57 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       </span>
                     </div>
 
-                    {/* Recommended Models (Compact) */}
+                    {/* Default Model Selection with Tip & Live Fetch */}
                     {(() => {
                       const providerMeta =
                         LLM_PROVIDERS.find((p) => p.id === selectedDefaultProvider) ||
                         LLM_PROVIDERS[0];
-                      const recommended = providerMeta.recommendedModels;
-                      const isFallback = recommended.length === 0;
-                      const modelsToShow = !isFallback
-                        ? recommended
-                        : LLM_PROVIDERS.flatMap((p) => p.recommendedModels).slice(0, 5);
-
                       return (
-                        <CompactRecommendedModels
-                          title={`Recommended Models (${providerMeta.name}):`}
-                          models={modelsToShow}
-                          currentModel={formSettings.default_llm_model}
-                          onSelectModel={(id) => {
-                            handleFieldChange('default_llm_model', id);
+                        <ModelSelectionRow
+                          id="default-llm-model"
+                          label="Default Model Identifier (e.g. openrouter/model or openai/model)"
+                          placeholder="openrouter/openrouter/free"
+                          value={formSettings.default_llm_model || ''}
+                          onChange={(val) => {
+                            handleFieldChange('default_llm_model', val);
                             setIsDirty(true);
+                            const current = LLM_PROVIDERS.find(
+                              (p) => p.id === selectedDefaultProvider
+                            );
+                            const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
+                              val.toLowerCase().startsWith(`${p.id}/`)
+                            );
+                            const detected = detectProviderFromModel(val);
+                            if (
+                              hasKnownPrefix &&
+                              !current?.isCustom &&
+                              !current?.isLocal &&
+                              detected &&
+                              detected !== selectedDefaultProvider
+                            ) {
+                              setSelectedDefaultProvider(detected);
+                              handleFieldChange('default_llm_provider', detected);
+                            }
                           }}
-                          icon="zap"
+                          datalistId="default-model-suggestions"
+                          tipText="Tip: Choose a balanced workhorse model for general tasks, or configure dedicated fast/thinking models per feature below."
+                          fallbackModels={providerMeta.recommendedModels}
+                          isFetching={fetchingModelsFeature === 'gateway'}
+                          fetchedModels={fetchedModelsMap.gateway || []}
+                          providerName={providerMeta.name}
+                          onFetch={() =>
+                            handleFetchModels(
+                              'gateway',
+                              selectedDefaultProvider,
+                              formSettings.default_llm_api_key || '',
+                              formSettings.default_llm_api_base || '',
+                              formSettings.default_llm_model
+                            )
+                          }
+                          helpText="This model is used across AI Fit Scorer, Resume Tailoring, and Copilot by default."
                         />
                       );
                     })()}
-
-                    {/* Default Model ID input */}
-                    <div style={{ marginBottom: '1.25rem' }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          marginBottom: '0.35rem',
-                        }}
-                      >
-                        <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                          Default Model Identifier (e.g. openrouter/model or openai/model)
-                        </label>
-                      </div>
-                      <input
-                        type="text"
-                        list="default-model-suggestions"
-                        value={formSettings.default_llm_model || ''}
-                        onChange={(e) => {
-                          const val = e.target.value;
-                          handleFieldChange('default_llm_model', val);
-                          const current = LLM_PROVIDERS.find(
-                            (p) => p.id === selectedDefaultProvider
-                          );
-                          const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
-                            val.toLowerCase().startsWith(`${p.id}/`)
-                          );
-                          const detected = detectProviderFromModel(val);
-                          if (
-                            hasKnownPrefix &&
-                            !current?.isCustom &&
-                            !current?.isLocal &&
-                            detected &&
-                            detected !== selectedDefaultProvider
-                          ) {
-                            setSelectedDefaultProvider(detected);
-                            handleFieldChange('default_llm_provider', detected);
-                          }
-                        }}
-                        className="input-text"
-                        placeholder="openrouter/openrouter/free"
-                        required
-                      />
-                      <datalist id="default-model-suggestions">
-                        {ALL_RECOMMENDED_MODELS.map((m) => (
-                          <option key={m.id} value={m.id}>
-                            {m.name} ({m.provider}) - {m.description}
-                          </option>
-                        ))}
-                      </datalist>
-                      <span
-                        style={{
-                          fontSize: '0.75rem',
-                          color: 'var(--text-muted)',
-                          marginTop: '0.25rem',
-                          display: 'block',
-                        }}
-                      >
-                        This model is used across AI Fit Scorer, Resume Tailoring, and Copilot by
-                        default.
-                      </span>
-                    </div>
 
                     {/* Test Connection */}
                     <div
@@ -2726,6 +2869,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         datalistId="scorer-model-suggestions"
                         featureName="Scorer"
                         icon="zap"
+                        onFetchModels={() =>
+                          handleFetchModels(
+                            'scorer',
+                            selectedDefaultProvider,
+                            formSettings.default_llm_api_key || '',
+                            formSettings.default_llm_api_base || '',
+                            formSettings.scorer_model
+                          )
+                        }
+                        isFetching={fetchingModelsFeature === 'scorer'}
+                        fetchedModels={fetchedModelsMap.scorer || []}
                       />
                     </InheritProviderSettingsBlock>
 
@@ -2863,7 +3017,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           </span>
                         </div>
 
-                        {/* Recommended Fast Models (Compact) */}
+                        {/* Dedicated Scorer Model Selection with Tip & Live Fetch */}
                         {(() => {
                           const providerMeta =
                             LLM_PROVIDERS.find((p) => p.id === selectedScorerProvider) ||
@@ -2871,92 +3025,54 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           const fastModels = providerMeta.recommendedModels.filter(
                             (m) => m.tier === 'fast'
                           );
-                          const isFallback = fastModels.length === 0;
-                          const modelsToShow = !isFallback
-                            ? fastModels
-                            : LLM_PROVIDERS.flatMap((p) => p.recommendedModels)
-                                .filter((m) => m.tier === 'fast')
-                                .slice(0, 4);
+                          const fallbackModels =
+                            fastModels.length > 0 ? fastModels : providerMeta.recommendedModels;
 
                           return (
-                            <CompactRecommendedModels
-                              title={
-                                isFallback
-                                  ? 'Recommended Fast Screening Models (other providers):'
-                                  : `Recommended Fast Screening Models (${providerMeta.name}):`
-                              }
-                              models={modelsToShow}
-                              currentModel={formSettings.scorer_model}
-                              onSelectModel={(id) => {
-                                handleFieldChange('scorer_model', id);
+                            <ModelSelectionRow
+                              id="scorer-model"
+                              label="Scorer Model Identifier (e.g. openrouter/model or openai/model)"
+                              placeholder="openrouter/z-ai/glm-5.3-flash"
+                              value={formSettings.scorer_model}
+                              onChange={(val) => {
+                                handleFieldChange('scorer_model', val);
                                 setIsDirty(true);
+                                const current = LLM_PROVIDERS.find(
+                                  (p) => p.id === selectedScorerProvider
+                                );
+                                const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
+                                  val.toLowerCase().startsWith(`${p.id}/`)
+                                );
+                                const detected = detectProviderFromModel(val);
+                                if (
+                                  hasKnownPrefix &&
+                                  !current?.isCustom &&
+                                  !current?.isLocal &&
+                                  detected !== selectedScorerProvider
+                                ) {
+                                  setSelectedScorerProvider(detected);
+                                  handleFieldChange('scorer_provider', detected);
+                                }
                               }}
-                              icon="zap"
+                              datalistId="scorer-model-suggestions"
+                              tipText="Tip: For AI Fit Scorer, choose fast, cost-effective models (e.g. Flash, Mini, Haiku) to screen jobs quickly with low token costs."
+                              fallbackModels={fallbackModels}
+                              isFetching={fetchingModelsFeature === 'scorer'}
+                              fetchedModels={fetchedModelsMap.scorer || []}
+                              providerName={providerMeta.name}
+                              onFetch={() =>
+                                handleFetchModels(
+                                  'scorer',
+                                  selectedScorerProvider,
+                                  formSettings.scorer_api_key || '',
+                                  formSettings.scorer_api_base || '',
+                                  formSettings.scorer_model
+                                )
+                              }
+                              helpText="LiteLLM supports 2,500+ models. Select from fetched models, suggestions, or type any valid model identifier."
                             />
                           );
                         })()}
-
-                        {/* Model ID input + datalist */}
-                        <div style={{ marginBottom: '1.25rem' }}>
-                          <div
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'center',
-                              marginBottom: '0.35rem',
-                            }}
-                          >
-                            <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                              Scorer Model Identifier (e.g. openrouter/model or openai/model)
-                            </label>
-                          </div>
-                          <input
-                            type="text"
-                            list="scorer-model-suggestions"
-                            value={formSettings.scorer_model}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              handleFieldChange('scorer_model', val);
-                              const current = LLM_PROVIDERS.find(
-                                (p) => p.id === selectedScorerProvider
-                              );
-                              const hasKnownPrefix = LLM_PROVIDERS.some((p) =>
-                                val.toLowerCase().startsWith(`${p.id}/`)
-                              );
-                              const detected = detectProviderFromModel(val);
-                              if (
-                                hasKnownPrefix &&
-                                !current?.isCustom &&
-                                !current?.isLocal &&
-                                detected !== selectedScorerProvider
-                              ) {
-                                setSelectedScorerProvider(detected);
-                                handleFieldChange('scorer_provider', detected);
-                              }
-                            }}
-                            className="input-text"
-                            placeholder="openrouter/z-ai/glm-5.3-flash"
-                            required
-                          />
-                          <datalist id="scorer-model-suggestions">
-                            {ALL_RECOMMENDED_MODELS.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} ({m.provider}) - {m.description}
-                              </option>
-                            ))}
-                          </datalist>
-                          <span
-                            style={{
-                              fontSize: '0.75rem',
-                              color: 'var(--text-muted)',
-                              marginTop: '0.25rem',
-                              display: 'block',
-                            }}
-                          >
-                            LiteLLM supports 2,500+ models. Select from quick recommendations or
-                            type any valid model identifier.
-                          </span>
-                        </div>
                       </>
                     )}
 
@@ -3122,6 +3238,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         datalistId="tailor-model-suggestions"
                         featureName="Tailoring"
                         icon="sparkles"
+                        onFetchModels={() =>
+                          handleFetchModels(
+                            'tailor',
+                            selectedDefaultProvider,
+                            formSettings.default_llm_api_key || '',
+                            formSettings.default_llm_api_base || '',
+                            formSettings.tailor_model
+                          )
+                        }
+                        isFetching={fetchingModelsFeature === 'tailor'}
+                        fetchedModels={fetchedModelsMap.tailor || []}
                       />
                     </InheritProviderSettingsBlock>
 
@@ -3248,68 +3375,49 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           </div>
                         </div>
 
-                        {/* Recommended Tailoring & Reasoning Models (Compact) */}
+                        {/* Dedicated Tailor Model Selection with Tip & Live Fetch */}
                         {(() => {
                           const effectiveProvider = selectedTailorProvider;
-                          const providerMeta = LLM_PROVIDERS.find(
-                            (p) => p.id === effectiveProvider
+                          const providerMeta =
+                            LLM_PROVIDERS.find((p) => p.id === effectiveProvider) ||
+                            LLM_PROVIDERS[0];
+                          const reasoningModels = providerMeta.recommendedModels.filter(
+                            (m) => m.tier === 'reasoning'
                           );
-                          const reasoningModels =
-                            providerMeta?.recommendedModels.filter((m) => m.tier === 'reasoning') ||
-                            [];
-                          const isFallback = reasoningModels.length === 0;
-                          const modelsToShow = !isFallback
-                            ? reasoningModels
-                            : LLM_PROVIDERS.flatMap((p) => p.recommendedModels)
-                                .filter((m) => m.tier === 'reasoning')
-                                .slice(0, 5);
+                          const fallbackModels =
+                            reasoningModels.length > 0
+                              ? reasoningModels
+                              : providerMeta.recommendedModels;
 
                           return (
-                            <CompactRecommendedModels
-                              title={
-                                isFallback
-                                  ? 'Recommended Tailoring & Deep Reasoning Models (other providers):'
-                                  : `Recommended Tailoring & Deep Reasoning Models (${providerMeta?.name || 'Selected Provider'}):`
-                              }
-                              models={modelsToShow}
-                              currentModel={formSettings.tailor_model}
-                              onSelectModel={(id) => {
-                                handleFieldChange('tailor_model', id);
+                            <ModelSelectionRow
+                              id="tailor-model"
+                              label="Tailoring Model Identifier"
+                              placeholder="openrouter/deepseek/deepseek-v4.1-pro"
+                              value={formSettings.tailor_model}
+                              onChange={(val) => {
+                                handleFieldChange('tailor_model', val);
                                 setIsDirty(true);
                               }}
-                              icon="sparkles"
+                              datalistId="tailor-model-suggestions"
+                              tipText="Tip: For Resume Tailoring & Copilot, choose deep reasoning or thinking models for superior ATS alignment and nuanced writing."
+                              fallbackModels={fallbackModels}
+                              isFetching={fetchingModelsFeature === 'tailor'}
+                              fetchedModels={fetchedModelsMap.tailor || []}
+                              providerName={providerMeta.name}
+                              onFetch={() =>
+                                handleFetchModels(
+                                  'tailor',
+                                  selectedTailorProvider,
+                                  formSettings.tailor_api_key || '',
+                                  formSettings.tailor_api_base || '',
+                                  formSettings.tailor_model
+                                )
+                              }
+                              helpText="Thinking and reasoning models ensure truthful adherence to your candidate facts and job keywords."
                             />
                           );
                         })()}
-
-                        {/* Tailor Model input */}
-                        <div style={{ marginBottom: '1.25rem' }}>
-                          <label
-                            style={{
-                              display: 'block',
-                              fontSize: '0.85rem',
-                              fontWeight: 500,
-                              marginBottom: '0.35rem',
-                            }}
-                          >
-                            Tailoring Model Identifier
-                          </label>
-                          <input
-                            type="text"
-                            list="tailor-model-suggestions"
-                            value={formSettings.tailor_model}
-                            onChange={(e) => handleFieldChange('tailor_model', e.target.value)}
-                            className="input-text"
-                            placeholder="openrouter/deepseek/deepseek-v4.1-pro"
-                          />
-                          <datalist id="tailor-model-suggestions">
-                            {ALL_RECOMMENDED_MODELS.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} ({m.provider}) - {m.description}
-                              </option>
-                            ))}
-                          </datalist>
-                        </div>
                       </>
                     )}
 
@@ -4121,6 +4229,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         datalistId="copilot-model-suggestions"
                         featureName="Copilot"
                         icon="sparkles"
+                        onFetchModels={() =>
+                          handleFetchModels(
+                            'copilot',
+                            selectedDefaultProvider,
+                            formSettings.default_llm_api_key || '',
+                            formSettings.default_llm_api_base || '',
+                            formSettings.copilot_model
+                          )
+                        }
+                        isFetching={fetchingModelsFeature === 'copilot'}
+                        fetchedModels={fetchedModelsMap.copilot || []}
                       />
                     </InheritProviderSettingsBlock>
 
@@ -4245,34 +4364,33 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           )}
                         </div>
 
-                        {/* Copilot Model Identifier */}
-                        <div style={{ marginBottom: '1rem' }}>
-                          <label
-                            style={{
-                              display: 'block',
-                              fontSize: '0.85rem',
-                              fontWeight: 500,
-                              marginBottom: '0.35rem',
-                            }}
-                          >
-                            Copilot Model Identifier
-                          </label>
-                          <input
-                            type="text"
-                            list="copilot-model-suggestions"
-                            value={formSettings.copilot_model || ''}
-                            onChange={(e) => handleFieldChange('copilot_model', e.target.value)}
-                            className="input-text"
-                            placeholder="openrouter/anthropic/claude-3.5-sonnet"
-                          />
-                          <datalist id="copilot-model-suggestions">
-                            {ALL_RECOMMENDED_MODELS.map((m) => (
-                              <option key={m.id} value={m.id}>
-                                {m.name} ({m.provider})
-                              </option>
-                            ))}
-                          </datalist>
-                        </div>
+                        {/* Dedicated Copilot Model Selection with Tip & Live Fetch */}
+                        <ModelSelectionRow
+                          id="copilot-model"
+                          label="Copilot Model Identifier"
+                          placeholder="openrouter/anthropic/claude-3.5-sonnet"
+                          value={formSettings.copilot_model || ''}
+                          onChange={(val) => {
+                            handleFieldChange('copilot_model', val);
+                            setIsDirty(true);
+                          }}
+                          datalistId="copilot-model-suggestions"
+                          tipText="Tip: For Job Copilot, choose conversational or reasoning models for cover letters, Q&A, and recruiter outreach."
+                          fallbackModels={ALL_RECOMMENDED_MODELS}
+                          isFetching={fetchingModelsFeature === 'copilot'}
+                          fetchedModels={fetchedModelsMap.copilot || []}
+                          providerName={selectedCopilotProvider}
+                          onFetch={() =>
+                            handleFetchModels(
+                              'copilot',
+                              selectedCopilotProvider,
+                              formSettings.copilot_api_key || '',
+                              formSettings.copilot_api_base || '',
+                              formSettings.copilot_model
+                            )
+                          }
+                          helpText="Conversational and reasoning models generate natural, contextual outreach messages."
+                        />
                       </div>
                     )}
 

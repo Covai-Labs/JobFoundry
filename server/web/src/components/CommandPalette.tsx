@@ -20,6 +20,7 @@ import {
 import { Job } from '../types/job';
 import { useTheme, ACCENT_THEMES, AccentTheme } from '../context/ThemeContext';
 import { useToast } from '../context/ToastContext';
+import { isMac } from '../lib/platform';
 
 interface CommandPaletteProps {
   isOpen: boolean;
@@ -401,11 +402,17 @@ export const CommandPalette: React.FC<CommandPaletteProps> = ({
             </span>
           </div>
           <div className="palette-footer-tip">
-            <Command
-              size={12}
-              style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}
-            />
-            Cmd + K
+            {isMac() ? (
+              <>
+                <Command
+                  size={12}
+                  style={{ display: 'inline', verticalAlign: 'middle', marginRight: 4 }}
+                />
+                Cmd + K
+              </>
+            ) : (
+              'Ctrl + K'
+            )}
           </div>
         </div>
       </div>

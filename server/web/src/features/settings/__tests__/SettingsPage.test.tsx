@@ -242,7 +242,15 @@ describe('SettingsPage', () => {
     });
   });
 
-  it('renders provider dropdown and allows selecting recommended models', async () => {
+  it('renders provider dropdown, displays task tip, and allows fetching/selecting models', async () => {
+    const fetchModelsSpy = vi.spyOn(api, 'fetchModels').mockResolvedValue({
+      success: true,
+      models: [
+        { id: 'deepseek/deepseek-v4.1-flash', name: 'DeepSeek V4.1 Flash' },
+        { id: 'deepseek/deepseek-chat', name: 'DeepSeek Chat' },
+      ],
+    });
+
     renderComponent();
     await waitFor(() => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
@@ -261,16 +269,24 @@ describe('SettingsPage', () => {
       target: { value: 'deepseek' },
     });
 
-    // Verify recommendations for DeepSeek render
+    // Verify task tip for Scorer renders
+    expect(
+      screen.getByText(/Tip: For AI Fit Scorer, choose fast, cost-effective models/i)
+    ).toBeInTheDocument();
+
+    // Click Fetch Models button
+    const fetchBtn = screen.getByRole('button', { name: /Fetch Models/i });
+    fireEvent.click(fetchBtn);
+
     await waitFor(() => {
-      expect(
-        screen.getByText(/Recommended Fast Screening Models \(DeepSeek\)/i)
-      ).toBeInTheDocument();
+      expect(fetchModelsSpy).toHaveBeenCalledWith(
+        expect.objectContaining({ feature: 'scorer', provider: 'deepseek' })
+      );
     });
 
-    // Click recommended model chip
-    const chip = screen.getByRole('button', { name: /DeepSeek V4\.1 Flash/i });
-    fireEvent.click(chip);
+    // Select from model dropdown
+    const modelSelect = screen.getByLabelText(/Select model for Scorer Model Identifier/i);
+    fireEvent.change(modelSelect, { target: { value: 'deepseek/deepseek-v4.1-flash' } });
 
     expect(screen.getByPlaceholderText('openrouter/z-ai/glm-5.3-flash')).toHaveValue(
       'deepseek/deepseek-v4.1-flash'
@@ -452,7 +468,7 @@ describe('SettingsPage', () => {
     expect(screen.getByText(/\/data\/jobfoundry.db/i)).toBeInTheDocument();
   });
 
-  it('preserves custom provider when typing custom model names and displays fallback chip label', async () => {
+  it('preserves custom provider when typing custom model names and displays model tip', async () => {
     renderComponent();
     await waitFor(() => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
@@ -465,9 +481,9 @@ describe('SettingsPage', () => {
       target: { value: 'custom' },
     });
 
-    // Fallback header should state other providers
+    // Tip should be visible
     expect(
-      screen.getByText(/Recommended Fast Screening Models \(other providers\):/i)
+      screen.getByText(/Tip: For AI Fit Scorer, choose fast, cost-effective models/i)
     ).toBeInTheDocument();
 
     // Type a model name without a provider prefix
