@@ -29,7 +29,7 @@ import { SkeletonFeed } from './components/Skeleton';
 import { CommandPalette } from './components/CommandPalette';
 import { SupportModal } from './components/SupportModal';
 import { getModKey } from './lib/platform';
-import { STATUS_LABELS } from './lib/jobStages';
+import { getStatusLabel } from './lib/jobStages';
 import {
   Briefcase,
   Kanban,
@@ -669,7 +669,7 @@ const DashboardRoot: React.FC = () => {
       const updated = await api.updateStatus(jobId, newStatus);
       setJobs((prev) => prev.map((j) => (j.id === jobId ? updated : j)));
 
-      const label = STATUS_LABELS[newStatus];
+      const label = getStatusLabel(newStatus);
       if (previousStatus && previousStatus !== newStatus) {
         toast.undoable(`Marked ${label}`, 'Undo', async () => {
           try {
@@ -679,7 +679,7 @@ const DashboardRoot: React.FC = () => {
             }
             const reverted = await api.updateStatus(jobId, previousStatus);
             setJobs((prev) => prev.map((j) => (j.id === jobId ? reverted : j)));
-            toast.success(`Moved back to ${STATUS_LABELS[previousStatus]}`);
+            toast.success(`Moved back to ${getStatusLabel(previousStatus)}`);
           } catch (err: any) {
             toast.error(`Could not undo: ${err.message || 'Unknown error'}`);
           }

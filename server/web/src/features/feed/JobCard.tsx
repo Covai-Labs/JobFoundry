@@ -2,7 +2,7 @@ import React from 'react';
 import { Job, JobStatus } from '../../types/job';
 import { getScoreCategory, parseFitNotes, parseRepostStatus } from '../filters/filterUtils';
 import { TailorButton } from '../tailor/TailorButton';
-import { STATUS_LABELS, getQuickApplyTarget } from '../../lib/jobStages';
+import { getQuickApplyTarget, getStatusLabel } from '../../lib/jobStages';
 import { MapPin, Check, CheckCircle2 } from 'lucide-react';
 
 interface JobCardProps {
@@ -58,7 +58,7 @@ export const JobCard: React.FC<JobCardProps> = ({
           )}
           <span className="badge badge-indigo">{job.source}</span>
           <span className={`badge ${getStatusBadgeClass(job.status)}`}>
-            {STATUS_LABELS[job.status]}
+            {getStatusLabel(job.status)}
           </span>
           {job.repost_confidence === 'high' && (
             <span

@@ -5,7 +5,7 @@ import { JobDetail } from '../detail/JobDetail';
 interface JobWorkbenchProps {
   job: Job | null;
   threshold?: number;
-  onStatusChange: (jobId: string, newStatus: JobStatus) => void | Promise<void>;
+  onStatusChange: (_jobId: string, _newStatus: JobStatus) => void | Promise<void>;
   onJobUpdated: (updatedJob: Job) => void;
   onDeleteJob?: (jobId: string) => void;
 }

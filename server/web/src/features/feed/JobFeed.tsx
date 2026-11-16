@@ -11,7 +11,7 @@ import {
   ACTIONABLE_FILTER,
   CLOSED_STATUSES,
   PIPELINE_STATUSES,
-  STATUS_LABELS,
+  getStatusLabel,
 } from '../../lib/jobStages';
 import { useMediaQuery } from '../../lib/useMediaQuery';
 import { Search, LayoutList, LayoutGrid, X, Keyboard } from 'lucide-react';
@@ -148,9 +148,11 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       // When the active job leaves the queue (e.g. it was just marked
       // Applied), advance to whatever now occupies its slot rather than
       // snapping back to the top of the list.
-      const previousIndex = activeJobId ? previousIds.indexOf(activeJobId) : 0;
+      const targetId = activeJobId;
+      const previousIndex = targetId ? previousIds.findIndex((id) => id === targetId) : 0;
       const nextIndex = Math.min(Math.max(previousIndex, 0), ids.length - 1);
-      setActiveJobId(ids[nextIndex]);
+      const nextId = ids.at(nextIndex);
+      setActiveJobId(nextId ?? null);
     }
 
     previousJobIdsRef.current = ids;
@@ -522,14 +524,14 @@ export const JobFeed: React.FC<JobFeedProps> = ({
             <optgroup label="Pipeline">
               {PIPELINE_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
+                  {getStatusLabel(status)}
                 </option>
               ))}
             </optgroup>
             <optgroup label="Closed & system">
               {CLOSED_STATUSES.map((status) => (
                 <option key={status} value={status}>
-                  {STATUS_LABELS[status]}
+                  {getStatusLabel(status)}
                 </option>
               ))}
             </optgroup>

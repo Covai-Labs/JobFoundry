@@ -29,7 +29,7 @@ interface ToastContextType {
   info: (message: string, title?: string) => void;
   warning: (message: string, title?: string) => void;
   /** Success toast with a single call-to-action, e.g. Undo. */
-  undoable: (message: string, label: string, onClick: () => void | Promise<void>) => void;
+  undoable: (_message: string, _label: string, _onClick: () => void | Promise<void>) => void;
 }
 
 const ToastContext = createContext<ToastContextType | undefined>(undefined);

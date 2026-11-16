@@ -73,10 +73,12 @@ export const Popover: React.FC<PopoverProps> = ({
       if (list.length === 0) return;
 
       event.preventDefault();
-      const current = list.indexOf(document.activeElement as HTMLElement);
+      const activeEl = document.activeElement;
+      const current = activeEl instanceof HTMLElement ? list.indexOf(activeEl) : -1;
       const step = event.key === 'ArrowDown' ? 1 : -1;
       const next = (current + step + list.length) % list.length;
-      list[next].focus();
+      const targetItem = list.at(next);
+      targetItem?.focus();
     };
 
     document.addEventListener('mousedown', handlePointerDown);

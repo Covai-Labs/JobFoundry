@@ -19,6 +19,36 @@ export const STATUS_LABELS: Record<JobStatus, string> = {
   tailor_failed: 'Tailor Failed',
 };
 
+/** Get the human-readable label for a pipeline stage safely without dynamic object injection. */
+export function getStatusLabel(status: JobStatus): string {
+  switch (status) {
+    case 'new':
+      return 'New';
+    case 'saved':
+      return 'Saved';
+    case 'tailored':
+      return 'Tailored';
+    case 'applied':
+      return 'Applied';
+    case 'interview':
+      return 'Interview';
+    case 'offer':
+      return 'Offer';
+    case 'rejected':
+      return 'Rejected';
+    case 'archived':
+      return 'Archived';
+    case 'rejected_by_score':
+      return 'Rejected by Score';
+    case 'invalid_job':
+      return 'Invalid Job';
+    case 'score_failed':
+      return 'Score Failed';
+    case 'tailor_failed':
+      return 'Tailor Failed';
+  }
+}
+
 /** Stages a candidate actively moves through. */
 export const PIPELINE_STATUSES: readonly JobStatus[] = [
   'new',

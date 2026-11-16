@@ -1,12 +1,12 @@
 import React, { useCallback, useState } from 'react';
 import { Check, ChevronDown } from 'lucide-react';
 import { JobStatus } from '../../types/job';
-import { CLOSED_STATUSES, PIPELINE_STATUSES, STATUS_LABELS } from '../../lib/jobStages';
+import { CLOSED_STATUSES, PIPELINE_STATUSES, getStatusLabel } from '../../lib/jobStages';
 import { Popover } from '../../components/Popover';
 
 interface StatusPillProps {
   status: JobStatus;
-  onChange: (next: JobStatus) => void;
+  onChange: (_next: JobStatus) => void;
 }
 
 interface StageOptionProps {
@@ -25,7 +25,7 @@ const StageOption: React.FC<StageOptionProps> = ({ status, current, onSelect }) 
     onClick={onSelect}
   >
     <span className="stage-dot" aria-hidden="true" />
-    <span className="stage-menu-item-label">{STATUS_LABELS[status]}</span>
+    <span className="stage-menu-item-label">{getStatusLabel(status)}</span>
     {current && <Check size={13} aria-hidden="true" />}
   </button>
 );
@@ -60,7 +60,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status, onChange }) => {
           data-stage={status}
           aria-haspopup="menu"
           aria-expanded={open}
-          aria-label={`Pipeline stage: ${STATUS_LABELS[status]}. Change stage`}
+          aria-label={`Pipeline stage: ${getStatusLabel(status)}. Change stage`}
           title="Change pipeline stage"
           onClick={() => {
             setOpen((value) => !value);
@@ -68,7 +68,7 @@ export const StatusPill: React.FC<StatusPillProps> = ({ status, onChange }) => {
         >
           <span className="stage-dot" aria-hidden="true" />
           <span className="stage-pill-label">Stage</span>
-          <span className="stage-pill-value">{STATUS_LABELS[status]}</span>
+          <span className="stage-pill-value">{getStatusLabel(status)}</span>
           <ChevronDown size={12} className="stage-pill-caret" aria-hidden="true" />
         </button>
       }

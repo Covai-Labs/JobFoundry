@@ -37,7 +37,7 @@ import {
 export interface JobDetailProps {
   job: Job | null;
   threshold?: number;
-  onStatusChange: (jobId: string, newStatus: JobStatus) => void | Promise<void>;
+  onStatusChange: (_jobId: string, _newStatus: JobStatus) => void | Promise<void>;
   onJobUpdated: (updatedJob: Job) => void;
   onDeleteJob?: (jobId: string) => void;
   /** Called after a successful delete (e.g. modal shell closes itself). */
@@ -519,13 +519,17 @@ export const JobDetail: React.FC<JobDetailProps> = ({
 
           <Popover
             open={overflowOpen}
-            onClose={() => setOverflowOpen(false)}
+            onClose={() => {
+              setOverflowOpen(false);
+            }}
             align="end"
             className="job-overflow"
             trigger={
               <button
                 type="button"
-                onClick={() => setOverflowOpen((value) => !value)}
+                onClick={() => {
+                  setOverflowOpen((value) => !value);
+                }}
                 className="btn btn-secondary btn-sm btn-icon-only"
                 aria-haspopup="menu"
                 aria-expanded={overflowOpen}
