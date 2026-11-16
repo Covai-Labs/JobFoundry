@@ -3,6 +3,9 @@
 # Packages: React Web Dashboard + Fastify Ingest + Scorer Worker + Resume Tailor
 # ==============================================================================
 
+# --- Stage 0: Node Base Image ---
+FROM node:26-slim AS node
+
 # --- Stage 1: Build React Web SPA ---
 FROM node:26-slim AS web-builder
 WORKDIR /app
@@ -29,14 +32,13 @@ RUN npm ci --omit=dev --workspace=server/ingest
 # --- Stage 3: Final All-in-One Runtime ---
 FROM python:3.14-slim
 
-ARG NPM_THEMES="jsonresume-theme-folio@^1.3.1 jsonresume-theme-folio-concise@1.3.0 jsonresume-theme-stackoverflow@3.3.0 jsonresume-theme-pro@0.2.0 jsonresume-theme-harvard-classic@0.2.0 jsonresume-theme-jake-technical@0.2.0 jsonresume-theme-awesome-professional@0.2.0 jsonresume-theme-compact-developer@0.2.0 jsonresume-theme-charter-serif@0.2.0 jsonresume-theme-diplomat-cv@0.2.0 jsonresume-theme-ledger-professional@0.2.0 jsonresume-theme-stewardship-cv@0.2.0 jsonresume-theme-europass-inspired@0.2.0 jsonresume-theme-first-role@0.2.0 jsonresume-theme-academic-classic@0.2.0"
-
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     UV_SYSTEM_PYTHON=1 \
     PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    NODE_PATH=/data/themes/node_modules:/usr/local/lib/node_modules:/app/node_modules \
+    PATH="/opt/node-tools/node_modules/.bin:${PATH}" \
+    NODE_PATH=/data/themes/node_modules:/opt/node-tools/node_modules:/usr/local/lib/node_modules:/app/node_modules \
     PORT=8080 \
     DATA_DIR=/data \
     DB_PATH=/data/jobfoundry.db \
@@ -64,23 +66,30 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     LLM_RETRY_MULTIPLIER=3 \
     API_KEYS=""
 
-# 1. Install system utilities, Node.js 26 (NodeSource), Chromium, and Supervisor
+# 1. Copy Node runtime from official Node image
+COPY --from=node /usr/local/bin/ /usr/local/bin/
+COPY --from=node /usr/local/lib/node_modules /usr/local/lib/node_modules
+
+# 2. Install system utilities, Chromium, and Supervisor
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-        curl ca-certificates supervisor \
+        ca-certificates supervisor \
         chromium chromium-sandbox \
         fonts-liberation fonts-noto-color-emoji \
-    && curl -fsSL https://deb.nodesource.com/setup_26.x | bash - \
-    && apt-get install -y --no-install-recommends nodejs \
-    && npm install -g puppeteer resumed@^7.0.0 ${NPM_THEMES} \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install uv for fast Python dependency installation
+# 3. Install PDF and resume export toolchain with pinned lockfile
+WORKDIR /opt/node-tools
+COPY packaging/node-tools/package.json packaging/node-tools/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts \
+    && ln -s /opt/node-tools/node_modules/.bin/* /usr/local/bin/
+
+# 4. Install uv for fast Python dependency installation
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
 
 WORKDIR /app
 
-# 3. Install Python dependencies for Scorer and Tailor
+# 5. Install Python dependencies for Scorer and Tailor
 COPY server/scorer/pyproject.toml server/scorer/uv.lock ./server/scorer/
 RUN cd server/scorer && uv pip install --system --no-cache -r pyproject.toml
 
@@ -88,18 +97,18 @@ COPY server/tailor/pyproject.toml server/tailor/uv.lock server/tailor/README.md 
 COPY server/tailor/src ./server/tailor/src
 RUN cd server/tailor && uv pip install --system --no-cache -e .
 
-# 4. Copy Ingest Server and node_modules
+# 6. Copy Ingest Server and node_modules
 COPY --from=ingest-builder /app/node_modules ./node_modules
 COPY server/ingest/ ./server/ingest/
 
 
-# 5. Copy Scorer Source
+# 7. Copy Scorer Source
 COPY server/scorer/src/ ./server/scorer/src/
 
-# 6. Copy Pre-built Web SPA
+# 8. Copy Pre-built Web SPA
 COPY --from=web-builder /app/server/web/dist ./server/web/dist
 
-# 7. Configure Supervisor & Data Directories
+# 9. Configure Supervisor & Data Directories
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN mkdir -p /data /data/artifacts /data/themes
 
