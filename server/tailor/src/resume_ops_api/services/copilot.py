@@ -6,7 +6,6 @@ from typing import Any
 from pydantic import BaseModel, Field, model_validator
 import toons
 
-from resume_ops_api.core.exceptions import AppError
 from resume_ops_api.services.llm import StructuredLLMClient
 
 logger = logging.getLogger(__name__)
@@ -100,6 +99,55 @@ class OutreachLLMResult(BaseModel):
         return data
 
 
+def _format_qa_answer_item(item: Any, idx: int) -> str:
+    if isinstance(item, dict):
+        q = item.get("question") or item.get("prompt") or item.get("q")
+        a = item.get("answer") or item.get("response") or item.get("content") or item.get("text")
+        if q and a:
+            return f"**{q}**\n\n{a}"
+        if a:
+            return str(a)
+        if q:
+            return str(q)
+        return json.dumps(item)
+    return str(item)
+
+
+def _format_answers_list(items: list[Any]) -> str:
+    parts = [_format_qa_answer_item(item, idx) for idx, item in enumerate(items, 1)]
+    return "\n\n---\n\n".join(parts)
+
+
+def _extract_qa_dict_answer(data: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Extract answer text and an optional warning from a dictionary input."""
+    if "answer" in data:
+        ans = data["answer"]
+        if isinstance(ans, str) and ans.strip():
+            return ans, None
+        if isinstance(ans, list):
+            return _format_answers_list(ans), "Formatted list from answer field."
+
+    if "answers" in data and isinstance(data["answers"], list):
+        return _format_answers_list(data["answers"]), "Formatted multiple answers from structured response."
+
+    for alt_key in ("response", "content", "text", "output", "screening_answer", "draft"):
+        if alt_key in data and data[alt_key]:
+            val = data[alt_key]
+            if isinstance(val, list):
+                return _format_answers_list(val), f"Extracted answer from '{alt_key}' field."
+            return str(val), f"Extracted answer from '{alt_key}' field."
+
+    if "result" in data and data["result"] and not data.get("situation") and not data.get("action"):
+        res = str(data["result"])
+        data["result"] = ""
+        return res, "Extracted answer from 'result' field."
+
+    if data:
+        return json.dumps(data, indent=2), "Rendered structured response dictionary as answer."
+
+    return None, None
+
+
 class QALLMResult(BaseModel):
     answer: str = Field(
         ...,
@@ -139,64 +187,18 @@ class QALLMResult(BaseModel):
                 "validation_warning": "Recovered response from plain text.",
             }
 
-        def format_answer_item(item: Any, idx: int) -> str:
-            if isinstance(item, dict):
-                q = item.get("question") or item.get("prompt") or item.get("q")
-                a = item.get("answer") or item.get("response") or item.get("content") or item.get("text")
-                if q and a:
-                    return f"**{q}**\n\n{a}"
-                if a:
-                    return str(a)
-                if q:
-                    return str(q)
-                return json.dumps(item)
-            return str(item)
-
         if isinstance(data, list):
-            parts = [format_answer_item(item, idx) for idx, item in enumerate(data, 1)]
             return {
-                "answer": "\n\n---\n\n".join(parts),
+                "answer": _format_answers_list(data),
                 "validation_warning": "Parsed multiple answers from list response.",
             }
 
         if isinstance(data, dict):
-            # If answer is present and valid non-empty string, accept as-is
-            if "answer" in data and isinstance(data["answer"], str) and data["answer"].strip():
-                return data
-
-            # If answers list is provided (e.g. multi-question prompts where LLM returns {'answers': [...]})
-            if "answers" in data and isinstance(data["answers"], list):
-                parts = [format_answer_item(item, idx) for idx, item in enumerate(data["answers"], 1)]
-                data["answer"] = "\n\n---\n\n".join(parts)
-                if not data.get("validation_warning"):
-                    data["validation_warning"] = "Formatted multiple answers from structured response."
-                return data
-
-            # Alternative keys for answer
-            for alt_key in ("response", "content", "text", "output", "screening_answer", "draft"):
-                if alt_key in data and data[alt_key]:
-                    val = data[alt_key]
-                    if isinstance(val, list):
-                        parts = [format_answer_item(item, idx) for idx, item in enumerate(val, 1)]
-                        data["answer"] = "\n\n---\n\n".join(parts)
-                    else:
-                        data["answer"] = str(val)
-                    if not data.get("validation_warning"):
-                        data["validation_warning"] = f"Extracted answer from '{alt_key}' field."
-                    return data
-
-            # If result is provided and not STAR result
-            if "result" in data and data["result"] and not data.get("situation") and not data.get("action"):
-                data["answer"] = str(data["result"])
-                data["result"] = ""
-                if not data.get("validation_warning"):
-                    data["validation_warning"] = "Extracted answer from 'result' field."
-                return data
-
-            # If dictionary is non-empty, serialize as fallback
-            if data:
-                data["answer"] = json.dumps(data, indent=2)
-                data["validation_warning"] = "Rendered structured response dictionary as answer."
+            ans, warn = _extract_qa_dict_answer(data)
+            if ans is not None:
+                data["answer"] = ans
+                if warn and not data.get("validation_warning"):
+                    data["validation_warning"] = warn
                 return data
 
         return data

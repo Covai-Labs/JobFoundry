@@ -159,6 +159,17 @@ def test_qallmresult_normalization_plain_string_and_alt_keys():
     assert "Answer 1" in res_list.answer
     assert "Answer 2" in res_list.answer
 
+    # Dict with list-valued 'answer' field
+    res_dict_list = QALLMResult.model_validate({
+        "answer": [
+            {"question": "Q1", "answer": "Part 1"},
+            {"question": "Q2", "answer": "Part 2"},
+        ]
+    })
+    assert "Part 1" in res_dict_list.answer
+    assert "Part 2" in res_dict_list.answer
+    assert res_dict_list.validation_warning is not None
+
 
 def test_outreach_and_cover_letter_normalization():
     # Outreach plain string

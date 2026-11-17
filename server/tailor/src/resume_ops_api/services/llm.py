@@ -517,7 +517,8 @@ class StructuredLLMClient:
                         **extra_kwargs,
                     )
                 retry_content = retry_comp["choices"][0]["message"]["content"]
-                last_raw_content = retry_content
+                if retry_content:
+                    last_raw_content = retry_content
                 retry_parsed, _ = _parse_raw_llm_json(retry_content, response_model)
                 return response_model.model_validate(retry_parsed, context=validation_context)
         except Exception as exc:

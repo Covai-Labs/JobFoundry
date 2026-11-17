@@ -243,10 +243,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
       setGenerating('qa');
       setError(null);
       const res = await api.generateCopilotQA(jobId, q);
-      if (res.ok && res.qa) {
+      if (res.ok) {
         setArtifacts((prev) => ({
           ...prev,
-          qa_history: res.qa_history || [res.qa, ...(prev.qa_history || [])],
+          qa_history: res.qa_history,
         }));
         if (!questionText) {
           setQaInput('');
@@ -271,22 +271,14 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
   };
 
   const handleSaveQA = async (qaItem: CopilotQAItem, fallbackId: string) => {
-    const id = qaItem.id || fallbackId;
     if (!editingQaText.trim()) return;
     try {
       setSavingQa(true);
       setError(null);
       if (qaItem.id) {
         const res = await api.updateCopilotQA(jobId, qaItem.id, editingQaText);
-        if (res.ok && res.qa_history) {
+        if (res.ok) {
           setArtifacts((prev) => ({ ...prev, qa_history: res.qa_history }));
-        } else {
-          setArtifacts((prev) => ({
-            ...prev,
-            qa_history: (prev.qa_history || []).map((q) =>
-              (q.id || fallbackId) === id ? { ...q, answer: editingQaText, user_edited: true } : q
-            ),
-          }));
         }
       } else {
         setArtifacts((prev) => ({
@@ -310,7 +302,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
     try {
       if (qaItem.id) {
         const res = await api.deleteCopilotQA(jobId, qaItem.id);
-        if (res.ok && res.qa_history) {
+        if (res.ok) {
           setArtifacts((prev) => ({ ...prev, qa_history: res.qa_history }));
           return;
         }

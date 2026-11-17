@@ -469,8 +469,8 @@ export class ApiClient {
   async generateCopilotQA(
     id: string,
     question: string
-  ): Promise<{ ok: boolean; qa: CopilotQAItem; qa_history?: CopilotQAItem[] }> {
-    return this.request<{ ok: boolean; qa: CopilotQAItem; qa_history?: CopilotQAItem[] }>(
+  ): Promise<{ ok: boolean; qa: CopilotQAItem; qa_history: CopilotQAItem[] }> {
+    return this.request<{ ok: boolean; qa: CopilotQAItem; qa_history: CopilotQAItem[] }>(
       `/api/v1/jobs/${id}/copilot/qa`,
       {
         method: 'POST',

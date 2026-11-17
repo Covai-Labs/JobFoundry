@@ -71,20 +71,23 @@ describe('CopilotView', () => {
       },
     });
 
+    const generatedQA = {
+      question: 'Describe a time you handled an outage.',
+      answer:
+        'During a critical Kafka cluster failure, I led the failover across regions within 4 minutes.',
+      star_structure: {
+        situation: 'Underlying network partition disconnected primary broker.',
+        task: 'Restore partition consumer offsets without data corruption.',
+        action: 'Rerouted consumer traffic to backup replica pool.',
+        result: 'Zero message loss and recovered SLA in 4 minutes.',
+      },
+      matched_evidence: ['Kafka Pipeline Outage Remediation', 'Disaster Recovery Plan'],
+    };
+
     vi.mocked(api.generateCopilotQA).mockResolvedValue({
       ok: true,
-      qa: {
-        question: 'Describe a time you handled an outage.',
-        answer:
-          'During a critical Kafka cluster failure, I led the failover across regions within 4 minutes.',
-        star_structure: {
-          situation: 'Underlying network partition disconnected primary broker.',
-          task: 'Restore partition consumer offsets without data corruption.',
-          action: 'Rerouted consumer traffic to backup replica pool.',
-          result: 'Zero message loss and recovered SLA in 4 minutes.',
-        },
-        matched_evidence: ['Kafka Pipeline Outage Remediation', 'Disaster Recovery Plan'],
-      },
+      qa: generatedQA,
+      qa_history: [generatedQA],
     });
 
     render(<CopilotView jobId="job-copilot-1" jobTitle="Staff Engineer" company="CloudCorp" />);
