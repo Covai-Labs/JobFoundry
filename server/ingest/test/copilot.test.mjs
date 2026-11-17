@@ -118,4 +118,60 @@ test('copilot API endpoints in ingest', async (t) => {
     headers: { authorization: 'Bearer test-api-key' },
   });
   assert.equal(missingJobResp.statusCode, 404);
+
+  // 8. PUT /api/v1/jobs/:id/copilot/qa/:qaId and DELETE /api/v1/jobs/:id/copilot/qa/:qaId
+  // Seed a QA item into the job's copilot file
+  const jobDir = join(artifactsDir, 'dev-user', 'job-copilot-1');
+  const { writeFileSync, mkdirSync } = await import('node:fs');
+  mkdirSync(jobDir, { recursive: true });
+  const testQaItem = {
+    id: 'qa-item-123',
+    question: 'Why this role?',
+    answer: 'Initial drafted answer from LLM with schema warning',
+    validation_warning: 'Formatted multiple answers from structured response.',
+    created_at: 1000,
+  };
+  writeFileSync(
+    join(jobDir, 'copilot.json'),
+    JSON.stringify({ outreach: null, qa_history: [testQaItem], cover_letter: null }),
+    'utf-8'
+  );
+
+  // Fetch and verify validation_warning is returned
+  const getUpdatedResp = await app.inject({
+    method: 'GET',
+    url: '/api/v1/jobs/job-copilot-1/copilot',
+    headers: { authorization: 'Bearer test-api-key' },
+  });
+  assert.equal(getUpdatedResp.statusCode, 200);
+  const updatedData = JSON.parse(getUpdatedResp.payload);
+  assert.equal(updatedData.data.qa_history.length, 1);
+  assert.equal(
+    updatedData.data.qa_history[0].validation_warning,
+    'Formatted multiple answers from structured response.'
+  );
+
+  // Edit the QA answer
+  const editResp = await app.inject({
+    method: 'PUT',
+    url: '/api/v1/jobs/job-copilot-1/copilot/qa/qa-item-123',
+    headers: { authorization: 'Bearer test-api-key' },
+    payload: { answer: 'Manually revised user answer' },
+  });
+  assert.equal(editResp.statusCode, 200);
+  const editData = JSON.parse(editResp.payload);
+  assert.equal(editData.ok, true);
+  assert.equal(editData.qa.answer, 'Manually revised user answer');
+  assert.equal(editData.qa.user_edited, true);
+
+  // Delete the QA item
+  const delResp = await app.inject({
+    method: 'DELETE',
+    url: '/api/v1/jobs/job-copilot-1/copilot/qa/qa-item-123',
+    headers: { authorization: 'Bearer test-api-key' },
+  });
+  assert.equal(delResp.statusCode, 200);
+  const delData = JSON.parse(delResp.payload);
+  assert.equal(delData.ok, true);
+  assert.equal(delData.qa_history.length, 0);
 });

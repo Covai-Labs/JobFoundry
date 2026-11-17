@@ -12,8 +12,11 @@ import {
   UserCheck,
   Layers,
   Printer,
+  AlertTriangle,
+  Edit3,
+  Trash2,
 } from 'lucide-react';
-import { api, CopilotArtifacts } from '../../api/client';
+import { api, CopilotArtifacts, CopilotQAItem } from '../../api/client';
 
 interface CopilotViewProps {
   jobId: string;
@@ -156,6 +159,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
   // Section inputs
   const [persona, setPersona] = useState<'recruiter' | 'hiring_manager'>('recruiter');
   const [qaInput, setQaInput] = useState<string>('');
+  const [editingQaId, setEditingQaId] = useState<string | null>(null);
+  const [editingQaText, setEditingQaText] = useState<string>('');
+  const [savingQa, setSavingQa] = useState<boolean>(false);
 
   const fetchCopilotData = useCallback(
     async (replace = false) => {
@@ -240,7 +246,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
       if (res.ok && res.qa) {
         setArtifacts((prev) => ({
           ...prev,
-          qa_history: [res.qa, ...(prev.qa_history || [])],
+          qa_history: res.qa_history || [res.qa, ...(prev.qa_history || [])],
         }));
         if (!questionText) {
           setQaInput('');
@@ -251,6 +257,76 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
     } finally {
       setGenerating(null);
     }
+  };
+
+  const startEditQA = (qaItem: CopilotQAItem, fallbackId: string) => {
+    const id = qaItem.id || fallbackId;
+    setEditingQaId(id);
+    setEditingQaText(qaItem.answer);
+  };
+
+  const cancelEditQA = () => {
+    setEditingQaId(null);
+    setEditingQaText('');
+  };
+
+  const handleSaveQA = async (qaItem: CopilotQAItem, fallbackId: string) => {
+    const id = qaItem.id || fallbackId;
+    if (!editingQaText.trim()) return;
+    try {
+      setSavingQa(true);
+      setError(null);
+      if (qaItem.id) {
+        const res = await api.updateCopilotQA(jobId, qaItem.id, editingQaText);
+        if (res.ok && res.qa_history) {
+          setArtifacts((prev) => ({ ...prev, qa_history: res.qa_history }));
+        } else {
+          setArtifacts((prev) => ({
+            ...prev,
+            qa_history: (prev.qa_history || []).map((q) =>
+              (q.id || fallbackId) === id ? { ...q, answer: editingQaText, user_edited: true } : q
+            ),
+          }));
+        }
+      } else {
+        setArtifacts((prev) => ({
+          ...prev,
+          qa_history: (prev.qa_history || []).map((q, idx) =>
+            idx.toString() === fallbackId ? { ...q, answer: editingQaText, user_edited: true } : q
+          ),
+        }));
+      }
+      setEditingQaId(null);
+      setEditingQaText('');
+    } catch (err: any) {
+      setError(err.message || 'Failed to update answer');
+    } finally {
+      setSavingQa(false);
+    }
+  };
+
+  const handleDeleteQA = async (qaItem: CopilotQAItem, fallbackIndex: number) => {
+    if (!window.confirm('Delete this screening question answer?')) return;
+    try {
+      if (qaItem.id) {
+        const res = await api.deleteCopilotQA(jobId, qaItem.id);
+        if (res.ok && res.qa_history) {
+          setArtifacts((prev) => ({ ...prev, qa_history: res.qa_history }));
+          return;
+        }
+      }
+      setArtifacts((prev) => ({
+        ...prev,
+        qa_history: (prev.qa_history || []).filter((_, idx) => idx !== fallbackIndex),
+      }));
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete QA item');
+    }
+  };
+
+  const handleRepromptQA = (questionText: string) => {
+    setQaInput(questionText);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleGenerateCoverLetter = async () => {
@@ -526,6 +602,41 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
           {/* Outreach Content */}
           {artifacts.outreach ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+              {/* Validation Warning Alert Banner */}
+              {artifacts.outreach.validation_warning && (
+                <div
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '0.65rem 0.85rem',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.6rem',
+                    fontSize: '0.8rem',
+                    color: '#d97706',
+                  }}
+                >
+                  <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ flex: 1 }}>
+                    <strong style={{ display: 'block', marginBottom: '0.15rem', color: '#b45309' }}>
+                      Formatting Warning
+                    </strong>
+                    <span>{artifacts.outreach.validation_warning}</span>
+                    <div
+                      style={{
+                        marginTop: '0.3rem',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      The AI draft was recovered from unstructured output. Please review and adjust
+                      as needed before sending.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* LinkedIn Connection Note */}
               <div
                 style={{
@@ -866,194 +977,357 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
           {/* QA History & Cards */}
           {artifacts.qa_history && artifacts.qa_history.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-              {artifacts.qa_history.map((qaItem, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '1.25rem',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '0.75rem',
-                  }}
-                >
+              {artifacts.qa_history.map((qaItem, idx) => {
+                const qaKey = qaItem.id || `qa_${idx}`;
+                const isEditing = editingQaId === qaKey;
+                return (
                   <div
+                    key={qaKey}
                     style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span
-                        style={{
-                          background: 'rgba(99, 102, 241, 0.2)',
-                          color: 'var(--accent-primary)',
-                          borderRadius: 'var(--radius-xs)',
-                          padding: '0.2rem 0.5rem',
-                          fontSize: '0.75rem',
-                          fontWeight: 700,
-                        }}
-                      >
-                        Q#{artifacts.qa_history.length - idx}
-                      </span>
-                      <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
-                        {qaItem.question}
-                      </strong>
-                    </div>
-
-                    <button
-                      onClick={() => copyToClipboard(qaItem.answer, `qa_${idx}`)}
-                      className="btn btn-sm btn-secondary"
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                    >
-                      {copiedKey === `qa_${idx}` ? (
-                        <>
-                          <Check size={14} color="var(--color-green)" /> Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy size={14} /> Copy Answer
-                        </>
-                      )}
-                    </button>
-                  </div>
-
-                  {/* Main Answer */}
-                  <div
-                    style={{
-                      background: 'var(--bg-input)',
+                      background: 'var(--bg-card)',
                       border: '1px solid var(--border-subtle)',
-                      borderRadius: 'var(--radius-sm)',
-                      padding: '0.9rem 1rem',
-                      fontSize: '0.875rem',
-                      lineHeight: '1.6',
-                      color: 'var(--text-primary)',
-                      whiteSpace: 'pre-wrap',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.75rem',
                     }}
                   >
-                    {qaItem.answer}
-                  </div>
-
-                  {/* STAR Structure Breakdown if present */}
-                  {qaItem.star_structure && (
-                    <div
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-                        gap: '0.5rem',
-                        marginTop: '0.25rem',
-                      }}
-                    >
-                      {qaItem.star_structure.situation && (
-                        <div
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: 'var(--radius-xs)',
-                            padding: '0.5rem 0.75rem',
-                            fontSize: '0.78rem',
-                          }}
-                        >
-                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
-                            Situation:
-                          </strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            {qaItem.star_structure.situation}
-                          </span>
-                        </div>
-                      )}
-                      {qaItem.star_structure.task && (
-                        <div
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: 'var(--radius-xs)',
-                            padding: '0.5rem 0.75rem',
-                            fontSize: '0.78rem',
-                          }}
-                        >
-                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
-                            Task:
-                          </strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            {qaItem.star_structure.task}
-                          </span>
-                        </div>
-                      )}
-                      {qaItem.star_structure.action && (
-                        <div
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: 'var(--radius-xs)',
-                            padding: '0.5rem 0.75rem',
-                            fontSize: '0.78rem',
-                          }}
-                        >
-                          <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
-                            Action:
-                          </strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            {qaItem.star_structure.action}
-                          </span>
-                        </div>
-                      )}
-                      {qaItem.star_structure.result && (
-                        <div
-                          style={{
-                            background: 'rgba(255, 255, 255, 0.02)',
-                            border: '1px solid var(--border-subtle)',
-                            borderRadius: 'var(--radius-xs)',
-                            padding: '0.5rem 0.75rem',
-                            fontSize: '0.78rem',
-                          }}
-                        >
-                          <strong style={{ color: 'var(--color-green)', display: 'block' }}>
-                            Result:
-                          </strong>
-                          <span style={{ color: 'var(--text-secondary)' }}>
-                            {qaItem.star_structure.result}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Matched Evidence */}
-                  {qaItem.matched_evidence && qaItem.matched_evidence.length > 0 && (
                     <div
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '0.4rem',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
                         flexWrap: 'wrap',
+                        gap: '0.5rem',
                       }}
                     >
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                        Resume Evidence:
-                      </span>
-                      {qaItem.matched_evidence.map((ev, i) => (
+                      <div
+                        style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1 }}
+                      >
                         <span
-                          key={i}
                           style={{
-                            fontSize: '0.72rem',
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            color: 'var(--color-green)',
-                            padding: '0.15rem 0.45rem',
+                            background: 'rgba(99, 102, 241, 0.2)',
+                            color: 'var(--accent-primary)',
                             borderRadius: 'var(--radius-xs)',
-                            border: '1px solid rgba(16, 185, 129, 0.25)',
+                            padding: '0.2rem 0.5rem',
+                            fontSize: '0.75rem',
+                            fontWeight: 700,
                           }}
                         >
-                          ✓ {ev}
+                          Q#{artifacts.qa_history.length - idx}
                         </span>
-                      ))}
+                        <strong style={{ fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                          {qaItem.question}
+                        </strong>
+                        {qaItem.user_edited && (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: 'var(--radius-xs)',
+                              background: 'rgba(255, 255, 255, 0.06)',
+                              color: 'var(--text-muted)',
+                            }}
+                          >
+                            Edited
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleRepromptQA(qaItem.question)}
+                          title="Reprompt with this question"
+                          className="btn btn-sm btn-secondary"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.78rem',
+                          }}
+                        >
+                          <RefreshCw size={13} /> Reprompt
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => (isEditing ? cancelEditQA() : startEditQA(qaItem, qaKey))}
+                          title={isEditing ? 'Cancel editing' : 'Edit answer'}
+                          className="btn btn-sm btn-secondary"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.78rem',
+                          }}
+                        >
+                          <Edit3 size={13} /> {isEditing ? 'Cancel' : 'Edit'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => copyToClipboard(qaItem.answer, `qa_${idx}`)}
+                          className="btn btn-sm btn-secondary"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.35rem',
+                            fontSize: '0.78rem',
+                          }}
+                        >
+                          {copiedKey === `qa_${idx}` ? (
+                            <>
+                              <Check size={14} color="var(--color-green)" /> Copied!
+                            </>
+                          ) : (
+                            <>
+                              <Copy size={14} /> Copy Answer
+                            </>
+                          )}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteQA(qaItem, idx)}
+                          title="Delete this Q&A item"
+                          className="btn btn-sm btn-secondary"
+                          style={{ padding: '0.35rem', color: 'var(--text-muted)' }}
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {/* Validation Warning Alert Banner */}
+                    {qaItem.validation_warning && (
+                      <div
+                        style={{
+                          background: 'rgba(245, 158, 11, 0.1)',
+                          border: '1px solid rgba(245, 158, 11, 0.35)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.65rem 0.85rem',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.6rem',
+                          fontSize: '0.8rem',
+                          color: '#d97706',
+                        }}
+                      >
+                        <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <div style={{ flex: 1 }}>
+                          <strong
+                            style={{ display: 'block', marginBottom: '0.15rem', color: '#b45309' }}
+                          >
+                            Formatting Warning
+                          </strong>
+                          <span>{qaItem.validation_warning}</span>
+                          <div
+                            style={{
+                              marginTop: '0.3rem',
+                              color: 'var(--text-secondary)',
+                              fontSize: '0.75rem',
+                            }}
+                          >
+                            The AI draft was recovered. You can review and edit it below, copy it as
+                            is, or reprompt with the question above.
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Knockout Warning Alert Banner */}
+                    {qaItem.knockout_warning && (
+                      <div
+                        style={{
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.35)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.65rem 0.85rem',
+                          display: 'flex',
+                          alignItems: 'flex-start',
+                          gap: '0.6rem',
+                          fontSize: '0.8rem',
+                          color: 'var(--color-red)',
+                        }}
+                      >
+                        <AlertCircle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+                        <div style={{ flex: 1 }}>
+                          <strong style={{ display: 'block', marginBottom: '0.15rem' }}>
+                            Knockout Risk Warning
+                          </strong>
+                          <span>{qaItem.knockout_warning}</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Main Answer View or Edit Area */}
+                    {isEditing ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        <textarea
+                          rows={6}
+                          value={editingQaText}
+                          onChange={(e) => setEditingQaText(e.target.value)}
+                          className="text-input"
+                          style={{
+                            width: '100%',
+                            padding: '0.75rem',
+                            fontSize: '0.875rem',
+                            lineHeight: '1.6',
+                            fontFamily: 'var(--font-sans)',
+                          }}
+                        />
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                          <button
+                            type="button"
+                            onClick={cancelEditQA}
+                            className="btn btn-sm btn-secondary"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleSaveQA(qaItem, qaKey)}
+                            disabled={savingQa || !editingQaText.trim()}
+                            className="btn btn-sm btn-primary"
+                          >
+                            {savingQa ? 'Saving...' : 'Save Changes'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div
+                        style={{
+                          background: 'var(--bg-input)',
+                          border: '1px solid var(--border-subtle)',
+                          borderRadius: 'var(--radius-sm)',
+                          padding: '0.9rem 1rem',
+                          fontSize: '0.875rem',
+                          lineHeight: '1.6',
+                          color: 'var(--text-primary)',
+                          whiteSpace: 'pre-wrap',
+                        }}
+                      >
+                        {qaItem.answer}
+                      </div>
+                    )}
+
+                    {/* STAR Structure Breakdown if present */}
+                    {qaItem.star_structure && (
+                      <div
+                        style={{
+                          display: 'grid',
+                          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                          gap: '0.5rem',
+                          marginTop: '0.25rem',
+                        }}
+                      >
+                        {qaItem.star_structure.situation && (
+                          <div
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 'var(--radius-xs)',
+                              padding: '0.5rem 0.75rem',
+                              fontSize: '0.78rem',
+                            }}
+                          >
+                            <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
+                              Situation:
+                            </strong>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              {qaItem.star_structure.situation}
+                            </span>
+                          </div>
+                        )}
+                        {qaItem.star_structure.task && (
+                          <div
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 'var(--radius-xs)',
+                              padding: '0.5rem 0.75rem',
+                              fontSize: '0.78rem',
+                            }}
+                          >
+                            <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
+                              Task:
+                            </strong>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              {qaItem.star_structure.task}
+                            </span>
+                          </div>
+                        )}
+                        {qaItem.star_structure.action && (
+                          <div
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 'var(--radius-xs)',
+                              padding: '0.5rem 0.75rem',
+                              fontSize: '0.78rem',
+                            }}
+                          >
+                            <strong style={{ color: 'var(--accent-primary)', display: 'block' }}>
+                              Action:
+                            </strong>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              {qaItem.star_structure.action}
+                            </span>
+                          </div>
+                        )}
+                        {qaItem.star_structure.result && (
+                          <div
+                            style={{
+                              background: 'rgba(255, 255, 255, 0.02)',
+                              border: '1px solid var(--border-subtle)',
+                              borderRadius: 'var(--radius-xs)',
+                              padding: '0.5rem 0.75rem',
+                              fontSize: '0.78rem',
+                            }}
+                          >
+                            <strong style={{ color: 'var(--color-green)', display: 'block' }}>
+                              Result:
+                            </strong>
+                            <span style={{ color: 'var(--text-secondary)' }}>
+                              {qaItem.star_structure.result}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Matched Evidence */}
+                    {qaItem.matched_evidence && qaItem.matched_evidence.length > 0 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.4rem',
+                          flexWrap: 'wrap',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          Resume Evidence:
+                        </span>
+                        {qaItem.matched_evidence.map((ev, i) => (
+                          <span
+                            key={i}
+                            style={{
+                              fontSize: '0.72rem',
+                              background: 'rgba(16, 185, 129, 0.1)',
+                              color: 'var(--color-green)',
+                              padding: '0.15rem 0.45rem',
+                              borderRadius: 'var(--radius-xs)',
+                              border: '1px solid rgba(16, 185, 129, 0.25)',
+                            }}
+                          >
+                            ✓ {ev}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
             <div
@@ -1152,6 +1426,41 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                 gap: '1.25rem',
               }}
             >
+              {/* Validation Warning Alert Banner */}
+              {artifacts.cover_letter.validation_warning && (
+                <div
+                  style={{
+                    background: 'rgba(245, 158, 11, 0.1)',
+                    border: '1px solid rgba(245, 158, 11, 0.35)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '0.65rem 0.85rem',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.6rem',
+                    fontSize: '0.8rem',
+                    color: '#d97706',
+                  }}
+                >
+                  <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+                  <div style={{ flex: 1 }}>
+                    <strong style={{ display: 'block', marginBottom: '0.15rem', color: '#b45309' }}>
+                      Formatting Warning
+                    </strong>
+                    <span>{artifacts.cover_letter.validation_warning}</span>
+                    <div
+                      style={{
+                        marginTop: '0.3rem',
+                        color: 'var(--text-secondary)',
+                        fontSize: '0.75rem',
+                      }}
+                    >
+                      The AI draft was recovered. Please review paragraph boundaries and content
+                      before using.
+                    </div>
+                  </div>
+                </div>
+              )}
+
               <div
                 style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
               >
