@@ -39,7 +39,6 @@ import {
   Zap,
   Sparkles,
   ChevronRight,
-  ChevronDown,
   ArrowRight,
   ArrowLeft,
   Check,
@@ -61,7 +60,6 @@ import {
   LLM_PROVIDERS,
   detectProviderFromModel,
   ALL_RECOMMENDED_MODELS,
-  providerDefaultBase,
   resolveEffectiveEndpoint,
   type EffectiveEndpoint,
 } from './llmCatalog';
@@ -107,6 +105,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -118,6 +117,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -129,6 +129,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -140,6 +141,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -151,6 +153,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -162,6 +165,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -173,6 +177,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -184,6 +189,7 @@ const DEFAULT_CONNECTIONS: LLMConnection[] = [
     apiKey: '',
     isBuiltIn: true,
     isConfigured: false,
+    inUseBy: [],
     createdAt: 0,
     updatedAt: 0,
   },
@@ -2432,29 +2438,31 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         gap: '0.75rem',
                       }}
                     >
-                      {[
-                        {
-                          name: 'AI Fit Scorer',
-                          tab: 'scorer',
-                          inheritDefault: formSettings.scorer_inherit_default,
-                          inheritModel: formSettings.scorer_inherit_model,
-                          model: formSettings.scorer_model,
-                        },
-                        {
-                          name: 'Resume Tailor',
-                          tab: 'tailor',
-                          inheritDefault: formSettings.tailor_inherit_default,
-                          inheritModel: formSettings.tailor_inherit_model,
-                          model: formSettings.tailor_model,
-                        },
-                        {
-                          name: 'Copilot & Prompts',
-                          tab: 'copilot',
-                          inheritDefault: formSettings.copilot_inherit_default,
-                          inheritModel: formSettings.copilot_inherit_model,
-                          model: formSettings.copilot_model,
-                        },
-                      ].map((card) => (
+                      {(
+                        [
+                          {
+                            name: 'AI Fit Scorer',
+                            tab: 'scorer' as SettingsTab,
+                            inheritDefault: formSettings.scorer_inherit_default,
+                            inheritModel: formSettings.scorer_inherit_model,
+                            model: formSettings.scorer_model,
+                          },
+                          {
+                            name: 'Resume Tailor',
+                            tab: 'tailor' as SettingsTab,
+                            inheritDefault: formSettings.tailor_inherit_default,
+                            inheritModel: formSettings.tailor_inherit_model,
+                            model: formSettings.tailor_model,
+                          },
+                          {
+                            name: 'Copilot & Prompts',
+                            tab: 'copilot' as SettingsTab,
+                            inheritDefault: formSettings.copilot_inherit_default,
+                            inheritModel: formSettings.copilot_inherit_model,
+                            model: formSettings.copilot_model,
+                          },
+                        ] as const
+                      ).map((card) => (
                         <div
                           key={card.name}
                           onClick={() => handleTabChange(card.tab)}
