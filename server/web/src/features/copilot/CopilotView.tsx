@@ -1076,7 +1076,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         <button
                           type="button"
                           onClick={() => {
-                            copyToClipboard(qaItem.answer, `qa_${idx}`);
+                            void copyToClipboard(qaItem.answer, `qa_${idx}`);
                           }}
                           className="btn btn-sm btn-secondary"
                           style={{
@@ -1099,7 +1099,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         <button
                           type="button"
                           onClick={() => {
-                            handleDeleteQA(qaItem, idx);
+                            void handleDeleteQA(qaItem, idx);
                           }}
                           title="Delete this Q&A item"
                           className="btn btn-sm btn-secondary"
@@ -1149,7 +1149,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         <textarea
                           rows={6}
                           value={editingQaText}
-                          onChange={(e) => setEditingQaText(e.target.value)}
+                          onChange={(e) => {
+                            setEditingQaText(e.target.value);
+                          }}
                           className="text-input"
                           style={{
                             width: '100%',
@@ -1170,7 +1172,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                           <button
                             type="button"
                             onClick={() => {
-                              handleSaveQA(qaItem, qaKey);
+                              void handleSaveQA(qaItem, qaKey);
                             }}
                             disabled={savingQa || !editingQaText.trim()}
                             className="btn btn-sm btn-primary"

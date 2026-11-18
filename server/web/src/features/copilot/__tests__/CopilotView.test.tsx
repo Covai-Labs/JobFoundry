@@ -311,9 +311,8 @@ describe('CopilotView', () => {
     // Test Reprompt button
     const repromptBtn = screen.getByRole('button', { name: /Reprompt/i });
     fireEvent.click(repromptBtn);
-    const questionTextarea = screen.getByPlaceholderText(
-      /Paste any question from the application form/i
-    ) as HTMLTextAreaElement;
-    expect(questionTextarea.value).toBe('Why Supabase?');
+    expect(
+      screen.getByPlaceholderText(/Paste any question from the application form/i)
+    ).toHaveValue('Why Supabase?');
   });
 });
