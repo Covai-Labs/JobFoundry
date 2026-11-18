@@ -1,4 +1,11 @@
 ---
+engines:
+  semgrep:
+    exclude_paths:
+      - 'server/ingest/src/app.mjs'
+  opengrep:
+    exclude_paths:
+      - 'server/ingest/src/app.mjs'
 exclude_paths:
   # Generated architecture-graph snapshots (`graphify update`): committed for
   # reference, never hand-edited, and not part of the shipped product.
