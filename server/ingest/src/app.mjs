@@ -898,7 +898,6 @@ export function buildApp({
           body: JSON.stringify({
             model: directModel,
             messages: [{ role: 'user', content: 'Reply with the word OK.' }],
-            max_tokens: 5,
           }),
         });
 
