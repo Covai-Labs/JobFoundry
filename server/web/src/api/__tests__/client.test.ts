@@ -480,4 +480,106 @@ describe('ApiClient', () => {
     );
     expect(delRes.qa_history).toEqual([]);
   });
+
+  describe('Named Connections API', () => {
+    it('getConnections retrieves connections list', async () => {
+      const mockList = [
+        { id: 'conn_builtin_openrouter', name: 'OpenRouter', apiType: 'openrouter' },
+      ];
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ok: true, connections: mockList }),
+      });
+      global.fetch = fetchMock;
+
+      const res = await client.getConnections();
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://api.test/api/v1/settings/connections',
+        expect.any(Object)
+      );
+      expect(res).toEqual(mockList);
+    });
+
+    it('createConnection posts new connection payload', async () => {
+      const created = { id: 'conn_custom_1', name: 'Custom Proxy', apiType: 'openai' };
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 201,
+        json: () => Promise.resolve({ ok: true, connection: created }),
+      });
+      global.fetch = fetchMock;
+
+      const res = await client.createConnection({
+        name: 'Custom Proxy',
+        apiType: 'openai',
+        baseUrl: 'http://127.0.0.1:8000/v1',
+      });
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://api.test/api/v1/settings/connections',
+        expect.objectContaining({
+          method: 'POST',
+          body: JSON.stringify({
+            name: 'Custom Proxy',
+            apiType: 'openai',
+            baseUrl: 'http://127.0.0.1:8000/v1',
+          }),
+        })
+      );
+      expect(res).toEqual(created);
+    });
+
+    it('updateConnection puts partial connection updates', async () => {
+      const updated = { id: 'conn_custom_1', name: 'Updated Proxy' };
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ok: true, connection: updated }),
+      });
+      global.fetch = fetchMock;
+
+      const res = await client.updateConnection('conn_custom_1', { apiKey: 'new-key' });
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://api.test/api/v1/settings/connections/conn_custom_1',
+        expect.objectContaining({
+          method: 'PUT',
+          body: JSON.stringify({ apiKey: 'new-key' }),
+        })
+      );
+      expect(res).toEqual(updated);
+    });
+
+    it('deleteConnection sends DELETE request', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => Promise.resolve({ ok: true, deleted: true }),
+      });
+      global.fetch = fetchMock;
+
+      const res = await client.deleteConnection('conn_custom_1');
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://api.test/api/v1/settings/connections/conn_custom_1',
+        expect.objectContaining({ method: 'DELETE' })
+      );
+      expect(res).toBe(true);
+    });
+
+    it('testConnection sends POST request to test endpoint', async () => {
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () =>
+          Promise.resolve({ ok: true, endpoint: 'https://openrouter.ai/api/v1', latencyMs: 50 }),
+      });
+      global.fetch = fetchMock;
+
+      const res = await client.testConnection('conn_builtin_openrouter');
+      expect(fetchMock).toHaveBeenCalledWith(
+        'http://api.test/api/v1/settings/connections/conn_builtin_openrouter/test',
+        expect.objectContaining({ method: 'POST' })
+      );
+      expect(res.ok).toBe(true);
+    });
+  });
 });

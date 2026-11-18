@@ -9,6 +9,7 @@ import {
   inferProviderFromModel,
   resolveFeatureLlmConfig,
 } from '../src/settings/llm-resolve.mjs';
+import { createConnection, updateConnection } from '../src/settings/connections-store.mjs';
 
 function insertUser(db, id, email = `${id}@example.com`, apiKey = `jf-key-${id}`) {
   const now = Date.now();
@@ -214,4 +215,67 @@ test('the gateway does not borrow a feature key', () => {
 
   const resolved = resolveFeatureLlmConfig(db, 'gateway', { userId: 'u1' });
   assert.equal(resolved.apiKey, '');
+});
+
+test('connection-based resolution: gateway and features reference named connections', () => {
+  const db = freshDb();
+  insertUser(db, 'u1');
+
+  // Create custom connection for user u1
+  const customConn = createConnection(
+    db,
+    {
+      name: 'User Private LiteLLM',
+      apiType: 'openai',
+      baseUrl: 'https://user-litellm.example.com/v1',
+      apiKey: 'sk-user-custom-proxy-key',
+    },
+    { userId: 'u1' }
+  );
+
+  // Set Groq key for built-in Groq connection
+  updateConnection(
+    db,
+    'conn_builtin_groq',
+    { apiKey: 'gsk-user-groq-key-123456' },
+    { userId: 'u1' }
+  );
+
+  // Configure user settings referencing the connections:
+  // Gateway uses custom connection; Scorer overrides and uses built-in Groq
+  updateSettings(
+    db,
+    {
+      gateway_connection_id: customConn.id,
+      default_llm_model: 'custom-model',
+      scorer_inherit_default: false,
+      scorer_connection_id: 'conn_builtin_groq',
+      scorer_model: 'groq/llama-3.3-70b-versatile',
+    },
+    'u1'
+  );
+
+  // 1. Gateway resolves to the custom connection
+  const gatewayResolved = resolveFeatureLlmConfig(db, 'gateway', { userId: 'u1' });
+  assert.equal(gatewayResolved.connectionId, customConn.id);
+  assert.equal(gatewayResolved.provider, 'openai');
+  assert.equal(gatewayResolved.apiBase, 'https://user-litellm.example.com/v1');
+  assert.equal(gatewayResolved.apiKey, 'sk-user-custom-proxy-key');
+  assert.equal(gatewayResolved.model, 'custom-model');
+
+  // 2. Inheriting feature (Tailor) inherits gateway custom connection
+  const tailorResolved = resolveFeatureLlmConfig(db, 'tailor', { userId: 'u1' });
+  assert.equal(tailorResolved.inherited, true);
+  assert.equal(tailorResolved.connectionId, customConn.id);
+  assert.equal(tailorResolved.apiBase, 'https://user-litellm.example.com/v1');
+  assert.equal(tailorResolved.apiKey, 'sk-user-custom-proxy-key');
+
+  // 3. Overridden feature (Scorer) resolves to Groq connection
+  const scorerResolved = resolveFeatureLlmConfig(db, 'scorer', { userId: 'u1' });
+  assert.equal(scorerResolved.inherited, false);
+  assert.equal(scorerResolved.connectionId, 'conn_builtin_groq');
+  assert.equal(scorerResolved.provider, 'groq');
+  assert.equal(scorerResolved.apiBase, 'https://api.groq.com/openai/v1');
+  assert.equal(scorerResolved.apiKey, 'gsk-user-groq-key-123456');
+  assert.equal(scorerResolved.model, 'groq/llama-3.3-70b-versatile');
 });

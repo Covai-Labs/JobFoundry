@@ -102,6 +102,36 @@ class JobStore:
             return settings[key]
         return default
 
+    def get_connection(self, connection_id: str, user_id: str | None = None) -> dict[str, Any] | None:
+        """
+        Retrieves a connection by ID, looking up user_connection_keys for user_id.
+        """
+        if not self.has_table("connections"):
+            return None
+        try:
+            if user_id:
+                row = self.conn.execute(
+                    """
+                    SELECT
+                      c.id, c.name, c.api_type, c.base_url, c.is_built_in,
+                      COALESCE(uck.api_key, CASE WHEN c.user_id = ? THEN c.api_key ELSE '' END) AS api_key
+                    FROM connections c
+                    LEFT JOIN user_connection_keys uck ON uck.connection_id = c.id AND uck.user_id = ?
+                    WHERE c.id = ? AND (c.is_built_in = 1 OR c.user_id = ?)
+                    """,
+                    (user_id, user_id, connection_id, user_id),
+                ).fetchone()
+            else:
+                row = self.conn.execute(
+                    "SELECT id, name, api_type, base_url, api_key, is_built_in FROM connections WHERE id = ?",
+                    (connection_id,),
+                ).fetchone()
+            if row:
+                return dict(row)
+        except Exception:
+            pass
+        return None
+
     def get_user_settings(self, user_id: str) -> dict[str, str]:
         """
         Loads all key-value pairs from user_settings table for a single user.
@@ -177,7 +207,31 @@ class JobStore:
         # and base URL. It must never inherit default_llm_api_base or the gateway
         # key, which may belong to a different provider (that mismatch sent an
         # OpenRouter key to a self-hosted LiteLLM proxy and 401'd).
+        conn_id = None
         if inherit:
+            conn_id = user_settings.get("gateway_connection_id") or system.get("gateway_connection_id")
+        else:
+            conn_id = (
+                user_settings.get("scorer_connection_id")
+                or system.get("scorer_connection_id")
+                or user_settings.get("gateway_connection_id")
+                or system.get("gateway_connection_id")
+            )
+        conn = self.get_connection(conn_id, user_id) if conn_id else None
+
+        if conn:
+            api_base = conn.get("base_url") or ""
+            conn_key = conn.get("api_key") or ""
+            if conn_key:
+                api_key = conn_key
+            elif inherit:
+                api_key = (
+                    user_settings.get("default_llm_api_key")
+                    or user_settings.get("scorer_api_key", "")
+                )
+            else:
+                api_key = user_settings.get("scorer_api_key") or ""
+        elif inherit:
             api_base = pick("scorer_api_base", "default_llm_api_base", defaults.get("api_base"))
             api_key = (
                 user_settings.get("default_llm_api_key")
@@ -279,26 +333,47 @@ class JobStore:
         elif tailor_model == "openrouter/auto":
             tailor_model = "openrouter/openrouter/auto"
 
-        resolved_api_base = (
-            (
-                user_settings.get("tailor_api_base")
-                or system.get("tailor_api_base")
-                or ""
+        tailor_conn_id = None
+        if inherit:
+            tailor_conn_id = user_settings.get("gateway_connection_id") or system.get("gateway_connection_id")
+        else:
+            tailor_conn_id = (
+                user_settings.get("tailor_connection_id")
+                or system.get("tailor_connection_id")
+                or user_settings.get("gateway_connection_id")
+                or system.get("gateway_connection_id")
             )
-            if tailor_provider_override
-            else (
-                user_settings.get("default_llm_api_base")
-                or system.get("default_llm_api_base")
-                or fallback.get("api_base")
-                or ""
+        conn = self.get_connection(tailor_conn_id, user_id) if tailor_conn_id else None
+
+        if conn:
+            resolved_api_base = conn.get("base_url") or ""
+            if conn.get("api_key"):
+                resolved_key = conn.get("api_key")
+        else:
+            resolved_api_base = (
+                (
+                    user_settings.get("tailor_api_base")
+                    or system.get("tailor_api_base")
+                    or ""
+                )
+                if tailor_provider_override
+                else (
+                    user_settings.get("default_llm_api_base")
+                    or system.get("default_llm_api_base")
+                    or fallback.get("api_base")
+                    or ""
+                )
             )
-        )
 
         return {
             "model": tailor_model,
             "api_base": resolved_api_base,
             "api_key": resolved_key,
-            "has_user_tailor_key": bool(tailor_key or (not tailor_provider_override and (default_key or scorer_key))),
+            "has_user_tailor_key": bool(
+                (conn and resolved_key)
+                or tailor_key
+                or (not tailor_provider_override and (default_key or scorer_key))
+            ),
         }
 
 

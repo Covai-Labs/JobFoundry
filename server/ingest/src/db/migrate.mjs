@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { analyzeRepost, normalizeCompany } from '../jobs/detect-reposts.mjs';
+import { initConnectionsStore } from '../settings/connections-store.mjs';
 
 const SCHEMA_SQL = new URL('./schema.sql', import.meta.url);
 
@@ -103,4 +104,5 @@ export function migrate(db) {
        AND NOT EXISTS (SELECT 1 FROM users WHERE is_admin = 1)`
   );
   backfillReposts(db);
+  initConnectionsStore(db);
 }

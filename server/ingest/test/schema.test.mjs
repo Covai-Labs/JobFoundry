@@ -15,9 +15,11 @@ test('openDb migrates an in-memory DB to the full multi-tenant schema', () => {
     assert.deepEqual(
       tables,
       [
+        'connections',
         'jobs',
         'relay_tasks',
         'system_settings',
+        'user_connection_keys',
         'user_facts',
         'user_jobs',
         'user_resumes',
@@ -160,7 +162,7 @@ test('migrate is idempotent', () => {
         "SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
       )
       .get();
-    assert.equal(count.n, 8);
+    assert.equal(count.n, 10);
   } finally {
     db.close();
   }

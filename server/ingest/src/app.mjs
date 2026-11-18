@@ -49,6 +49,13 @@ import {
 } from './resumes/resumes.mjs';
 import { getUserFacts, createUserFact, updateUserFact, deleteUserFact } from './facts/facts.mjs';
 import {
+  listConnections,
+  getConnection,
+  createConnection,
+  updateConnection,
+  deleteConnection,
+} from './settings/connections-store.mjs';
+import {
   defaultBaseForProvider,
   inferProviderFromModel,
   normalizeApiBase,
@@ -441,6 +448,275 @@ export function buildApp({
     }
   );
 
+  // --- NAMED CONNECTIONS ROUTES ---
+
+  // GET /api/v1/settings/connections - List all connections with masked secrets
+  app.get(
+    '/api/v1/settings/connections',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      if (!authenticate(request, reply)) return;
+      const connections = listConnections(db, { userId: request.user.id });
+      return { ok: true, connections };
+    }
+  );
+
+  // POST /api/v1/settings/connections - Create a custom connection
+  app.post(
+    '/api/v1/settings/connections',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+      try {
+        const connection = createConnection(db, request.body || {}, { userId: request.user.id });
+        return reply.code(201).send({ ok: true, connection });
+      } catch (err) {
+        return reply.code(400).send({ ok: false, error: err.message });
+      }
+    }
+  );
+
+  // PUT /api/v1/settings/connections/:id - Update connection (built-in base URLs cannot be changed)
+  app.put(
+    '/api/v1/settings/connections/:id',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+      try {
+        const connection = updateConnection(db, request.params.id, request.body || {}, {
+          userId: request.user.id,
+        });
+        return { ok: true, connection };
+      } catch (err) {
+        return reply.code(400).send({ ok: false, error: err.message });
+      }
+    }
+  );
+
+  // DELETE /api/v1/settings/connections/:id - Delete custom connection
+  app.delete(
+    '/api/v1/settings/connections/:id',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+      try {
+        const result = deleteConnection(db, request.params.id, { userId: request.user.id });
+        return { ok: true, ...result };
+      } catch (err) {
+        return reply.code(400).send({ ok: false, error: err.message });
+      }
+    }
+  );
+
+  // POST /api/v1/settings/connections/:id/test - Test a specific connection
+  app.post(
+    '/api/v1/settings/connections/:id/test',
+    {
+      config: {
+        rateLimit: {
+          max: 15,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 15,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 15)) return;
+      if (!authenticate(request, reply)) return;
+      const connectionId = request.params.id;
+      const conn = getConnection(db, connectionId, {
+        userId: request.user.id,
+        includeSecret: true,
+      });
+      if (!conn) {
+        return reply.code(404).send({ ok: false, error: `Connection not found: ${connectionId}` });
+      }
+
+      const body = request.body || {};
+      const hasDraftKey = Boolean(body.apiKey && !body.apiKey.includes('••••'));
+      const effectiveKey = hasDraftKey ? body.apiKey.trim() : conn.apiKey;
+
+      if (!effectiveKey && conn.apiType !== 'ollama') {
+        return reply.code(400).send({
+          ok: false,
+          endpoint: conn.baseUrl,
+          error: 'No API key configured for this connection. Please enter an API key to test.',
+        });
+      }
+
+      const startTime = Date.now();
+      const testModel =
+        body.model ||
+        (conn.apiType === 'openrouter' ? 'openrouter/openrouter/free' : 'gpt-4o-mini');
+
+      // Attempt through tailor service first
+      const tailorPort = process.env.TAILOR_PORT || 8081;
+      const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+      try {
+        const tailorResp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/test-llm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(10000),
+          redirect: 'error',
+          body: JSON.stringify({
+            model: testModel,
+            api_key: effectiveKey,
+            api_base: conn.baseUrl,
+          }),
+        });
+        if (tailorResp.ok) {
+          const data = await tailorResp.json();
+          if (data.success) {
+            return {
+              ok: true,
+              success: true,
+              connectionId,
+              endpoint: conn.baseUrl,
+              latencyMs: data.latencyMs || Date.now() - startTime,
+              message:
+                data.message ||
+                `Connected successfully (${data.latencyMs || Date.now() - startTime}ms)`,
+            };
+          }
+          return reply.code(400).send({
+            ok: false,
+            success: false,
+            connectionId,
+            endpoint: conn.baseUrl,
+            latencyMs: data.latencyMs || Date.now() - startTime,
+            error: data.error || 'Connection failed',
+          });
+        }
+      } catch (err) {
+        if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+          return reply.code(504).send({
+            ok: false,
+            endpoint: conn.baseUrl,
+            error: 'Connection test timed out after 10 seconds',
+          });
+        }
+      }
+
+      // Direct fallback
+      try {
+        const directBase = conn.baseUrl.replace(/\/$/, '');
+        let directModel = testModel;
+        if (directBase === 'https://openrouter.ai/api/v1') {
+          if (testModel === 'openrouter/openrouter/free') directModel = 'openrouter/free';
+          else if (testModel === 'openrouter/openrouter/auto') directModel = 'openrouter/auto';
+        }
+
+        const directHeaders = {
+          'Content-Type': 'application/json',
+        };
+        if (effectiveKey) {
+          directHeaders['Authorization'] = `Bearer ${effectiveKey}`;
+        }
+
+        // nosemgrep: codacy.yaml.security.hard-coded-tokens
+        // nosemgrep: hard-coded-tokens
+        const resp = await safeFetch(`${directBase}/chat/completions`, {
+          method: 'POST',
+          headers: directHeaders,
+          signal: AbortSignal.timeout(12000),
+          redirect: 'error',
+          body: JSON.stringify({
+            model: directModel,
+            messages: [{ role: 'user', content: 'Reply with the word OK.' }],
+          }),
+        });
+
+        const latencyMs = Date.now() - startTime;
+        if (resp.ok) {
+          return {
+            ok: true,
+            success: true,
+            connectionId,
+            endpoint: conn.baseUrl,
+            latencyMs,
+            message: `Connected successfully (${latencyMs}ms)`,
+          };
+        }
+        let errBody = '';
+        try {
+          const errData = await resp.json();
+          errBody = errData?.error?.message || errData?.message || JSON.stringify(errData);
+        } catch {
+          errBody = await resp.text().catch(() => '');
+        }
+        return reply.code(400).send({
+          ok: false,
+          success: false,
+          connectionId,
+          endpoint: conn.baseUrl,
+          latencyMs,
+          error: `HTTP ${resp.status}: ${errBody || 'Connection failed'}`,
+        });
+      } catch (directErr) {
+        const latencyMs = Date.now() - startTime;
+        return reply.code(400).send({
+          ok: false,
+          success: false,
+          connectionId,
+          endpoint: conn.baseUrl,
+          latencyMs,
+          error: directErr.message || 'Connection failed',
+        });
+      }
+    }
+  );
+
   // GET /api/v1/settings/prompt-templates/defaults - Factory default prompt templates
   app.get(
     '/api/v1/settings/prompt-templates/defaults',
@@ -622,7 +898,6 @@ export function buildApp({
           body: JSON.stringify({
             model: directModel,
             messages: [{ role: 'user', content: 'Reply with the word OK.' }],
-            max_tokens: 5,
           }),
         });
 
@@ -825,6 +1100,56 @@ export function buildApp({
   const modelsCache = new Map();
   const MODELS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+  function resolveModelsQueryConfig(db, rawFeature, userId, { provider, apiKey, apiBase }) {
+    const resolved = resolveFeatureLlmConfig(db, rawFeature, { userId });
+    const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
+    const requestScoped = Boolean(apiKey || provider || apiBase);
+    const effectiveProvider = requestScoped
+      ? provider || resolved.provider || ''
+      : resolved.provider || provider || '';
+    const explicitBase =
+      normalizeApiBase(apiBase) ||
+      (requestScoped ? defaultBaseForProvider(effectiveProvider) : resolved.apiBase) ||
+      '';
+    const directBase = explicitBase || defaultBaseForProvider(effectiveProvider);
+
+    let effectiveKey = '';
+    if (hasExplicitKey) {
+      effectiveKey = apiKey;
+    } else if (
+      resolved.provider === effectiveProvider &&
+      (!explicitBase || explicitBase === resolved.apiBase)
+    ) {
+      effectiveKey = resolved.apiKey;
+    }
+
+    return { effectiveProvider, directBase, effectiveKey };
+  }
+
+  async function dispatchFetchModels(effectiveProvider, directBase, effectiveKey) {
+    if (effectiveProvider === 'ollama' || isOllamaUrl(directBase)) {
+      return fetchOllamaModels(directBase);
+    }
+    if (effectiveProvider === 'anthropic' || isMatchingHost(directBase, 'anthropic.com')) {
+      return fetchAnthropicModels(directBase, effectiveKey);
+    }
+    if (
+      effectiveProvider === 'google' &&
+      (!directBase || isMatchingHost(directBase, 'googleapis.com'))
+    ) {
+      return fetchGoogleModels(effectiveKey);
+    }
+    if (directBase) {
+      return fetchOpenAiCompatibleModels(directBase, effectiveProvider, effectiveKey);
+    }
+    return {
+      status: 400,
+      error:
+        'No endpoint or API key available to fetch models. Please configure a provider and API key or base URL.',
+      models: [],
+    };
+  }
+
   // POST /api/v1/settings/fetch-models - Query live models from provider endpoint
   app.post(
     '/api/v1/settings/fetch-models',
@@ -850,28 +1175,12 @@ export function buildApp({
         return reply.code(400).send({ success: false, error: 'invalid feature' });
       }
 
-      const resolved = resolveFeatureLlmConfig(db, rawFeature, { userId });
-      const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
-      const requestScoped = Boolean(apiKey || provider || apiBase);
-      const effectiveProvider = requestScoped
-        ? provider || resolved.provider || ''
-        : resolved.provider || provider || '';
-      const explicitBase =
-        normalizeApiBase(apiBase) ||
-        (requestScoped ? defaultBaseForProvider(effectiveProvider) : resolved.apiBase) ||
-        '';
-      const directBase = explicitBase || defaultBaseForProvider(effectiveProvider);
-
-      // Only reuse saved key when effective provider and base match its saved configuration
-      let effectiveKey = '';
-      if (hasExplicitKey) {
-        effectiveKey = apiKey;
-      } else if (
-        resolved.provider === effectiveProvider &&
-        (!explicitBase || explicitBase === resolved.apiBase)
-      ) {
-        effectiveKey = resolved.apiKey;
-      }
+      const { effectiveProvider, directBase, effectiveKey } = resolveModelsQueryConfig(
+        db,
+        rawFeature,
+        userId,
+        { provider, apiKey, apiBase }
+      );
 
       // Check user-isolated in-memory cache
       const cacheKey = `${userId}|${rawFeature}|${effectiveProvider}|${directBase}`;
@@ -881,29 +1190,7 @@ export function buildApp({
       }
 
       try {
-        let result;
-        if (effectiveProvider === 'ollama' || isOllamaUrl(directBase)) {
-          result = await fetchOllamaModels(directBase);
-        } else if (
-          effectiveProvider === 'anthropic' ||
-          isMatchingHost(directBase, 'anthropic.com')
-        ) {
-          result = await fetchAnthropicModels(directBase, effectiveKey);
-        } else if (
-          effectiveProvider === 'google' &&
-          (!directBase || isMatchingHost(directBase, 'googleapis.com'))
-        ) {
-          result = await fetchGoogleModels(effectiveKey);
-        } else if (directBase) {
-          result = await fetchOpenAiCompatibleModels(directBase, effectiveProvider, effectiveKey);
-        } else {
-          return reply.code(400).send({
-            success: false,
-            error:
-              'No endpoint or API key available to fetch models. Please configure a provider and API key or base URL.',
-            models: [],
-          });
-        }
+        const result = await dispatchFetchModels(effectiveProvider, directBase, effectiveKey);
 
         if (result.status !== 200) {
           return reply.code(result.status).send({

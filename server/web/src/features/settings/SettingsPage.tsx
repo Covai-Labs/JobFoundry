@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { AppSettings, DEFAULT_SETTINGS } from '../../lib/auth';
 import {
   api,
@@ -8,6 +8,7 @@ import {
   ExtensionConfig,
   ExportFormat,
   PromptTemplateDefaults,
+  LLMConnection,
 } from '../../api/client';
 import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
@@ -51,7 +52,10 @@ import {
   FileJson,
   FileSpreadsheet,
   Archive,
+  Link2,
 } from 'lucide-react';
+import { ConnectionsManager } from './ConnectionsManager';
+import { ConnectionSelector } from './ConnectionSelector';
 import {
   LLM_PROVIDERS,
   detectProviderFromModel,
@@ -70,6 +74,7 @@ type SettingsTab =
   | 'profile'
   | 'general'
   | 'gateway'
+  | 'connections'
   | 'scorer'
   | 'tailor'
   | 'copilot'
@@ -82,6 +87,7 @@ const VALID_TABS: SettingsTab[] = [
   'profile',
   'general',
   'gateway',
+  'connections',
   'scorer',
   'tailor',
   'copilot',
@@ -730,19 +736,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [isExtensionPaired, setIsExtensionPaired] = useState(() => {
     return typeof window !== 'undefined' && localStorage.getItem('jf_extension_paired') === 'true';
   });
+  const [connections, setConnections] = useState<LLMConnection[]>([]);
+  const [loadingConnections, setLoadingConnections] = useState(false);
+
+  const loadConnections = useCallback(async () => {
+    setLoadingConnections(true);
+    try {
+      const res = await api.getConnections();
+      setConnections(Array.isArray(res) ? res : []);
+    } catch (err: any) {
+      toast.error(`Failed to load connections: ${err?.message || 'Unknown error'}`);
+    } finally {
+      setLoadingConnections(false);
+    }
+  }, [toast]);
 
   // Fetch backend settings & telemetry once on mount
   useEffect(() => {
     async function loadData() {
       setLoading(true);
       try {
-        const [settingsRes, diagRes, extRes, defaultsRes, resumeRes] = await Promise.allSettled([
-          api.getSettings(),
-          api.getDiagnostics(),
-          api.getExtensionConfig(),
-          api.getPromptTemplateDefaults(),
-          api.getActiveResume(),
-        ]);
+        const [settingsRes, diagRes, extRes, defaultsRes, resumeRes, connRes] =
+          await Promise.allSettled([
+            api.getSettings(),
+            api.getDiagnostics(),
+            api.getExtensionConfig(),
+            api.getPromptTemplateDefaults(),
+            api.getActiveResume(),
+            api.getConnections(),
+          ]);
+
+        if (connRes.status === 'fulfilled' && Array.isArray(connRes.value)) {
+          setConnections(connRes.value);
+        }
 
         if (resumeRes.status === 'fulfilled' && resumeRes.value) {
           setHasActiveResume(true);
@@ -1878,6 +1904,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             </button>
             <button
               type="button"
+              onClick={() => handleTabChange('connections')}
+              className={`settings-nav-item ${activeTab === 'connections' ? 'active' : ''}`}
+            >
+              <Link2 size={16} /> AI Connections
+            </button>
+            <button
+              type="button"
               onClick={() => handleTabChange('profile')}
               className={`settings-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             >
@@ -2186,6 +2219,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                 </div>
               )}
 
+              {/* TAB: AI CONNECTIONS */}
+              {activeTab === 'connections' && (
+                <ConnectionsManager
+                  connections={connections}
+                  loading={loadingConnections}
+                  onRefresh={loadConnections}
+                />
+              )}
+
               {/* TAB: DEFAULT AI GATEWAY */}
               {activeTab === 'gateway' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -2223,6 +2265,31 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       Scorer, Resume Tailor, and Copilot inherit from this gateway automatically
                       unless you configure a custom override.
                     </p>
+
+                    {/* Primary Named Connection Selector */}
+                    <div style={{ marginBottom: '1.25rem' }}>
+                      <ConnectionSelector
+                        label="Primary Gateway Connection"
+                        selectedConnectionId={
+                          formSettings.gateway_connection_id || 'conn_builtin_openrouter'
+                        }
+                        connections={connections}
+                        onSelectConnectionId={(id) => {
+                          handleFieldChange('gateway_connection_id', id);
+                          const chosen = connections.find((c) => c.id === id);
+                          if (chosen) {
+                            const pId = chosen.isBuiltIn
+                              ? chosen.id.replace('conn_builtin_', '')
+                              : chosen.apiType;
+                            setSelectedDefaultProvider(pId);
+                            handleFieldChange('default_llm_provider', pId);
+                            handleFieldChange('default_llm_api_base', chosen.baseUrl);
+                          }
+                          setIsDirty(true);
+                        }}
+                        onManageConnections={() => handleTabChange('connections')}
+                      />
+                    </div>
 
                     {/* Primary Provider Selector */}
                     {renderProviderSelect(
@@ -2786,6 +2853,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
 
                     {formSettings.scorer_inherit_default === false && (
                       <>
+                        <div style={{ marginBottom: '1.25rem' }}>
+                          <ConnectionSelector
+                            label="Scorer Connection Override"
+                            selectedConnectionId={
+                              formSettings.scorer_connection_id ||
+                              formSettings.gateway_connection_id ||
+                              'conn_builtin_openrouter'
+                            }
+                            connections={connections}
+                            onSelectConnectionId={(id) => {
+                              handleFieldChange('scorer_connection_id', id);
+                              const chosen = connections.find((c) => c.id === id);
+                              if (chosen) {
+                                const pId = chosen.isBuiltIn
+                                  ? chosen.id.replace('conn_builtin_', '')
+                                  : chosen.apiType;
+                                setSelectedScorerProvider(pId);
+                                handleFieldChange('scorer_provider', pId);
+                                handleFieldChange('scorer_api_base', chosen.baseUrl);
+                              }
+                              setIsDirty(true);
+                            }}
+                            onManageConnections={() => handleTabChange('connections')}
+                          />
+                        </div>
+
                         {/* Primary Provider Selector */}
                         {renderProviderSelect(
                           selectedScorerProvider,
@@ -3155,6 +3248,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     {/* If NOT inherited, show dedicated provider selector, key, and model */}
                     {formSettings.tailor_inherit_default === false && (
                       <>
+                        <div style={{ marginBottom: '1.25rem' }}>
+                          <ConnectionSelector
+                            label="Tailor Connection Override"
+                            selectedConnectionId={
+                              formSettings.tailor_connection_id ||
+                              formSettings.gateway_connection_id ||
+                              'conn_builtin_openrouter'
+                            }
+                            connections={connections}
+                            onSelectConnectionId={(id) => {
+                              handleFieldChange('tailor_connection_id', id);
+                              const chosen = connections.find((c) => c.id === id);
+                              if (chosen) {
+                                const pId = chosen.isBuiltIn
+                                  ? chosen.id.replace('conn_builtin_', '')
+                                  : chosen.apiType;
+                                setSelectedTailorProvider(pId);
+                                handleFieldChange('tailor_provider', pId);
+                                handleFieldChange('tailor_api_base', chosen.baseUrl);
+                              }
+                              setIsDirty(true);
+                            }}
+                            onManageConnections={() => handleTabChange('connections')}
+                          />
+                        </div>
+
                         <div
                           style={{
                             marginBottom: '1.25rem',
@@ -4152,6 +4271,32 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           borderRadius: 'var(--radius-md)',
                         }}
                       >
+                        <div style={{ marginBottom: '1.25rem' }}>
+                          <ConnectionSelector
+                            label="Copilot Connection Override"
+                            selectedConnectionId={
+                              formSettings.copilot_connection_id ||
+                              formSettings.gateway_connection_id ||
+                              'conn_builtin_openrouter'
+                            }
+                            connections={connections}
+                            onSelectConnectionId={(id) => {
+                              handleFieldChange('copilot_connection_id', id);
+                              const chosen = connections.find((c) => c.id === id);
+                              if (chosen) {
+                                const pId = chosen.isBuiltIn
+                                  ? chosen.id.replace('conn_builtin_', '')
+                                  : chosen.apiType;
+                                setSelectedCopilotProvider(pId);
+                                handleFieldChange('copilot_provider', pId);
+                                handleFieldChange('copilot_api_base', chosen.baseUrl);
+                              }
+                              setIsDirty(true);
+                            }}
+                            onManageConnections={() => handleTabChange('connections')}
+                          />
+                        </div>
+
                         {/* Copilot Dedicated Provider */}
                         {renderProviderSelect(
                           selectedCopilotProvider,

@@ -186,3 +186,68 @@ def test_score_job_marks_invalid_job_when_not_real_posting(in_memory_store: JobS
     assert row[0] is None
     assert row[1] == "invalid_job"
 
+
+def test_get_user_effective_llm_with_named_connections(in_memory_store: JobStore):
+    now = int(time.time() * 1000)
+    in_memory_store.conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS connections (
+          id TEXT PRIMARY KEY,
+          user_id TEXT,
+          name TEXT NOT NULL,
+          api_type TEXT NOT NULL,
+          base_url TEXT NOT NULL,
+          api_key TEXT NOT NULL DEFAULT '',
+          is_built_in INTEGER NOT NULL DEFAULT 0,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        )
+        """
+    )
+    in_memory_store.conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS user_connection_keys (
+          user_id TEXT NOT NULL,
+          connection_id TEXT NOT NULL,
+          api_key TEXT NOT NULL DEFAULT '',
+          updated_at INTEGER NOT NULL,
+          PRIMARY KEY (user_id, connection_id)
+        )
+        """
+    )
+    in_memory_store.conn.execute(
+        """
+        INSERT INTO connections (id, user_id, name, api_type, base_url, api_key, is_built_in, created_at, updated_at)
+        VALUES ('conn_builtin_groq', NULL, 'Groq', 'groq', 'https://api.groq.com/openai/v1', '', 1, ?, ?)
+        """,
+        (now, now),
+    )
+    in_memory_store.conn.execute(
+        """
+        INSERT INTO user_connection_keys (user_id, connection_id, api_key, updated_at)
+        VALUES ('u1', 'conn_builtin_groq', 'gsk-test-groq-key', ?)
+        """,
+        (now,),
+    )
+    in_memory_store.conn.execute(
+        """
+        INSERT INTO user_settings (user_id, key, value, updated_at)
+        VALUES
+          ('u1', 'gateway_connection_id', 'conn_builtin_groq', ?),
+          ('u1', 'default_llm_model', 'groq/llama-3.3-70b-versatile', ?)
+        """,
+        (now, now),
+    )
+    in_memory_store.conn.commit()
+
+    config = in_memory_store.get_user_effective_llm("u1")
+    assert config["api_base"] == "https://api.groq.com/openai/v1"
+    assert config["api_key"] == "gsk-test-groq-key"
+    assert config["model"] == "groq/llama-3.3-70b-versatile"
+    assert config["has_user_key"] is True
+
+    tailor_config = in_memory_store.get_user_effective_tailor("u1")
+    assert tailor_config["api_base"] == "https://api.groq.com/openai/v1"
+    assert tailor_config["api_key"] == "gsk-test-groq-key"
+
+
