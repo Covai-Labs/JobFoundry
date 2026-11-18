@@ -571,6 +571,29 @@ describe('SettingsPage', () => {
     });
   });
 
+  it('renders API key input directly when key is unconfigured without requiring Change Key', async () => {
+    vi.spyOn(api, 'getSettings').mockResolvedValue({
+      settings: {
+        ...mockSettings.settings,
+        default_llm_api_key: '',
+        scorer_api_key: '',
+      } as any,
+      meta: {} as any,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Engine & Models/i }));
+
+    // Input field should be visible directly without Change Key button
+    expect(screen.queryByRole('button', { name: /Change Key/i })).not.toBeInTheDocument();
+    const gatewayKeyInput = screen.getByPlaceholderText(/sk-or-v1/i);
+    expect(gatewayKeyInput).toBeInTheDocument();
+  });
+
   it('navigates to Default AI Gateway tab, displays engine inheritance and tests connection', async () => {
     const testLlmSpy = vi.spyOn(api, 'testLlmConnection').mockResolvedValue({
       success: true,

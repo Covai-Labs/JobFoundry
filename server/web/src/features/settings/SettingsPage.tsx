@@ -1125,18 +1125,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         theme_accent: tempAccentTheme,
       };
 
-      if (editingDefaultKey && newDefaultKey.trim()) {
+      if (newDefaultKey.trim()) {
         payload.default_llm_api_key = newDefaultKey.trim();
       }
       payload.default_llm_provider = selectedDefaultProvider;
 
-      if (editingScorerKey && newScorerKey.trim()) {
+      if (newScorerKey.trim()) {
         payload.scorer_api_key = newScorerKey.trim();
       }
-      if (editingTailorKey && newTailorKey.trim()) {
+      if (newTailorKey.trim()) {
         payload.tailor_api_key = newTailorKey.trim();
       }
-      if (editingCopilotKey && newCopilotKey.trim()) {
+      if (newCopilotKey.trim()) {
         payload.copilot_api_key = newCopilotKey.trim();
       }
       if (editingOpikKey && newOpikKey.trim()) {
@@ -1246,7 +1246,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       try {
         const model = formSettings.default_llm_model || 'openrouter/openrouter/free';
         const apiBase = gatewayTestTarget.url;
-        const apiKey = editingDefaultKey ? newDefaultKey : formSettings.default_llm_api_key;
+        const apiKey = newDefaultKey.trim() || formSettings.default_llm_api_key;
         const provider = selectedDefaultProvider;
         const res = await api.testLlmConnection({
           model,
@@ -1286,12 +1286,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           : formSettings.scorer_model;
         const apiBase = scorerTestTarget.url;
         const apiKey = isInherited
-          ? editingDefaultKey
-            ? newDefaultKey
-            : formSettings.default_llm_api_key
-          : editingScorerKey
-            ? newScorerKey
-            : formSettings.scorer_api_key;
+          ? newDefaultKey.trim() || formSettings.default_llm_api_key
+          : newScorerKey.trim() || formSettings.scorer_api_key;
         const provider = isInherited ? selectedDefaultProvider : selectedScorerProvider;
         const res = await api.testLlmConnection({
           model,
@@ -1331,12 +1327,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           : formSettings.tailor_model;
         const apiBase = tailorTestTarget.url;
         const apiKey = isInherited
-          ? editingDefaultKey
-            ? newDefaultKey
-            : formSettings.default_llm_api_key
-          : editingTailorKey
-            ? newTailorKey
-            : formSettings.tailor_api_key;
+          ? newDefaultKey.trim() || formSettings.default_llm_api_key
+          : newTailorKey.trim() || formSettings.tailor_api_key;
         const provider = isInherited ? selectedDefaultProvider : selectedTailorProvider;
         const res = await api.testLlmConnection({
           model,
@@ -1376,12 +1368,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           : formSettings.copilot_model;
         const apiBase = copilotTestTarget.url;
         const apiKey = isInherited
-          ? editingDefaultKey
-            ? newDefaultKey
-            : formSettings.default_llm_api_key
-          : editingCopilotKey
-            ? newCopilotKey
-            : formSettings.copilot_api_key;
+          ? newDefaultKey.trim() || formSettings.default_llm_api_key
+          : newCopilotKey.trim() || formSettings.copilot_api_key;
         const provider = isInherited ? selectedDefaultProvider : selectedCopilotProvider;
         const res = await api.testLlmConnection({
           model,
@@ -2179,7 +2167,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         {renderSourceBadge('default_llm_api_key')}
                       </div>
 
-                      {!editingDefaultKey ? (
+                      {Boolean(formSettings.default_llm_api_key) && !editingDefaultKey ? (
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                           <div
                             style={{
@@ -2190,16 +2178,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               border: '1px solid var(--border-subtle)',
                               fontFamily: 'monospace',
                               fontSize: '0.85rem',
-                              color: formSettings.default_llm_api_key
-                                ? 'var(--text-primary)'
-                                : 'var(--text-muted)',
+                              color: 'var(--text-primary)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.5rem',
                             }}
                           >
                             <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                            {formSettings.default_llm_api_key || 'No gateway API key configured'}
+                            {formSettings.default_llm_api_key}
                           </div>
                           <button
                             type="button"
@@ -2231,8 +2217,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
                             }
                             style={{ flex: 1 }}
-                            autoFocus
+                            autoFocus={editingDefaultKey}
                           />
+                          {Boolean(formSettings.default_llm_api_key) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingDefaultKey(false);
+                                setNewDefaultKey('');
+                              }}
+                              className="btn btn-secondary btn-sm"
+                            >
+                              Cancel
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleSaveAll()}
@@ -2246,16 +2244,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }}
                           >
                             <Check size={14} /> {saving ? 'Saving...' : 'Save'}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingDefaultKey(false);
-                              setNewDefaultKey('');
-                            }}
-                            className="btn btn-secondary btn-sm"
-                          >
-                            Cancel
                           </button>
                         </div>
                       )}
@@ -2694,7 +2682,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             {renderSourceBadge('scorer_api_key')}
                           </div>
 
-                          {!editingScorerKey ? (
+                          {Boolean(formSettings.scorer_api_key) && !editingScorerKey ? (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <div
                                 style={{
@@ -2705,16 +2693,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   border: '1px solid var(--border-subtle)',
                                   fontFamily: 'monospace',
                                   fontSize: '0.85rem',
-                                  color: formSettings.scorer_api_key
-                                    ? 'var(--text-primary)'
-                                    : 'var(--text-muted)',
+                                  color: 'var(--text-primary)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '0.5rem',
                                 }}
                               >
                                 <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                                {formSettings.scorer_api_key || 'No API key configured'}
+                                {formSettings.scorer_api_key}
                               </div>
                               <button
                                 type="button"
@@ -2746,8 +2732,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                     ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
                                 }
                                 style={{ flex: 1 }}
-                                autoFocus
+                                autoFocus={editingScorerKey}
                               />
+                              {Boolean(formSettings.scorer_api_key) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingScorerKey(false);
+                                    setNewScorerKey('');
+                                  }}
+                                  className="btn btn-secondary btn-sm"
+                                >
+                                  Cancel
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleSaveAll()}
@@ -2761,16 +2759,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 }}
                               >
                                 <Check size={14} /> {saving ? 'Saving...' : 'Save'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingScorerKey(false);
-                                  setNewScorerKey('');
-                                }}
-                                className="btn btn-secondary btn-sm"
-                              >
-                                Cancel
                               </button>
                             </div>
                           )}
@@ -3075,7 +3063,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               </label>
                               {renderSourceBadge('tailor_api_key')}
                             </div>
-                            {!editingTailorKey ? (
+                            {Boolean(formSettings.tailor_api_key) && !editingTailorKey ? (
                               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                 <div
                                   style={{
@@ -3086,16 +3074,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                     border: '1px solid var(--border-subtle)',
                                     fontFamily: 'monospace',
                                     fontSize: '0.85rem',
-                                    color: formSettings.tailor_api_key
-                                      ? 'var(--text-primary)'
-                                      : 'var(--text-muted)',
+                                    color: 'var(--text-primary)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.5rem',
                                   }}
                                 >
                                   <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                                  {formSettings.tailor_api_key || 'No dedicated key set'}
+                                  {formSettings.tailor_api_key}
                                 </div>
                                 <button
                                   type="button"
@@ -3123,8 +3109,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   className="input-text"
                                   placeholder="Enter custom key for tailor service"
                                   style={{ flex: 1 }}
-                                  autoFocus
+                                  autoFocus={editingTailorKey}
                                 />
+                                {Boolean(formSettings.tailor_api_key) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingTailorKey(false);
+                                      setNewTailorKey('');
+                                    }}
+                                    className="btn btn-secondary btn-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => handleSaveAll()}
@@ -3138,16 +3136,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   }}
                                 >
                                   <Check size={14} /> {saving ? 'Saving...' : 'Save'}
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingTailorKey(false);
-                                    setNewTailorKey('');
-                                  }}
-                                  className="btn btn-secondary btn-sm"
-                                >
-                                  Cancel
                                 </button>
                               </div>
                             )}
@@ -4074,7 +4062,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             </label>
                             {renderSourceBadge('copilot_api_key')}
                           </div>
-                          {!editingCopilotKey ? (
+                          {Boolean(formSettings.copilot_api_key) && !editingCopilotKey ? (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <div
                                 style={{
@@ -4085,16 +4073,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   border: '1px solid var(--border-subtle)',
                                   fontFamily: 'monospace',
                                   fontSize: '0.85rem',
-                                  color: formSettings.copilot_api_key
-                                    ? 'var(--text-primary)'
-                                    : 'var(--text-muted)',
+                                  color: 'var(--text-primary)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '0.5rem',
                                 }}
                               >
                                 <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                                {formSettings.copilot_api_key || 'No dedicated key set'}
+                                {formSettings.copilot_api_key}
                               </div>
                               <button
                                 type="button"
@@ -4122,8 +4108,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 className="input-text"
                                 placeholder="Enter custom key for Copilot"
                                 style={{ flex: 1 }}
-                                autoFocus
+                                autoFocus={editingCopilotKey}
                               />
+                              {Boolean(formSettings.copilot_api_key) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCopilotKey(false);
+                                    setNewCopilotKey('');
+                                  }}
+                                  className="btn btn-secondary btn-sm"
+                                >
+                                  Cancel
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleSaveAll()}
@@ -4137,16 +4135,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 }}
                               >
                                 <Check size={14} /> {saving ? 'Saving...' : 'Save'}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingCopilotKey(false);
-                                  setNewCopilotKey('');
-                                }}
-                                className="btn btn-secondary btn-sm"
-                              >
-                                Cancel
                               </button>
                             </div>
                           )}
