@@ -4,6 +4,7 @@ import { Lock, Plus, CheckCircle2, AlertTriangle, Settings2, Info } from 'lucide
 import { LLMConnection } from '../../api/client';
 
 interface ConnectionSelectorProps {
+  id?: string;
   label?: string;
   selectedConnectionId: string;
   connections: LLMConnection[];
@@ -14,6 +15,7 @@ interface ConnectionSelectorProps {
 }
 
 export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
+  id,
   label = 'AI Connection',
   selectedConnectionId,
   connections,
@@ -22,6 +24,7 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
   onAddConnection,
   disabled = false,
 }) => {
+  const selectId = id || label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
   const currentConn =
     connections.find((c) => c.id === selectedConnectionId) ||
     connections.find((c) => c.id === 'conn_builtin_openrouter') ||
@@ -30,7 +33,10 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+        <label
+          htmlFor={selectId}
+          style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}
+        >
           {label}
         </label>
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -73,6 +79,8 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
 
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
         <select
+          id={selectId}
+          aria-label={label}
           value={currentConn ? currentConn.id : selectedConnectionId}
           onChange={(e) => onSelectConnectionId(e.target.value)}
           disabled={disabled}

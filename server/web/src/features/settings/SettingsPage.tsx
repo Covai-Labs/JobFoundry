@@ -98,6 +98,97 @@ const VALID_TABS: SettingsTab[] = [
   'system',
 ];
 
+const DEFAULT_CONNECTIONS: LLMConnection[] = [
+  {
+    id: 'conn_builtin_openrouter',
+    name: 'OpenRouter',
+    apiType: 'openrouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_openai',
+    name: 'OpenAI',
+    apiType: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_anthropic',
+    name: 'Anthropic',
+    apiType: 'anthropic',
+    baseUrl: 'https://api.anthropic.com/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_google',
+    name: 'Google Gemini',
+    apiType: 'gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_deepseek',
+    name: 'DeepSeek',
+    apiType: 'deepseek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_groq',
+    name: 'Groq',
+    apiType: 'groq',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_ollama',
+    name: 'Ollama (Local)',
+    apiType: 'ollama',
+    baseUrl: 'http://127.0.0.1:11434/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_mistral',
+    name: 'Mistral',
+    apiType: 'mistral',
+    baseUrl: 'https://api.mistral.ai/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    createdAt: 0,
+    updatedAt: 0,
+  },
+];
+
 function getInitialTab(): SettingsTab {
   if (typeof window !== 'undefined') {
     try {
@@ -734,7 +825,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [isExtensionPaired, setIsExtensionPaired] = useState(() => {
     return typeof window !== 'undefined' && localStorage.getItem('jf_extension_paired') === 'true';
   });
-  const [connections, setConnections] = useState<LLMConnection[]>([]);
+  const [connections, setConnections] = useState<LLMConnection[]>(DEFAULT_CONNECTIONS);
   const [loadingConnections, setLoadingConnections] = useState(false);
 
   // Inline Custom Connection Modal state
@@ -926,86 +1017,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       cancelled = true;
     };
   }, [activeTab, tailoredJobsLoaded, tailoredJobsReloadKey]);
-
-  const handleSelectDefaultProvider = (providerId: string) => {
-    setSelectedDefaultProvider(providerId);
-    handleFieldChange('default_llm_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, gateway: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.default_llm_api_base && providerMeta.defaultBase) {
-        handleFieldChange('default_llm_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.default_llm_api_base?.includes('11434') ||
-        formSettings.default_llm_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('default_llm_api_base', '');
-      }
-    }
-    const fast = providerMeta?.recommendedModels.find((m) => m.tier === 'fast');
-    if (fast) {
-      handleFieldChange('default_llm_model', fast.id);
-    }
-  };
-
-  const handleSelectScorerProvider = (providerId: string) => {
-    setSelectedScorerProvider(providerId);
-    handleFieldChange('scorer_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, scorer: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.scorer_api_base && providerMeta.defaultBase) {
-        handleFieldChange('scorer_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.scorer_api_base?.includes('11434') ||
-        formSettings.scorer_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('scorer_api_base', '');
-      }
-    }
-  };
-
-  const handleSelectTailorProvider = (providerId: string) => {
-    setSelectedTailorProvider(providerId);
-    handleFieldChange('tailor_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, tailor: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.tailor_api_base && providerMeta.defaultBase) {
-        handleFieldChange('tailor_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.tailor_api_base?.includes('11434') ||
-        formSettings.tailor_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('tailor_api_base', '');
-      }
-    }
-  };
-
-  const handleSelectCopilotProvider = (providerId: string) => {
-    setSelectedCopilotProvider(providerId);
-    handleFieldChange('copilot_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, copilot: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.copilot_api_base && providerMeta.defaultBase) {
-        handleFieldChange('copilot_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.copilot_api_base?.includes('11434') ||
-        formSettings.copilot_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('copilot_api_base', '');
-      }
-    }
-  };
 
   const handleFieldChange = (key: keyof SystemSettings, val: any) => {
     setFormSettings((prev) => ({ ...prev, [key]: val }));
@@ -1473,202 +1484,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       >
         Default
       </span>
-    );
-  };
-
-  const renderProviderSelect = (
-    selectedId: string,
-    onSelect: (providerId: string) => void,
-    label: string,
-    id: string
-  ) => {
-    return (
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label
-          htmlFor={id}
-          style={{
-            display: 'block',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            marginBottom: '0.4rem',
-          }}
-        >
-          {label}
-        </label>
-        <select
-          id={id}
-          value={selectedId}
-          onChange={(e) => onSelect(e.target.value)}
-          className="input-text"
-          style={{ maxWidth: '420px', cursor: 'pointer', padding: '0.45rem 0.65rem' }}
-          aria-label={label}
-        >
-          <optgroup label="Hosted Cloud Providers">
-            {LLM_PROVIDERS.filter((p) => !p.isLocal && !p.isCustom).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Local & Self-Hosted">
-            {LLM_PROVIDERS.filter((p) => p.isLocal || p.isCustom).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.isLocal ? `🏠 ${p.name}` : `⚙️ ${p.name}`}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
-    );
-  };
-
-  const renderEndpointBaseUrlSection = (
-    providerId: string,
-    currentBase: string | undefined,
-    onBaseChange: (val: string) => void,
-    label = 'Endpoint Base URL',
-    sourceBadgeKey?: string,
-    id = 'llm-base-url'
-  ) => {
-    const p = LLM_PROVIDERS.find((x) => x.id === providerId);
-    const isCustomOrLocal = Boolean(p?.isCustom || p?.isLocal);
-    const fixedBase = providerDefaultBase(providerId);
-
-    if (isCustomOrLocal) {
-      return (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.35rem',
-            }}
-          >
-            <label htmlFor={id} style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-              {label} (Custom / Self-Hosted)
-            </label>
-            {sourceBadgeKey && currentBase?.trim() ? renderSourceBadge(sourceBadgeKey) : null}
-          </div>
-          <input
-            id={id}
-            type="text"
-            value={currentBase || ''}
-            onChange={(e) => onBaseChange(e.target.value)}
-            className="input-text"
-            placeholder={p?.defaultBase || 'http://localhost:8000/v1'}
-          />
-          <span
-            style={{
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              marginTop: '0.25rem',
-              display: 'block',
-            }}
-          >
-            {p?.keyHelp || 'Specify your local endpoint or custom OpenAI-compatible proxy URL.'}
-          </span>
-        </div>
-      );
-    }
-
-    const hasExistingOverride = Boolean(
-      currentBase && currentBase.trim() && currentBase.trim() !== fixedBase
-    );
-
-    return (
-      <div style={{ marginBottom: '1.25rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.35rem',
-          }}
-        >
-          <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>{label}</label>
-          {sourceBadgeKey && hasExistingOverride ? renderSourceBadge(sourceBadgeKey) : null}
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 0.75rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-input, rgba(255,255,255,0.02))',
-            border: '1px solid var(--border-subtle)',
-            fontSize: '0.82rem',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <Lock size={13} style={{ color: 'var(--text-muted)' }} />
-          <span style={{ fontFamily: 'monospace', flex: 1, wordBreak: 'break-all' }}>
-            {fixedBase || 'LiteLLM native prefix routing (no custom URL needed)'}
-          </span>
-          <span
-            style={{
-              fontSize: '0.7rem',
-              padding: '0.15rem 0.45rem',
-              borderRadius: '4px',
-              background: 'rgba(99, 102, 241, 0.1)',
-              color: 'var(--accent-primary)',
-              fontWeight: 500,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {fixedBase ? 'Fixed Built-in' : 'Native Routing'}
-          </span>
-        </div>
-        {hasExistingOverride && (
-          <div
-            style={{
-              marginTop: '0.4rem',
-              padding: '0.4rem 0.6rem',
-              borderRadius: 'var(--radius-sm)',
-              background: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
-              fontSize: '0.76rem',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '0.5rem',
-            }}
-          >
-            <span>
-              Stored custom override:{' '}
-              <code style={{ color: 'var(--accent-warning, #f59e0b)' }}>{currentBase}</code>
-            </span>
-            <button
-              type="button"
-              onClick={() => onBaseChange('')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--accent-primary)',
-                textDecoration: 'underline',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Clear override
-            </button>
-          </div>
-        )}
-        <span
-          style={{
-            fontSize: '0.74rem',
-            color: 'var(--text-muted)',
-            marginTop: '0.25rem',
-            display: 'block',
-          }}
-        >
-          Built-in provider endpoints are secured by default. To use your own LiteLLM server, vLLM,
-          or custom base URL, click &ldquo;+ Add Custom Connection&rdquo; above.
-        </span>
-      </div>
     );
   };
 
@@ -2308,6 +2123,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     {/* Primary Named Connection Selector */}
                     <div style={{ marginBottom: '1.25rem' }}>
                       <ConnectionSelector
+                        id="gateway-connection-select"
                         label="Primary Gateway Connection"
                         selectedConnectionId={
                           formSettings.gateway_connection_id || 'conn_builtin_openrouter'
@@ -2323,6 +2139,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             setSelectedDefaultProvider(pId);
                             handleFieldChange('default_llm_provider', pId);
                             handleFieldChange('default_llm_api_base', chosen.baseUrl);
+                            const providerMeta = LLM_PROVIDERS.find((p) => p.id === pId);
+                            const fast = providerMeta?.recommendedModels.find(
+                              (m) => m.tier === 'fast'
+                            );
+                            if (fast && !formSettings.default_llm_model) {
+                              handleFieldChange('default_llm_model', fast.id);
+                            }
                           }
                           setIsDirty(true);
                         }}
@@ -2330,24 +2153,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         onAddConnection={() => handleOpenInlineAdd('gateway_connection_id')}
                       />
                     </div>
-
-                    {/* Primary Provider Selector */}
-                    {renderProviderSelect(
-                      selectedDefaultProvider,
-                      handleSelectDefaultProvider,
-                      'Primary LLM Provider',
-                      'default-llm-provider-select'
-                    )}
-
-                    {/* Fixed Built-in or Custom Base URL */}
-                    {renderEndpointBaseUrlSection(
-                      selectedDefaultProvider,
-                      formSettings.default_llm_api_base,
-                      (val) => handleFieldChange('default_llm_api_base', val),
-                      'Gateway Endpoint Base URL',
-                      'default_llm_api_base',
-                      'default-llm-api-base'
-                    )}
 
                     {/* API Key */}
                     <div style={{ marginBottom: '1.25rem' }}>
@@ -2834,6 +2639,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       <>
                         <div style={{ marginBottom: '1.25rem' }}>
                           <ConnectionSelector
+                            id="scorer-connection-select"
                             label="Scorer Connection Override"
                             selectedConnectionId={
                               formSettings.scorer_connection_id ||
@@ -2858,24 +2664,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             onAddConnection={() => handleOpenInlineAdd('scorer_connection_id')}
                           />
                         </div>
-
-                        {/* Primary Provider Selector */}
-                        {renderProviderSelect(
-                          selectedScorerProvider,
-                          handleSelectScorerProvider,
-                          'Primary LLM Provider',
-                          'scorer-llm-provider-select'
-                        )}
-
-                        {/* Fixed Built-in or Custom Base URL */}
-                        {renderEndpointBaseUrlSection(
-                          selectedScorerProvider,
-                          formSettings.scorer_api_base,
-                          (val) => handleFieldChange('scorer_api_base', val),
-                          'LLM Endpoint Base URL',
-                          'scorer_api_base',
-                          'scorer-api-base'
-                        )}
 
                         {/* API Key */}
                         <div style={{ marginBottom: '1.25rem' }}>
@@ -3230,6 +3018,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       <>
                         <div style={{ marginBottom: '1.25rem' }}>
                           <ConnectionSelector
+                            id="tailor-connection-select"
                             label="Tailor Connection Override"
                             selectedConnectionId={
                               formSettings.tailor_connection_id ||
@@ -3263,24 +3052,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             borderRadius: 'var(--radius-md)',
                           }}
                         >
-                          {/* Tailor Dedicated Provider */}
-                          {renderProviderSelect(
-                            selectedTailorProvider,
-                            handleSelectTailorProvider,
-                            'Tailor Dedicated Provider',
-                            'tailor-llm-provider-select'
-                          )}
-
-                          {/* Fixed Built-in or Custom Base URL */}
-                          {renderEndpointBaseUrlSection(
-                            selectedTailorProvider,
-                            formSettings.tailor_api_base,
-                            (val) => handleFieldChange('tailor_api_base', val),
-                            'Dedicated Endpoint Base URL',
-                            'tailor_api_base',
-                            'tailor-api-base'
-                          )}
-
                           {/* Dedicated Tailor Key */}
                           <div style={{ marginBottom: '1rem' }}>
                             <div
@@ -4254,6 +4025,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       >
                         <div style={{ marginBottom: '1.25rem' }}>
                           <ConnectionSelector
+                            id="copilot-connection-select"
                             label="Copilot Connection Override"
                             selectedConnectionId={
                               formSettings.copilot_connection_id ||
@@ -4278,24 +4050,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             onAddConnection={() => handleOpenInlineAdd('copilot_connection_id')}
                           />
                         </div>
-
-                        {/* Copilot Dedicated Provider */}
-                        {renderProviderSelect(
-                          selectedCopilotProvider,
-                          handleSelectCopilotProvider,
-                          'Copilot Dedicated Provider',
-                          'copilot-llm-provider-select'
-                        )}
-
-                        {/* Fixed Built-in or Custom Base URL */}
-                        {renderEndpointBaseUrlSection(
-                          selectedCopilotProvider,
-                          formSettings.copilot_api_base,
-                          (val) => handleFieldChange('copilot_api_base', val),
-                          'Copilot Endpoint Base URL',
-                          'copilot_api_base',
-                          'copilot-api-base'
-                        )}
 
                         {/* Dedicated Copilot Key */}
                         <div style={{ marginBottom: '1rem' }}>
