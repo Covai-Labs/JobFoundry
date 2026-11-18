@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
+from typing import Any, Callable, TypeVar
 from pydantic import BaseModel, Field, model_validator
 import toons
 
@@ -254,6 +254,31 @@ class CoverLetterLLMResult(BaseModel):
         return data
 
 
+TypeVarT = TypeVar("TypeVarT", bound=BaseModel)
+
+
+def _recover_from_raw_content(
+    exc: Exception,
+    model_cls: type[TypeVarT],
+    fallback_factory: Callable[[str, str], TypeVarT],
+) -> TypeVarT:
+    raw_content = exc.details.get("raw_content") if isinstance(getattr(exc, "details", None), dict) else None
+    if not raw_content:
+        raise exc
+    warn_msg = f"Schema validation warning: {getattr(exc, 'message', str(exc))}"
+    logger.warning("Recovering %s from raw LLM output after schema error: %s", model_cls.__name__, exc)
+    try:
+        parsed_raw = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+        if isinstance(parsed_raw, (dict, list)):
+            recovered = model_cls.model_validate(parsed_raw)
+            if not getattr(recovered, "validation_warning", None):
+                recovered.validation_warning = warn_msg
+            return recovered
+    except Exception as parse_err:
+        logger.debug("Failed to model_validate raw output: %s", parse_err)
+    return fallback_factory(str(raw_content), warn_msg)
+
+
 class CopilotService:
     def __init__(self, llm_client: StructuredLLMClient, default_model: str = "openrouter/google/gemini-2.0-flash-exp:free") -> None:
         self.llm_client = llm_client
@@ -327,28 +352,18 @@ class CopilotService:
                 api_base=api_base,
             )
         except Exception as exc:
-            raw_content = exc.details.get("raw_content") if isinstance(getattr(exc, "details", None), dict) else None
-            if raw_content:
-                logger.warning("Falling back to raw LLM output for outreach after error: %s", exc)
-                try:
-                    parsed_raw = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
-                    if isinstance(parsed_raw, (dict, list)):
-                        recovered = OutreachLLMResult.model_validate(parsed_raw)
-                        if not recovered.validation_warning:
-                            recovered.validation_warning = f"Output recovered with schema warning: {getattr(exc, 'message', str(exc))}"
-                        return recovered
-                except Exception as parse_err:
-                    logger.debug("Failed to model_validate raw outreach output: %s", parse_err)
-                raw_str = str(raw_content)
-                return OutreachLLMResult(
-                    linkedin_note_free=raw_str[:200],
-                    linkedin_note_premium=raw_str[:300],
+            return _recover_from_raw_content(
+                exc,
+                OutreachLLMResult,
+                lambda raw, warn: OutreachLLMResult(
+                    linkedin_note_free=raw[:200],
+                    linkedin_note_premium=raw[:300],
                     inmail_subject="Application Outreach",
-                    inmail_body=raw_str,
+                    inmail_body=raw,
                     key_match_points=[],
-                    validation_warning=f"Schema validation warning: {getattr(exc, 'message', str(exc))}",
-                )
-            raise
+                    validation_warning=warn,
+                ),
+            )
 
         # Enforce hard length constraints as defense in depth
         if len(result.linkedin_note_free) > 200:
@@ -418,23 +433,14 @@ class CopilotService:
                 api_base=api_base,
             )
         except Exception as exc:
-            raw_content = exc.details.get("raw_content") if isinstance(getattr(exc, "details", None), dict) else None
-            if raw_content:
-                logger.warning("Falling back to raw LLM output for QA after error: %s", exc)
-                try:
-                    parsed_raw = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
-                    if isinstance(parsed_raw, (dict, list)):
-                        recovered = QALLMResult.model_validate(parsed_raw)
-                        if not recovered.validation_warning:
-                            recovered.validation_warning = f"Output recovered with schema warning: {getattr(exc, 'message', str(exc))}"
-                        return recovered
-                except Exception as parse_err:
-                    logger.debug("Failed to model_validate raw QA output: %s", parse_err)
-                return QALLMResult(
-                    answer=str(raw_content),
-                    validation_warning=f"Schema validation warning: {getattr(exc, 'message', str(exc))}",
-                )
-            raise
+            return _recover_from_raw_content(
+                exc,
+                QALLMResult,
+                lambda raw, warn: QALLMResult(
+                    answer=raw,
+                    validation_warning=warn,
+                ),
+            )
 
     async def generate_cover_letter(
         self,
@@ -492,23 +498,13 @@ class CopilotService:
                 api_base=api_base,
             )
         except Exception as exc:
-            raw_content = exc.details.get("raw_content") if isinstance(getattr(exc, "details", None), dict) else None
-            if raw_content:
-                logger.warning("Falling back to raw LLM output for cover letter after error: %s", exc)
-                try:
-                    parsed_raw = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
-                    if isinstance(parsed_raw, (dict, list)):
-                        recovered = CoverLetterLLMResult.model_validate(parsed_raw)
-                        if not recovered.validation_warning:
-                            recovered.validation_warning = f"Output recovered with schema warning: {getattr(exc, 'message', str(exc))}"
-                        return recovered
-                except Exception as parse_err:
-                    logger.debug("Failed to model_validate raw cover letter output: %s", parse_err)
-                raw_str = str(raw_content)
-                return CoverLetterLLMResult(
-                    paragraph_1=raw_str,
+            return _recover_from_raw_content(
+                exc,
+                CoverLetterLLMResult,
+                lambda raw, warn: CoverLetterLLMResult(
+                    paragraph_1=raw,
                     paragraph_2="",
                     paragraph_3="",
-                    validation_warning=f"Schema validation warning: {getattr(exc, 'message', str(exc))}",
-                )
-            raise
+                    validation_warning=warn,
+                ),
+            )

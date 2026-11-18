@@ -142,6 +142,40 @@ ${signature}
 </html>`;
 };
 
+interface FormattingWarningBannerProps {
+  message: string;
+  hint?: string;
+}
+
+const FormattingWarningBanner: React.FC<FormattingWarningBannerProps> = ({ message, hint }) => (
+  <div
+    style={{
+      background: 'rgba(245, 158, 11, 0.1)',
+      border: '1px solid rgba(245, 158, 11, 0.35)',
+      borderRadius: 'var(--radius-sm)',
+      padding: '0.65rem 0.85rem',
+      display: 'flex',
+      alignItems: 'flex-start',
+      gap: '0.6rem',
+      fontSize: '0.8rem',
+      color: '#d97706',
+    }}
+  >
+    <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
+    <div style={{ flex: 1 }}>
+      <strong style={{ display: 'block', marginBottom: '0.15rem', color: '#b45309' }}>
+        Formatting Warning
+      </strong>
+      <span>{message}</span>
+      {hint && (
+        <div style={{ marginTop: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.75rem' }}>
+          {hint}
+        </div>
+      )}
+    </div>
+  </div>
+);
+
 export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, company }) => {
   const [activeTab, setActiveTab] = useState<'outreach' | 'qa' | 'cover_letter'>('outreach');
   const [loading, setLoading] = useState<boolean>(true);
@@ -284,7 +318,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
         setArtifacts((prev) => ({
           ...prev,
           qa_history: (prev.qa_history || []).map((q, idx) =>
-            idx.toString() === fallbackId ? { ...q, answer: editingQaText, user_edited: true } : q
+            (q.id || `qa_${idx}`) === fallbackId
+              ? { ...q, answer: editingQaText, user_edited: true }
+              : q
           ),
         }));
       }
@@ -596,37 +632,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
             <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
               {/* Validation Warning Alert Banner */}
               {artifacts.outreach.validation_warning && (
-                <div
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    border: '1px solid rgba(245, 158, 11, 0.35)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0.65rem 0.85rem',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.6rem',
-                    fontSize: '0.8rem',
-                    color: '#d97706',
-                  }}
-                >
-                  <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ display: 'block', marginBottom: '0.15rem', color: '#b45309' }}>
-                      Formatting Warning
-                    </strong>
-                    <span>{artifacts.outreach.validation_warning}</span>
-                    <div
-                      style={{
-                        marginTop: '0.3rem',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      The AI draft was recovered from unstructured output. Please review and adjust
-                      as needed before sending.
-                    </div>
-                  </div>
-                </div>
+                <FormattingWarningBanner
+                  message={artifacts.outreach.validation_warning}
+                  hint="The AI draft was recovered from unstructured output. Please review and adjust as needed before sending."
+                />
               )}
 
               {/* LinkedIn Connection Note */}
@@ -1091,39 +1100,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
 
                     {/* Validation Warning Alert Banner */}
                     {qaItem.validation_warning && (
-                      <div
-                        style={{
-                          background: 'rgba(245, 158, 11, 0.1)',
-                          border: '1px solid rgba(245, 158, 11, 0.35)',
-                          borderRadius: 'var(--radius-sm)',
-                          padding: '0.65rem 0.85rem',
-                          display: 'flex',
-                          alignItems: 'flex-start',
-                          gap: '0.6rem',
-                          fontSize: '0.8rem',
-                          color: '#d97706',
-                        }}
-                      >
-                        <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-                        <div style={{ flex: 1 }}>
-                          <strong
-                            style={{ display: 'block', marginBottom: '0.15rem', color: '#b45309' }}
-                          >
-                            Formatting Warning
-                          </strong>
-                          <span>{qaItem.validation_warning}</span>
-                          <div
-                            style={{
-                              marginTop: '0.3rem',
-                              color: 'var(--text-secondary)',
-                              fontSize: '0.75rem',
-                            }}
-                          >
-                            The AI draft was recovered. You can review and edit it below, copy it as
-                            is, or reprompt with the question above.
-                          </div>
-                        </div>
-                      </div>
+                      <FormattingWarningBanner
+                        message={qaItem.validation_warning}
+                        hint="The AI draft was recovered. You can review and edit it below, copy it as is, or reprompt with the question above."
+                      />
                     )}
 
                     {/* Knockout Warning Alert Banner */}
@@ -1420,37 +1400,10 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
             >
               {/* Validation Warning Alert Banner */}
               {artifacts.cover_letter.validation_warning && (
-                <div
-                  style={{
-                    background: 'rgba(245, 158, 11, 0.1)',
-                    border: '1px solid rgba(245, 158, 11, 0.35)',
-                    borderRadius: 'var(--radius-sm)',
-                    padding: '0.65rem 0.85rem',
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.6rem',
-                    fontSize: '0.8rem',
-                    color: '#d97706',
-                  }}
-                >
-                  <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: '2px' }} />
-                  <div style={{ flex: 1 }}>
-                    <strong style={{ display: 'block', marginBottom: '0.15rem', color: '#b45309' }}>
-                      Formatting Warning
-                    </strong>
-                    <span>{artifacts.cover_letter.validation_warning}</span>
-                    <div
-                      style={{
-                        marginTop: '0.3rem',
-                        color: 'var(--text-secondary)',
-                        fontSize: '0.75rem',
-                      }}
-                    >
-                      The AI draft was recovered. Please review paragraph boundaries and content
-                      before using.
-                    </div>
-                  </div>
-                </div>
+                <FormattingWarningBanner
+                  message={artifacts.cover_letter.validation_warning}
+                  hint="The AI draft was recovered. Please review paragraph boundaries and content before using."
+                />
               )}
 
               <div
