@@ -134,7 +134,7 @@ describe('ConnectionsManager & ConnectionSelector', () => {
 
   it('deletes custom connection after confirmation', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.spyOn(api, 'deleteConnection').mockResolvedValue({ ok: true, deleted: true });
+    vi.spyOn(api, 'deleteConnection').mockResolvedValue(true);
 
     render(
       <ToastProvider>

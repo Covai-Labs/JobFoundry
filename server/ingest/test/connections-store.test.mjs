@@ -76,14 +76,14 @@ test('Updating API key on built-in connection stores and masks the key', () => {
   initConnectionsStore(db);
 
   const updated = updateConnection(db, 'conn_builtin_openrouter', {
-    apiKey: 'sk-or-v1-secret-test-token-123456789',
+    apiKey: 'sk-or-v1-dummy-placeholder-token-00000000',
   });
   assert.equal(updated.isConfigured, true);
-  assert.match(updated.apiKey, /sk-or-.*789/);
+  assert.match(updated.apiKey, /sk-or-.*0000/);
 
   // Raw secret retrieval
   const raw = getConnection(db, 'conn_builtin_openrouter', { includeSecret: true });
-  assert.equal(raw.apiKey, 'sk-or-v1-secret-test-token-123456789');
+  assert.equal(raw.apiKey, 'sk-or-v1-dummy-placeholder-token-00000000');
 });
 
 test('Custom connection lifecycle: create, update, delete with validation', () => {
