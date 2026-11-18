@@ -1,6 +1,6 @@
 /* eslint-disable no-unused-vars */
 import React from 'react';
-import { Lock, Plus, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Lock, Plus, CheckCircle2, AlertTriangle, Settings2, Info } from 'lucide-react';
 import { LLMConnection } from '../../api/client';
 
 interface ConnectionSelectorProps {
@@ -9,6 +9,7 @@ interface ConnectionSelectorProps {
   connections: LLMConnection[];
   onSelectConnectionId(connectionId: string): void;
   onManageConnections?: () => void;
+  onAddConnection?: () => void;
   disabled?: boolean;
 }
 
@@ -18,6 +19,7 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
   connections,
   onSelectConnectionId,
   onManageConnections,
+  onAddConnection,
   disabled = false,
 }) => {
   const currentConn =
@@ -31,23 +33,42 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
         <label style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
           {label}
         </label>
-        {onManageConnections && (
-          <button
-            type="button"
-            onClick={onManageConnections}
-            className="btn btn-link"
-            style={{
-              padding: 0,
-              fontSize: '0.75rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.25rem',
-              color: 'var(--accent-primary)',
-            }}
-          >
-            <Plus size={12} /> Manage Connections
-          </button>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+          {onAddConnection && (
+            <button
+              type="button"
+              onClick={onAddConnection}
+              className="btn btn-link"
+              style={{
+                padding: 0,
+                fontSize: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                color: 'var(--accent-primary)',
+              }}
+            >
+              <Plus size={12} /> Add Custom Connection
+            </button>
+          )}
+          {onManageConnections && (
+            <button
+              type="button"
+              onClick={onManageConnections}
+              className="btn btn-link"
+              style={{
+                padding: 0,
+                fontSize: '0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem',
+                color: 'var(--text-muted)',
+              }}
+            >
+              <Settings2 size={12} /> Manage Connections
+            </button>
+          )}
+        </div>
       </div>
 
       <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
@@ -138,6 +159,43 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
           </div>
         </div>
       )}
+
+      {/* Helpful Custom URL Tip */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'flex-start',
+          gap: '0.4rem',
+          fontSize: '0.74rem',
+          color: 'var(--text-muted)',
+          marginTop: '0.15rem',
+          lineHeight: 1.4,
+        }}
+      >
+        <Info
+          size={13}
+          style={{ flexShrink: 0, marginTop: '0.1rem', color: 'var(--accent-primary)' }}
+        />
+        <span>
+          Using a custom proxy, self-hosted Ollama, or LiteLLM server? Click{' '}
+          <button
+            type="button"
+            onClick={onAddConnection || onManageConnections}
+            style={{
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              color: 'var(--accent-primary)',
+              textDecoration: 'underline',
+              cursor: 'pointer',
+              fontSize: 'inherit',
+            }}
+          >
+            + Add Custom Connection
+          </button>{' '}
+          to specify your own base URL.
+        </span>
+      </div>
     </div>
   );
 };

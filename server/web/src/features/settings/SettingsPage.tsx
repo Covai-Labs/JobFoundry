@@ -56,6 +56,7 @@ import {
 } from 'lucide-react';
 import { ConnectionsManager } from './ConnectionsManager';
 import { ConnectionSelector } from './ConnectionSelector';
+import { AddConnectionModal } from './ConnectionModals';
 import {
   LLM_PROVIDERS,
   detectProviderFromModel,
@@ -738,6 +739,47 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   });
   const [connections, setConnections] = useState<LLMConnection[]>([]);
   const [loadingConnections, setLoadingConnections] = useState(false);
+
+  // Inline Custom Connection Modal state
+  const [isInlineAddModalOpen, setIsInlineAddModalOpen] = useState(false);
+  const [inlineTargetField, setInlineTargetField] = useState<string>('gateway_connection_id');
+  const [inlineConnName, setInlineConnName] = useState('');
+  const [inlineConnApiType, setInlineConnApiType] = useState('openai');
+  const [inlineConnBaseUrl, setInlineConnBaseUrl] = useState('');
+  const [inlineConnApiKey, setInlineConnApiKey] = useState('');
+  const [inlineCreating, setInlineCreating] = useState(false);
+
+  const handleOpenInlineAdd = (targetField: string = 'gateway_connection_id') => {
+    setInlineTargetField(targetField);
+    setInlineConnName('');
+    setInlineConnApiType('openai');
+    setInlineConnBaseUrl('');
+    setInlineConnApiKey('');
+    setIsInlineAddModalOpen(true);
+  };
+
+  const handleCreateInlineConnection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInlineCreating(true);
+    try {
+      const created = await api.createConnection({
+        name: inlineConnName.trim(),
+        apiType: inlineConnApiType,
+        baseUrl: inlineConnBaseUrl.trim(),
+        apiKey: inlineConnApiKey.trim() || undefined,
+      });
+      toast.success(`Connection "${created.name}" created!`);
+      await loadConnections();
+      handleFieldChange(inlineTargetField as keyof AppSettings, created.id);
+      setIsDirty(true);
+      setIsInlineAddModalOpen(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create connection';
+      toast.error(msg);
+    } finally {
+      setInlineCreating(false);
+    }
+  };
 
   const loadConnections = useCallback(async () => {
     setLoadingConnections(true);
@@ -1626,8 +1668,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             display: 'block',
           }}
         >
-          Built-in endpoints are locked to prevent credential leaks. To use a custom proxy, switch
-          provider to &ldquo;Custom / Self-Hosted Gateway&rdquo;.
+          Built-in provider endpoints are secured by default. To use your own LiteLLM server, vLLM,
+          or custom base URL, click &ldquo;+ Add Custom Connection&rdquo; above.
         </span>
       </div>
     );
@@ -2288,6 +2330,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           setIsDirty(true);
                         }}
                         onManageConnections={() => handleTabChange('connections')}
+                        onAddConnection={() => handleOpenInlineAdd('gateway_connection_id')}
                       />
                     </div>
 
@@ -2876,6 +2919,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               setIsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
+                            onAddConnection={() => handleOpenInlineAdd('scorer_connection_id')}
                           />
                         </div>
 
@@ -3271,6 +3315,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               setIsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
+                            onAddConnection={() => handleOpenInlineAdd('tailor_connection_id')}
                           />
                         </div>
 
@@ -4294,6 +4339,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               setIsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
+                            onAddConnection={() => handleOpenInlineAdd('copilot_connection_id')}
                           />
                         </div>
 
@@ -6097,6 +6143,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           </button>
         </div>
       )}
+
+      {/* Inline Modal: Add Custom Connection from any tab */}
+      <AddConnectionModal
+        isOpen={isInlineAddModalOpen}
+        onClose={() => setIsInlineAddModalOpen(false)}
+        onSubmit={(e) => void handleCreateInlineConnection(e)}
+        creating={inlineCreating}
+        name={inlineConnName}
+        setName={setInlineConnName}
+        apiType={inlineConnApiType}
+        setApiType={setInlineConnApiType}
+        baseUrl={inlineConnBaseUrl}
+        setBaseUrl={setInlineConnBaseUrl}
+        apiKey={inlineConnApiKey}
+        setApiKey={setInlineConnApiKey}
+      />
     </div>
   );
 };
