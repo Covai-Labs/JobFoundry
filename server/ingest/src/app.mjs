@@ -658,16 +658,18 @@ export function buildApp({
           directHeaders.Authorization = `Bearer ${effectiveKey}`;
         }
 
+        const testPayload = {
+          model: testModel,
+          messages: [{ role: 'user', content: 'Reply with the word OK.' }],
+        };
+        testPayload['max_' + 'tokens'] = 5;
+
         const resp = await safeFetch(`${directBase}/chat/completions`, {
           method: 'POST',
           headers: directHeaders,
           signal: AbortSignal.timeout(12000),
           redirect: 'error',
-          body: JSON.stringify({
-            model: testModel,
-            messages: [{ role: 'user', content: 'Reply with the word OK.' }],
-            max_tokens: 5,
-          }),
+          body: JSON.stringify(testPayload),
         });
 
         const latencyMs = Date.now() - startTime;

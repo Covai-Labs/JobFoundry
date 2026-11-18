@@ -113,7 +113,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
 
   // Test State per Connection
   const [testingId, setTestingId] = useState<string | null>(null);
-  const [testResults, setTestResults] = useState<Record<string, TestConnectionResponse>>({});
+  const [testResults, setTestResults] = useState<
+    Record<string, TestConnectionResponse | undefined>
+  >({});
 
   const handleOpenAddModal = () => {
     setNewConnName('');
@@ -140,8 +142,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
       toast.success('Custom connection created successfully');
       setIsAddModalOpen(false);
       await onRefresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to create connection');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create connection';
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
@@ -162,8 +165,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
       toast.success(`API key updated for ${editingConn.name}`);
       setEditingConn(null);
       await onRefresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to update API key');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to update API key';
+      toast.error(msg);
     } finally {
       setUpdatingKey(false);
     }
@@ -171,7 +175,7 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
 
   const handleDeleteConnection = async (conn: LLMConnection) => {
     if (conn.isBuiltIn) return;
-    if (conn.inUseBy?.length) {
+    if (conn.inUseBy.length) {
       const confirmInUse = window.confirm(
         `This connection is currently used by: ${conn.inUseBy.join(', ')}. Deleting it will fall back to the default gateway. Proceed?`
       );
@@ -185,8 +189,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
       await api.deleteConnection(conn.id);
       toast.success(`Deleted connection "${conn.name}"`);
       await onRefresh();
-    } catch (err: any) {
-      toast.error(err.message || 'Failed to delete connection');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to delete connection';
+      toast.error(msg);
     }
   };
 
@@ -200,14 +205,15 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
       } else {
         toast.error(`Connection test failed: ${res.error ?? 'Unknown error'}`);
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Network request failed';
       const errRes: TestConnectionResponse = {
         ok: false,
         endpoint: conn.baseUrl,
-        error: err.message || 'Network request failed',
+        error: msg,
       };
       setTestResults((prev) => ({ ...prev, [conn.id]: errRes }));
-      toast.error(`Test failed: ${err.message}`);
+      toast.error(`Test failed: ${msg}`);
     } finally {
       setTestingId(null);
     }
@@ -546,7 +552,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
                 required
                 placeholder="e.g. My LiteLLM Proxy or Work OpenAI"
                 value={newConnName}
-                onChange={(e) => setNewConnName(e.target.value)}
+                onChange={(e) => {
+                  setNewConnName(e.target.value);
+                }}
                 className="text-input"
                 style={{ width: '100%', padding: '0.5rem 0.75rem' }}
               />
@@ -567,7 +575,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
               <select
                 id="new-conn-api-type"
                 value={newConnApiType}
-                onChange={(e) => setNewConnApiType(e.target.value)}
+                onChange={(e) => {
+                  setNewConnApiType(e.target.value);
+                }}
                 className="text-input"
                 style={{ width: '100%', padding: '0.5rem 0.75rem' }}
               >
@@ -600,7 +610,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
                 required
                 placeholder="https://litellm.example.com/v1"
                 value={newConnBaseUrl}
-                onChange={(e) => setNewConnBaseUrl(e.target.value)}
+                onChange={(e) => {
+                  setNewConnBaseUrl(e.target.value);
+                }}
                 className="text-input"
                 style={{ width: '100%', padding: '0.5rem 0.75rem' }}
               />
@@ -627,7 +639,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
                 type="password"
                 placeholder="sk-..."
                 value={newConnApiKey}
-                onChange={(e) => setNewConnApiKey(e.target.value)}
+                onChange={(e) => {
+                  setNewConnApiKey(e.target.value);
+                }}
                 className="text-input"
                 style={{ width: '100%', padding: '0.5rem 0.75rem' }}
               />
@@ -693,7 +707,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
                   type={showKeySecret ? 'text' : 'password'}
                   placeholder={editingConn.apiKey ? 'Enter new key to replace existing' : 'sk-...'}
                   value={editKeyInput}
-                  onChange={(e) => setEditKeyInput(e.target.value)}
+                  onChange={(e) => {
+                    setEditKeyInput(e.target.value);
+                  }}
                   className="text-input"
                   style={{ width: '100%', padding: '0.5rem 2.5rem 0.5rem 0.75rem' }}
                 />
