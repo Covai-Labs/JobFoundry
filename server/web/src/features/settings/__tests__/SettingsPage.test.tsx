@@ -783,4 +783,25 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('option', { name: /Harvard Classic/i })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^Pro \(/i })).toBeInTheDocument();
   });
+
+  it('clicks engine inheritance overview card and navigates directly to that engine tab', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    // Navigate to AI Engine & Models (Gateway) tab
+    fireEvent.click(screen.getByRole('button', { name: /AI Engine & Models/i }));
+    expect(screen.getByText('Engine Inheritance Overview')).toBeInTheDocument();
+
+    // Click the Resume Tailor engine card
+    const tailorCard = screen.getByTitle('Click to configure Resume Tailor');
+    expect(tailorCard).toBeInTheDocument();
+    fireEvent.click(tailorCard);
+
+    // Should now be on the Resume Tailor tab
+    await waitFor(() => {
+      expect(screen.getByText('Default Resume Theme')).toBeInTheDocument();
+    });
+  });
 });

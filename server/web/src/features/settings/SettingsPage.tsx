@@ -672,9 +672,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     apiBase?: string;
   } | null>(null);
 
-  // Advanced AI Overrides Accordion State under Gateway
-  const [showAdvancedAiOverrides, setShowAdvancedAiOverrides] = useState<boolean>(false);
-
   // LLM Provider & Multi-Model Selection State
   const [selectedScorerProvider, setSelectedScorerProvider] = useState<string>(() => {
     return (
@@ -1946,13 +1943,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             </button>
             <button
               type="button"
-              onClick={() => handleTabChange('connections')}
-              className={`settings-nav-item ${activeTab === 'connections' ? 'active' : ''}`}
-            >
-              <Link2 size={16} /> AI Connections
-            </button>
-            <button
-              type="button"
               onClick={() => handleTabChange('profile')}
               className={`settings-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             >
@@ -1977,6 +1967,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           {/* GROUP 2: ADVANCED AI MODELS */}
           <div className="settings-nav-group">
             <div className="settings-nav-group-title">Advanced AI Models</div>
+            <button
+              type="button"
+              onClick={() => handleTabChange('connections')}
+              className={`settings-nav-item ${activeTab === 'connections' ? 'active' : ''}`}
+            >
+              <Link2 size={16} /> AI Connections
+            </button>
             <button
               type="button"
               onClick={() => handleTabChange('scorer')}
@@ -2633,18 +2630,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       {[
                         {
                           name: 'AI Fit Scorer',
+                          tab: 'scorer',
                           inheritDefault: formSettings.scorer_inherit_default,
                           inheritModel: formSettings.scorer_inherit_model,
                           model: formSettings.scorer_model,
                         },
                         {
                           name: 'Resume Tailor',
+                          tab: 'tailor',
                           inheritDefault: formSettings.tailor_inherit_default,
                           inheritModel: formSettings.tailor_inherit_model,
                           model: formSettings.tailor_model,
                         },
                         {
                           name: 'Copilot & Prompts',
+                          tab: 'copilot',
                           inheritDefault: formSettings.copilot_inherit_default,
                           inheritModel: formSettings.copilot_inherit_model,
                           model: formSettings.copilot_model,
@@ -2652,137 +2652,73 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       ].map((card) => (
                         <div
                           key={card.name}
+                          onClick={() => handleTabChange(card.tab)}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleTabChange(card.tab);
+                            }
+                          }}
                           style={{
-                            padding: '0.75rem',
+                            padding: '0.85rem',
                             borderRadius: 'var(--radius-md)',
                             background: 'var(--bg-input)',
                             border: '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            transition: 'border-color 0.15s ease, background-color 0.15s ease',
                           }}
+                          title={`Click to configure ${card.name}`}
                         >
-                          <div
-                            style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.2rem' }}
-                          >
-                            {card.name}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                                {card.name}
+                              </span>
+                              <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.75rem',
+                                color:
+                                  card.inheritDefault !== false
+                                    ? 'var(--color-success, #10b981)'
+                                    : 'var(--text-muted)',
+                              }}
+                            >
+                              {card.inheritDefault !== false
+                                ? card.inheritModel !== false
+                                  ? '✓ Inheriting Provider & Model'
+                                  : `✓ Inheriting Provider (${card.model || 'Custom Model'})`
+                                : 'Using Custom Override'}
+                            </div>
                           </div>
                           <div
                             style={{
-                              fontSize: '0.75rem',
-                              color:
-                                card.inheritDefault !== false
-                                  ? 'var(--color-success, #10b981)'
-                                  : 'var(--text-muted)',
+                              marginTop: '0.65rem',
+                              fontSize: '0.72rem',
+                              color: 'var(--accent-primary)',
+                              fontWeight: 500,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.2rem',
                             }}
                           >
-                            {card.inheritDefault !== false
-                              ? card.inheritModel !== false
-                                ? '✓ Inheriting Provider & Model'
-                                : `✓ Inheriting Provider (${card.model || 'Custom Model'})`
-                              : 'Using Custom Override'}
+                            Configure <ArrowRight size={11} />
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Collapsible Advanced AI Model Overrides (Scorer, Tailor, Copilot, Opik) */}
-                  <div className="settings-card" style={{ padding: '1.25rem' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => setShowAdvancedAiOverrides((prev) => !prev)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <Sliders size={18} style={{ color: 'var(--accent-primary)' }} />
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                            Advanced AI Model Overrides
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            Customize per-feature models for Fit Scoring, Resume Tailoring, Copilot,
-                            or Opik
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          fontSize: '0.82rem',
-                        }}
-                      >
-                        {showAdvancedAiOverrides ? (
-                          <>
-                            Hide <ChevronDown size={16} />
-                          </>
-                        ) : (
-                          <>
-                            Configure Overrides <ChevronRight size={16} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {showAdvancedAiOverrides && (
-                      <div
-                        style={{
-                          marginTop: '1.25rem',
-                          borderTop: '1px solid var(--border-subtle)',
-                          paddingTop: '1rem',
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: '0.5rem',
-                            marginBottom: '1rem',
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('scorer')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Bot size={14} /> Open Fit Scorer Tab
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('tailor')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Sliders size={14} /> Open Resume Tailor Tab
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('copilot')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Sparkles size={14} /> Open Copilot & Prompts Tab
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('observability')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Activity size={14} /> Open Observability &amp; Tracing Tab
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Next Step Footer Navigation */}
