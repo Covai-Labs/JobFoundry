@@ -294,7 +294,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
   };
 
   const startEditQA = (qaItem: CopilotQAItem, fallbackId: string) => {
-    const id = qaItem.id || fallbackId;
+    const id = qaItem.id ?? fallbackId;
     setEditingQaId(id);
     setEditingQaText(qaItem.answer);
   };
@@ -317,8 +317,8 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
       } else {
         setArtifacts((prev) => ({
           ...prev,
-          qa_history: (prev.qa_history || []).map((q, idx) =>
-            (q.id || `qa_${idx}`) === fallbackId
+          qa_history: prev.qa_history.map((q, idx) =>
+            (q.id ?? `qa_${idx}`) === fallbackId
               ? { ...q, answer: editingQaText, user_edited: true }
               : q
           ),
@@ -345,7 +345,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
       }
       setArtifacts((prev) => ({
         ...prev,
-        qa_history: (prev.qa_history || []).filter((_, idx) => idx !== fallbackIndex),
+        qa_history: prev.qa_history.filter((_, idx) => idx !== fallbackIndex),
       }));
     } catch (err: any) {
       setError(err.message || 'Failed to delete QA item');
@@ -979,7 +979,7 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
           {artifacts.qa_history && artifacts.qa_history.length > 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {artifacts.qa_history.map((qaItem, idx) => {
-                const qaKey = qaItem.id || `qa_${idx}`;
+                const qaKey = qaItem.id ?? `qa_${idx}`;
                 const isEditing = editingQaId === qaKey;
                 return (
                   <div
@@ -1039,7 +1039,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <button
                           type="button"
-                          onClick={() => handleRepromptQA(qaItem.question)}
+                          onClick={() => {
+                            handleRepromptQA(qaItem.question);
+                          }}
                           title="Reprompt with this question"
                           className="btn btn-sm btn-secondary"
                           style={{
@@ -1053,7 +1055,13 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         </button>
                         <button
                           type="button"
-                          onClick={() => (isEditing ? cancelEditQA() : startEditQA(qaItem, qaKey))}
+                          onClick={() => {
+                            if (isEditing) {
+                              cancelEditQA();
+                            } else {
+                              startEditQA(qaItem, qaKey);
+                            }
+                          }}
                           title={isEditing ? 'Cancel editing' : 'Edit answer'}
                           className="btn btn-sm btn-secondary"
                           style={{
@@ -1067,7 +1075,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         </button>
                         <button
                           type="button"
-                          onClick={() => copyToClipboard(qaItem.answer, `qa_${idx}`)}
+                          onClick={() => {
+                            copyToClipboard(qaItem.answer, `qa_${idx}`);
+                          }}
                           className="btn btn-sm btn-secondary"
                           style={{
                             display: 'flex',
@@ -1088,7 +1098,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                         </button>
                         <button
                           type="button"
-                          onClick={() => handleDeleteQA(qaItem, idx)}
+                          onClick={() => {
+                            handleDeleteQA(qaItem, idx);
+                          }}
                           title="Delete this Q&A item"
                           className="btn btn-sm btn-secondary"
                           style={{ padding: '0.35rem', color: 'var(--text-muted)' }}
@@ -1157,7 +1169,9 @@ export const CopilotView: React.FC<CopilotViewProps> = ({ jobId, jobTitle, compa
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleSaveQA(qaItem, qaKey)}
+                            onClick={() => {
+                              handleSaveQA(qaItem, qaKey);
+                            }}
                             disabled={savingQa || !editingQaText.trim()}
                             className="btn btn-sm btn-primary"
                           >

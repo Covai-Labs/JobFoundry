@@ -259,7 +259,7 @@ describe('CopilotView', () => {
       },
     });
 
-    vi.mocked(api.updateCopilotQA).mockResolvedValue({
+    const updateQaMock = vi.spyOn(api, 'updateCopilotQA').mockResolvedValue({
       ok: true,
       qa: {
         id: 'qa-1',
@@ -305,19 +305,15 @@ describe('CopilotView', () => {
     fireEvent.click(saveBtn);
 
     await waitFor(() => {
-      expect(api.updateCopilotQA).toHaveBeenCalledWith(
-        'job-copilot-1',
-        'qa-1',
-        'Revised clean answer.'
-      );
+      expect(updateQaMock).toHaveBeenCalledWith('job-copilot-1', 'qa-1', 'Revised clean answer.');
     });
 
     // Test Reprompt button
     const repromptBtn = screen.getByRole('button', { name: /Reprompt/i });
     fireEvent.click(repromptBtn);
-    const mainInput = screen.getByPlaceholderText(
+    const questionTextarea = screen.getByPlaceholderText(
       /Paste any question from the application form/i
     ) as HTMLTextAreaElement;
-    expect(mainInput.value).toBe('Why Supabase?');
+    expect(questionTextarea.value).toBe('Why Supabase?');
   });
 });
