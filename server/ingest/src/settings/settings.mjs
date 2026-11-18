@@ -79,6 +79,26 @@ export const SETTINGS_METADATA = {
     default: '',
     type: 'string',
   },
+  gateway_connection_id: {
+    env: 'GATEWAY_CONNECTION_ID',
+    default: 'conn_builtin_openrouter',
+    type: 'string',
+  },
+  scorer_connection_id: {
+    env: 'SCORER_CONNECTION_ID',
+    default: 'conn_builtin_openrouter',
+    type: 'string',
+  },
+  tailor_connection_id: {
+    env: 'TAILOR_CONNECTION_ID',
+    default: 'conn_builtin_openrouter',
+    type: 'string',
+  },
+  copilot_connection_id: {
+    env: 'COPILOT_CONNECTION_ID',
+    default: 'conn_builtin_openrouter',
+    type: 'string',
+  },
   scorer_inherit_default: {
     env: null,
     default: true,

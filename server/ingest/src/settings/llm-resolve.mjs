@@ -17,6 +17,7 @@ import {
   getEffectiveSettingWithSource,
   isRegisteredUser,
 } from './settings.mjs';
+import { getConnection } from './connections-store.mjs';
 
 export const LLM_FEATURES = new Set(['gateway', 'scorer', 'tailor', 'copilot']);
 
@@ -136,7 +137,28 @@ export function resolveFeatureLlmConfig(db, feature, { userId = null, env = proc
   const featureProvider = isGateway
     ? defaultProvider
     : getEffectiveSetting(db, `${feature}_provider`, env, userId) || '';
-  const provider = inherit ? defaultProvider : featureProvider;
+  let provider = inherit ? defaultProvider : featureProvider;
+
+  // --- Connection-based resolution (Phase 2 & 3) -------------------------
+  const connKey = isGateway || inherit ? 'gateway_connection_id' : `${feature}_connection_id`;
+  const connSetting = getEffectiveSettingWithSource(db, connKey, scope);
+  const isExplicitConn =
+    (connSetting.source === 'user' ||
+      connSetting.source === 'system' ||
+      connSetting.source === 'env') &&
+    Boolean(connSetting.value);
+
+  let conn = null;
+  if (isExplicitConn) {
+    try {
+      conn = getConnection(db, connSetting.value, { userId, includeSecret: true });
+    } catch {}
+  }
+
+  // If a valid connection was explicitly configured, its baseUrl, apiType, and credentials are authoritative.
+  if (conn) {
+    provider = conn.apiType;
+  }
 
   // --- Model -------------------------------------------------------------
   let modelSetting;
@@ -153,70 +175,76 @@ export function resolveFeatureLlmConfig(db, feature, { userId = null, env = proc
   }
   const model = modelSetting.value || '';
 
-  // --- API key -----------------------------------------------------------
-  let keySetting;
-  if (isGateway) {
-    keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', scope);
-  } else if (inherit) {
-    // Inheritance means the gateway's credential scope, including its key.
-    // Borrowing the feature key here would pair a feature credential with the
-    // gateway endpoint (the reverse of the bug this resolver fixes).
-    keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', scope);
+  // --- API key & Base URL (Connection preferred, legacy fallback) -------
+  let apiKey;
+  let keySource;
+  let apiBase;
+  let apiBaseSource;
+
+  if (conn) {
+    apiKey = conn.apiKey || '';
+    keySource = apiKey ? (isRegisteredUser(db, userId) ? 'user' : 'system') : 'default';
+    apiBase = conn.baseUrl || '';
+    apiBaseSource = conn.isBuiltIn ? 'provider-default' : 'connection';
   } else {
-    // An explicit override owns its key. Falling back to the gateway key would
-    // re-introduce the cross-scope pairing this resolver exists to prevent.
-    keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, scope);
-  }
-
-  // --- Base URL ----------------------------------------------------------
-  // The gateway/inherited scope may use the gateway base. A feature that
-  // opted out must use its own base only. A retained feature base is ignored
-  // while inheriting: it belongs to a different credential scope and would
-  // send the gateway key to a stale private proxy.
-  let baseSetting;
-  if (isGateway || inherit) {
-    baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', scope);
-  } else {
-    baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, scope);
-  }
-
-  let apiBase = normalizeApiBase(baseSetting.value);
-  let apiBaseSource = baseSetting.source;
-
-  // Environment variables (e.g. OPENAI_BASE_URL) must only apply to OpenAI or custom
-  // providers, never hijacking a built-in provider like OpenRouter or DeepSeek.
-  if (
-    apiBaseSource === 'env' &&
-    provider &&
-    provider !== 'custom' &&
-    provider !== 'openai' &&
-    provider !== 'ollama'
-  ) {
-    if (provider === 'openrouter' && (env.OPENROUTER_API_BASE || env.OPENROUTER_BASE_URL)) {
-      apiBase = normalizeApiBase(env.OPENROUTER_API_BASE || env.OPENROUTER_BASE_URL);
+    // --- Legacy API key --------------------------------------------------
+    let keySetting;
+    if (isGateway || inherit) {
+      keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', scope);
     } else {
-      apiBase = '';
+      keySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, scope);
     }
+
+    // --- Legacy Base URL -------------------------------------------------
+    let baseSetting;
+    if (isGateway || inherit) {
+      baseSetting = getEffectiveSettingWithSource(db, 'default_llm_api_base', scope);
+    } else {
+      baseSetting = getEffectiveSettingWithSource(db, `${feature}_api_base`, scope);
+    }
+
+    apiBase = normalizeApiBase(baseSetting.value);
+    apiBaseSource = baseSetting.source;
+
+    // Environment variables (e.g. OPENAI_BASE_URL) must only apply to OpenAI or custom
+    // providers, never hijacking a built-in provider like OpenRouter or DeepSeek.
+    if (
+      apiBaseSource === 'env' &&
+      provider &&
+      provider !== 'custom' &&
+      provider !== 'openai' &&
+      provider !== 'ollama'
+    ) {
+      if (provider === 'openrouter' && (env.OPENROUTER_API_BASE || env.OPENROUTER_BASE_URL)) {
+        apiBase = normalizeApiBase(env.OPENROUTER_API_BASE || env.OPENROUTER_BASE_URL);
+      } else {
+        apiBase = '';
+      }
+    }
+
+    if (!apiBase) {
+      apiBase = defaultBaseForProvider(provider, model);
+      apiBaseSource = apiBase ? 'provider-default' : 'default';
+    }
+
+    // --- BYOK ------------------------------------------------------------
+    const registered = isRegisteredUser(db, userId);
+    const keyAllowed = !registered || keySetting.source === 'user';
+    apiKey = keyAllowed ? keySetting.value || '' : '';
+    keySource = keySetting.source;
   }
 
-  if (!apiBase) {
-    apiBase = defaultBaseForProvider(provider, model);
-    apiBaseSource = apiBase ? 'provider-default' : 'default';
-  }
-
-  // --- BYOK --------------------------------------------------------------
-  // A registered user may only use their own key; a shared platform/system
-  // key is never forwarded on their behalf.
   const registered = isRegisteredUser(db, userId);
-  const keyAllowed = !registered || keySetting.source === 'user';
 
   return {
     feature,
     inherited: inherit,
+    connectionId: conn ? conn.id : connSetting.value || '',
+    connectionName: conn ? conn.name : '',
     provider: provider || inferProviderFromModel(model),
     model,
-    apiKey: keyAllowed ? keySetting.value || '' : '',
-    keySource: keySetting.source,
+    apiKey,
+    keySource,
     apiBase,
     apiBaseSource,
     registered,

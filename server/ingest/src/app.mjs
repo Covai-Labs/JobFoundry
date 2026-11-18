@@ -49,6 +49,13 @@ import {
 } from './resumes/resumes.mjs';
 import { getUserFacts, createUserFact, updateUserFact, deleteUserFact } from './facts/facts.mjs';
 import {
+  listConnections,
+  getConnection,
+  createConnection,
+  updateConnection,
+  deleteConnection,
+} from './settings/connections-store.mjs';
+import {
   defaultBaseForProvider,
   inferProviderFromModel,
   normalizeApiBase,
@@ -437,6 +444,278 @@ export function buildApp({
         return { ok: true, ...updated };
       } catch (err) {
         return reply.code(400).send({ error: err.message });
+      }
+    }
+  );
+
+  // --- NAMED CONNECTIONS ROUTES ---
+
+  // GET /api/v1/settings/connections - List all connections with masked secrets
+  app.get(
+    '/api/v1/settings/connections',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      if (!authenticate(request, reply)) return;
+      const connections = listConnections(db, { userId: request.user.id });
+      return { ok: true, connections };
+    }
+  );
+
+  // POST /api/v1/settings/connections - Create a custom connection
+  app.post(
+    '/api/v1/settings/connections',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+      try {
+        const connection = createConnection(db, request.body || {}, { userId: request.user.id });
+        return reply.code(201).send({ ok: true, connection });
+      } catch (err) {
+        return reply.code(400).send({ ok: false, error: err.message });
+      }
+    }
+  );
+
+  // PUT /api/v1/settings/connections/:id - Update connection (built-in base URLs cannot be changed)
+  app.put(
+    '/api/v1/settings/connections/:id',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+      try {
+        const connection = updateConnection(db, request.params.id, request.body || {}, {
+          userId: request.user.id,
+        });
+        return { ok: true, connection };
+      } catch (err) {
+        return reply.code(400).send({ ok: false, error: err.message });
+      }
+    }
+  );
+
+  // DELETE /api/v1/settings/connections/:id - Delete custom connection
+  app.delete(
+    '/api/v1/settings/connections/:id',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+      try {
+        const result = deleteConnection(db, request.params.id, { userId: request.user.id });
+        return { ok: true, ...result };
+      } catch (err) {
+        return reply.code(400).send({ ok: false, error: err.message });
+      }
+    }
+  );
+
+  // POST /api/v1/settings/connections/:id/test - Test a specific connection
+  app.post(
+    '/api/v1/settings/connections/:id/test',
+    {
+      config: {
+        rateLimit: {
+          max: 15,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 15,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 15)) return;
+      if (!authenticate(request, reply)) return;
+      const connectionId = request.params.id;
+      const conn = getConnection(db, connectionId, {
+        userId: request.user.id,
+        includeSecret: true,
+      });
+      if (!conn) {
+        return reply.code(404).send({ ok: false, error: `Connection not found: ${connectionId}` });
+      }
+
+      const body = request.body || {};
+      const hasDraftKey = Boolean(body.apiKey && !body.apiKey.includes('••••'));
+      const effectiveKey = hasDraftKey ? body.apiKey.trim() : conn.apiKey;
+
+      if (!effectiveKey && conn.apiType !== 'ollama') {
+        return reply.code(400).send({
+          ok: false,
+          endpoint: conn.baseUrl,
+          error: 'No API key configured for this connection. Please enter an API key to test.',
+        });
+      }
+
+      const startTime = Date.now();
+      const testModel =
+        body.model ||
+        (conn.apiType === 'openrouter' ? 'openrouter/openrouter/free' : 'gpt-4o-mini');
+
+      // Attempt through tailor service first
+      const tailorPort = process.env.TAILOR_PORT || 8081;
+      const resumeOpsUrl = `http://127.0.0.1:${tailorPort}`;
+      try {
+        const tailorResp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/test-llm`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: AbortSignal.timeout(10000),
+          redirect: 'error',
+          body: JSON.stringify({
+            model: testModel,
+            api_key: effectiveKey,
+            api_base: conn.baseUrl,
+          }),
+        });
+        if (tailorResp.ok) {
+          const data = await tailorResp.json();
+          if (data.success) {
+            return {
+              ok: true,
+              success: true,
+              connectionId,
+              endpoint: conn.baseUrl,
+              latencyMs: data.latencyMs || Date.now() - startTime,
+              message:
+                data.message ||
+                `Connected successfully (${data.latencyMs || Date.now() - startTime}ms)`,
+            };
+          }
+          return reply.code(400).send({
+            ok: false,
+            success: false,
+            connectionId,
+            endpoint: conn.baseUrl,
+            latencyMs: data.latencyMs || Date.now() - startTime,
+            error: data.error || 'Connection failed',
+          });
+        }
+      } catch (err) {
+        if (err.name === 'TimeoutError' || err.name === 'AbortError') {
+          return reply.code(504).send({
+            ok: false,
+            endpoint: conn.baseUrl,
+            error: 'Connection test timed out after 10 seconds',
+          });
+        }
+      }
+
+      // Direct fallback
+      try {
+        let directUrl = `${conn.baseUrl.replace(/\/$/, '')}/chat/completions`;
+        const headers = {
+          'Content-Type': 'application/json',
+        };
+        if (effectiveKey) {
+          headers.Authorization = `Bearer ${effectiveKey}`;
+        }
+        if (conn.apiType === 'anthropic') {
+          directUrl = `${conn.baseUrl.replace(/\/$/, '')}/messages`;
+          headers['x-api-key'] = effectiveKey;
+          headers['anthropic-version'] = '2023-06-01';
+          delete headers.Authorization;
+        }
+
+        const resp = await safeFetch(directUrl, {
+          method: 'POST',
+          headers,
+          signal: AbortSignal.timeout(12000),
+          redirect: 'error',
+          body: JSON.stringify(
+            conn.apiType === 'anthropic'
+              ? {
+                  model: 'claude-3-5-haiku-20241022',
+                  max_tokens: 5,
+                  messages: [{ role: 'user', content: 'hi' }],
+                }
+              : { model: testModel, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 }
+          ),
+        });
+
+        const latencyMs = Date.now() - startTime;
+        if (resp.ok) {
+          return {
+            ok: true,
+            success: true,
+            connectionId,
+            endpoint: conn.baseUrl,
+            latencyMs,
+            message: `Connected successfully (${latencyMs}ms)`,
+          };
+        }
+        let errBody = '';
+        try {
+          const errData = await resp.json();
+          errBody = errData?.error?.message || errData?.message || JSON.stringify(errData);
+        } catch {
+          errBody = await resp.text().catch(() => '');
+        }
+        return reply.code(400).send({
+          ok: false,
+          success: false,
+          connectionId,
+          endpoint: conn.baseUrl,
+          latencyMs,
+          error: `HTTP ${resp.status}: ${errBody || 'Connection failed'}`,
+        });
+      } catch (directErr) {
+        const latencyMs = Date.now() - startTime;
+        return reply.code(400).send({
+          ok: false,
+          success: false,
+          connectionId,
+          endpoint: conn.baseUrl,
+          latencyMs,
+          error: directErr.message || 'Connection failed',
+        });
       }
     }
   );

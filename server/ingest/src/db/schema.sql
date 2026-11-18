@@ -105,4 +105,28 @@ CREATE TABLE IF NOT EXISTS user_facts (
 
 CREATE INDEX IF NOT EXISTS idx_user_facts_user ON user_facts(user_id);
 
+CREATE TABLE IF NOT EXISTS connections (
+  id TEXT PRIMARY KEY,
+  user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  api_type TEXT NOT NULL,
+  base_url TEXT NOT NULL,
+  api_key TEXT NOT NULL DEFAULT '',
+  is_built_in INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_connections_user ON connections(user_id);
+
+CREATE TABLE IF NOT EXISTS user_connection_keys (
+  user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  connection_id TEXT NOT NULL REFERENCES connections(id) ON DELETE CASCADE,
+  api_key TEXT NOT NULL DEFAULT '',
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (user_id, connection_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_connection_keys_user ON user_connection_keys(user_id);
+
 

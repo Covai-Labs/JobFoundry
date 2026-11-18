@@ -669,6 +669,68 @@ export class ApiClient {
     return this.request<SystemSettingsResponse>('/api/v1/settings');
   }
 
+  async getConnections(): Promise<LLMConnection[]> {
+    const res = await this.request<{ ok: boolean; connections: LLMConnection[] }>(
+      '/api/v1/settings/connections'
+    );
+    return res.connections;
+  }
+
+  async createConnection(payload: {
+    name: string;
+    apiType: string;
+    baseUrl: string;
+    apiKey?: string;
+  }): Promise<LLMConnection> {
+    const res = await this.request<{ ok: boolean; connection: LLMConnection }>(
+      '/api/v1/settings/connections',
+      {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      }
+    );
+    return res.connection;
+  }
+
+  async updateConnection(
+    id: string,
+    payload: {
+      name?: string;
+      apiType?: string;
+      baseUrl?: string;
+      apiKey?: string;
+    }
+  ): Promise<LLMConnection> {
+    const res = await this.request<{ ok: boolean; connection: LLMConnection }>(
+      `/api/v1/settings/connections/${id}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      }
+    );
+    return res.connection;
+  }
+
+  async deleteConnection(id: string): Promise<boolean> {
+    const res = await this.request<{ ok: boolean; deleted: boolean }>(
+      `/api/v1/settings/connections/${id}`,
+      {
+        method: 'DELETE',
+      }
+    );
+    return res.ok;
+  }
+
+  async testConnection(
+    id: string,
+    payload?: { apiKey?: string; model?: string }
+  ): Promise<TestConnectionResponse> {
+    return this.request<TestConnectionResponse>(`/api/v1/settings/connections/${id}/test`, {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   async updateSettings(
     payload: Partial<SystemSettings>
   ): Promise<{ ok: boolean } & SystemSettingsResponse> {
@@ -765,11 +827,38 @@ export interface SettingMeta {
   secret: boolean;
 }
 
+export interface LLMConnection {
+  id: string;
+  name: string;
+  apiType: string;
+  baseUrl: string;
+  apiKey: string;
+  isConfigured: boolean;
+  isBuiltIn: boolean;
+  inUseBy: string[];
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface TestConnectionResponse {
+  ok: boolean;
+  success?: boolean;
+  connectionId?: string;
+  endpoint: string;
+  latencyMs?: number;
+  message?: string;
+  error?: string;
+}
+
 export interface SystemSettings {
   default_llm_model?: string;
   default_llm_provider?: string;
   default_llm_api_key?: string;
   default_llm_api_base?: string;
+  gateway_connection_id?: string;
+  scorer_connection_id?: string;
+  tailor_connection_id?: string;
+  copilot_connection_id?: string;
   scorer_inherit_default?: boolean;
   scorer_inherit_model?: boolean;
   tailor_inherit_default?: boolean;

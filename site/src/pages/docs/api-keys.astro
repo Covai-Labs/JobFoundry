@@ -11,7 +11,7 @@ import { resolvePath } from '../../utils/paths.js';
 >
   <h1>LLM API Keys</h1>
   <p>
-    JobFoundry's core value is <strong>fit scoring</strong> and <strong>resume tailoring</strong>. Both require an LLM. Once your server is running, add your API key in the dashboard under <strong>Settings → LLM Provider</strong> (or in the <code>.env</code> file for manual installs) and you're done.
+    JobFoundry's core value is <strong>fit scoring</strong> and <strong>resume tailoring</strong>. Both require an LLM. Once your server is running, configure your connection in the dashboard under <strong>Settings → AI Connections</strong> (or <strong>AI Engine & Models</strong>) and you're done.
   </p>
 
   <div class="doc-callout success">
@@ -93,18 +93,18 @@ import { resolvePath } from '../../utils/paths.js';
 
   <h3>Container / Desktop installs (Settings UI)</h3>
   <p>
-    Open the dashboard at <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>, go to <strong>Settings → LLM Provider</strong>, and enter:
+    Open the dashboard at <a href="http://localhost:8080" target="_blank" rel="noopener noreferrer"><code>http://localhost:8080</code></a>, navigate to <strong>Settings → AI Connections</strong> to set your API keys or create custom proxies, then head to <strong>AI Engine & Models</strong> to select your primary connection:
   </p>
   <ul>
-    <li><strong>Base URL</strong> — the provider's OpenAI-compatible endpoint (see table above)</li>
-    <li><strong>API Key</strong> — the key you obtained from the provider's dashboard</li>
-    <li><strong>Model</strong> — e.g. <code>mistral-small-latest</code>, <code>gemini-2.0-flash</code>, or any model ID the provider supports</li>
+    <li><strong>AI Connection</strong> — choose a built-in provider (OpenRouter, OpenAI, Anthropic, Gemini, Groq, Mistral, Ollama) or add your own custom LiteLLM proxy</li>
+    <li><strong>API Key</strong> — your provider secret token (isolated per user)</li>
+    <li><strong>Model</strong> — e.g. <code>mistral-small-latest</code>, <code>gemini-2.0-flash</code>, or any model ID supported by your connection</li>
   </ul>
   <p>
     Provider-specific examples: Cohere uses <code>command-a-03-2025</code>, Gemini uses <code>gemini-2.0-flash</code>, and Cloudflare Workers AI uses <code>@cf/meta/llama-3.1-8b-instruct</code>. Cloudflare also requires an account ID in the base URL and an API token with Workers AI permissions.
   </p>
   <p>
-    Per-feature overrides (<strong>AI Fit Scorer</strong>, <strong>AI Resume Tailor</strong>, <strong>Copilot</strong>) own their Base URL. When you turn off inheritance and leave the field empty, JobFoundry calls the selected provider's public endpoint — never the Default Gateway's custom proxy. The <strong>Test Connection</strong> panel always shows the endpoint it will call.
+    Per-feature overrides (<strong>AI Fit Scorer</strong>, <strong>AI Resume Tailor</strong>, <strong>Copilot</strong>) allow routing specific tasks to distinct connections or custom models. When inheritance is toggled off, you can select any named connection independently.
   </p>
 
   <h3>Manual / developer installs (.env file)</h3>
