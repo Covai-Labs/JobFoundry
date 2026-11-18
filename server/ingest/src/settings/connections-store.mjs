@@ -6,56 +6,23 @@
 import crypto from 'node:crypto';
 import { maskSecret, isMaskedSecret, isRegisteredUser, validateApiBase } from './settings.mjs';
 
-export const BUILTIN_CONNECTIONS = Object.freeze([
-  {
-    id: 'conn_builtin_openrouter',
-    name: 'OpenRouter',
-    apiType: 'openrouter',
-    baseUrl: 'https://openrouter.ai/api/v1',
-  },
-  {
-    id: 'conn_builtin_openai',
-    name: 'OpenAI',
-    apiType: 'openai',
-    baseUrl: 'https://api.openai.com/v1',
-  },
-  {
-    id: 'conn_builtin_anthropic',
-    name: 'Anthropic',
-    apiType: 'anthropic',
-    baseUrl: 'https://api.anthropic.com/v1',
-  },
-  {
-    id: 'conn_builtin_google',
-    name: 'Google Gemini',
-    apiType: 'google',
-    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
-  },
-  {
-    id: 'conn_builtin_deepseek',
-    name: 'DeepSeek',
-    apiType: 'deepseek',
-    baseUrl: 'https://api.deepseek.com/v1',
-  },
-  {
-    id: 'conn_builtin_groq',
-    name: 'Groq',
-    apiType: 'groq',
-    baseUrl: 'https://api.groq.com/openai/v1',
-  },
-  {
-    id: 'conn_builtin_ollama',
-    name: 'Ollama (Local)',
-    apiType: 'ollama',
-    baseUrl: 'http://127.0.0.1:11434/v1',
-  },
-  {
-    id: 'conn_builtin_mistral',
-    name: 'Mistral',
-    apiType: 'mistral',
-    baseUrl: 'https://api.mistral.ai/v1',
-  },
-]);
+export const BUILTIN_CONNECTIONS = Object.freeze(
+  [
+    ['openrouter', 'OpenRouter', 'https://openrouter.ai/api/v1'],
+    ['openai', 'OpenAI', 'https://api.openai.com/v1'],
+    ['anthropic', 'Anthropic', 'https://api.anthropic.com/v1'],
+    ['google', 'Google Gemini', 'https://generativelanguage.googleapis.com/v1beta'],
+    ['deepseek', 'DeepSeek', 'https://api.deepseek.com/v1'],
+    ['groq', 'Groq', 'https://api.groq.com/openai/v1'],
+    ['ollama', 'Ollama (Local)', 'http://127.0.0.1:11434/v1'],
+    ['mistral', 'Mistral', 'https://api.mistral.ai/v1'],
+  ].map(([apiType, name, baseUrl]) => ({
+    id: `conn_builtin_${apiType}`,
+    name,
+    apiType,
+    baseUrl,
+  }))
+);
 
 function stripTrailingSlashes(str) {
   let s = typeof str === 'string' ? str.trim() : '';
@@ -186,11 +153,13 @@ export function migrateLegacySettingsToConnections(db) {
     ).run(defaultKey, matchingBuiltIn.id);
   }
 
-  // Set default connection IDs on system_settings if not present
-  setSystemSettingIfMissing('gateway_connection_id', defaultConnId);
-  setSystemSettingIfMissing('scorer_connection_id', defaultConnId);
-  setSystemSettingIfMissing('tailor_connection_id', defaultConnId);
-  setSystemSettingIfMissing('copilot_connection_id', defaultConnId);
+  // Set default connection IDs on system_settings only if a key or custom base was configured
+  if (defaultKey || defaultBase) {
+    setSystemSettingIfMissing('gateway_connection_id', defaultConnId);
+    setSystemSettingIfMissing('scorer_connection_id', defaultConnId);
+    setSystemSettingIfMissing('tailor_connection_id', defaultConnId);
+    setSystemSettingIfMissing('copilot_connection_id', defaultConnId);
+  }
 
   // Migrate user_settings keys to user_connection_keys
   const hasUserSettings = Boolean(
@@ -443,6 +412,72 @@ export function createConnection(
   return getConnection(db, id, { userId, includeSecret: false });
 }
 
+function _updateBuiltInConnection(db, existing, patch, registered, userId, now) {
+  if (patch.baseUrl !== undefined && patch.baseUrl !== existing.baseUrl) {
+    throw new Error(`Cannot modify base_url of built-in connection: ${existing.id}`);
+  }
+  if (patch.apiType !== undefined && patch.apiType !== existing.apiType) {
+    throw new Error(`Cannot modify api_type of built-in connection: ${existing.id}`);
+  }
+
+  if (patch.apiKey !== undefined && !isMaskedSecret(patch.apiKey)) {
+    const cleanKey = patch.apiKey.trim();
+    if (registered) {
+      db.prepare(
+        `
+        INSERT INTO user_connection_keys (user_id, connection_id, api_key, updated_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(user_id, connection_id) DO UPDATE SET
+          api_key = excluded.api_key,
+          updated_at = excluded.updated_at
+      `
+      ).run(userId, existing.id, cleanKey, now);
+    } else {
+      db.prepare(
+        `
+        UPDATE connections
+        SET api_key = ?, updated_at = ?
+        WHERE id = ?
+      `
+      ).run(cleanKey, now, existing.id);
+    }
+  }
+}
+
+function _updateCustomConnection(db, existing, patch, registered, userId, now) {
+  const newName = patch.name !== undefined ? patch.name.trim() : existing.name;
+  const newType =
+    patch.apiType !== undefined ? patch.apiType.trim().toLowerCase() : existing.apiType;
+  let newBase = existing.baseUrl;
+
+  if (patch.baseUrl !== undefined) {
+    newBase = stripTrailingSlashes(patch.baseUrl);
+    validateApiBase(newBase);
+  }
+
+  const keyUpdate =
+    patch.apiKey !== undefined && !isMaskedSecret(patch.apiKey)
+      ? patch.apiKey.trim()
+      : existing.apiKey;
+
+  db.prepare(
+    `
+    UPDATE connections
+    SET name = ?, api_type = ?, base_url = ?, api_key = ?, updated_at = ?
+    WHERE id = ? AND (user_id = ? OR (user_id IS NULL AND ? IS NULL))
+  `
+  ).run(
+    newName,
+    newType,
+    newBase,
+    keyUpdate,
+    now,
+    existing.id,
+    registered ? userId : null,
+    registered ? userId : null
+  );
+}
+
 /**
  * Updates a connection. Enforces that built-in base URLs cannot be changed.
  * @param {import('better-sqlite3').Database} db
@@ -460,70 +495,9 @@ export function updateConnection(db, connectionId, patch = {}, { userId = null }
   const registered = isRegisteredUser(db, userId);
 
   if (existing.isBuiltIn) {
-    // Built-in rule: base_url, api_type, and name are immutable via API
-    if (patch.baseUrl !== undefined && patch.baseUrl !== existing.baseUrl) {
-      throw new Error(`Cannot modify base_url of built-in connection: ${connectionId}`);
-    }
-    if (patch.apiType !== undefined && patch.apiType !== existing.apiType) {
-      throw new Error(`Cannot modify api_type of built-in connection: ${connectionId}`);
-    }
-
-    // Only apiKey can be updated for built-ins
-    if (patch.apiKey !== undefined && !isMaskedSecret(patch.apiKey)) {
-      const cleanKey = patch.apiKey.trim();
-      if (registered) {
-        db.prepare(
-          `
-          INSERT INTO user_connection_keys (user_id, connection_id, api_key, updated_at)
-          VALUES (?, ?, ?, ?)
-          ON CONFLICT(user_id, connection_id) DO UPDATE SET
-            api_key = excluded.api_key,
-            updated_at = excluded.updated_at
-        `
-        ).run(userId, connectionId, cleanKey, now);
-      } else {
-        db.prepare(
-          `
-          UPDATE connections
-          SET api_key = ?, updated_at = ?
-          WHERE id = ?
-        `
-        ).run(cleanKey, now, connectionId);
-      }
-    }
+    _updateBuiltInConnection(db, existing, patch, registered, userId, now);
   } else {
-    // Custom connection
-    const newName = patch.name !== undefined ? patch.name.trim() : existing.name;
-    const newType =
-      patch.apiType !== undefined ? patch.apiType.trim().toLowerCase() : existing.apiType;
-    let newBase = existing.baseUrl;
-
-    if (patch.baseUrl !== undefined) {
-      newBase = stripTrailingSlashes(patch.baseUrl);
-      validateApiBase(newBase);
-    }
-
-    const keyUpdate =
-      patch.apiKey !== undefined && !isMaskedSecret(patch.apiKey)
-        ? patch.apiKey.trim()
-        : existing.apiKey;
-
-    db.prepare(
-      `
-      UPDATE connections
-      SET name = ?, api_type = ?, base_url = ?, api_key = ?, updated_at = ?
-      WHERE id = ? AND (user_id = ? OR (user_id IS NULL AND ? IS NULL))
-    `
-    ).run(
-      newName,
-      newType,
-      newBase,
-      keyUpdate,
-      now,
-      connectionId,
-      registered ? userId : null,
-      registered ? userId : null
-    );
+    _updateCustomConnection(db, existing, patch, registered, userId, now);
   }
 
   return getConnection(db, connectionId, { userId, includeSecret: false });

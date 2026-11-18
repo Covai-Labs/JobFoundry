@@ -6,7 +6,7 @@ interface ConnectionSelectorProps {
   label?: string;
   selectedConnectionId: string;
   connections: LLMConnection[];
-  onSelectConnectionId: (id: string) => void;
+  onSelectConnectionId: (_id: string) => void;
   onManageConnections?: () => void;
   disabled?: boolean;
 }

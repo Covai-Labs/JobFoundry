@@ -727,7 +727,7 @@ export class ApiClient {
   ): Promise<TestConnectionResponse> {
     return this.request<TestConnectionResponse>(`/api/v1/settings/connections/${id}/test`, {
       method: 'POST',
-      body: JSON.stringify(payload || {}),
+      body: JSON.stringify(payload ?? {}),
     });
   }
 

@@ -489,7 +489,7 @@ describe('ApiClient', () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, connections: mockList }),
+        json: () => Promise.resolve({ ok: true, connections: mockList }),
       });
       global.fetch = fetchMock;
 
@@ -506,7 +506,7 @@ describe('ApiClient', () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         status: 201,
-        json: async () => ({ ok: true, connection: created }),
+        json: () => Promise.resolve({ ok: true, connection: created }),
       });
       global.fetch = fetchMock;
 
@@ -534,7 +534,7 @@ describe('ApiClient', () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, connection: updated }),
+        json: () => Promise.resolve({ ok: true, connection: updated }),
       });
       global.fetch = fetchMock;
 
@@ -553,7 +553,7 @@ describe('ApiClient', () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, deleted: true }),
+        json: () => Promise.resolve({ ok: true, deleted: true }),
       });
       global.fetch = fetchMock;
 
@@ -569,7 +569,8 @@ describe('ApiClient', () => {
       const fetchMock = vi.fn().mockResolvedValue({
         ok: true,
         status: 200,
-        json: async () => ({ ok: true, endpoint: 'https://openrouter.ai/api/v1', latencyMs: 50 }),
+        json: () =>
+          Promise.resolve({ ok: true, endpoint: 'https://openrouter.ai/api/v1', latencyMs: 50 }),
       });
       global.fetch = fetchMock;
 

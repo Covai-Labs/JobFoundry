@@ -65,7 +65,7 @@ describe('ConnectionsManager & ConnectionSelector', () => {
   });
 
   it('tests connection when Test button is clicked', async () => {
-    vi.spyOn(api, 'testConnection').mockResolvedValue({
+    const testSpy = vi.spyOn(api, 'testConnection').mockResolvedValue({
       ok: true,
       endpoint: 'https://openrouter.ai/api/v1',
       latencyMs: 145,
@@ -82,13 +82,13 @@ describe('ConnectionsManager & ConnectionSelector', () => {
     fireEvent.click(testButtons[0]);
 
     await waitFor(() => {
-      expect(api.testConnection).toHaveBeenCalledWith('conn_builtin_openrouter');
+      expect(testSpy).toHaveBeenCalledWith('conn_builtin_openrouter');
       expect(screen.getAllByText(/145ms/i).length).toBeGreaterThan(0);
     });
   });
 
   it('opens and submits create custom connection modal', async () => {
-    vi.spyOn(api, 'createConnection').mockResolvedValue({
+    const createSpy = vi.spyOn(api, 'createConnection').mockResolvedValue({
       id: 'conn_custom_2',
       name: 'Local vLLM',
       apiType: 'openai',
@@ -122,7 +122,7 @@ describe('ConnectionsManager & ConnectionSelector', () => {
     fireEvent.click(createBtn);
 
     await waitFor(() => {
-      expect(api.createConnection).toHaveBeenCalledWith({
+      expect(createSpy).toHaveBeenCalledWith({
         name: 'Local vLLM',
         apiType: 'openai',
         baseUrl: 'http://127.0.0.1:8000/v1',
@@ -134,7 +134,7 @@ describe('ConnectionsManager & ConnectionSelector', () => {
 
   it('deletes custom connection after confirmation', async () => {
     vi.spyOn(window, 'confirm').mockReturnValue(true);
-    vi.spyOn(api, 'deleteConnection').mockResolvedValue(true);
+    const deleteSpy = vi.spyOn(api, 'deleteConnection').mockResolvedValue(true);
 
     render(
       <ToastProvider>
@@ -146,7 +146,7 @@ describe('ConnectionsManager & ConnectionSelector', () => {
     fireEvent.click(deleteBtn);
 
     await waitFor(() => {
-      expect(api.deleteConnection).toHaveBeenCalledWith('conn_custom_1');
+      expect(deleteSpy).toHaveBeenCalledWith('conn_custom_1');
       expect(onRefresh).toHaveBeenCalled();
     });
   });

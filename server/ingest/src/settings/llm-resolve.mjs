@@ -183,7 +183,25 @@ export function resolveFeatureLlmConfig(db, feature, { userId = null, env = proc
 
   if (conn) {
     apiKey = conn.apiKey || '';
-    keySource = apiKey ? (isRegisteredUser(db, userId) ? 'user' : 'system') : 'default';
+    if (apiKey) {
+      keySource = isRegisteredUser(db, userId) ? 'user' : 'system';
+    } else {
+      // Retain fallback to environment / legacy configuration when connection key is unset
+      let fallbackKeySetting;
+      if (isGateway || inherit) {
+        fallbackKeySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', scope);
+      } else {
+        fallbackKeySetting = getEffectiveSettingWithSource(db, `${feature}_api_key`, scope);
+      }
+      const registeredUser = isRegisteredUser(db, userId);
+      const allowFallbackKey = !registeredUser || fallbackKeySetting.source === 'user';
+      if (allowFallbackKey && fallbackKeySetting.value) {
+        apiKey = fallbackKeySetting.value;
+        keySource = fallbackKeySetting.source;
+      } else {
+        keySource = 'default';
+      }
+    }
     apiBase = conn.baseUrl || '';
     apiBaseSource = conn.isBuiltIn ? 'provider-default' : 'connection';
   } else {

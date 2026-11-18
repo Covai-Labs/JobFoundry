@@ -650,34 +650,24 @@ export function buildApp({
 
       // Direct fallback
       try {
-        let directUrl = `${conn.baseUrl.replace(/\/$/, '')}/chat/completions`;
-        const headers = {
+        const directBase = conn.baseUrl.replace(/\/$/, '');
+        const directHeaders = {
           'Content-Type': 'application/json',
         };
         if (effectiveKey) {
-          headers.Authorization = `Bearer ${effectiveKey}`;
-        }
-        if (conn.apiType === 'anthropic') {
-          directUrl = `${conn.baseUrl.replace(/\/$/, '')}/messages`;
-          headers['x-api-key'] = effectiveKey;
-          headers['anthropic-version'] = '2023-06-01';
-          delete headers.Authorization;
+          directHeaders.Authorization = `Bearer ${effectiveKey}`;
         }
 
-        const resp = await safeFetch(directUrl, {
+        const resp = await safeFetch(`${directBase}/chat/completions`, {
           method: 'POST',
-          headers,
+          headers: directHeaders,
           signal: AbortSignal.timeout(12000),
           redirect: 'error',
-          body: JSON.stringify(
-            conn.apiType === 'anthropic'
-              ? {
-                  model: 'claude-3-5-haiku-20241022',
-                  max_tokens: 5,
-                  messages: [{ role: 'user', content: 'hi' }],
-                }
-              : { model: testModel, messages: [{ role: 'user', content: 'hi' }], max_tokens: 5 }
-          ),
+          body: JSON.stringify({
+            model: testModel,
+            messages: [{ role: 'user', content: 'Reply with the word OK.' }],
+            max_tokens: 5,
+          }),
         });
 
         const latencyMs = Date.now() - startTime;
@@ -1104,6 +1094,56 @@ export function buildApp({
   const modelsCache = new Map();
   const MODELS_CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
+  function resolveModelsQueryConfig(db, rawFeature, userId, { provider, apiKey, apiBase }) {
+    const resolved = resolveFeatureLlmConfig(db, rawFeature, { userId });
+    const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
+    const requestScoped = Boolean(apiKey || provider || apiBase);
+    const effectiveProvider = requestScoped
+      ? provider || resolved.provider || ''
+      : resolved.provider || provider || '';
+    const explicitBase =
+      normalizeApiBase(apiBase) ||
+      (requestScoped ? defaultBaseForProvider(effectiveProvider) : resolved.apiBase) ||
+      '';
+    const directBase = explicitBase || defaultBaseForProvider(effectiveProvider);
+
+    let effectiveKey = '';
+    if (hasExplicitKey) {
+      effectiveKey = apiKey;
+    } else if (
+      resolved.provider === effectiveProvider &&
+      (!explicitBase || explicitBase === resolved.apiBase)
+    ) {
+      effectiveKey = resolved.apiKey;
+    }
+
+    return { effectiveProvider, directBase, effectiveKey };
+  }
+
+  async function dispatchFetchModels(effectiveProvider, directBase, effectiveKey) {
+    if (effectiveProvider === 'ollama' || isOllamaUrl(directBase)) {
+      return fetchOllamaModels(directBase);
+    }
+    if (effectiveProvider === 'anthropic' || isMatchingHost(directBase, 'anthropic.com')) {
+      return fetchAnthropicModels(directBase, effectiveKey);
+    }
+    if (
+      effectiveProvider === 'google' &&
+      (!directBase || isMatchingHost(directBase, 'googleapis.com'))
+    ) {
+      return fetchGoogleModels(effectiveKey);
+    }
+    if (directBase) {
+      return fetchOpenAiCompatibleModels(directBase, effectiveProvider, effectiveKey);
+    }
+    return {
+      status: 400,
+      error:
+        'No endpoint or API key available to fetch models. Please configure a provider and API key or base URL.',
+      models: [],
+    };
+  }
+
   // POST /api/v1/settings/fetch-models - Query live models from provider endpoint
   app.post(
     '/api/v1/settings/fetch-models',
@@ -1129,28 +1169,12 @@ export function buildApp({
         return reply.code(400).send({ success: false, error: 'invalid feature' });
       }
 
-      const resolved = resolveFeatureLlmConfig(db, rawFeature, { userId });
-      const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
-      const requestScoped = Boolean(apiKey || provider || apiBase);
-      const effectiveProvider = requestScoped
-        ? provider || resolved.provider || ''
-        : resolved.provider || provider || '';
-      const explicitBase =
-        normalizeApiBase(apiBase) ||
-        (requestScoped ? defaultBaseForProvider(effectiveProvider) : resolved.apiBase) ||
-        '';
-      const directBase = explicitBase || defaultBaseForProvider(effectiveProvider);
-
-      // Only reuse saved key when effective provider and base match its saved configuration
-      let effectiveKey = '';
-      if (hasExplicitKey) {
-        effectiveKey = apiKey;
-      } else if (
-        resolved.provider === effectiveProvider &&
-        (!explicitBase || explicitBase === resolved.apiBase)
-      ) {
-        effectiveKey = resolved.apiKey;
-      }
+      const { effectiveProvider, directBase, effectiveKey } = resolveModelsQueryConfig(
+        db,
+        rawFeature,
+        userId,
+        { provider, apiKey, apiBase }
+      );
 
       // Check user-isolated in-memory cache
       const cacheKey = `${userId}|${rawFeature}|${effectiveProvider}|${directBase}`;
@@ -1160,29 +1184,7 @@ export function buildApp({
       }
 
       try {
-        let result;
-        if (effectiveProvider === 'ollama' || isOllamaUrl(directBase)) {
-          result = await fetchOllamaModels(directBase);
-        } else if (
-          effectiveProvider === 'anthropic' ||
-          isMatchingHost(directBase, 'anthropic.com')
-        ) {
-          result = await fetchAnthropicModels(directBase, effectiveKey);
-        } else if (
-          effectiveProvider === 'google' &&
-          (!directBase || isMatchingHost(directBase, 'googleapis.com'))
-        ) {
-          result = await fetchGoogleModels(effectiveKey);
-        } else if (directBase) {
-          result = await fetchOpenAiCompatibleModels(directBase, effectiveProvider, effectiveKey);
-        } else {
-          return reply.code(400).send({
-            success: false,
-            error:
-              'No endpoint or API key available to fetch models. Please configure a provider and API key or base URL.',
-            models: [],
-          });
-        }
+        const result = await dispatchFetchModels(effectiveProvider, directBase, effectiveKey);
 
         if (result.status !== 200) {
           return reply.code(result.status).send({

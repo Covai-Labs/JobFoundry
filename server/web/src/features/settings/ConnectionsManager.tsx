@@ -21,6 +21,75 @@ interface ConnectionsManagerProps {
   onRefresh: () => Promise<void>;
 }
 
+interface SettingsModalProps {
+  title: React.ReactNode;
+  subtitle?: React.ReactNode;
+  maxWidth?: string;
+  onClose: () => void;
+  children: React.ReactNode;
+}
+
+const SettingsModal: React.FC<SettingsModalProps> = ({
+  title,
+  subtitle,
+  maxWidth = '480px',
+  onClose,
+  children,
+}) => (
+  <div
+    style={{
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: 'rgba(0, 0, 0, 0.65)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      zIndex: 9999,
+      padding: '1rem',
+    }}
+  >
+    <div
+      style={{
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-subtle)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '1.75rem',
+        width: '100%',
+        maxWidth,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '1.25rem',
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+      }}
+    >
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>{title}</h3>
+          {subtitle && (
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{subtitle}</span>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--text-muted)',
+            cursor: 'pointer',
+          }}
+        >
+          <X size={18} />
+        </button>
+      </div>
+      {children}
+    </div>
+  </div>
+);
+
 export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
   connections,
   loading = false,
@@ -102,7 +171,7 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
 
   const handleDeleteConnection = async (conn: LLMConnection) => {
     if (conn.isBuiltIn) return;
-    if (conn.inUseBy && conn.inUseBy.length > 0) {
+    if (conn.inUseBy?.length) {
       const confirmInUse = window.confirm(
         `This connection is currently used by: ${conn.inUseBy.join(', ')}. Deleting it will fall back to the default gateway. Proceed?`
       );
@@ -127,9 +196,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
       const res = await api.testConnection(conn.id);
       setTestResults((prev) => ({ ...prev, [conn.id]: res }));
       if (res.ok) {
-        toast.success(`Connection to ${conn.name} successful (${res.latencyMs || 0}ms)`);
+        toast.success(`Connection to ${conn.name} successful (${res.latencyMs ?? 0}ms)`);
       } else {
-        toast.error(`Connection test failed: ${res.error || 'Unknown error'}`);
+        toast.error(`Connection test failed: ${res.error ?? 'Unknown error'}`);
       }
     } catch (err: any) {
       const errRes: TestConnectionResponse = {
@@ -328,7 +397,7 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
                 </div>
 
                 {/* In Use Badges */}
-                {conn.inUseBy && conn.inUseBy.length > 0 && (
+                {conn.inUseBy?.length > 0 && (
                   <div
                     style={{
                       marginTop: '0.75rem',
@@ -373,8 +442,8 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
                     }}
                   >
                     {testRes.ok
-                      ? `✓ Live connection succeeded (${testRes.latencyMs || 0}ms)`
-                      : `✗ Error: ${testRes.error || 'Connection failed'}`}
+                      ? `✓ Live connection succeeded (${testRes.latencyMs ?? 0}ms)`
+                      : `✗ Error: ${testRes.error ?? 'Connection failed'}`}
                   </div>
                 )}
               </div>
@@ -393,7 +462,9 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
                 <div style={{ display: 'flex', gap: '0.4rem' }}>
                   <button
                     type="button"
-                    onClick={() => handleOpenEditKey(conn)}
+                    onClick={() => {
+                      handleOpenEditKey(conn);
+                    }}
                     className="btn btn-secondary btn-sm"
                     style={{
                       display: 'flex',
@@ -444,319 +515,247 @@ export const ConnectionsManager: React.FC<ConnectionsManagerProps> = ({
 
       {/* Modal: Add Custom Connection */}
       {isAddModalOpen && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '1rem',
+        <SettingsModal
+          title="Add Custom Connection"
+          maxWidth="480px"
+          onClose={() => {
+            setIsAddModalOpen(false);
           }}
         >
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.75rem',
-              width: '100%',
-              maxWidth: '480px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1.25rem',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+          <form
+            onSubmit={(e) => {
+              void handleCreateConnection(e);
             }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                Add Custom Connection
-              </h3>
-              <button
-                type="button"
-                onClick={() => setIsAddModalOpen(false)}
+            <div>
+              <label
+                htmlFor="new-conn-name"
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  marginBottom: '0.25rem',
                 }}
               >
-                <X size={18} />
-              </button>
+                Connection Name
+              </label>
+              <input
+                id="new-conn-name"
+                type="text"
+                required
+                placeholder="e.g. My LiteLLM Proxy or Work OpenAI"
+                value={newConnName}
+                onChange={(e) => setNewConnName(e.target.value)}
+                className="text-input"
+                style={{ width: '100%', padding: '0.5rem 0.75rem' }}
+              />
             </div>
 
-            <form
-              onSubmit={(e) => {
-                void handleCreateConnection(e);
-              }}
-              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Connection Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. My LiteLLM Proxy or Work OpenAI"
-                  value={newConnName}
-                  onChange={(e) => setNewConnName(e.target.value)}
-                  className="text-input"
-                  style={{ width: '100%', padding: '0.5rem 0.75rem' }}
-                />
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  API Type
-                </label>
-                <select
-                  value={newConnApiType}
-                  onChange={(e) => setNewConnApiType(e.target.value)}
-                  className="text-input"
-                  style={{ width: '100%', padding: '0.5rem 0.75rem' }}
-                >
-                  <option value="openai">
-                    OpenAI compatible (LiteLLM, vLLM, Ollama, OpenRouter)
-                  </option>
-                  <option value="anthropic">Anthropic Messages</option>
-                  <option value="ollama">Ollama (Native/Local)</option>
-                  <option value="groq">Groq</option>
-                  <option value="deepseek">DeepSeek</option>
-                  <option value="custom">Custom</option>
-                </select>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  Base URL (Endpoint)
-                </label>
-                <input
-                  type="url"
-                  required
-                  placeholder="https://litellm.example.com/v1"
-                  value={newConnBaseUrl}
-                  onChange={(e) => setNewConnBaseUrl(e.target.value)}
-                  className="text-input"
-                  style={{ width: '100%', padding: '0.5rem 0.75rem' }}
-                />
-                <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                  Validated against SSRF; private loopback endpoints are allowed when trusted in
-                  config.
-                </span>
-              </div>
-
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  API Key (Optional)
-                </label>
-                <input
-                  type="password"
-                  placeholder="sk-..."
-                  value={newConnApiKey}
-                  onChange={(e) => setNewConnApiKey(e.target.value)}
-                  className="text-input"
-                  style={{ width: '100%', padding: '0.5rem 0.75rem' }}
-                />
-              </div>
-
-              <div
+            <div>
+              <label
+                htmlFor="new-conn-api-type"
                 style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.75rem',
-                  marginTop: '0.5rem',
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  marginBottom: '0.25rem',
                 }}
               >
-                <button
-                  type="button"
-                  onClick={() => setIsAddModalOpen(false)}
-                  className="btn btn-secondary"
-                  disabled={creating}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="btn btn-primary" disabled={creating}>
-                  {creating ? 'Creating...' : 'Create Connection'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+                API Type
+              </label>
+              <select
+                id="new-conn-api-type"
+                value={newConnApiType}
+                onChange={(e) => setNewConnApiType(e.target.value)}
+                className="text-input"
+                style={{ width: '100%', padding: '0.5rem 0.75rem' }}
+              >
+                <option value="openai">
+                  OpenAI compatible (LiteLLM, vLLM, Ollama, OpenRouter)
+                </option>
+                <option value="anthropic">Anthropic Messages</option>
+                <option value="ollama">Ollama (Native/Local)</option>
+                <option value="groq">Groq</option>
+                <option value="deepseek">DeepSeek</option>
+                <option value="custom">Custom</option>
+              </select>
+            </div>
+
+            <div>
+              <label
+                htmlFor="new-conn-base-url"
+                style={{
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  marginBottom: '0.25rem',
+                }}
+              >
+                Base URL (Endpoint)
+              </label>
+              <input
+                id="new-conn-base-url"
+                type="url"
+                required
+                placeholder="https://litellm.example.com/v1"
+                value={newConnBaseUrl}
+                onChange={(e) => setNewConnBaseUrl(e.target.value)}
+                className="text-input"
+                style={{ width: '100%', padding: '0.5rem 0.75rem' }}
+              />
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                Validated against SSRF; private loopback endpoints are allowed when trusted in
+                config.
+              </span>
+            </div>
+
+            <div>
+              <label
+                htmlFor="new-conn-api-key"
+                style={{
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  marginBottom: '0.25rem',
+                }}
+              >
+                API Key (Optional)
+              </label>
+              <input
+                id="new-conn-api-key"
+                type="password"
+                placeholder="sk-..."
+                value={newConnApiKey}
+                onChange={(e) => setNewConnApiKey(e.target.value)}
+                className="text-input"
+                style={{ width: '100%', padding: '0.5rem 0.75rem' }}
+              />
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                marginTop: '0.5rem',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                }}
+                className="btn btn-secondary"
+                disabled={creating}
+              >
+                Cancel
+              </button>
+              <button type="submit" className="btn btn-primary" disabled={creating}>
+                {creating ? 'Creating...' : 'Create Connection'}
+              </button>
+            </div>
+          </form>
+        </SettingsModal>
       )}
 
       {/* Modal: Edit Connection Key */}
       {editingConn && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            background: 'rgba(0, 0, 0, 0.65)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 9999,
-            padding: '1rem',
+        <SettingsModal
+          title={`Update Key: ${editingConn.name}`}
+          subtitle={editingConn.baseUrl}
+          maxWidth="460px"
+          onClose={() => {
+            setEditingConn(null);
           }}
         >
-          <div
-            style={{
-              background: 'var(--bg-card)',
-              border: '1px solid var(--border-subtle)',
-              borderRadius: 'var(--radius-lg)',
-              padding: '1.75rem',
-              width: '100%',
-              maxWidth: '460px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '1.25rem',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5)',
+          <form
+            onSubmit={(e) => {
+              void handleSaveEditKey(e);
             }}
+            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div>
-                <h3 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>
-                  Update Key: {editingConn.name}
-                </h3>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                  {editingConn.baseUrl}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={() => setEditingConn(null)}
+            <div>
+              <label
+                htmlFor="edit-conn-api-key"
                 style={{
-                  background: 'transparent',
-                  border: 'none',
-                  color: 'var(--text-muted)',
-                  cursor: 'pointer',
+                  display: 'block',
+                  fontSize: '0.8rem',
+                  fontWeight: 600,
+                  marginBottom: '0.25rem',
                 }}
               >
-                <X size={18} />
-              </button>
-            </div>
-
-            <form
-              onSubmit={(e) => {
-                void handleSaveEditKey(e);
-              }}
-              style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-            >
-              <div>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '0.8rem',
-                    fontWeight: 600,
-                    marginBottom: '0.25rem',
-                  }}
-                >
-                  New API Key
-                </label>
-                <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-                  <input
-                    type={showKeySecret ? 'text' : 'password'}
-                    placeholder={
-                      editingConn.apiKey ? 'Enter new key to replace existing' : 'sk-...'
-                    }
-                    value={editKeyInput}
-                    onChange={(e) => setEditKeyInput(e.target.value)}
-                    className="text-input"
-                    style={{ width: '100%', padding: '0.5rem 2.5rem 0.5rem 0.75rem' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKeySecret(!showKeySecret)}
-                    style={{
-                      position: 'absolute',
-                      right: '0.6rem',
-                      background: 'transparent',
-                      border: 'none',
-                      color: 'var(--text-muted)',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    {showKeySecret ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-                {editingConn.apiKey && (
-                  <span
-                    style={{
-                      fontSize: '0.72rem',
-                      color: 'var(--text-muted)',
-                      marginTop: '0.2rem',
-                      display: 'block',
-                    }}
-                  >
-                    Current key is configured and safely masked: {editingConn.apiKey}
-                  </span>
-                )}
-              </div>
-
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  gap: '0.75rem',
-                  marginTop: '0.5rem',
-                }}
-              >
+                New API Key
+              </label>
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+                <input
+                  id="edit-conn-api-key"
+                  type={showKeySecret ? 'text' : 'password'}
+                  placeholder={editingConn.apiKey ? 'Enter new key to replace existing' : 'sk-...'}
+                  value={editKeyInput}
+                  onChange={(e) => setEditKeyInput(e.target.value)}
+                  className="text-input"
+                  style={{ width: '100%', padding: '0.5rem 2.5rem 0.5rem 0.75rem' }}
+                />
                 <button
                   type="button"
-                  onClick={() => setEditingConn(null)}
-                  className="btn btn-secondary"
-                  disabled={updatingKey}
+                  onClick={() => {
+                    setShowKeySecret(!showKeySecret);
+                  }}
+                  style={{
+                    position: 'absolute',
+                    right: '0.6rem',
+                    background: 'transparent',
+                    border: 'none',
+                    color: 'var(--text-muted)',
+                    cursor: 'pointer',
+                  }}
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="btn btn-primary"
-                  disabled={updatingKey || !editKeyInput.trim()}
-                >
-                  {updatingKey ? 'Saving...' : 'Save Key'}
+                  {showKeySecret ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-            </form>
-          </div>
-        </div>
+              {editingConn.apiKey && (
+                <span
+                  style={{
+                    fontSize: '0.72rem',
+                    color: 'var(--text-muted)',
+                    marginTop: '0.2rem',
+                    display: 'block',
+                  }}
+                >
+                  Current key is configured and safely masked: {editingConn.apiKey}
+                </span>
+              )}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'flex-end',
+                gap: '0.75rem',
+                marginTop: '0.5rem',
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingConn(null);
+                }}
+                className="btn btn-secondary"
+                disabled={updatingKey}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={updatingKey || !editKeyInput.trim()}
+              >
+                {updatingKey ? 'Saving...' : 'Save Key'}
+              </button>
+            </div>
+          </form>
+        </SettingsModal>
       )}
     </div>
   );

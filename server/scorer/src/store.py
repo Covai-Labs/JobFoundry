@@ -221,7 +221,16 @@ class JobStore:
 
         if conn:
             api_base = conn.get("base_url") or ""
-            api_key = conn.get("api_key") or ""
+            conn_key = conn.get("api_key") or ""
+            if conn_key:
+                api_key = conn_key
+            elif inherit:
+                api_key = (
+                    user_settings.get("default_llm_api_key")
+                    or user_settings.get("scorer_api_key", "")
+                )
+            else:
+                api_key = user_settings.get("scorer_api_key") or ""
         elif inherit:
             api_base = pick("scorer_api_base", "default_llm_api_base", defaults.get("api_base"))
             api_key = (
@@ -338,7 +347,8 @@ class JobStore:
 
         if conn:
             resolved_api_base = conn.get("base_url") or ""
-            resolved_key = conn.get("api_key") or ""
+            if conn.get("api_key"):
+                resolved_key = conn.get("api_key")
         else:
             resolved_api_base = (
                 (
