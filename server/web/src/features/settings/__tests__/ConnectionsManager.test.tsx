@@ -176,4 +176,40 @@ describe('ConnectionsManager & ConnectionSelector', () => {
     fireEvent.click(manageBtn);
     expect(onManage).toHaveBeenCalled();
   });
+
+  it('ConnectionSelector handles onAddConnection and custom proxy tips', () => {
+    const onSelect = vi.fn();
+    const onAdd = vi.fn();
+
+    const { rerender } = render(
+      <ConnectionSelector
+        label="Test Scorer Connection"
+        selectedConnectionId="conn_builtin_openai"
+        connections={mockConnections}
+        onSelectConnectionId={onSelect}
+        onAddConnection={onAdd}
+      />
+    );
+
+    // Header "+ Add Custom Connection" button
+    const addButtons = screen.getAllByRole('button', { name: /add custom connection/i });
+    expect(addButtons.length).toBe(2); // One in header, one in tip
+    fireEvent.click(addButtons[0]);
+    expect(onAdd).toHaveBeenCalledTimes(1);
+
+    // Tip button click
+    fireEvent.click(addButtons[1]);
+    expect(onAdd).toHaveBeenCalledTimes(2);
+
+    // Fallback when no callbacks are provided
+    rerender(
+      <ConnectionSelector
+        label="Test Scorer Connection"
+        selectedConnectionId="conn_builtin_openai"
+        connections={mockConnections}
+        onSelectConnectionId={onSelect}
+      />
+    );
+    expect(screen.getByText(/Add a custom connection in Connections settings/i)).toBeDefined();
+  });
 });

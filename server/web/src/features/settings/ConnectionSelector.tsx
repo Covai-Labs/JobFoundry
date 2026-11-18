@@ -177,23 +177,31 @@ export const ConnectionSelector: React.FC<ConnectionSelectorProps> = ({
           style={{ flexShrink: 0, marginTop: '0.1rem', color: 'var(--accent-primary)' }}
         />
         <span>
-          Using a custom proxy, self-hosted Ollama, or LiteLLM server? Click{' '}
-          <button
-            type="button"
-            onClick={onAddConnection || onManageConnections}
-            style={{
-              background: 'none',
-              border: 'none',
-              padding: 0,
-              color: 'var(--accent-primary)',
-              textDecoration: 'underline',
-              cursor: 'pointer',
-              fontSize: 'inherit',
-            }}
-          >
-            + Add Custom Connection
-          </button>{' '}
-          to specify your own base URL.
+          Using a custom proxy, self-hosted Ollama, or LiteLLM server?{' '}
+          {onAddConnection || onManageConnections ? (
+            <>
+              Click{' '}
+              <button
+                type="button"
+                onClick={onAddConnection || onManageConnections}
+                disabled={disabled}
+                style={{
+                  background: 'none',
+                  border: 'none',
+                  padding: 0,
+                  color: disabled ? 'var(--text-muted)' : 'var(--accent-primary)',
+                  textDecoration: disabled ? 'none' : 'underline',
+                  cursor: disabled ? 'not-allowed' : 'pointer',
+                  fontSize: 'inherit',
+                }}
+              >
+                + Add Custom Connection
+              </button>{' '}
+              to specify your own base URL.
+            </>
+          ) : (
+            'Add a custom connection in Connections settings to specify your own base URL.'
+          )}
         </span>
       </div>
     </div>
