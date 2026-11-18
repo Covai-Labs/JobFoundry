@@ -745,6 +745,7 @@ export class ApiClient {
     apiKey?: string;
     apiBase?: string;
     provider?: string;
+    connectionId?: string;
     feature?: 'gateway' | 'scorer' | 'tailor' | 'copilot';
   }): Promise<TestLlmResponse> {
     return this.request<TestLlmResponse>('/api/v1/settings/test-llm', {

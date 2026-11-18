@@ -574,11 +574,14 @@ describe('SettingsPage', () => {
   it('renders API key input directly when key is unconfigured without requiring Change Key', async () => {
     vi.spyOn(api, 'getSettings').mockResolvedValue({
       settings: {
-        ...mockSettings.settings,
         default_llm_api_key: '',
         scorer_api_key: '',
+        default_llm_model: 'openrouter/openrouter/free',
       } as any,
-      meta: {} as any,
+      meta: {
+        default_llm_api_key: { hasCustomKey: false },
+        scorer_api_key: { hasCustomKey: false },
+      } as any,
     });
 
     renderComponent();
