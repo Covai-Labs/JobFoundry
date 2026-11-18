@@ -44,6 +44,7 @@ class CopilotOutreachResponse(BaseModel):
     inmail_subject: str
     inmail_body: str
     key_match_points: list[str] = Field(default_factory=list)
+    validation_warning: str | None = None
 
 
 class CopilotQARequest(BaseModel):
@@ -69,6 +70,7 @@ class CopilotQAResponse(BaseModel):
     action: str = ""
     result: str = ""
     knockout_warning: str | None = None
+    validation_warning: str | None = None
 
 
 class CopilotCoverLetterRequest(BaseModel):
@@ -91,6 +93,7 @@ class CopilotCoverLetterResponse(BaseModel):
     paragraph_2: str
     paragraph_3: str
     word_count: int
+    validation_warning: str | None = None
 
 
 class TailorResponse(BaseModel):

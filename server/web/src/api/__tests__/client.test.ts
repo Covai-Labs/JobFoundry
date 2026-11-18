@@ -442,4 +442,42 @@ describe('ApiClient', () => {
     );
     expect(deleted).toBe(true);
   });
+
+  it('updateCopilotQA and deleteCopilotQA send correct requests', async () => {
+    let fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () =>
+        Promise.resolve({
+          ok: true,
+          qa: { id: 'qa-1', question: 'Q', answer: 'Updated' },
+          qa_history: [{ id: 'qa-1', question: 'Q', answer: 'Updated' }],
+        }),
+    });
+    global.fetch = fetchMock;
+
+    const updated = await client.updateCopilotQA('job-1', 'qa-1', 'Updated');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/jobs/job-1/copilot/qa/qa-1',
+      expect.objectContaining({
+        method: 'PUT',
+        body: JSON.stringify({ answer: 'Updated' }),
+      })
+    );
+    expect(updated.qa.answer).toBe('Updated');
+
+    fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ ok: true, qa_history: [] }),
+    });
+    global.fetch = fetchMock;
+
+    const delRes = await client.deleteCopilotQA('job-1', 'qa-1');
+    expect(fetchMock).toHaveBeenCalledWith(
+      'http://api.test/api/v1/jobs/job-1/copilot/qa/qa-1',
+      expect.objectContaining({ method: 'DELETE' })
+    );
+    expect(delRes.qa_history).toEqual([]);
+  });
 });

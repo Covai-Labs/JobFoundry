@@ -469,11 +469,40 @@ export class ApiClient {
   async generateCopilotQA(
     id: string,
     question: string
-  ): Promise<{ ok: boolean; qa: CopilotQAItem }> {
-    return this.request<{ ok: boolean; qa: CopilotQAItem }>(`/api/v1/jobs/${id}/copilot/qa`, {
-      method: 'POST',
-      body: JSON.stringify({ question }),
-    });
+  ): Promise<{ ok: boolean; qa: CopilotQAItem; qa_history: CopilotQAItem[] }> {
+    return this.request<{ ok: boolean; qa: CopilotQAItem; qa_history: CopilotQAItem[] }>(
+      `/api/v1/jobs/${id}/copilot/qa`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ question }),
+      }
+    );
+  }
+
+  async updateCopilotQA(
+    id: string,
+    qaId: string,
+    answer: string
+  ): Promise<{ ok: boolean; qa: CopilotQAItem; qa_history: CopilotQAItem[] }> {
+    return this.request<{ ok: boolean; qa: CopilotQAItem; qa_history: CopilotQAItem[] }>(
+      `/api/v1/jobs/${id}/copilot/qa/${qaId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify({ answer }),
+      }
+    );
+  }
+
+  async deleteCopilotQA(
+    id: string,
+    qaId: string
+  ): Promise<{ ok: boolean; qa_history: CopilotQAItem[] }> {
+    return this.request<{ ok: boolean; qa_history: CopilotQAItem[] }>(
+      `/api/v1/jobs/${id}/copilot/qa/${qaId}`,
+      {
+        method: 'DELETE',
+      }
+    );
   }
 
   async generateCopilotCoverLetter(
@@ -811,11 +840,20 @@ export interface CopilotOutreachData {
   inmail_body: string;
   persona_used: string;
   matched_projects: string[];
+  validation_warning?: string | null;
 }
 
 export interface CopilotQAItem {
+  id?: string;
   question: string;
   answer: string;
+  situation?: string;
+  task?: string;
+  action?: string;
+  result?: string;
+  knockout_warning?: string | null;
+  validation_warning?: string | null;
+  user_edited?: boolean;
   star_structure?: {
     situation: string;
     task: string;
@@ -824,6 +862,7 @@ export interface CopilotQAItem {
   };
   matched_evidence?: string[];
   created_at?: number;
+  updated_at?: number;
 }
 
 export interface CopilotCoverLetterData {
@@ -835,6 +874,7 @@ export interface CopilotCoverLetterData {
     alignment: string;
   };
   highlighted_skills: string[];
+  validation_warning?: string | null;
 }
 
 export interface CopilotArtifacts {

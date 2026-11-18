@@ -347,6 +347,7 @@ async def copilot_outreach(
         inmail_subject=result.inmail_subject,
         inmail_body=result.inmail_body,
         key_match_points=result.key_match_points,
+        validation_warning=result.validation_warning,
     )
 
 
@@ -385,6 +386,7 @@ async def copilot_qa(
         action=result.action,
         result=result.result,
         knockout_warning=result.knockout_warning,
+        validation_warning=result.validation_warning,
     )
 
 
@@ -422,6 +424,7 @@ async def copilot_cover_letter(
         paragraph_2=result.paragraph_2,
         paragraph_3=result.paragraph_3,
         word_count=word_count,
+        validation_warning=result.validation_warning,
     )
 
 

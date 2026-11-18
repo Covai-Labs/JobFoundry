@@ -8,6 +8,8 @@ vi.mock('../../../api/client', () => ({
     getCopilotData: vi.fn(),
     generateCopilotOutreach: vi.fn(),
     generateCopilotQA: vi.fn(),
+    updateCopilotQA: vi.fn(),
+    deleteCopilotQA: vi.fn(),
     generateCopilotCoverLetter: vi.fn(),
     getActiveResume: vi.fn(),
   },
@@ -69,20 +71,23 @@ describe('CopilotView', () => {
       },
     });
 
+    const generatedQA = {
+      question: 'Describe a time you handled an outage.',
+      answer:
+        'During a critical Kafka cluster failure, I led the failover across regions within 4 minutes.',
+      star_structure: {
+        situation: 'Underlying network partition disconnected primary broker.',
+        task: 'Restore partition consumer offsets without data corruption.',
+        action: 'Rerouted consumer traffic to backup replica pool.',
+        result: 'Zero message loss and recovered SLA in 4 minutes.',
+      },
+      matched_evidence: ['Kafka Pipeline Outage Remediation', 'Disaster Recovery Plan'],
+    };
+
     vi.mocked(api.generateCopilotQA).mockResolvedValue({
       ok: true,
-      qa: {
-        question: 'Describe a time you handled an outage.',
-        answer:
-          'During a critical Kafka cluster failure, I led the failover across regions within 4 minutes.',
-        star_structure: {
-          situation: 'Underlying network partition disconnected primary broker.',
-          task: 'Restore partition consumer offsets without data corruption.',
-          action: 'Rerouted consumer traffic to backup replica pool.',
-          result: 'Zero message loss and recovered SLA in 4 minutes.',
-        },
-        matched_evidence: ['Kafka Pipeline Outage Remediation', 'Disaster Recovery Plan'],
-      },
+      qa: generatedQA,
+      qa_history: [generatedQA],
     });
 
     render(<CopilotView jobId="job-copilot-1" jobTitle="Staff Engineer" company="CloudCorp" />);
@@ -234,5 +239,80 @@ describe('CopilotView', () => {
     expect(html).toContain('A &amp; B &lt;Ltd&gt;');
     expect(html).toContain('Cloud &amp; Co');
     expect(html).toContain('Re: Application for Engineer &lt;Lead&gt;');
+  });
+
+  it('renders validation warning banner and allows editing and saving answer', async () => {
+    vi.mocked(api.getCopilotData).mockResolvedValue({
+      ok: true,
+      data: {
+        outreach: null,
+        qa_history: [
+          {
+            id: 'qa-1',
+            question: 'Why Supabase?',
+            answer: 'Draft answer with non-standard schema from model.',
+            validation_warning: 'Formatted multiple answers from structured response.',
+            knockout_warning: 'Requires US work authorization.',
+          },
+        ],
+        cover_letter: null,
+      },
+    });
+
+    const updateQaMock = vi.spyOn(api, 'updateCopilotQA').mockResolvedValue({
+      ok: true,
+      qa: {
+        id: 'qa-1',
+        question: 'Why Supabase?',
+        answer: 'Revised clean answer.',
+        user_edited: true,
+      },
+      qa_history: [
+        {
+          id: 'qa-1',
+          question: 'Why Supabase?',
+          answer: 'Revised clean answer.',
+          user_edited: true,
+        },
+      ],
+    });
+
+    render(<CopilotView jobId="job-copilot-1" jobTitle="Staff Engineer" company="Supabase" />);
+
+    const qaTabBtn = screen.getByRole('button', { name: /Screening Q&A Assistant/i });
+    fireEvent.click(qaTabBtn);
+
+    // Verify warning banners are displayed
+    await waitFor(() => {
+      expect(screen.getByText(/Formatting Warning/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Formatted multiple answers from structured response./i)
+      ).toBeInTheDocument();
+      expect(screen.getByText(/Knockout Risk Warning/i)).toBeInTheDocument();
+      expect(screen.getByText(/Requires US work authorization./i)).toBeInTheDocument();
+    });
+
+    // Click Edit button
+    const editBtn = screen.getByRole('button', { name: /Edit/i });
+    fireEvent.click(editBtn);
+
+    // Textarea should now be present
+    const textarea = screen.getByDisplayValue('Draft answer with non-standard schema from model.');
+    fireEvent.change(textarea, { target: { value: 'Revised clean answer.' } });
+
+    // Save changes
+    const saveBtn = screen.getByRole('button', { name: /Save Changes/i });
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(updateQaMock).toHaveBeenCalledWith('job-copilot-1', 'qa-1', 'Revised clean answer.');
+    });
+
+    // Test Reprompt button
+    const repromptBtn = screen.getByRole('button', { name: /Reprompt/i });
+    fireEvent.click(repromptBtn);
+    expect(
+      screen.getByPlaceholderText(/Paste any question from the application form/i)
+    ).toHaveValue('Why Supabase?');
   });
 });

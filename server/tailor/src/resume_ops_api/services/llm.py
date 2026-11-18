@@ -327,6 +327,8 @@ class StructuredLLMClient:
             _validate_api_base(api_base)
             extra_kwargs["api_base"] = api_base
 
+        last_raw_content: str | None = None
+
         # Ensure "json" is in the prompts to satisfy APIs enforcing this when response_format is json_object
         if "json" not in system_prompt.lower() and "json" not in user_prompt.lower():
             system_prompt = system_prompt + "\n\nNote: The output must be valid JSON."
@@ -347,8 +349,8 @@ class StructuredLLMClient:
                     caching=self.enable_cache,
                     **extra_kwargs,
                 )
-                content = completion["choices"][0]["message"]["content"]
-                parsed, _ = _parse_raw_llm_json(content, response_model)
+                last_raw_content = completion["choices"][0]["message"]["content"]
+                parsed, _ = _parse_raw_llm_json(last_raw_content, response_model)
                 return response_model.model_validate(parsed, context=validation_context)
             except Exception as e:
                 logger.debug("Direct OpenRouter completion failed for model '%s': %s. Falling back to standard modes.", model, e)
@@ -461,6 +463,7 @@ class StructuredLLMClient:
                     **extra_kwargs,
                 )
             content = completion["choices"][0]["message"]["content"]
+            last_raw_content = content
             try:
                 parsed, content_str = _parse_raw_llm_json(content, response_model)
                 return response_model.model_validate(parsed, context=validation_context)
@@ -514,6 +517,8 @@ class StructuredLLMClient:
                         **extra_kwargs,
                     )
                 retry_content = retry_comp["choices"][0]["message"]["content"]
+                if retry_content:
+                    last_raw_content = retry_content
                 retry_parsed, _ = _parse_raw_llm_json(retry_content, response_model)
                 return response_model.model_validate(retry_parsed, context=validation_context)
         except Exception as exc:
@@ -521,11 +526,14 @@ class StructuredLLMClient:
                 "Structured LLM generation failed for model '%s': %s. Raw content was: %r",
                 model,
                 exc,
-                locals().get("content"),
+                last_raw_content,
             )
+            details: dict[str, Any] = {"model": model, "error": str(exc)}
+            if last_raw_content is not None:
+                details["raw_content"] = last_raw_content
             raise AppError(
                 f"Structured LLM generation failed for model '{model}'.",
                 code="llm_generation_failed",
                 status_code=502,
-                details={"model": model, "error": str(exc)},
+                details=details,
             ) from exc

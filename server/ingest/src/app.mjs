@@ -2986,7 +2986,8 @@ export function buildApp({
           task: data.task,
           action: data.action,
           result: data.result,
-          knockout_warning: data.knockout_warning,
+          knockout_warning: data.knockout_warning || null,
+          validation_warning: data.validation_warning || null,
           created_at: Date.now(),
         };
         current.qa_history.unshift(qaItem);
@@ -2997,6 +2998,90 @@ export function buildApp({
         request.log?.error?.(err);
         return reply.code(502).send({ error: err.message || 'Copilot QA generation failed' });
       }
+    }
+  );
+
+  // PUT /api/v1/jobs/:id/copilot/qa/:qaId - Edit a QA answer
+  app.put(
+    '/api/v1/jobs/:id/copilot/qa/:qaId',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      if (!authenticate(request, reply)) return;
+
+      const { id, qaId } = request.params;
+      const answer = typeof request.body?.answer === 'string' ? request.body.answer.trim() : null;
+      if (answer === null) {
+        return reply.code(400).send({ error: 'Answer is required' });
+      }
+
+      const userId = String(request.user.id || 'dev-user');
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
+      const current = getCopilotArtifacts(userId, id);
+      if (!Array.isArray(current.qa_history)) current.qa_history = [];
+      const item = current.qa_history.find((q) => q.id === qaId);
+      if (!item) {
+        return reply.code(404).send({ error: 'QA item not found' });
+      }
+
+      item.answer = answer;
+      item.user_edited = true;
+      item.updated_at = Date.now();
+      saveCopilotArtifacts(userId, id, current);
+
+      return { ok: true, qa: item, qa_history: current.qa_history };
+    }
+  );
+
+  // DELETE /api/v1/jobs/:id/copilot/qa/:qaId - Delete a QA item
+  app.delete(
+    '/api/v1/jobs/:id/copilot/qa/:qaId',
+    {
+      config: {
+        rateLimit: {
+          max: 60,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 60,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 60)) return;
+      if (!authenticate(request, reply)) return;
+
+      const { id, qaId } = request.params;
+      const userId = String(request.user.id || 'dev-user');
+      if (!canAccessJob(userId, id)) {
+        return reply.code(404).send({ error: 'job not found' });
+      }
+
+      const current = getCopilotArtifacts(userId, id);
+      if (!Array.isArray(current.qa_history)) current.qa_history = [];
+      const prevLen = current.qa_history.length;
+      current.qa_history = current.qa_history.filter((q) => q.id !== qaId);
+      if (current.qa_history.length === prevLen) {
+        return reply.code(404).send({ error: 'QA item not found' });
+      }
+
+      saveCopilotArtifacts(userId, id, current);
+      return { ok: true, qa_history: current.qa_history };
     }
   );
 

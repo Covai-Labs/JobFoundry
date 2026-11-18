@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from typing import Any
-from pydantic import BaseModel, Field
+from typing import Any, Callable, TypeVar
+from pydantic import BaseModel, Field, model_validator
 import toons
 
 from resume_ops_api.services.llm import StructuredLLMClient
@@ -53,6 +53,99 @@ class OutreachLLMResult(BaseModel):
         default_factory=list,
         description="1-3 bullet points highlighting the strongest resume-to-job match criteria used.",
     )
+    validation_warning: str | None = Field(
+        default=None,
+        description="Optional warning when result is recovered from non-standard schema or raw generation.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_outreach_input(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            clean_str = data.strip()
+            return {
+                "linkedin_note_free": clean_str[:200],
+                "linkedin_note_premium": clean_str[:300],
+                "inmail_subject": "Recruiter Outreach",
+                "inmail_body": clean_str,
+                "key_match_points": [],
+                "validation_warning": "Recovered outreach from plain text draft.",
+            }
+        if isinstance(data, dict):
+            body = (
+                data.get("inmail_body")
+                or data.get("body")
+                or data.get("message")
+                or data.get("content")
+                or data.get("text")
+            )
+            subj = data.get("inmail_subject") or data.get("subject") or "Application Outreach"
+            free_note = data.get("linkedin_note_free") or data.get("connection_note") or data.get("note")
+            prem_note = data.get("linkedin_note_premium") or data.get("connection_note_premium") or free_note
+
+            needs_fix = not (
+                data.get("linkedin_note_free")
+                and data.get("linkedin_note_premium")
+                and data.get("inmail_subject")
+                and data.get("inmail_body")
+            )
+            if needs_fix and body:
+                data["inmail_body"] = str(body)
+                data["inmail_subject"] = str(subj)[:60]
+                data["linkedin_note_free"] = str(free_note or body)[:200]
+                data["linkedin_note_premium"] = str(prem_note or body)[:300]
+                if not data.get("validation_warning"):
+                    data["validation_warning"] = "Mapped outreach fields from partial LLM response."
+        return data
+
+
+def _format_qa_answer_item(item: Any, idx: int) -> str:
+    if isinstance(item, dict):
+        q = item.get("question") or item.get("prompt") or item.get("q")
+        a = item.get("answer") or item.get("response") or item.get("content") or item.get("text")
+        if q and a:
+            return f"**{q}**\n\n{a}"
+        if a:
+            return str(a)
+        if q:
+            return str(q)
+        return json.dumps(item)
+    return str(item)
+
+
+def _format_answers_list(items: list[Any]) -> str:
+    parts = [_format_qa_answer_item(item, idx) for idx, item in enumerate(items, 1)]
+    return "\n\n---\n\n".join(parts)
+
+
+def _extract_qa_dict_answer(data: dict[str, Any]) -> tuple[str | None, str | None]:
+    """Extract answer text and an optional warning from a dictionary input."""
+    if "answer" in data:
+        ans = data["answer"]
+        if isinstance(ans, str) and ans.strip():
+            return ans, None
+        if isinstance(ans, list):
+            return _format_answers_list(ans), "Formatted list from answer field."
+
+    if "answers" in data and isinstance(data["answers"], list):
+        return _format_answers_list(data["answers"]), "Formatted multiple answers from structured response."
+
+    for alt_key in ("response", "content", "text", "output", "screening_answer", "draft"):
+        if alt_key in data and data[alt_key]:
+            val = data[alt_key]
+            if isinstance(val, list):
+                return _format_answers_list(val), f"Extracted answer from '{alt_key}' field."
+            return str(val), f"Extracted answer from '{alt_key}' field."
+
+    if "result" in data and data["result"] and not data.get("situation") and not data.get("action"):
+        res = str(data["result"])
+        data["result"] = ""
+        return res, "Extracted answer from 'result' field."
+
+    if data:
+        return json.dumps(data, indent=2), "Rendered structured response dictionary as answer."
+
+    return None, None
 
 
 class QALLMResult(BaseModel):
@@ -80,6 +173,35 @@ class QALLMResult(BaseModel):
         default=None,
         description="Warning if question represents a knockout filter (e.g. citizenship, sponsorship, required degree) where candidate resume may have tension.",
     )
+    validation_warning: str | None = Field(
+        default=None,
+        description="Optional warning when result is recovered from non-standard schema or raw generation.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_qa_input(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            return {
+                "answer": data.strip(),
+                "validation_warning": "Recovered response from plain text.",
+            }
+
+        if isinstance(data, list):
+            return {
+                "answer": _format_answers_list(data),
+                "validation_warning": "Parsed multiple answers from list response.",
+            }
+
+        if isinstance(data, dict):
+            ans, warn = _extract_qa_dict_answer(data)
+            if ans is not None:
+                data["answer"] = ans
+                if warn and not data.get("validation_warning"):
+                    data["validation_warning"] = warn
+                return data
+
+        return data
 
 
 class CoverLetterLLMResult(BaseModel):
@@ -95,6 +217,66 @@ class CoverLetterLLMResult(BaseModel):
         ...,
         description="Paragraph 3: Forward-looking conclusion and proactive call to action.",
     )
+    validation_warning: str | None = Field(
+        default=None,
+        description="Optional warning when result is recovered from non-standard schema or raw generation.",
+    )
+
+    @model_validator(mode="before")
+    @classmethod
+    def normalize_cover_letter_input(cls, data: Any) -> Any:
+        if isinstance(data, str):
+            paragraphs = [p.strip() for p in data.split("\n\n") if p.strip()]
+            p1 = paragraphs[0] if len(paragraphs) > 0 else data.strip()
+            p2 = paragraphs[1] if len(paragraphs) > 1 else ""
+            p3 = "\n\n".join(paragraphs[2:]) if len(paragraphs) > 2 else ""
+            return {
+                "paragraph_1": p1,
+                "paragraph_2": p2,
+                "paragraph_3": p3,
+                "validation_warning": "Parsed cover letter paragraphs from plain text.",
+            }
+        if isinstance(data, dict):
+            alt = (
+                data.get("cover_letter")
+                or data.get("letter")
+                or data.get("body")
+                or data.get("text")
+                or data.get("content")
+            )
+            if not data.get("paragraph_1") and alt:
+                paragraphs = [p.strip() for p in str(alt).split("\n\n") if p.strip()]
+                data["paragraph_1"] = paragraphs[0] if len(paragraphs) > 0 else str(alt)
+                data["paragraph_2"] = paragraphs[1] if len(paragraphs) > 1 else ""
+                data["paragraph_3"] = "\n\n".join(paragraphs[2:]) if len(paragraphs) > 2 else ""
+                if not data.get("validation_warning"):
+                    data["validation_warning"] = "Extracted cover letter paragraphs from full letter text."
+        return data
+
+
+TypeVarT = TypeVar("TypeVarT", bound=BaseModel)
+
+
+def _recover_from_raw_content(
+    exc: Exception,
+    model_cls: type[TypeVarT],
+    fallback_factory: Callable[[str, str], TypeVarT],
+) -> TypeVarT:
+    raw_content = exc.details.get("raw_content") if isinstance(getattr(exc, "details", None), dict) else None
+    if not raw_content:
+        raise exc
+    warn_msg = f"Schema validation warning: {getattr(exc, 'message', str(exc))}"
+    logger.warning("Recovering %s from raw LLM output after schema error: %s", model_cls.__name__, exc)
+    try:
+        parsed_raw = json.loads(raw_content) if isinstance(raw_content, str) else raw_content
+        if isinstance(parsed_raw, (dict, list)):
+            recovered = model_cls.model_validate(parsed_raw)
+            if not getattr(recovered, "validation_warning", None):
+                recovered.validation_warning = warn_msg
+            return recovered
+    except Exception as parse_err:
+        logger.debug("Failed to model_validate raw output: %s", parse_err)
+    return fallback_factory(str(raw_content), warn_msg)
 
 
 class CopilotService:
@@ -160,14 +342,28 @@ class CopilotService:
             "5. key_match_points: Top 1-3 alignment highlights."
         )
 
-        result: OutreachLLMResult = await self.llm_client.generate_structured(
-            model=selected_model,
-            system_prompt=base_system,
-            user_prompt=user_prompt,
-            response_model=OutreachLLMResult,
-            api_key=api_key,
-            api_base=api_base,
-        )
+        try:
+            result = await self.llm_client.generate_structured(
+                model=selected_model,
+                system_prompt=base_system,
+                user_prompt=user_prompt,
+                response_model=OutreachLLMResult,
+                api_key=api_key,
+                api_base=api_base,
+            )
+        except Exception as exc:
+            return _recover_from_raw_content(
+                exc,
+                OutreachLLMResult,
+                lambda raw, warn: OutreachLLMResult(
+                    linkedin_note_free=raw[:200],
+                    linkedin_note_premium=raw[:300],
+                    inmail_subject="Application Outreach",
+                    inmail_body=raw,
+                    key_match_points=[],
+                    validation_warning=warn,
+                ),
+            )
 
         # Enforce hard length constraints as defense in depth
         if len(result.linkedin_note_free) > 200:
@@ -227,14 +423,24 @@ class CopilotService:
             "4. Check for knock-out filters (e.g. visa sponsorship, salary floors, clearance requirements) and flag if needed."
         )
 
-        return await self.llm_client.generate_structured(
-            model=selected_model,
-            system_prompt=base_system,
-            user_prompt=user_prompt,
-            response_model=QALLMResult,
-            api_key=api_key,
-            api_base=api_base,
-        )
+        try:
+            return await self.llm_client.generate_structured(
+                model=selected_model,
+                system_prompt=base_system,
+                user_prompt=user_prompt,
+                response_model=QALLMResult,
+                api_key=api_key,
+                api_base=api_base,
+            )
+        except Exception as exc:
+            return _recover_from_raw_content(
+                exc,
+                QALLMResult,
+                lambda raw, warn: QALLMResult(
+                    answer=raw,
+                    validation_warning=warn,
+                ),
+            )
 
     async def generate_cover_letter(
         self,
@@ -282,11 +488,23 @@ class CopilotService:
             "- paragraph_3: Forward-looking wrap-up and proactive call to action."
         )
 
-        return await self.llm_client.generate_structured(
-            model=selected_model,
-            system_prompt=base_system,
-            user_prompt=user_prompt,
-            response_model=CoverLetterLLMResult,
-            api_key=api_key,
-            api_base=api_base,
-        )
+        try:
+            return await self.llm_client.generate_structured(
+                model=selected_model,
+                system_prompt=base_system,
+                user_prompt=user_prompt,
+                response_model=CoverLetterLLMResult,
+                api_key=api_key,
+                api_base=api_base,
+            )
+        except Exception as exc:
+            return _recover_from_raw_content(
+                exc,
+                CoverLetterLLMResult,
+                lambda raw, warn: CoverLetterLLMResult(
+                    paragraph_1=raw,
+                    paragraph_2="",
+                    paragraph_3="",
+                    validation_warning=warn,
+                ),
+            )
