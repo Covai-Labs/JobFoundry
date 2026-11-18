@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { X, Eye, EyeOff } from 'lucide-react';
 import { LLMConnection } from '../../api/client';

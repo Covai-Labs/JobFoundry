@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React from 'react';
 import { Lock, Plus, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { LLMConnection } from '../../api/client';
