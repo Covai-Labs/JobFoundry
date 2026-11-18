@@ -57,6 +57,14 @@ export const BUILTIN_CONNECTIONS = Object.freeze([
   },
 ]);
 
+function stripTrailingSlashes(str) {
+  let s = typeof str === 'string' ? str.trim() : '';
+  while (s.endsWith('/')) {
+    s = s.slice(0, -1);
+  }
+  return s;
+}
+
 /**
  * Ensures table existence and seeds built-in connections.
  * Runs legacy migration idempotently.
@@ -414,7 +422,7 @@ export function createConnection(
     throw new Error('Base URL is required');
   }
 
-  const cleanBase = baseUrl.trim().replace(/\/+$/, '');
+  const cleanBase = stripTrailingSlashes(baseUrl);
   validateApiBase(cleanBase);
 
   const cleanName = name.trim();
@@ -491,7 +499,7 @@ export function updateConnection(db, connectionId, patch = {}, { userId = null }
     let newBase = existing.baseUrl;
 
     if (patch.baseUrl !== undefined) {
-      newBase = patch.baseUrl.trim().replace(/\/+$/, '');
+      newBase = stripTrailingSlashes(patch.baseUrl);
       validateApiBase(newBase);
     }
 

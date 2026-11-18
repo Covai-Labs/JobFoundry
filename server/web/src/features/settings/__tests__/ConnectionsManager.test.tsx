@@ -113,7 +113,7 @@ describe('ConnectionsManager & ConnectionSelector', () => {
     expect(screen.getByText('Add Custom Connection')).toBeDefined();
 
     const nameInput = screen.getByPlaceholderText(/e\.g\. my litellm proxy or work openai/i);
-    const urlInput = screen.getByPlaceholderText(/https:\/\/litellm\.example\.com\/v1/i);
+    const urlInput = screen.getByPlaceholderText('https://litellm.example.com/v1');
 
     fireEvent.change(nameInput, { target: { value: 'Local vLLM' } });
     fireEvent.change(urlInput, { target: { value: 'http://127.0.0.1:8000/v1' } });

@@ -359,7 +359,11 @@ class JobStore:
             "model": tailor_model,
             "api_base": resolved_api_base,
             "api_key": resolved_key,
-            "has_user_tailor_key": bool(tailor_key or (not tailor_provider_override and (default_key or scorer_key))),
+            "has_user_tailor_key": bool(
+                (conn and resolved_key)
+                or tailor_key
+                or (not tailor_provider_override and (default_key or scorer_key))
+            ),
         }
 
 
