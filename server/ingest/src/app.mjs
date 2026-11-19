@@ -760,6 +760,7 @@ export function buildApp({
       const userId = request.user.id;
       const registered = isRegisteredUser(db, userId);
       const {
+        connectionId,
         provider,
         model,
         apiKey,
@@ -778,8 +779,16 @@ export function buildApp({
       // another credential scope's base URL (the 401 token_not_found_in_db bug).
       const resolved = resolveFeatureLlmConfig(db, feature, { userId });
 
+      let targetConn = null;
+      const effectiveConnId = connectionId || resolved.connectionId;
+      if (effectiveConnId) {
+        try {
+          targetConn = getConnection(db, effectiveConnId, { userId, includeSecret: true });
+        } catch {}
+      }
+
       const hasExplicitKey = Boolean(apiKey && !apiKey.includes('••••'));
-      const effectiveKey = hasExplicitKey ? apiKey : resolved.apiKey;
+      const effectiveKey = hasExplicitKey ? apiKey : targetConn?.apiKey || resolved.apiKey;
       let effectiveModel = model || resolved.model || 'openrouter/openrouter/free';
       if (effectiveModel === 'openrouter/free') {
         effectiveModel = 'openrouter/openrouter/free';
@@ -788,18 +797,18 @@ export function buildApp({
       }
 
       // An explicit value from the form wins (it may be unsaved), otherwise the
-      // resolved saved settings. When the request supplies credentials, model or
-      // provider, resolve the endpoint from *those* values — not from the saved
-      // provider — so an unsaved provider switch never reuses the old endpoint.
+      // resolved connection or saved settings.
       const requestScoped = Boolean(apiKey || model || provider);
-      const effectiveProvider = requestScoped
-        ? provider || inferProviderFromModel(model)
-        : resolved.provider || provider || '';
+      const effectiveProvider =
+        (targetConn ? targetConn.apiType : null) ||
+        provider ||
+        (requestScoped ? inferProviderFromModel(effectiveModel) : resolved.provider) ||
+        'openrouter';
       const explicitBase =
+        (targetConn ? targetConn.baseUrl : '') ||
         normalizeApiBase(apiBase) ||
-        (requestScoped
-          ? defaultBaseForProvider(effectiveProvider, effectiveModel)
-          : resolved.apiBase) ||
+        resolved.apiBase ||
+        (requestScoped ? defaultBaseForProvider(effectiveProvider, effectiveModel) : '') ||
         '';
       const directBase = explicitBase || defaultBaseForProvider(effectiveProvider, effectiveModel);
 

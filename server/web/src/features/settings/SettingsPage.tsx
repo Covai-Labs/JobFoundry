@@ -39,7 +39,6 @@ import {
   Zap,
   Sparkles,
   ChevronRight,
-  ChevronDown,
   ArrowRight,
   ArrowLeft,
   Check,
@@ -56,12 +55,12 @@ import {
 } from 'lucide-react';
 import { ConnectionsManager } from './ConnectionsManager';
 import { ConnectionSelector } from './ConnectionSelector';
+import { AddConnectionModal } from './ConnectionModals';
 import {
   LLM_PROVIDERS,
   detectProviderFromModel,
   ALL_RECOMMENDED_MODELS,
   providerDefaultBase,
-  resolveEffectiveEndpoint,
   type EffectiveEndpoint,
 } from './llmCatalog';
 
@@ -95,6 +94,105 @@ const VALID_TABS: SettingsTab[] = [
   'scrapers',
   'sync',
   'system',
+];
+
+const DEFAULT_CONNECTIONS: LLMConnection[] = [
+  {
+    id: 'conn_builtin_openrouter',
+    name: 'OpenRouter',
+    apiType: 'openrouter',
+    baseUrl: 'https://openrouter.ai/api/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_openai',
+    name: 'OpenAI',
+    apiType: 'openai',
+    baseUrl: 'https://api.openai.com/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_anthropic',
+    name: 'Anthropic',
+    apiType: 'anthropic',
+    baseUrl: 'https://api.anthropic.com/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_google',
+    name: 'Google Gemini',
+    apiType: 'gemini',
+    baseUrl: 'https://generativelanguage.googleapis.com/v1beta',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_deepseek',
+    name: 'DeepSeek',
+    apiType: 'deepseek',
+    baseUrl: 'https://api.deepseek.com/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_groq',
+    name: 'Groq',
+    apiType: 'groq',
+    baseUrl: 'https://api.groq.com/openai/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_ollama',
+    name: 'Ollama (Local)',
+    apiType: 'ollama',
+    baseUrl: 'http://127.0.0.1:11434/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
+  {
+    id: 'conn_builtin_mistral',
+    name: 'Mistral',
+    apiType: 'mistral',
+    baseUrl: 'https://api.mistral.ai/v1',
+    apiKey: '',
+    isBuiltIn: true,
+    isConfigured: false,
+    inUseBy: [],
+    createdAt: 0,
+    updatedAt: 0,
+  },
 ];
 
 function getInitialTab(): SettingsTab {
@@ -671,9 +769,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     apiBase?: string;
   } | null>(null);
 
-  // Advanced AI Overrides Accordion State under Gateway
-  const [showAdvancedAiOverrides, setShowAdvancedAiOverrides] = useState<boolean>(false);
-
   // LLM Provider & Multi-Model Selection State
   const [selectedScorerProvider, setSelectedScorerProvider] = useState<string>(() => {
     return (
@@ -736,8 +831,98 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [isExtensionPaired, setIsExtensionPaired] = useState(() => {
     return typeof window !== 'undefined' && localStorage.getItem('jf_extension_paired') === 'true';
   });
-  const [connections, setConnections] = useState<LLMConnection[]>([]);
+  const [connections, setConnections] = useState<LLMConnection[]>(DEFAULT_CONNECTIONS);
   const [loadingConnections, setLoadingConnections] = useState(false);
+
+  const handleFieldChange = (key: keyof SystemSettings, val: any) => {
+    setFormSettings((prev) => ({ ...prev, [key]: val }));
+    setIsDirty(true);
+  };
+
+  const applyConnectionToField = useCallback(
+    (
+      field:
+        | 'gateway_connection_id'
+        | 'scorer_connection_id'
+        | 'tailor_connection_id'
+        | 'copilot_connection_id',
+      conn: LLMConnection
+    ) => {
+      const pId = conn.isBuiltIn ? conn.id.replace('conn_builtin_', '') : conn.apiType;
+      if (field === 'gateway_connection_id') {
+        setSelectedDefaultProvider(pId);
+        handleFieldChange('gateway_connection_id', conn.id);
+        handleFieldChange('default_llm_provider', pId);
+        handleFieldChange('default_llm_api_base', conn.baseUrl);
+        const providerMeta = LLM_PROVIDERS.find((p) => p.id === pId);
+        const fast = providerMeta?.recommendedModels.find((m) => m.tier === 'fast');
+        if (fast && !formSettings.default_llm_model) {
+          handleFieldChange('default_llm_model', fast.id);
+        }
+      } else if (field === 'scorer_connection_id') {
+        setSelectedScorerProvider(pId);
+        handleFieldChange('scorer_connection_id', conn.id);
+        handleFieldChange('scorer_provider', pId);
+        handleFieldChange('scorer_api_base', conn.baseUrl);
+      } else if (field === 'tailor_connection_id') {
+        setSelectedTailorProvider(pId);
+        handleFieldChange('tailor_connection_id', conn.id);
+        handleFieldChange('tailor_provider', pId);
+        handleFieldChange('tailor_api_base', conn.baseUrl);
+      } else if (field === 'copilot_connection_id') {
+        setSelectedCopilotProvider(pId);
+        handleFieldChange('copilot_connection_id', conn.id);
+        handleFieldChange('copilot_provider', pId);
+        handleFieldChange('copilot_api_base', conn.baseUrl);
+      }
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [formSettings.default_llm_model]
+  );
+
+  // Inline Custom Connection Modal state
+  const [isInlineAddModalOpen, setIsInlineAddModalOpen] = useState(false);
+  const [inlineTargetField, setInlineTargetField] = useState<string>('gateway_connection_id');
+  const [inlineConnName, setInlineConnName] = useState('');
+  const [inlineConnApiType, setInlineConnApiType] = useState('openai');
+  const [inlineConnBaseUrl, setInlineConnBaseUrl] = useState('');
+  const [inlineConnApiKey, setInlineConnApiKey] = useState('');
+  const [inlineCreating, setInlineCreating] = useState(false);
+
+  const handleOpenInlineAdd = (targetField: string = 'gateway_connection_id') => {
+    setInlineTargetField(targetField);
+    setInlineConnName('');
+    setInlineConnApiType('openai');
+    setInlineConnBaseUrl('');
+    setInlineConnApiKey('');
+    setIsInlineAddModalOpen(true);
+  };
+
+  const handleCreateInlineConnection = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setInlineCreating(true);
+    try {
+      const created = await api.createConnection({
+        name: inlineConnName.trim(),
+        apiType: inlineConnApiType,
+        baseUrl: inlineConnBaseUrl.trim(),
+        apiKey: inlineConnApiKey.trim() || undefined,
+      });
+      toast.success(`Connection "${created.name}" created!`);
+      const updatedList = await api.getConnections();
+      if (Array.isArray(updatedList)) {
+        setConnections(updatedList);
+      }
+      applyConnectionToField(inlineTargetField as any, created);
+      setIsDirty(true);
+      setIsInlineAddModalOpen(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to create connection';
+      toast.error(msg);
+    } finally {
+      setInlineCreating(false);
+    }
+  };
 
   const loadConnections = useCallback(async () => {
     setLoadingConnections(true);
@@ -782,7 +967,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           }));
           setMeta(backendMeta);
 
-          if (backendSettings.default_llm_provider) {
+          const connsList =
+            connRes.status === 'fulfilled' && Array.isArray(connRes.value) ? connRes.value : [];
+
+          if (backendSettings.gateway_connection_id) {
+            const match = connsList.find(
+              (c: any) => c.id === backendSettings.gateway_connection_id
+            );
+            if (match) {
+              const pId = match.isBuiltIn ? match.id.replace('conn_builtin_', '') : match.apiType;
+              setSelectedDefaultProvider(pId);
+            }
+          } else if (backendSettings.default_llm_provider) {
             setSelectedDefaultProvider(backendSettings.default_llm_provider);
           } else if (backendSettings.default_llm_model) {
             setSelectedDefaultProvider(detectProviderFromModel(backendSettings.default_llm_model));
@@ -790,17 +986,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             setSelectedDefaultProvider(backendSettings.scorer_provider);
           }
 
-          if (backendSettings.scorer_provider) {
+          if (backendSettings.scorer_connection_id) {
+            const match = connsList.find((c: any) => c.id === backendSettings.scorer_connection_id);
+            if (match) {
+              const pId = match.isBuiltIn ? match.id.replace('conn_builtin_', '') : match.apiType;
+              setSelectedScorerProvider(pId);
+            }
+          } else if (backendSettings.scorer_provider) {
             setSelectedScorerProvider(backendSettings.scorer_provider);
           } else if (backendSettings.scorer_model) {
             setSelectedScorerProvider(detectProviderFromModel(backendSettings.scorer_model));
           }
-          if (backendSettings.tailor_provider) {
+
+          if (backendSettings.tailor_connection_id) {
+            const match = connsList.find((c: any) => c.id === backendSettings.tailor_connection_id);
+            if (match) {
+              const pId = match.isBuiltIn ? match.id.replace('conn_builtin_', '') : match.apiType;
+              setSelectedTailorProvider(pId);
+            }
+          } else if (backendSettings.tailor_provider) {
             setSelectedTailorProvider(backendSettings.tailor_provider);
           } else if (backendSettings.tailor_model) {
             setSelectedTailorProvider(detectProviderFromModel(backendSettings.tailor_model));
           }
-          if (backendSettings.copilot_provider) {
+
+          if (backendSettings.copilot_connection_id) {
+            const match = connsList.find(
+              (c: any) => c.id === backendSettings.copilot_connection_id
+            );
+            if (match) {
+              const pId = match.isBuiltIn ? match.id.replace('conn_builtin_', '') : match.apiType;
+              setSelectedCopilotProvider(pId);
+            }
+          } else if (backendSettings.copilot_provider) {
             setSelectedCopilotProvider(backendSettings.copilot_provider);
           } else if (backendSettings.copilot_model) {
             setSelectedCopilotProvider(detectProviderFromModel(backendSettings.copilot_model));
@@ -887,91 +1105,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       cancelled = true;
     };
   }, [activeTab, tailoredJobsLoaded, tailoredJobsReloadKey]);
-
-  const handleSelectDefaultProvider = (providerId: string) => {
-    setSelectedDefaultProvider(providerId);
-    handleFieldChange('default_llm_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, gateway: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.default_llm_api_base && providerMeta.defaultBase) {
-        handleFieldChange('default_llm_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.default_llm_api_base?.includes('11434') ||
-        formSettings.default_llm_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('default_llm_api_base', '');
-      }
-    }
-    const fast = providerMeta?.recommendedModels.find((m) => m.tier === 'fast');
-    if (fast) {
-      handleFieldChange('default_llm_model', fast.id);
-    }
-  };
-
-  const handleSelectScorerProvider = (providerId: string) => {
-    setSelectedScorerProvider(providerId);
-    handleFieldChange('scorer_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, scorer: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.scorer_api_base && providerMeta.defaultBase) {
-        handleFieldChange('scorer_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.scorer_api_base?.includes('11434') ||
-        formSettings.scorer_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('scorer_api_base', '');
-      }
-    }
-  };
-
-  const handleSelectTailorProvider = (providerId: string) => {
-    setSelectedTailorProvider(providerId);
-    handleFieldChange('tailor_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, tailor: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.tailor_api_base && providerMeta.defaultBase) {
-        handleFieldChange('tailor_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.tailor_api_base?.includes('11434') ||
-        formSettings.tailor_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('tailor_api_base', '');
-      }
-    }
-  };
-
-  const handleSelectCopilotProvider = (providerId: string) => {
-    setSelectedCopilotProvider(providerId);
-    handleFieldChange('copilot_provider', providerId);
-    setFetchedModelsMap((prev) => ({ ...prev, copilot: [] }));
-    const providerMeta = LLM_PROVIDERS.find((p) => p.id === providerId);
-    if (providerMeta?.isLocal || providerMeta?.isCustom) {
-      if (!formSettings.copilot_api_base && providerMeta.defaultBase) {
-        handleFieldChange('copilot_api_base', providerMeta.defaultBase);
-      }
-    } else {
-      if (
-        formSettings.copilot_api_base?.includes('11434') ||
-        formSettings.copilot_api_base?.includes('localhost:8000')
-      ) {
-        handleFieldChange('copilot_api_base', '');
-      }
-    }
-  };
-
-  const handleFieldChange = (key: keyof SystemSettings, val: any) => {
-    setFormSettings((prev) => ({ ...prev, [key]: val }));
-    setIsDirty(true);
-  };
 
   const handleExtensionChange = (updated: ExtensionConfig) => {
     setExtensionConfig(updated);
@@ -1069,19 +1202,39 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         theme_accent: tempAccentTheme,
       };
 
-      if (editingDefaultKey && newDefaultKey.trim()) {
+      if (newDefaultKey.trim()) {
         payload.default_llm_api_key = newDefaultKey.trim();
+        if (activeGatewayConn) {
+          try {
+            await api.updateConnection(activeGatewayConn.id, { apiKey: newDefaultKey.trim() });
+          } catch {}
+        }
       }
       payload.default_llm_provider = selectedDefaultProvider;
 
-      if (editingScorerKey && newScorerKey.trim()) {
+      if (newScorerKey.trim()) {
         payload.scorer_api_key = newScorerKey.trim();
+        if (activeScorerConn) {
+          try {
+            await api.updateConnection(activeScorerConn.id, { apiKey: newScorerKey.trim() });
+          } catch {}
+        }
       }
-      if (editingTailorKey && newTailorKey.trim()) {
+      if (newTailorKey.trim()) {
         payload.tailor_api_key = newTailorKey.trim();
+        if (activeTailorConn) {
+          try {
+            await api.updateConnection(activeTailorConn.id, { apiKey: newTailorKey.trim() });
+          } catch {}
+        }
       }
-      if (editingCopilotKey && newCopilotKey.trim()) {
+      if (newCopilotKey.trim()) {
         payload.copilot_api_key = newCopilotKey.trim();
+        if (activeCopilotConn) {
+          try {
+            await api.updateConnection(activeCopilotConn.id, { apiKey: newCopilotKey.trim() });
+          } catch {}
+        }
       }
       if (editingOpikKey && newOpikKey.trim()) {
         payload.opik_api_key = newOpikKey.trim();
@@ -1112,6 +1265,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         setNewTailorKey('');
         setEditingCopilotKey(false);
         setNewCopilotKey('');
+        loadConnections();
         setEditingOpikKey(false);
         setNewOpikKey('');
         setEditingLangfusePubKey(false);
@@ -1181,6 +1335,121 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     toast.info('Settings form reset. Click "Save Changes" to apply.');
   };
 
+  const activeGatewayConn =
+    connections.find(
+      (c) => c.id === (formSettings.gateway_connection_id || 'conn_builtin_openrouter')
+    ) ||
+    connections.find(
+      (c) => c.isBuiltIn && c.id.replace('conn_builtin_', '') === selectedDefaultProvider
+    ) ||
+    connections[0];
+
+  const activeScorerConn =
+    connections.find(
+      (c) =>
+        c.id ===
+        (formSettings.scorer_connection_id ||
+          formSettings.gateway_connection_id ||
+          'conn_builtin_openrouter')
+    ) || activeGatewayConn;
+
+  const activeTailorConn =
+    connections.find(
+      (c) =>
+        c.id ===
+        (formSettings.tailor_connection_id ||
+          formSettings.gateway_connection_id ||
+          'conn_builtin_openrouter')
+    ) || activeGatewayConn;
+
+  const activeCopilotConn =
+    connections.find(
+      (c) =>
+        c.id ===
+        (formSettings.copilot_connection_id ||
+          formSettings.gateway_connection_id ||
+          'conn_builtin_openrouter')
+    ) || activeGatewayConn;
+
+  const gatewayEffectiveBase = activeGatewayConn?.baseUrl || formSettings.default_llm_api_base;
+  const gatewayEffectiveProvider = activeGatewayConn
+    ? activeGatewayConn.isBuiltIn
+      ? activeGatewayConn.id.replace('conn_builtin_', '')
+      : activeGatewayConn.apiType
+    : selectedDefaultProvider;
+
+  const gatewayTestTarget = {
+    url:
+      gatewayEffectiveBase ||
+      providerDefaultBase(gatewayEffectiveProvider, formSettings.default_llm_model),
+    note: activeGatewayConn
+      ? `${activeGatewayConn.name} (${activeGatewayConn.apiType})`
+      : 'Default AI Gateway provider default',
+  };
+
+  const isScorerInherited = formSettings.scorer_inherit_default !== false;
+  const scorerEffectiveConn = isScorerInherited ? activeGatewayConn : activeScorerConn;
+  const scorerEffectiveBase =
+    (isScorerInherited ? activeGatewayConn?.baseUrl : activeScorerConn?.baseUrl) ||
+    formSettings.scorer_api_base;
+  const scorerEffectiveProvider = scorerEffectiveConn
+    ? scorerEffectiveConn.isBuiltIn
+      ? scorerEffectiveConn.id.replace('conn_builtin_', '')
+      : scorerEffectiveConn.apiType
+    : selectedScorerProvider;
+  const scorerTestTarget = {
+    url:
+      scorerEffectiveBase ||
+      providerDefaultBase(scorerEffectiveProvider, formSettings.scorer_model),
+    note: isScorerInherited
+      ? 'inherited from Default AI Gateway'
+      : scorerEffectiveConn
+        ? `${scorerEffectiveConn.name} (${scorerEffectiveConn.apiType})`
+        : 'custom override',
+  };
+
+  const isTailorInherited = formSettings.tailor_inherit_default !== false;
+  const tailorEffectiveConn = isTailorInherited ? activeGatewayConn : activeTailorConn;
+  const tailorEffectiveBase =
+    (isTailorInherited ? activeGatewayConn?.baseUrl : activeTailorConn?.baseUrl) ||
+    formSettings.tailor_api_base;
+  const tailorEffectiveProvider = tailorEffectiveConn
+    ? tailorEffectiveConn.isBuiltIn
+      ? tailorEffectiveConn.id.replace('conn_builtin_', '')
+      : tailorEffectiveConn.apiType
+    : selectedTailorProvider;
+  const tailorTestTarget = {
+    url:
+      tailorEffectiveBase ||
+      providerDefaultBase(tailorEffectiveProvider, formSettings.tailor_model),
+    note: isTailorInherited
+      ? 'inherited from Default AI Gateway'
+      : tailorEffectiveConn
+        ? `${tailorEffectiveConn.name} (${tailorEffectiveConn.apiType})`
+        : 'custom override',
+  };
+
+  const isCopilotInherited = formSettings.copilot_inherit_default !== false;
+  const copilotEffectiveConn = isCopilotInherited ? activeGatewayConn : activeCopilotConn;
+  const copilotEffectiveBase =
+    (isCopilotInherited ? activeGatewayConn?.baseUrl : activeCopilotConn?.baseUrl) ||
+    formSettings.copilot_api_base;
+  const copilotEffectiveProvider = copilotEffectiveConn
+    ? copilotEffectiveConn.isBuiltIn
+      ? copilotEffectiveConn.id.replace('conn_builtin_', '')
+      : copilotEffectiveConn.apiType
+    : selectedCopilotProvider;
+  const copilotTestTarget = {
+    url:
+      copilotEffectiveBase ||
+      providerDefaultBase(copilotEffectiveProvider, formSettings.copilot_model),
+    note: isCopilotInherited
+      ? 'inherited from Default AI Gateway'
+      : copilotEffectiveConn
+        ? `${copilotEffectiveConn.name} (${copilotEffectiveConn.apiType})`
+        : 'custom override',
+  };
+
   const handleTestLlm = async (
     service: 'gateway' | 'scorer' | 'tailor' | 'copilot' = 'gateway'
   ) => {
@@ -1189,14 +1458,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       setDefaultTestResult(null);
       try {
         const model = formSettings.default_llm_model || 'openrouter/openrouter/free';
-        const apiBase = gatewayTestTarget.url;
-        const apiKey = editingDefaultKey ? newDefaultKey : formSettings.default_llm_api_key;
-        const provider = selectedDefaultProvider;
+        const targetConn = activeGatewayConn;
+        const apiBase = targetConn?.baseUrl || gatewayTestTarget.url;
+        const apiKey = newDefaultKey.trim() || formSettings.default_llm_api_key;
+        const provider = targetConn
+          ? targetConn.isBuiltIn
+            ? targetConn.id.replace('conn_builtin_', '')
+            : targetConn.apiType
+          : selectedDefaultProvider;
+        const connectionId = targetConn?.id;
         const res = await api.testLlmConnection({
           model,
           apiBase,
           apiKey,
           provider,
+          connectionId,
           feature: 'gateway',
         });
         setDefaultTestResult(res);
@@ -1228,20 +1504,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               : formSettings.scorer_model || formSettings.default_llm_model) ||
             'openrouter/openrouter/free'
           : formSettings.scorer_model;
-        const apiBase = scorerTestTarget.url;
+        const targetConn = scorerEffectiveConn;
+        const apiBase = targetConn?.baseUrl || scorerTestTarget.url;
         const apiKey = isInherited
-          ? editingDefaultKey
-            ? newDefaultKey
-            : formSettings.default_llm_api_key
-          : editingScorerKey
-            ? newScorerKey
-            : formSettings.scorer_api_key;
-        const provider = isInherited ? selectedDefaultProvider : selectedScorerProvider;
+          ? newDefaultKey.trim() || formSettings.default_llm_api_key
+          : newScorerKey.trim() || formSettings.scorer_api_key;
+        const provider = targetConn
+          ? targetConn.isBuiltIn
+            ? targetConn.id.replace('conn_builtin_', '')
+            : targetConn.apiType
+          : selectedScorerProvider;
+        const connectionId = targetConn?.id;
         const res = await api.testLlmConnection({
           model,
           apiBase,
           apiKey,
           provider,
+          connectionId,
           feature: 'scorer',
         });
         setTestResult(res);
@@ -1273,20 +1552,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               : formSettings.tailor_model || formSettings.default_llm_model) ||
             'openrouter/openrouter/free'
           : formSettings.tailor_model;
-        const apiBase = tailorTestTarget.url;
+        const targetConn = tailorEffectiveConn;
+        const apiBase = targetConn?.baseUrl || tailorTestTarget.url;
         const apiKey = isInherited
-          ? editingDefaultKey
-            ? newDefaultKey
-            : formSettings.default_llm_api_key
-          : editingTailorKey
-            ? newTailorKey
-            : formSettings.tailor_api_key;
-        const provider = isInherited ? selectedDefaultProvider : selectedTailorProvider;
+          ? newDefaultKey.trim() || formSettings.default_llm_api_key
+          : newTailorKey.trim() || formSettings.tailor_api_key;
+        const provider = targetConn
+          ? targetConn.isBuiltIn
+            ? targetConn.id.replace('conn_builtin_', '')
+            : targetConn.apiType
+          : selectedTailorProvider;
+        const connectionId = targetConn?.id;
         const res = await api.testLlmConnection({
           model,
           apiBase,
           apiKey,
           provider,
+          connectionId,
           feature: 'tailor',
         });
         setTailorTestResult(res);
@@ -1318,20 +1600,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               : formSettings.copilot_model || formSettings.default_llm_model) ||
             'openrouter/openrouter/free'
           : formSettings.copilot_model;
-        const apiBase = copilotTestTarget.url;
+        const targetConn = copilotEffectiveConn;
+        const apiBase = targetConn?.baseUrl || copilotTestTarget.url;
         const apiKey = isInherited
-          ? editingDefaultKey
-            ? newDefaultKey
-            : formSettings.default_llm_api_key
-          : editingCopilotKey
-            ? newCopilotKey
-            : formSettings.copilot_api_key;
-        const provider = isInherited ? selectedDefaultProvider : selectedCopilotProvider;
+          ? newDefaultKey.trim() || formSettings.default_llm_api_key
+          : newCopilotKey.trim() || formSettings.copilot_api_key;
+        const provider = targetConn
+          ? targetConn.isBuiltIn
+            ? targetConn.id.replace('conn_builtin_', '')
+            : targetConn.apiType
+          : selectedCopilotProvider;
+        const connectionId = targetConn?.id;
         const res = await api.testLlmConnection({
           model,
           apiBase,
           apiKey,
           provider,
+          connectionId,
           feature: 'copilot',
         });
         setCopilotTestResult(res);
@@ -1436,238 +1721,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       </span>
     );
   };
-
-  const renderProviderSelect = (
-    selectedId: string,
-    onSelect: (providerId: string) => void,
-    label: string,
-    id: string
-  ) => {
-    return (
-      <div style={{ marginBottom: '1.25rem' }}>
-        <label
-          htmlFor={id}
-          style={{
-            display: 'block',
-            fontSize: '0.85rem',
-            fontWeight: 600,
-            marginBottom: '0.4rem',
-          }}
-        >
-          {label}
-        </label>
-        <select
-          id={id}
-          value={selectedId}
-          onChange={(e) => onSelect(e.target.value)}
-          className="input-text"
-          style={{ maxWidth: '420px', cursor: 'pointer', padding: '0.45rem 0.65rem' }}
-          aria-label={label}
-        >
-          <optgroup label="Hosted Cloud Providers">
-            {LLM_PROVIDERS.filter((p) => !p.isLocal && !p.isCustom).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </optgroup>
-          <optgroup label="Local & Self-Hosted">
-            {LLM_PROVIDERS.filter((p) => p.isLocal || p.isCustom).map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.isLocal ? `🏠 ${p.name}` : `⚙️ ${p.name}`}
-              </option>
-            ))}
-          </optgroup>
-        </select>
-      </div>
-    );
-  };
-
-  const renderEndpointBaseUrlSection = (
-    providerId: string,
-    currentBase: string | undefined,
-    onBaseChange: (val: string) => void,
-    label = 'Endpoint Base URL',
-    sourceBadgeKey?: string,
-    id = 'llm-base-url'
-  ) => {
-    const p = LLM_PROVIDERS.find((x) => x.id === providerId);
-    const isCustomOrLocal = Boolean(p?.isCustom || p?.isLocal);
-    const fixedBase = providerDefaultBase(providerId);
-
-    if (isCustomOrLocal) {
-      return (
-        <div style={{ marginBottom: '1.25rem' }}>
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '0.35rem',
-            }}
-          >
-            <label htmlFor={id} style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-              {label} (Custom / Self-Hosted)
-            </label>
-            {sourceBadgeKey && currentBase?.trim() ? renderSourceBadge(sourceBadgeKey) : null}
-          </div>
-          <input
-            id={id}
-            type="text"
-            value={currentBase || ''}
-            onChange={(e) => onBaseChange(e.target.value)}
-            className="input-text"
-            placeholder={p?.defaultBase || 'http://localhost:8000/v1'}
-          />
-          <span
-            style={{
-              fontSize: '0.75rem',
-              color: 'var(--text-muted)',
-              marginTop: '0.25rem',
-              display: 'block',
-            }}
-          >
-            {p?.keyHelp || 'Specify your local endpoint or custom OpenAI-compatible proxy URL.'}
-          </span>
-        </div>
-      );
-    }
-
-    const hasExistingOverride = Boolean(
-      currentBase && currentBase.trim() && currentBase.trim() !== fixedBase
-    );
-
-    return (
-      <div style={{ marginBottom: '1.25rem' }}>
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            marginBottom: '0.35rem',
-          }}
-        >
-          <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>{label}</label>
-          {sourceBadgeKey && hasExistingOverride ? renderSourceBadge(sourceBadgeKey) : null}
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.5rem',
-            padding: '0.5rem 0.75rem',
-            borderRadius: 'var(--radius-md)',
-            background: 'var(--bg-input, rgba(255,255,255,0.02))',
-            border: '1px solid var(--border-subtle)',
-            fontSize: '0.82rem',
-            color: 'var(--text-secondary)',
-          }}
-        >
-          <Lock size={13} style={{ color: 'var(--text-muted)' }} />
-          <span style={{ fontFamily: 'monospace', flex: 1, wordBreak: 'break-all' }}>
-            {fixedBase || 'LiteLLM native prefix routing (no custom URL needed)'}
-          </span>
-          <span
-            style={{
-              fontSize: '0.7rem',
-              padding: '0.15rem 0.45rem',
-              borderRadius: '4px',
-              background: 'rgba(99, 102, 241, 0.1)',
-              color: 'var(--accent-primary)',
-              fontWeight: 500,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {fixedBase ? 'Fixed Built-in' : 'Native Routing'}
-          </span>
-        </div>
-        {hasExistingOverride && (
-          <div
-            style={{
-              marginTop: '0.4rem',
-              padding: '0.4rem 0.6rem',
-              borderRadius: 'var(--radius-sm)',
-              background: 'rgba(245, 158, 11, 0.08)',
-              border: '1px solid rgba(245, 158, 11, 0.25)',
-              fontSize: '0.76rem',
-              color: 'var(--text-primary)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '0.5rem',
-            }}
-          >
-            <span>
-              Stored custom override:{' '}
-              <code style={{ color: 'var(--accent-warning, #f59e0b)' }}>{currentBase}</code>
-            </span>
-            <button
-              type="button"
-              onClick={() => onBaseChange('')}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--accent-primary)',
-                textDecoration: 'underline',
-                cursor: 'pointer',
-                fontSize: '0.75rem',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              Clear override
-            </button>
-          </div>
-        )}
-        <span
-          style={{
-            fontSize: '0.74rem',
-            color: 'var(--text-muted)',
-            marginTop: '0.25rem',
-            display: 'block',
-          }}
-        >
-          Built-in endpoints are locked to prevent credential leaks. To use a custom proxy, switch
-          provider to &ldquo;Custom / Self-Hosted Gateway&rdquo;.
-        </span>
-      </div>
-    );
-  };
-
-  // Effective test targets, mirrored from the backend resolver so the UI can
-  // state exactly which endpoint "Test Connection" will call.
-  const gatewayTestTarget = resolveEffectiveEndpoint({
-    inherit: true,
-    gatewayBase: formSettings.default_llm_api_base,
-    gatewayProvider: selectedDefaultProvider,
-    gatewayModel: formSettings.default_llm_model,
-  });
-  const scorerTestTarget = resolveEffectiveEndpoint({
-    inherit: formSettings.scorer_inherit_default !== false,
-    gatewayBase: formSettings.default_llm_api_base,
-    gatewayProvider: selectedDefaultProvider,
-    gatewayModel: formSettings.default_llm_model,
-    featureBase: formSettings.scorer_api_base,
-    featureProvider: selectedScorerProvider,
-    featureModel: formSettings.scorer_model,
-  });
-  const tailorTestTarget = resolveEffectiveEndpoint({
-    inherit: formSettings.tailor_inherit_default !== false,
-    gatewayBase: formSettings.default_llm_api_base,
-    gatewayProvider: selectedDefaultProvider,
-    gatewayModel: formSettings.default_llm_model,
-    featureBase: formSettings.tailor_api_base,
-    featureProvider: selectedTailorProvider,
-    featureModel: formSettings.tailor_model,
-  });
-  const copilotTestTarget = resolveEffectiveEndpoint({
-    inherit: formSettings.copilot_inherit_default !== false,
-    gatewayBase: formSettings.default_llm_api_base,
-    gatewayProvider: selectedDefaultProvider,
-    gatewayModel: formSettings.default_llm_model,
-    featureBase: formSettings.copilot_api_base,
-    featureProvider: selectedCopilotProvider,
-    featureModel: formSettings.copilot_model,
-  });
 
   return (
     <div className="settings-container">
@@ -1904,13 +1957,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             </button>
             <button
               type="button"
-              onClick={() => handleTabChange('connections')}
-              className={`settings-nav-item ${activeTab === 'connections' ? 'active' : ''}`}
-            >
-              <Link2 size={16} /> AI Connections
-            </button>
-            <button
-              type="button"
               onClick={() => handleTabChange('profile')}
               className={`settings-nav-item ${activeTab === 'profile' ? 'active' : ''}`}
             >
@@ -1935,6 +1981,13 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           {/* GROUP 2: ADVANCED AI MODELS */}
           <div className="settings-nav-group">
             <div className="settings-nav-group-title">Advanced AI Models</div>
+            <button
+              type="button"
+              onClick={() => handleTabChange('connections')}
+              className={`settings-nav-item ${activeTab === 'connections' ? 'active' : ''}`}
+            >
+              <Link2 size={16} /> AI Connections
+            </button>
             <button
               type="button"
               onClick={() => handleTabChange('scorer')}
@@ -2269,45 +2322,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                     {/* Primary Named Connection Selector */}
                     <div style={{ marginBottom: '1.25rem' }}>
                       <ConnectionSelector
+                        id="gateway-connection-select"
                         label="Primary Gateway Connection"
                         selectedConnectionId={
                           formSettings.gateway_connection_id || 'conn_builtin_openrouter'
                         }
                         connections={connections}
                         onSelectConnectionId={(id) => {
-                          handleFieldChange('gateway_connection_id', id);
                           const chosen = connections.find((c) => c.id === id);
                           if (chosen) {
-                            const pId = chosen.isBuiltIn
-                              ? chosen.id.replace('conn_builtin_', '')
-                              : chosen.apiType;
-                            setSelectedDefaultProvider(pId);
-                            handleFieldChange('default_llm_provider', pId);
-                            handleFieldChange('default_llm_api_base', chosen.baseUrl);
+                            applyConnectionToField('gateway_connection_id', chosen);
                           }
                           setIsDirty(true);
                         }}
                         onManageConnections={() => handleTabChange('connections')}
+                        onAddConnection={() => handleOpenInlineAdd('gateway_connection_id')}
                       />
                     </div>
-
-                    {/* Primary Provider Selector */}
-                    {renderProviderSelect(
-                      selectedDefaultProvider,
-                      handleSelectDefaultProvider,
-                      'Primary LLM Provider',
-                      'default-llm-provider-select'
-                    )}
-
-                    {/* Fixed Built-in or Custom Base URL */}
-                    {renderEndpointBaseUrlSection(
-                      selectedDefaultProvider,
-                      formSettings.default_llm_api_base,
-                      (val) => handleFieldChange('default_llm_api_base', val),
-                      'Gateway Endpoint Base URL',
-                      'default_llm_api_base',
-                      'default-llm-api-base'
-                    )}
 
                     {/* API Key */}
                     <div style={{ marginBottom: '1.25rem' }}>
@@ -2320,15 +2351,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         }}
                       >
                         <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                          {(() => {
-                            const p = LLM_PROVIDERS.find((x) => x.id === selectedDefaultProvider);
-                            return `${p?.name || 'Primary'} API Key`;
-                          })()}
+                          {activeGatewayConn
+                            ? `${activeGatewayConn.name} API Key`
+                            : (() => {
+                                const p = LLM_PROVIDERS.find(
+                                  (x) => x.id === selectedDefaultProvider
+                                );
+                                return `${p?.name || 'Primary'} API Key`;
+                              })()}
                         </label>
                         {renderSourceBadge('default_llm_api_key')}
                       </div>
 
-                      {!editingDefaultKey ? (
+                      {(Boolean(formSettings.default_llm_api_key) ||
+                        Boolean(activeGatewayConn?.isConfigured)) &&
+                      !editingDefaultKey ? (
                         <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                           <div
                             style={{
@@ -2339,16 +2376,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               border: '1px solid var(--border-subtle)',
                               fontFamily: 'monospace',
                               fontSize: '0.85rem',
-                              color: formSettings.default_llm_api_key
-                                ? 'var(--text-primary)'
-                                : 'var(--text-muted)',
+                              color: 'var(--text-primary)',
                               display: 'flex',
                               alignItems: 'center',
                               gap: '0.5rem',
                             }}
                           >
                             <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                            {formSettings.default_llm_api_key || 'No gateway API key configured'}
+                            {formSettings.default_llm_api_key ||
+                              (activeGatewayConn?.isConfigured
+                                ? `Configured in connection (${activeGatewayConn.name})`
+                                : '')}
                           </div>
                           <button
                             type="button"
@@ -2376,12 +2414,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }}
                             className="input-text"
                             placeholder={
-                              LLM_PROVIDERS.find((x) => x.id === selectedDefaultProvider)
-                                ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
+                              activeGatewayConn?.isBuiltIn
+                                ? LLM_PROVIDERS.find((x) => x.id === selectedDefaultProvider)
+                                    ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
+                                : `Enter API key for ${activeGatewayConn?.name || 'custom gateway'}`
                             }
                             style={{ flex: 1 }}
-                            autoFocus
+                            autoFocus={editingDefaultKey}
                           />
+                          {(Boolean(formSettings.default_llm_api_key) ||
+                            Boolean(activeGatewayConn?.isConfigured)) && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setEditingDefaultKey(false);
+                                setNewDefaultKey('');
+                              }}
+                              className="btn btn-secondary btn-sm"
+                            >
+                              Cancel
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleSaveAll()}
@@ -2396,28 +2449,20 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           >
                             <Check size={14} /> {saving ? 'Saving...' : 'Save'}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingDefaultKey(false);
-                              setNewDefaultKey('');
-                            }}
-                            className="btn btn-secondary btn-sm"
-                          >
-                            Cancel
-                          </button>
                         </div>
                       )}
                       <span
                         style={{
                           fontSize: '0.75rem',
                           color: 'var(--text-muted)',
-                          marginTop: '0.3rem',
+                          marginTop: '0.25rem',
                           display: 'block',
                         }}
                       >
-                        {LLM_PROVIDERS.find((x) => x.id === selectedDefaultProvider)?.keyHelp ||
-                          'API key used by all engines inheriting from this gateway.'}
+                        {activeGatewayConn?.isBuiltIn
+                          ? LLM_PROVIDERS.find((x) => x.id === selectedDefaultProvider)?.keyHelp ||
+                            'API key used by all engines inheriting from this gateway.'
+                          : `API key for connection "${activeGatewayConn?.name || 'custom gateway'}".`}
                       </span>
                     </div>
 
@@ -2587,159 +2632,100 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         gap: '0.75rem',
                       }}
                     >
-                      {[
-                        {
-                          name: 'AI Fit Scorer',
-                          inheritDefault: formSettings.scorer_inherit_default,
-                          inheritModel: formSettings.scorer_inherit_model,
-                          model: formSettings.scorer_model,
-                        },
-                        {
-                          name: 'Resume Tailor',
-                          inheritDefault: formSettings.tailor_inherit_default,
-                          inheritModel: formSettings.tailor_inherit_model,
-                          model: formSettings.tailor_model,
-                        },
-                        {
-                          name: 'Copilot & Prompts',
-                          inheritDefault: formSettings.copilot_inherit_default,
-                          inheritModel: formSettings.copilot_inherit_model,
-                          model: formSettings.copilot_model,
-                        },
-                      ].map((card) => (
+                      {(
+                        [
+                          {
+                            name: 'AI Fit Scorer',
+                            tab: 'scorer' as SettingsTab,
+                            inheritDefault: formSettings.scorer_inherit_default,
+                            inheritModel: formSettings.scorer_inherit_model,
+                            model: formSettings.scorer_model,
+                          },
+                          {
+                            name: 'Resume Tailor',
+                            tab: 'tailor' as SettingsTab,
+                            inheritDefault: formSettings.tailor_inherit_default,
+                            inheritModel: formSettings.tailor_inherit_model,
+                            model: formSettings.tailor_model,
+                          },
+                          {
+                            name: 'Copilot & Prompts',
+                            tab: 'copilot' as SettingsTab,
+                            inheritDefault: formSettings.copilot_inherit_default,
+                            inheritModel: formSettings.copilot_inherit_model,
+                            model: formSettings.copilot_model,
+                          },
+                        ] as const
+                      ).map((card) => (
                         <div
                           key={card.name}
+                          onClick={() => handleTabChange(card.tab)}
+                          tabIndex={0}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              handleTabChange(card.tab);
+                            }
+                          }}
                           style={{
-                            padding: '0.75rem',
+                            padding: '0.85rem',
                             borderRadius: 'var(--radius-md)',
                             background: 'var(--bg-input)',
                             border: '1px solid var(--border-subtle)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            justifyContent: 'space-between',
+                            transition: 'border-color 0.15s ease, background-color 0.15s ease',
                           }}
+                          title={`Click to configure ${card.name}`}
                         >
-                          <div
-                            style={{ fontSize: '0.82rem', fontWeight: 600, marginBottom: '0.2rem' }}
-                          >
-                            {card.name}
+                          <div>
+                            <div
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '0.25rem',
+                              }}
+                            >
+                              <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                                {card.name}
+                              </span>
+                              <ChevronRight size={14} style={{ color: 'var(--text-muted)' }} />
+                            </div>
+                            <div
+                              style={{
+                                fontSize: '0.75rem',
+                                color:
+                                  card.inheritDefault !== false
+                                    ? 'var(--color-success, #10b981)'
+                                    : 'var(--text-muted)',
+                              }}
+                            >
+                              {card.inheritDefault !== false
+                                ? card.inheritModel !== false
+                                  ? '✓ Inheriting Provider & Model'
+                                  : `✓ Inheriting Provider (${card.model || 'Custom Model'})`
+                                : 'Using Custom Override'}
+                            </div>
                           </div>
                           <div
                             style={{
-                              fontSize: '0.75rem',
-                              color:
-                                card.inheritDefault !== false
-                                  ? 'var(--color-success, #10b981)'
-                                  : 'var(--text-muted)',
+                              marginTop: '0.65rem',
+                              fontSize: '0.72rem',
+                              color: 'var(--accent-primary)',
+                              fontWeight: 500,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '0.2rem',
                             }}
                           >
-                            {card.inheritDefault !== false
-                              ? card.inheritModel !== false
-                                ? '✓ Inheriting Provider & Model'
-                                : `✓ Inheriting Provider (${card.model || 'Custom Model'})`
-                              : 'Using Custom Override'}
+                            Configure <ArrowRight size={11} />
                           </div>
                         </div>
                       ))}
                     </div>
-                  </div>
-
-                  {/* Collapsible Advanced AI Model Overrides (Scorer, Tailor, Copilot, Opik) */}
-                  <div className="settings-card" style={{ padding: '1.25rem' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        cursor: 'pointer',
-                      }}
-                      onClick={() => setShowAdvancedAiOverrides((prev) => !prev)}
-                    >
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
-                        <Sliders size={18} style={{ color: 'var(--accent-primary)' }} />
-                        <div>
-                          <div style={{ fontWeight: 600, fontSize: '0.95rem' }}>
-                            Advanced AI Model Overrides
-                          </div>
-                          <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                            Customize per-feature models for Fit Scoring, Resume Tailoring, Copilot,
-                            or Opik
-                          </div>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        style={{
-                          background: 'none',
-                          border: 'none',
-                          color: 'var(--text-muted)',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.3rem',
-                          fontSize: '0.82rem',
-                        }}
-                      >
-                        {showAdvancedAiOverrides ? (
-                          <>
-                            Hide <ChevronDown size={16} />
-                          </>
-                        ) : (
-                          <>
-                            Configure Overrides <ChevronRight size={16} />
-                          </>
-                        )}
-                      </button>
-                    </div>
-
-                    {showAdvancedAiOverrides && (
-                      <div
-                        style={{
-                          marginTop: '1.25rem',
-                          borderTop: '1px solid var(--border-subtle)',
-                          paddingTop: '1rem',
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: 'flex',
-                            gap: '0.5rem',
-                            marginBottom: '1rem',
-                            flexWrap: 'wrap',
-                          }}
-                        >
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('scorer')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Bot size={14} /> Open Fit Scorer Tab
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('tailor')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Sliders size={14} /> Open Resume Tailor Tab
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('copilot')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Sparkles size={14} /> Open Copilot & Prompts Tab
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleTabChange('observability')}
-                            className="btn btn-secondary btn-sm"
-                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                          >
-                            <Activity size={14} /> Open Observability &amp; Tracing Tab
-                          </button>
-                        </div>
-                      </div>
-                    )}
                   </div>
 
                   {/* Next Step Footer Navigation */}
@@ -2855,6 +2841,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       <>
                         <div style={{ marginBottom: '1.25rem' }}>
                           <ConnectionSelector
+                            id="scorer-connection-select"
                             label="Scorer Connection Override"
                             selectedConnectionId={
                               formSettings.scorer_connection_id ||
@@ -2863,39 +2850,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }
                             connections={connections}
                             onSelectConnectionId={(id) => {
-                              handleFieldChange('scorer_connection_id', id);
                               const chosen = connections.find((c) => c.id === id);
                               if (chosen) {
-                                const pId = chosen.isBuiltIn
-                                  ? chosen.id.replace('conn_builtin_', '')
-                                  : chosen.apiType;
-                                setSelectedScorerProvider(pId);
-                                handleFieldChange('scorer_provider', pId);
-                                handleFieldChange('scorer_api_base', chosen.baseUrl);
+                                applyConnectionToField('scorer_connection_id', chosen);
+                              } else {
+                                handleFieldChange('scorer_connection_id', id);
                               }
                               setIsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
+                            onAddConnection={() => handleOpenInlineAdd('scorer_connection_id')}
                           />
                         </div>
-
-                        {/* Primary Provider Selector */}
-                        {renderProviderSelect(
-                          selectedScorerProvider,
-                          handleSelectScorerProvider,
-                          'Primary LLM Provider',
-                          'scorer-llm-provider-select'
-                        )}
-
-                        {/* Fixed Built-in or Custom Base URL */}
-                        {renderEndpointBaseUrlSection(
-                          selectedScorerProvider,
-                          formSettings.scorer_api_base,
-                          (val) => handleFieldChange('scorer_api_base', val),
-                          'LLM Endpoint Base URL',
-                          'scorer_api_base',
-                          'scorer-api-base'
-                        )}
 
                         {/* API Key */}
                         <div style={{ marginBottom: '1.25rem' }}>
@@ -2908,17 +2874,21 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }}
                           >
                             <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                              {(() => {
-                                const p = LLM_PROVIDERS.find(
-                                  (x) => x.id === selectedScorerProvider
-                                );
-                                return `${p?.name || 'LLM'} API Key`;
-                              })()}
+                              {activeScorerConn
+                                ? `${activeScorerConn.name} API Key`
+                                : (() => {
+                                    const p = LLM_PROVIDERS.find(
+                                      (x) => x.id === selectedScorerProvider
+                                    );
+                                    return `${p?.name || 'LLM'} API Key`;
+                                  })()}
                             </label>
                             {renderSourceBadge('scorer_api_key')}
                           </div>
 
-                          {!editingScorerKey ? (
+                          {(Boolean(formSettings.scorer_api_key) ||
+                            Boolean(activeScorerConn?.isConfigured)) &&
+                          !editingScorerKey ? (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <div
                                 style={{
@@ -2929,16 +2899,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   border: '1px solid var(--border-subtle)',
                                   fontFamily: 'monospace',
                                   fontSize: '0.85rem',
-                                  color: formSettings.scorer_api_key
-                                    ? 'var(--text-primary)'
-                                    : 'var(--text-muted)',
+                                  color: 'var(--text-primary)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '0.5rem',
                                 }}
                               >
                                 <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                                {formSettings.scorer_api_key || 'No API key configured'}
+                                {formSettings.scorer_api_key ||
+                                  (activeScorerConn?.isConfigured
+                                    ? `Configured in connection (${activeScorerConn.name})`
+                                    : '')}
                               </div>
                               <button
                                 type="button"
@@ -2966,12 +2937,27 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 }}
                                 className="input-text"
                                 placeholder={
-                                  LLM_PROVIDERS.find((x) => x.id === selectedScorerProvider)
-                                    ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
+                                  activeScorerConn?.isBuiltIn
+                                    ? LLM_PROVIDERS.find((x) => x.id === selectedScorerProvider)
+                                        ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
+                                    : `Enter API key for ${activeScorerConn?.name || 'custom connection'}`
                                 }
                                 style={{ flex: 1 }}
-                                autoFocus
+                                autoFocus={editingScorerKey}
                               />
+                              {(Boolean(formSettings.scorer_api_key) ||
+                                Boolean(activeScorerConn?.isConfigured)) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingScorerKey(false);
+                                    setNewScorerKey('');
+                                  }}
+                                  className="btn btn-secondary btn-sm"
+                                >
+                                  Cancel
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleSaveAll()}
@@ -2986,16 +2972,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               >
                                 <Check size={14} /> {saving ? 'Saving...' : 'Save'}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingScorerKey(false);
-                                  setNewScorerKey('');
-                                }}
-                                className="btn btn-secondary btn-sm"
-                              >
-                                Cancel
-                              </button>
                             </div>
                           )}
                           <span
@@ -3006,8 +2982,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               display: 'block',
                             }}
                           >
-                            {LLM_PROVIDERS.find((x) => x.id === selectedScorerProvider)?.keyHelp ||
-                              'Your API key is securely encrypted and stored locally.'}
+                            {activeScorerConn?.isBuiltIn
+                              ? LLM_PROVIDERS.find((x) => x.id === selectedScorerProvider)
+                                  ?.keyHelp ||
+                                'Your API key is securely encrypted and stored locally.'
+                              : `API key for connection "${activeScorerConn?.name || 'custom connection'}".`}
                           </span>
                         </div>
 
@@ -3250,6 +3229,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       <>
                         <div style={{ marginBottom: '1.25rem' }}>
                           <ConnectionSelector
+                            id="tailor-connection-select"
                             label="Tailor Connection Override"
                             selectedConnectionId={
                               formSettings.tailor_connection_id ||
@@ -3258,19 +3238,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }
                             connections={connections}
                             onSelectConnectionId={(id) => {
-                              handleFieldChange('tailor_connection_id', id);
                               const chosen = connections.find((c) => c.id === id);
                               if (chosen) {
-                                const pId = chosen.isBuiltIn
-                                  ? chosen.id.replace('conn_builtin_', '')
-                                  : chosen.apiType;
-                                setSelectedTailorProvider(pId);
-                                handleFieldChange('tailor_provider', pId);
-                                handleFieldChange('tailor_api_base', chosen.baseUrl);
+                                applyConnectionToField('tailor_connection_id', chosen);
+                              } else {
+                                handleFieldChange('tailor_connection_id', id);
                               }
                               setIsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
+                            onAddConnection={() => handleOpenInlineAdd('tailor_connection_id')}
                           />
                         </div>
 
@@ -3282,24 +3259,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             borderRadius: 'var(--radius-md)',
                           }}
                         >
-                          {/* Tailor Dedicated Provider */}
-                          {renderProviderSelect(
-                            selectedTailorProvider,
-                            handleSelectTailorProvider,
-                            'Tailor Dedicated Provider',
-                            'tailor-llm-provider-select'
-                          )}
-
-                          {/* Fixed Built-in or Custom Base URL */}
-                          {renderEndpointBaseUrlSection(
-                            selectedTailorProvider,
-                            formSettings.tailor_api_base,
-                            (val) => handleFieldChange('tailor_api_base', val),
-                            'Dedicated Endpoint Base URL',
-                            'tailor_api_base',
-                            'tailor-api-base'
-                          )}
-
                           {/* Dedicated Tailor Key */}
                           <div style={{ marginBottom: '1rem' }}>
                             <div
@@ -3311,11 +3270,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               }}
                             >
                               <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                                Dedicated Tailor API Key
+                                {activeTailorConn
+                                  ? `${activeTailorConn.name} API Key`
+                                  : 'Dedicated Tailor API Key'}
                               </label>
                               {renderSourceBadge('tailor_api_key')}
                             </div>
-                            {!editingTailorKey ? (
+                            {(Boolean(formSettings.tailor_api_key) ||
+                              Boolean(activeTailorConn?.isConfigured)) &&
+                            !editingTailorKey ? (
                               <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                                 <div
                                   style={{
@@ -3326,21 +3289,23 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                     border: '1px solid var(--border-subtle)',
                                     fontFamily: 'monospace',
                                     fontSize: '0.85rem',
-                                    color: formSettings.tailor_api_key
-                                      ? 'var(--text-primary)'
-                                      : 'var(--text-muted)',
+                                    color: 'var(--text-primary)',
                                     display: 'flex',
                                     alignItems: 'center',
                                     gap: '0.5rem',
                                   }}
                                 >
                                   <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                                  {formSettings.tailor_api_key || 'No dedicated key set'}
+                                  {formSettings.tailor_api_key ||
+                                    (activeTailorConn?.isConfigured
+                                      ? `Configured in connection (${activeTailorConn.name})`
+                                      : '')}
                                 </div>
                                 <button
                                   type="button"
                                   onClick={() => setEditingTailorKey(true)}
                                   className="btn btn-secondary btn-sm"
+                                  style={{ whiteSpace: 'nowrap' }}
                                 >
                                   <Unlock size={14} /> Change Key
                                 </button>
@@ -3361,10 +3326,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                     }
                                   }}
                                   className="input-text"
-                                  placeholder="Enter custom key for tailor service"
+                                  placeholder={
+                                    activeTailorConn?.isBuiltIn
+                                      ? LLM_PROVIDERS.find((x) => x.id === selectedTailorProvider)
+                                          ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
+                                      : `Enter API key for ${activeTailorConn?.name || 'custom connection'}`
+                                  }
                                   style={{ flex: 1 }}
-                                  autoFocus
+                                  autoFocus={editingTailorKey}
                                 />
+                                {(Boolean(formSettings.tailor_api_key) ||
+                                  Boolean(activeTailorConn?.isConfigured)) && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingTailorKey(false);
+                                      setNewTailorKey('');
+                                    }}
+                                    className="btn btn-secondary btn-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                )}
                                 <button
                                   type="button"
                                   onClick={() => handleSaveAll()}
@@ -3379,18 +3362,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 >
                                   <Check size={14} /> {saving ? 'Saving...' : 'Save'}
                                 </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingTailorKey(false);
-                                    setNewTailorKey('');
-                                  }}
-                                  className="btn btn-secondary btn-sm"
-                                >
-                                  Cancel
-                                </button>
                               </div>
                             )}
+                            <span
+                              style={{
+                                fontSize: '0.75rem',
+                                color: 'var(--text-muted)',
+                                marginTop: '0.25rem',
+                                display: 'block',
+                              }}
+                            >
+                              {activeTailorConn?.isBuiltIn
+                                ? LLM_PROVIDERS.find((x) => x.id === selectedTailorProvider)
+                                    ?.keyHelp ||
+                                  'Your API key is securely encrypted and stored locally.'
+                                : `API key for connection "${activeTailorConn?.name || 'custom connection'}".`}
+                            </span>
                           </div>
                         </div>
 
@@ -4273,6 +4260,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       >
                         <div style={{ marginBottom: '1.25rem' }}>
                           <ConnectionSelector
+                            id="copilot-connection-select"
                             label="Copilot Connection Override"
                             selectedConnectionId={
                               formSettings.copilot_connection_id ||
@@ -4281,39 +4269,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }
                             connections={connections}
                             onSelectConnectionId={(id) => {
-                              handleFieldChange('copilot_connection_id', id);
                               const chosen = connections.find((c) => c.id === id);
                               if (chosen) {
-                                const pId = chosen.isBuiltIn
-                                  ? chosen.id.replace('conn_builtin_', '')
-                                  : chosen.apiType;
-                                setSelectedCopilotProvider(pId);
-                                handleFieldChange('copilot_provider', pId);
-                                handleFieldChange('copilot_api_base', chosen.baseUrl);
+                                applyConnectionToField('copilot_connection_id', chosen);
+                              } else {
+                                handleFieldChange('copilot_connection_id', id);
                               }
                               setIsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
+                            onAddConnection={() => handleOpenInlineAdd('copilot_connection_id')}
                           />
                         </div>
-
-                        {/* Copilot Dedicated Provider */}
-                        {renderProviderSelect(
-                          selectedCopilotProvider,
-                          handleSelectCopilotProvider,
-                          'Copilot Dedicated Provider',
-                          'copilot-llm-provider-select'
-                        )}
-
-                        {/* Fixed Built-in or Custom Base URL */}
-                        {renderEndpointBaseUrlSection(
-                          selectedCopilotProvider,
-                          formSettings.copilot_api_base,
-                          (val) => handleFieldChange('copilot_api_base', val),
-                          'Copilot Endpoint Base URL',
-                          'copilot_api_base',
-                          'copilot-api-base'
-                        )}
 
                         {/* Dedicated Copilot Key */}
                         <div style={{ marginBottom: '1rem' }}>
@@ -4326,11 +4293,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             }}
                           >
                             <label style={{ fontSize: '0.85rem', fontWeight: 500 }}>
-                              Dedicated Copilot API Key
+                              {activeCopilotConn
+                                ? `${activeCopilotConn.name} API Key`
+                                : 'Dedicated Copilot API Key'}
                             </label>
                             {renderSourceBadge('copilot_api_key')}
                           </div>
-                          {!editingCopilotKey ? (
+                          {(Boolean(formSettings.copilot_api_key) ||
+                            Boolean(activeCopilotConn?.isConfigured)) &&
+                          !editingCopilotKey ? (
                             <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
                               <div
                                 style={{
@@ -4341,16 +4312,17 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   border: '1px solid var(--border-subtle)',
                                   fontFamily: 'monospace',
                                   fontSize: '0.85rem',
-                                  color: formSettings.copilot_api_key
-                                    ? 'var(--text-primary)'
-                                    : 'var(--text-muted)',
+                                  color: 'var(--text-primary)',
                                   display: 'flex',
                                   alignItems: 'center',
                                   gap: '0.5rem',
                                 }}
                               >
                                 <Lock size={14} style={{ color: 'var(--accent-primary)' }} />
-                                {formSettings.copilot_api_key || 'No dedicated key set'}
+                                {formSettings.copilot_api_key ||
+                                  (activeCopilotConn?.isConfigured
+                                    ? `Configured in connection (${activeCopilotConn.name})`
+                                    : '')}
                               </div>
                               <button
                                 type="button"
@@ -4376,10 +4348,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   }
                                 }}
                                 className="input-text"
-                                placeholder="Enter custom key for Copilot"
+                                placeholder={
+                                  activeCopilotConn?.isBuiltIn
+                                    ? LLM_PROVIDERS.find((x) => x.id === selectedCopilotProvider)
+                                        ?.keyPlaceholder || 'Enter API key (e.g. sk-...)'
+                                    : `Enter API key for ${activeCopilotConn?.name || 'custom connection'}`
+                                }
                                 style={{ flex: 1 }}
-                                autoFocus
+                                autoFocus={editingCopilotKey}
                               />
+                              {(Boolean(formSettings.copilot_api_key) ||
+                                Boolean(activeCopilotConn?.isConfigured)) && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingCopilotKey(false);
+                                    setNewCopilotKey('');
+                                  }}
+                                  className="btn btn-secondary btn-sm"
+                                >
+                                  Cancel
+                                </button>
+                              )}
                               <button
                                 type="button"
                                 onClick={() => handleSaveAll()}
@@ -4394,18 +4384,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               >
                                 <Check size={14} /> {saving ? 'Saving...' : 'Save'}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setEditingCopilotKey(false);
-                                  setNewCopilotKey('');
-                                }}
-                                className="btn btn-secondary btn-sm"
-                              >
-                                Cancel
-                              </button>
                             </div>
                           )}
+                          <span
+                            style={{
+                              fontSize: '0.75rem',
+                              color: 'var(--text-muted)',
+                              marginTop: '0.25rem',
+                              display: 'block',
+                            }}
+                          >
+                            {activeCopilotConn?.isBuiltIn
+                              ? LLM_PROVIDERS.find((x) => x.id === selectedCopilotProvider)
+                                  ?.keyHelp ||
+                                'Your API key is securely encrypted and stored locally.'
+                              : `API key for connection "${activeCopilotConn?.name || 'custom connection'}".`}
+                          </span>
                         </div>
 
                         {/* Dedicated Copilot Model Selection with Tip & Live Fetch */}
@@ -6097,6 +6091,22 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           </button>
         </div>
       )}
+
+      {/* Inline Modal: Add Custom Connection from any tab */}
+      <AddConnectionModal
+        isOpen={isInlineAddModalOpen}
+        onClose={() => setIsInlineAddModalOpen(false)}
+        onSubmit={(e) => void handleCreateInlineConnection(e)}
+        creating={inlineCreating}
+        name={inlineConnName}
+        setName={setInlineConnName}
+        apiType={inlineConnApiType}
+        setApiType={setInlineConnApiType}
+        baseUrl={inlineConnBaseUrl}
+        setBaseUrl={setInlineConnBaseUrl}
+        apiKey={inlineConnApiKey}
+        setApiKey={setInlineConnApiKey}
+      />
     </div>
   );
 };

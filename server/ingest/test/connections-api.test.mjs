@@ -170,4 +170,41 @@ test('Named connections REST API endpoints', async (t) => {
     assert.equal(body.ok, false);
     assert.match(body.error, /No API key configured/);
   });
+
+  await t.test(
+    'POST /api/v1/settings/test-llm uses connectionId credentials and base URL',
+    async () => {
+      // Create a custom connection with a dummy key and URL
+      const createRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/settings/connections',
+        headers: authHeaders,
+        payload: {
+          name: 'LiteLLM Test Endpoint',
+          apiType: 'openai',
+          baseUrl: 'https://litellm-proxy.internal/v1',
+          apiKey: 'sk-custom-litellm-secret-key-999',
+        },
+      });
+      assert.equal(createRes.statusCode, 201);
+      const customConn = JSON.parse(createRes.payload).connection;
+
+      // Test LLM endpoint targeting this connectionId without providing raw apiKey or apiBase
+      const testRes = await app.inject({
+        method: 'POST',
+        url: '/api/v1/settings/test-llm',
+        headers: authHeaders,
+        payload: {
+          connectionId: customConn.id,
+          model: 'gpt-4o-mini',
+        },
+      });
+      // In test environment, the downstream tailor service or mock may fail/refuse connection,
+      // but the error response must reflect the connection's baseUrl and provider, not OpenRouter!
+      const testBody = JSON.parse(testRes.payload);
+      assert.equal(testBody.provider, 'openai');
+      assert.equal(testBody.apiBase, 'https://litellm-proxy.internal/v1');
+      assert.notEqual(testBody.apiBase, 'https://openrouter.ai/api/v1');
+    }
+  );
 });

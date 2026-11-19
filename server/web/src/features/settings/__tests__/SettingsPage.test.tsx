@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { SettingsPage } from '../SettingsPage';
 import { ThemeProvider } from '../../../context/ThemeContext';
 import { ToastProvider } from '../../../context/ToastContext';
@@ -201,10 +201,8 @@ describe('SettingsPage', () => {
 
     // Built-in providers display their fixed endpoint as read-only text, preventing
     // confusion with custom proxy overrides.
-    expect(
-      screen.getByText('https://openrouter.ai/api/v1', { selector: 'span' })
-    ).toBeInTheDocument();
-    expect(screen.getByText('Fixed Built-in')).toBeInTheDocument();
+    expect(screen.getAllByText('https://openrouter.ai/api/v1').length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByTitle('Endpoint is locked for built-in provider')).toBeInTheDocument();
   });
 
   it('updates settings and saves successfully', async () => {
@@ -258,15 +256,16 @@ describe('SettingsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
-    // Verify provider dropdown exists with known options
-    expect(screen.getByLabelText(/Primary LLM Provider/i)).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Google Gemini' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'DeepSeek' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'OpenAI' })).toBeInTheDocument();
+    // Verify connection dropdown exists with known options
+    const connSelect = screen.getByLabelText(/Scorer Connection Override/i);
+    expect(connSelect).toBeInTheDocument();
+    expect(within(connSelect).getByRole('option', { name: /Google Gemini/i })).toBeInTheDocument();
+    expect(within(connSelect).getByRole('option', { name: /DeepSeek/i })).toBeInTheDocument();
+    expect(within(connSelect).getByRole('option', { name: /OpenAI/i })).toBeInTheDocument();
 
-    // Select DeepSeek provider
-    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
-      target: { value: 'deepseek' },
+    // Select DeepSeek connection
+    fireEvent.change(connSelect, {
+      target: { value: 'conn_builtin_deepseek' },
     });
 
     // Verify task tip for Scorer renders
@@ -476,9 +475,9 @@ describe('SettingsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /AI Fit Scorer/i }));
 
-    // Select Custom Gateway provider
-    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
-      target: { value: 'custom' },
+    // Select Ollama connection
+    fireEvent.change(screen.getByLabelText(/Scorer Connection Override/i), {
+      target: { value: 'conn_builtin_ollama' },
     });
 
     // Tip should be visible
@@ -490,25 +489,27 @@ describe('SettingsPage', () => {
     const modelInput = screen.getByPlaceholderText('openrouter/z-ai/glm-5.3-flash');
     fireEvent.change(modelInput, { target: { value: 'my-custom-mistral' } });
 
-    // Custom Gateway should remain selected
-    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
+    // Ollama connection should remain selected
+    expect(screen.getByLabelText(/Scorer Connection Override/i)).toHaveValue('conn_builtin_ollama');
   });
 
-  it('preserves custom gateway provider and editable URL when typing model names', async () => {
+  it('preserves gateway connection and shows endpoint when typing model names', async () => {
     renderComponent();
     await waitFor(() => {
       expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
     });
 
-    // Gateway tab is active by default; select Custom Gateway provider
-    fireEvent.change(screen.getByLabelText(/Primary LLM Provider/i), {
-      target: { value: 'custom' },
-    });
-    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
+    // Navigate to Gateway tab
+    fireEvent.click(screen.getByRole('button', { name: /AI Engine & Models/i }));
 
-    // Editable base URL input should be rendered
-    const baseUrlInput = screen.getByPlaceholderText('http://localhost:8000/v1');
-    expect(baseUrlInput).toBeInTheDocument();
+    // Select Ollama connection
+    fireEvent.change(screen.getByLabelText(/Primary Gateway Connection/i), {
+      target: { value: 'conn_builtin_ollama' },
+    });
+    expect(screen.getByLabelText(/Primary Gateway Connection/i)).toHaveValue('conn_builtin_ollama');
+
+    // Endpoint display should reflect Ollama's URL
+    expect(screen.getAllByText('http://127.0.0.1:11434/v1').length).toBeGreaterThanOrEqual(1);
 
     // Type a model with or without prefix
     const defaultModelInput = screen.getByDisplayValue(
@@ -516,9 +517,9 @@ describe('SettingsPage', () => {
     );
     fireEvent.change(defaultModelInput, { target: { value: 'openai/my-proxied-model' } });
 
-    // Custom provider must remain selected and base URL remains editable
-    expect(screen.getByLabelText(/Primary LLM Provider/i)).toHaveValue('custom');
-    expect(screen.getByPlaceholderText('http://localhost:8000/v1')).toBeInTheDocument();
+    // Connection remains selected and endpoint is shown
+    expect(screen.getByLabelText(/Primary Gateway Connection/i)).toHaveValue('conn_builtin_ollama');
+    expect(screen.getAllByText('http://127.0.0.1:11434/v1').length).toBeGreaterThanOrEqual(1);
   });
 
   it('allows editing API key with inline Save and Cancel options', async () => {
@@ -568,6 +569,32 @@ describe('SettingsPage', () => {
         })
       );
     });
+  });
+
+  it('renders API key input directly when key is unconfigured without requiring Change Key', async () => {
+    vi.spyOn(api, 'getSettings').mockResolvedValue({
+      settings: {
+        default_llm_api_key: '',
+        scorer_api_key: '',
+        default_llm_model: 'openrouter/openrouter/free',
+      } as any,
+      meta: {
+        default_llm_api_key: { hasCustomKey: false },
+        scorer_api_key: { hasCustomKey: false },
+      } as any,
+    });
+
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Engine & Models/i }));
+
+    // Input field should be visible directly without Change Key button
+    expect(screen.queryByRole('button', { name: /Change Key/i })).not.toBeInTheDocument();
+    const gatewayKeyInput = screen.getByPlaceholderText(/sk-or-v1/i);
+    expect(gatewayKeyInput).toBeInTheDocument();
   });
 
   it('navigates to Default AI Gateway tab, displays engine inheritance and tests connection', async () => {
@@ -782,5 +809,26 @@ describe('SettingsPage', () => {
     expect(screen.getByRole('option', { name: /Jake Technical/i })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /Harvard Classic/i })).toBeInTheDocument();
     expect(screen.getByRole('option', { name: /^Pro \(/i })).toBeInTheDocument();
+  });
+
+  it('clicks engine inheritance overview card and navigates directly to that engine tab', async () => {
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    // Navigate to AI Engine & Models (Gateway) tab
+    fireEvent.click(screen.getByRole('button', { name: /AI Engine & Models/i }));
+    expect(screen.getByText('Engine Inheritance Overview')).toBeInTheDocument();
+
+    // Click the Resume Tailor engine card
+    const tailorCard = screen.getByTitle('Click to configure Resume Tailor');
+    expect(tailorCard).toBeInTheDocument();
+    fireEvent.click(tailorCard);
+
+    // Should now be on the Resume Tailor tab
+    await waitFor(() => {
+      expect(screen.getByText('Default Resume Theme')).toBeInTheDocument();
+    });
   });
 });
