@@ -4,6 +4,26 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.10.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.9.0...v0.10.0) (2026-11-20)
+
+
+### Features
+
+* **extension:** add lint:ext, CI PR extension check, and secrets scanning test ([#208](https://github.com/Covai-Labs/JobFoundry/issues/208)) ([27d2f54](https://github.com/Covai-Labs/JobFoundry/commit/27d2f5407496e202e0ff14db84cd5417bf205e4a))
+* **resume:** add multi-theme preview and selection for master resume ([#203](https://github.com/Covai-Labs/JobFoundry/issues/203)) ([0f8bdb4](https://github.com/Covai-Labs/JobFoundry/commit/0f8bdb4de435fd17b255a407a7aae1415039b06e))
+* **settings:** inline custom connection creation with guidance tips ([#214](https://github.com/Covai-Labs/JobFoundry/issues/214)) ([790efc8](https://github.com/Covai-Labs/JobFoundry/commit/790efc8ea78f3730004c62008aca043842e3eaa1))
+* **settings:** named connections for providers and endpoints ([#198](https://github.com/Covai-Labs/JobFoundry/issues/198)) ([#213](https://github.com/Covai-Labs/JobFoundry/issues/213)) ([9161500](https://github.com/Covai-Labs/JobFoundry/commit/91615008171e8b882fe2bc6aa5bb9eaa6a66d2ee))
+* **ui,api:** OS-aware keyboard shortcuts & live model endpoint fetching with task guidance tips ([#209](https://github.com/Covai-Labs/JobFoundry/issues/209)) ([8f0a63c](https://github.com/Covai-Labs/JobFoundry/commit/8f0a63cce9947537e7499ea3f93f379d4df7b2a5))
+* **web:** declutter top navbar, unify tracker views, and reorder feed triage bar ([#206](https://github.com/Covai-Labs/JobFoundry/issues/206)) ([a0a78c7](https://github.com/Covai-Labs/JobFoundry/commit/a0a78c77ff49502be5380bb6f46496d745a7102e))
+* **web:** make the apply action obvious in the feed and triage view ([#211](https://github.com/Covai-Labs/JobFoundry/issues/211)) ([dad99fc](https://github.com/Covai-Labs/JobFoundry/commit/dad99fc0af4aad9f37ff68a28e41c492977ea737))
+* **web:** pipeline conversion funnel from user_jobs status ([#152](https://github.com/Covai-Labs/JobFoundry/issues/152)) ([#205](https://github.com/Covai-Labs/JobFoundry/issues/205)) ([f83dc09](https://github.com/Covai-Labs/JobFoundry/commit/f83dc0950175e2f2ecb2d7de27d91c3fed4487b3))
+
+
+### Bug Fixes
+
+* **copilot:** graceful fallback for Pydantic schema validation failures & flexible answer parsing ([#212](https://github.com/Covai-Labs/JobFoundry/issues/212)) ([da4367e](https://github.com/Covai-Labs/JobFoundry/commit/da4367e373cbf04947738ecf15c6a887d0e017fb))
+* **deps:** update all dependencies ([#187](https://github.com/Covai-Labs/JobFoundry/issues/187)) ([d25001a](https://github.com/Covai-Labs/JobFoundry/commit/d25001ac7e202267880f3cdb26460893cb8e0eb3))
+
 ## [0.9.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.8.0...v0.9.0) (2026-11-15)
 
 
