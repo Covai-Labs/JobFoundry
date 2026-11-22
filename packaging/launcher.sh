@@ -169,6 +169,7 @@ export API_KEYS="${API_KEYS:-}"
 export HOST="${HOST:-127.0.0.1}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 export OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
+export DEFAULT_MODEL="${DEFAULT_MODEL:-$TAILOR_MODEL}"
 export MASTER_RESUME_PATH
 
 # Custom LLM base URLs are optional. Unset them when empty so the services fall
@@ -268,7 +269,7 @@ echo "[jobfoundry] Starting services..."
 # --- 7a. Tailor (resume ops API, port 8081) ---
 PORT="$TAILOR_PORT" \
 MASTER_RESUME_PATH="$MASTER_RESUME_PATH" \
-DEFAULT_MODEL="$TAILOR_MODEL" \
+DEFAULT_MODEL="${DEFAULT_MODEL:-$TAILOR_MODEL}" \
 LLM_MAX_CONCURRENCY=1 \
   "$PYTHON_BIN" -m resume_ops_api \
   >> "$LOGS_DIR/tailor.log" 2>&1 &

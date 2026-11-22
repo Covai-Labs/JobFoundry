@@ -108,19 +108,8 @@ class Settings(BaseSettings):
             else:
                 setattr(self, field, val.strip())
 
-        # Validate that required consolidated models are set
-        required_fields = [
-            "strategy_and_basics_model",
-            "work_model",
-            "qualifications_model",
-            "projects_model",
-        ]
-        missing = [f.upper() for f in required_fields if getattr(self, f) is None]
-        if missing:
-            raise ValueError(
-                f"Missing required model configurations. You must configure DEFAULT_MODEL "
-                f"or configure each of the following in your environment/.env: {', '.join(missing)}"
-            )
+        # Consolidated models can be supplied dynamically per-request or via UI settings.
+        # When unset at startup, validation is deferred to request processing.
         return self
     default_theme: str = "jsonresume-theme-folio"
     allowed_themes: list[str] = Field(default_factory=lambda: list(DEFAULT_ALLOWED_THEMES))

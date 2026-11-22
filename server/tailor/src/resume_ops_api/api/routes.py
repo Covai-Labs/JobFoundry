@@ -272,6 +272,13 @@ async def tailor_resume(
     else:
         resume_data = payload.resume
 
+    effective_model = payload.model or container.settings.strategy_and_basics_model
+    if not effective_model or effective_model == "default":
+        raise HTTPException(
+            status_code=400,
+            detail="No model configured. Specify model in request payload or configure DEFAULT_MODEL in settings.",
+        )
+
     # Create a new payload with the resolved resume to pass to the async job runner if needed
     effective_payload = TailorRequest(
         resume=resume_data,
@@ -327,6 +334,12 @@ async def copilot_outreach(
     if not resume_data:
         raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
 
+    if not (payload.model or container.settings.strategy_and_basics_model):
+        raise HTTPException(
+            status_code=400,
+            detail="No model configured. Specify model in request payload or configure DEFAULT_MODEL in settings.",
+        )
+
     result = await container.copilot_service.generate_outreach(
         resume=resume_data,
         tailored_resume=payload.tailored_resume,
@@ -363,6 +376,12 @@ async def copilot_qa(
     resume_data = payload.resume or container.master_resume
     if not resume_data:
         raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+
+    if not (payload.model or container.settings.strategy_and_basics_model):
+        raise HTTPException(
+            status_code=400,
+            detail="No model configured. Specify model in request payload or configure DEFAULT_MODEL in settings.",
+        )
 
     result = await container.copilot_service.generate_qa(
         question=payload.question,
@@ -402,6 +421,12 @@ async def copilot_cover_letter(
     resume_data = payload.resume or container.master_resume
     if not resume_data:
         raise HTTPException(status_code=400, detail="No resume provided and no master resume configured or valid")
+
+    if not (payload.model or container.settings.strategy_and_basics_model):
+        raise HTTPException(
+            status_code=400,
+            detail="No model configured. Specify model in request payload or configure DEFAULT_MODEL in settings.",
+        )
 
     result = await container.copilot_service.generate_cover_letter(
         resume=resume_data,

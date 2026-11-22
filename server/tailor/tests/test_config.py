@@ -370,11 +370,14 @@ class TestSettingsModelResolution:
         assert settings.certificates_model == "openai/gpt-4o-mini"
         assert settings.basics_model == "openai/gpt-4o-mini"
 
-    def test_fail_validation_when_no_model_set(self) -> None:
-        # If neither default nor specific models are set, it must fail validation
-        from pydantic import ValidationError
-        with pytest.raises(ValidationError, match="Missing required model configurations"):
-            Settings(_env_file=None)
+    def test_models_optional_without_env(self) -> None:
+        # If neither default nor specific models are set, settings still instantiate cleanly
+        # so services can boot without an .env file
+        settings = Settings(_env_file=None)
+        assert settings.strategy_and_basics_model is None
+        assert settings.work_model is None
+        assert settings.qualifications_model is None
+        assert settings.projects_model is None
 
 
 class TestSettingsTailorSections:
