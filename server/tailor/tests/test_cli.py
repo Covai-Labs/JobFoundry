@@ -564,3 +564,16 @@ class TestAsyncMainErrorHandling:
                 assert result == 0
                 assert output_path.is_file()
 
+
+class TestMainRun:
+    def test_run_boots_without_openai_base_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
+        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+        monkeypatch.setenv("DEFAULT_MODEL", "test-model")
+        from resume_ops_api.main import run
+
+        with patch("resume_ops_api.main.uvicorn.run") as mock_uvicorn:
+            run()
+            mock_uvicorn.assert_called_once()
+
+

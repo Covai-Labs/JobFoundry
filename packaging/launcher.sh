@@ -169,6 +169,7 @@ export API_KEYS="${API_KEYS:-}"
 export HOST="${HOST:-127.0.0.1}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-}"
 export OPENROUTER_API_KEY="${OPENROUTER_API_KEY:-}"
+export DEFAULT_MODEL="${DEFAULT_MODEL:-$TAILOR_MODEL}"
 export MASTER_RESUME_PATH
 
 # Custom LLM base URLs are optional. Unset them when empty so the services fall
