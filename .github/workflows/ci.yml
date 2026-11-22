@@ -31,7 +31,7 @@ jobs:
         with:
           node-version: 'lts/*'
           cache: npm
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync --dev
         working-directory: server/scorer
       - run: npm ci
@@ -67,7 +67,7 @@ jobs:
       # Pinned because the step below recompiles packaging/python and compares
       # the result byte-for-byte: a different resolver would fail the check on
       # an unchanged tree.
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
         with:
           version: '0.13.9'
       - run: uv sync --dev
@@ -96,7 +96,7 @@ jobs:
       DEFAULT_MODEL: test-model
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+      - uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d # v10.4.0
       - run: uv sync --dev
         env:
           UV_EXTRA_BUILD_DEPENDENCIES: hatchling
