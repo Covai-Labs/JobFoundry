@@ -12,7 +12,7 @@ logger = logging.getLogger("resume-ops-api")
 def run() -> None:
     settings = get_settings()
     if not settings.openai_base_url or not settings.openai_base_url.strip():
-        logger.info(
+        logger.warning(
             "No global LLM API base configured. Tailor service will rely on "
             "per-request credentials or settings configured in the UI."
         )

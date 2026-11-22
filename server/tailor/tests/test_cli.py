@@ -567,13 +567,19 @@ class TestAsyncMainErrorHandling:
 
 class TestMainRun:
     def test_run_boots_without_openai_base_url(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
-        monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
-        monkeypatch.setenv("DEFAULT_MODEL", "test-model")
+        from resume_ops_api.core.config import get_settings
         from resume_ops_api.main import run
 
-        with patch("resume_ops_api.main.uvicorn.run") as mock_uvicorn:
-            run()
-            mock_uvicorn.assert_called_once()
+        get_settings.cache_clear()
+        try:
+            monkeypatch.delenv("OPENROUTER_API_BASE", raising=False)
+            monkeypatch.delenv("OPENAI_BASE_URL", raising=False)
+            monkeypatch.setenv("DEFAULT_MODEL", "test-model")
+
+            with patch("resume_ops_api.main.uvicorn.run") as mock_uvicorn:
+                run()
+                mock_uvicorn.assert_called_once()
+        finally:
+            get_settings.cache_clear()
 
 

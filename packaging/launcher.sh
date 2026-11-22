@@ -269,7 +269,7 @@ echo "[jobfoundry] Starting services..."
 # --- 7a. Tailor (resume ops API, port 8081) ---
 PORT="$TAILOR_PORT" \
 MASTER_RESUME_PATH="$MASTER_RESUME_PATH" \
-DEFAULT_MODEL="$TAILOR_MODEL" \
+DEFAULT_MODEL="${DEFAULT_MODEL:-$TAILOR_MODEL}" \
 LLM_MAX_CONCURRENCY=1 \
   "$PYTHON_BIN" -m resume_ops_api \
   >> "$LOGS_DIR/tailor.log" 2>&1 &
