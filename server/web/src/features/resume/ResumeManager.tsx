@@ -591,7 +591,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', dataStr);
-      const fileName = (exportData.basics?.name || title || 'master_resume')
+      const fileName = (exportData.basics?.name ?? title ?? 'master_resume')
         .toLowerCase()
         .replace(/\s+/g, '_');
       downloadAnchor.setAttribute('download', `${fileName}.json`);
@@ -854,7 +854,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
           <button
             type="button"
-            onClick={() => void handleSave(false)}
+            onClick={() => {
+              void handleSave(false);
+            }}
             disabled={saving || validationErrors.length > 0}
             className="btn btn-primary btn-sm"
             style={{
@@ -916,7 +918,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         flexShrink: 0,
                       }}
                     >
-                      {(parsedActive.basics?.name || 'U').charAt(0).toUpperCase()}
+                      {(parsedActive.basics?.name ?? 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
                       <div
@@ -999,8 +1001,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       <span>{parsedActive.basics.phone}</span>
                     </div>
                   )}
-                  {(parsedActive.basics?.location?.city ||
-                    parsedActive.basics?.location?.region) && (
+                  {Boolean(
+                    parsedActive.basics?.location?.city ?? parsedActive.basics?.location?.region
+                  ) && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Location:</span>
                       <span>
@@ -1223,7 +1226,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => void handleSave(true)}
+                onClick={() => {
+                  void handleSave(true);
+                }}
                 disabled={validationErrors.length > 0 || saving}
                 className="btn btn-secondary btn-sm"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
@@ -1347,7 +1352,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             previewPdfUrl={previewUrl}
             previewLoading={previewLoading}
             previewError={previewError}
-            onRetryPreview={() => void loadThemePreview(selectedTheme)}
+            onRetryPreview={() => {
+              void loadThemePreview(selectedTheme);
+            }}
             onDownloadPdf={handleDownloadPreviewPdf}
             isSavingDefault={savingDefaultTheme}
           />
@@ -1377,7 +1384,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             >
               <span style={{ color: 'var(--text-muted)' }}>Editing Profile:</span>
               <strong style={{ color: 'var(--text-primary)' }}>
-                {parsedActive.basics?.name || title}
+                {parsedActive.basics?.name ?? title}
               </strong>
               {activeResume && (
                 <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>
@@ -2113,7 +2120,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   <div style={{ display: 'flex', gap: '0.6rem' }}>
                     <button
                       type="button"
-                      onClick={() => void handleSaveExtractedAsNew()}
+                      onClick={() => {
+                        void handleSaveExtractedAsNew();
+                      }}
                       disabled={savingAsNew}
                       className="btn btn-secondary btn-sm"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -2297,7 +2306,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   </button>
                   <button
                     type="button"
-                    onClick={() => void handleConvertRawResume()}
+                    onClick={() => {
+                      void handleConvertRawResume();
+                    }}
                     disabled={!rawResumeText.trim()}
                     className="btn btn-primary btn-sm"
                     style={{
@@ -2351,7 +2362,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           <button
             type="button"
             className="btn btn-primary btn-sm"
-            onClick={() => void handleSave(false)}
+            onClick={() => {
+              void handleSave(false);
+            }}
             disabled={saving || validationErrors.length > 0}
           >
             {saving ? <RefreshCw size={14} className="animate-spin" /> : <Save size={14} />}

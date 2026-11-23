@@ -513,7 +513,7 @@ describe('ResumeManager', () => {
 
     const exportBtn = screen.getByRole('button', { name: /Export JSON/i });
     expect(exportBtn).toBeDefined();
-    expect((exportBtn as HTMLButtonElement).disabled).toBe(false);
+    expect(exportBtn).toBeEnabled();
     fireEvent.click(exportBtn);
 
     await waitFor(() => {
@@ -526,7 +526,7 @@ describe('ResumeManager', () => {
     fireEvent.change(textarea, { target: { value: '{"broken": json}' } });
 
     await waitFor(() => {
-      expect((exportBtn as HTMLButtonElement).disabled).toBe(true);
+      expect(exportBtn).toBeDisabled();
     });
   });
 });
