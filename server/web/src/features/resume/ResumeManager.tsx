@@ -44,6 +44,71 @@ export interface ResumeManagerProps {
   onThemeChange?: (_theme: string) => void;
 }
 
+const getSegmentStyle = (isActive: boolean, disabled: boolean = false): React.CSSProperties => ({
+  display: 'flex',
+  alignItems: 'center',
+  gap: '0.4rem',
+  padding: '0.4rem 0.85rem',
+  fontSize: '0.84rem',
+  fontWeight: isActive ? 600 : 500,
+  borderRadius: 'calc(var(--radius-md, 8px) - 2px)',
+  border: 'none',
+  cursor: disabled ? 'not-allowed' : 'pointer',
+  opacity: disabled ? 0.6 : 1,
+  background: isActive ? 'var(--bg-card, #ffffff)' : 'transparent',
+  color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
+  boxShadow: isActive ? 'var(--shadow-sm)' : 'none',
+  transition: 'all 0.15s ease',
+});
+
+const dropdownItemStyle: React.CSSProperties = {
+  display: 'flex',
+  alignItems: 'flex-start',
+  gap: '0.65rem',
+  textAlign: 'left',
+  padding: '0.55rem 0.75rem',
+  borderRadius: 'var(--radius-sm)',
+  width: '100%',
+  justifyContent: 'flex-start',
+  cursor: 'pointer',
+};
+
+const EDITOR_TABS: Array<{
+  id: 'overview' | 'form' | 'json' | 'preview';
+  label: string;
+  icon: React.ComponentType<{ size: number; style?: React.CSSProperties }>;
+  title: string;
+  disabledCondition?: (errors: string[]) => boolean;
+  disabledTitle?: string;
+}> = [
+  {
+    id: 'overview',
+    label: 'Active Profile',
+    icon: User,
+    title: 'View candidate overview, role keywords, top skills, and manage saved profile versions',
+  },
+  {
+    id: 'form',
+    label: 'Form Editor',
+    icon: FileEdit,
+    title: 'Visual form editing with organized sections for basics, work, education, and skills',
+  },
+  {
+    id: 'json',
+    label: 'Raw JSON',
+    icon: Code2,
+    title: 'Direct code editor for canonical JSON Resume v1.0.0 schema',
+  },
+  {
+    id: 'preview',
+    label: 'Theme Preview',
+    icon: Eye,
+    title: 'Preview master resume across 14 curated themes with live PDF render',
+    disabledCondition: (errors: string[]) => errors.length > 0,
+    disabledTitle: 'Resolve schema validation errors to preview themes',
+  },
+];
+
 export const ResumeManager: React.FC<ResumeManagerProps> = ({
   onActiveResumeChange,
   onThemeChange,
@@ -639,6 +704,13 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
 
   const parsedActive = (activeResume?.resume ?? parsedResume) as ResumeData;
 
+  let saveButtonText = 'Save & Activate';
+  if (saving) {
+    saveButtonText = 'Saving...';
+  } else if (activeResume) {
+    saveButtonText = 'Save Changes';
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
       {/* Top Header */}
@@ -770,129 +842,36 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             gap: '2px',
           }}
         >
-          <button
-            type="button"
-            aria-pressed={editorMode === 'overview'}
-            onClick={() => {
-              setEditorMode('overview');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.4rem 0.85rem',
-              fontSize: '0.84rem',
-              fontWeight: editorMode === 'overview' ? 600 : 500,
-              borderRadius: 'calc(var(--radius-md, 8px) - 2px)',
-              border: 'none',
-              cursor: 'pointer',
-              background: editorMode === 'overview' ? 'var(--bg-card, #ffffff)' : 'transparent',
-              color: editorMode === 'overview' ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: editorMode === 'overview' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
-            title="View candidate overview, role keywords, top skills, and manage saved profile versions"
-          >
-            <User
-              size={14}
-              style={{ color: editorMode === 'overview' ? 'var(--accent-primary)' : 'inherit' }}
-            />
-            <span>Active Profile</span>
-          </button>
-
-          <button
-            type="button"
-            aria-pressed={editorMode === 'form'}
-            onClick={handleSwitchToForm}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.4rem 0.85rem',
-              fontSize: '0.84rem',
-              fontWeight: editorMode === 'form' ? 600 : 500,
-              borderRadius: 'calc(var(--radius-md, 8px) - 2px)',
-              border: 'none',
-              cursor: 'pointer',
-              background: editorMode === 'form' ? 'var(--bg-card, #ffffff)' : 'transparent',
-              color: editorMode === 'form' ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: editorMode === 'form' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
-            title="Visual form editing with organized sections for basics, work, education, and skills"
-          >
-            <FileEdit
-              size={14}
-              style={{ color: editorMode === 'form' ? 'var(--accent-primary)' : 'inherit' }}
-            />
-            <span>Form Editor</span>
-          </button>
-
-          <button
-            type="button"
-            aria-pressed={editorMode === 'json'}
-            onClick={() => {
-              setEditorMode('json');
-            }}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.4rem 0.85rem',
-              fontSize: '0.84rem',
-              fontWeight: editorMode === 'json' ? 600 : 500,
-              borderRadius: 'calc(var(--radius-md, 8px) - 2px)',
-              border: 'none',
-              cursor: 'pointer',
-              background: editorMode === 'json' ? 'var(--bg-card, #ffffff)' : 'transparent',
-              color: editorMode === 'json' ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: editorMode === 'json' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
-            title="Direct code editor for canonical JSON Resume v1.0.0 schema"
-          >
-            <Code2
-              size={14}
-              style={{ color: editorMode === 'json' ? 'var(--accent-primary)' : 'inherit' }}
-            />
-            <span>Raw JSON</span>
-          </button>
-
-          <button
-            type="button"
-            aria-pressed={editorMode === 'preview'}
-            onClick={() => {
-              setEditorMode('preview');
-            }}
-            disabled={validationErrors.length > 0}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.4rem',
-              padding: '0.4rem 0.85rem',
-              fontSize: '0.84rem',
-              fontWeight: editorMode === 'preview' ? 600 : 500,
-              borderRadius: 'calc(var(--radius-md, 8px) - 2px)',
-              border: 'none',
-              cursor: validationErrors.length > 0 ? 'not-allowed' : 'pointer',
-              opacity: validationErrors.length > 0 ? 0.6 : 1,
-              background: editorMode === 'preview' ? 'var(--bg-card, #ffffff)' : 'transparent',
-              color: editorMode === 'preview' ? 'var(--text-primary)' : 'var(--text-muted)',
-              boxShadow: editorMode === 'preview' ? 'var(--shadow-sm)' : 'none',
-              transition: 'all 0.15s ease',
-            }}
-            title={
-              validationErrors.length > 0
-                ? 'Resolve schema validation errors to preview themes'
-                : 'Preview master resume across 14 curated themes with live PDF render'
-            }
-          >
-            <Eye
-              size={14}
-              style={{ color: editorMode === 'preview' ? 'var(--accent-primary)' : 'inherit' }}
-            />
-            <span>Theme Preview</span>
-          </button>
+          {EDITOR_TABS.map((tab) => {
+            const isActive = editorMode === tab.id;
+            const isDisabled = tab.disabledCondition
+              ? tab.disabledCondition(validationErrors)
+              : false;
+            const TabIcon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                aria-pressed={isActive}
+                onClick={() => {
+                  if (tab.id === 'form') {
+                    handleSwitchToForm();
+                  } else {
+                    setEditorMode(tab.id);
+                  }
+                }}
+                disabled={isDisabled}
+                style={getSegmentStyle(isActive, isDisabled)}
+                title={isDisabled ? tab.disabledTitle : tab.title}
+              >
+                <TabIcon
+                  size={14}
+                  style={{ color: isActive ? 'var(--accent-primary)' : 'inherit' }}
+                />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Global Action & Status Controls */}
@@ -963,17 +942,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     setExtractedResume(null);
                   }}
                   className="btn btn-ghost btn-sm"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.65rem',
-                    textAlign: 'left',
-                    padding: '0.55rem 0.75rem',
-                    borderRadius: 'var(--radius-sm)',
-                    width: '100%',
-                    justifyContent: 'flex-start',
-                    cursor: 'pointer',
-                  }}
+                  style={dropdownItemStyle}
                   title="Paste unformatted text, old PDF text dump, or LinkedIn profile. AI will parse and map it into the JSON Resume schema."
                   aria-label="Smart Resume Import (AI Convert Raw Resume)"
                 >
@@ -996,17 +965,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     fileInputRef.current?.click();
                   }}
                   className="btn btn-ghost btn-sm"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.65rem',
-                    textAlign: 'left',
-                    padding: '0.55rem 0.75rem',
-                    borderRadius: 'var(--radius-sm)',
-                    width: '100%',
-                    justifyContent: 'flex-start',
-                    cursor: 'pointer',
-                  }}
+                  style={dropdownItemStyle}
                   title="Upload a standardized JSON Resume (.json) file compliant with JSON Resume v1.0.0 specification"
                   aria-label="Upload JSON Resume"
                 >
@@ -1070,7 +1029,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             title="Save changes to active master resume"
           >
             <Save size={14} />
-            <span>{saving ? 'Saving...' : activeResume ? 'Save Changes' : 'Save & Activate'}</span>
+            <span>{saveButtonText}</span>
           </button>
         </div>
       </div>
