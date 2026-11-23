@@ -298,7 +298,8 @@ describe('ResumeManager', () => {
       expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
     });
 
-    // Click "AI Convert Raw Resume" button
+    // Open Import menu and click "Smart Resume Import"
+    fireEvent.click(screen.getByRole('button', { name: /Import Options/i }));
     const openConverterBtn = screen.getByRole('button', { name: /AI Convert Raw Resume/i });
     fireEvent.click(openConverterBtn);
 
@@ -387,6 +388,7 @@ describe('ResumeManager', () => {
       expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /Import Options/i }));
     fireEvent.click(screen.getByRole('button', { name: /AI Convert Raw Resume/i }));
 
     const textarea = screen.getByPlaceholderText(/Paste your resume contents here/i);
@@ -457,6 +459,7 @@ describe('ResumeManager', () => {
       expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
     });
 
+    fireEvent.click(screen.getByRole('button', { name: /Import Options/i }));
     fireEvent.click(screen.getByRole('button', { name: /AI Convert Raw Resume/i }));
 
     const fileInput = screen.getByLabelText(/Browse File/i);
@@ -584,5 +587,39 @@ describe('ResumeManager', () => {
     await waitFor(() => {
       expect(screen.getByText('Exported master resume JSON successfully!')).toBeDefined();
     });
+  });
+
+  it('toggles Import dropdown menu, closes on Escape, and triggers Upload JSON file selection', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    const importMenuBtn = screen.getByRole('button', { name: /Import Options/i });
+    expect(importMenuBtn).toBeDefined();
+
+    // Menu should be initially closed
+    expect(screen.queryByRole('button', { name: /Upload JSON Resume/i })).toBeNull();
+
+    // Open menu
+    fireEvent.click(importMenuBtn);
+    expect(screen.getByRole('button', { name: /Upload JSON Resume/i })).toBeDefined();
+    expect(screen.getByRole('button', { name: /Smart Resume Import/i })).toBeDefined();
+
+    // Close on Escape key
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: /Upload JSON Resume/i })).toBeNull();
+
+    // Reopen menu and simulate file selection via hidden input
+    fireEvent.click(importMenuBtn);
+    const uploadBtn = screen.getByRole('button', { name: /Upload JSON Resume/i });
+    const hiddenFileInput = screen.getByLabelText(/Upload JSON Resume file/i);
+
+    const clickSpy = vi.spyOn(hiddenFileInput, 'click');
+    fireEvent.click(uploadBtn);
+    expect(clickSpy).toHaveBeenCalled();
   });
 });
