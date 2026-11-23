@@ -8,7 +8,7 @@ aiohttp==3.14.5
     #   litellm
 aiosignal==1.4.0
     # via aiohttp
-annotated-doc==0.0.6
+annotated-doc==0.0.7
     # via
     #   fastapi
     #   typer
@@ -27,19 +27,19 @@ attrs==26.1.0
     #   aiohttp
     #   jsonschema
     #   referencing
-boto3==1.44.3
+boto3==1.44.9
     # via litellm
-botocore==1.44.3
+botocore==1.44.9
     # via
     #   boto3
     #   s3transfer
-certifi==2026.10.23
+certifi==2026.11.20
     # via
     #   httpcore
     #   httpx
     #   litellm
     #   requests
-charset-normalizer==3.5.2
+charset-normalizer==3.5.3
     # via requests
 click==8.5.1
     # via
@@ -55,11 +55,11 @@ distro==1.9.0
     # via openai
 docstring-parser==0.18.0
     # via instructor
-fastapi==0.163.1
+fastapi==0.165.0
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 fastuuid==0.14.0 ; python_full_version < '3.15'
     # via litellm
-filelock==4.2.10
+filelock==4.3.0
     # via
     #   huggingface-hub
     #   litellm
@@ -76,7 +76,7 @@ h11==0.16.0
     #   uvicorn
 h2==4.4.1
     # via httpx
-hf-xet==1.8.0 ; platform_machine == 'AMD64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
+hf-xet==1.8.0 ; platform_machine == 'AMD64' or platform_machine == 'ARM64' or platform_machine == 'aarch64' or platform_machine == 'amd64' or platform_machine == 'arm64' or platform_machine == 'x86_64'
     # via huggingface-hub
 hpack==4.2.0
     # via h2
@@ -87,13 +87,14 @@ httpcore2==2.16.2 ; sys_platform != 'emscripten'
 httpx==0.28.1
     # via
     #   jobfoundry-scorer (server/scorer/pyproject.toml)
-    #   huggingface-hub
     #   litellm
 httpx2==2.16.2
-    # via openai
+    # via
+    #   huggingface-hub
+    #   openai
 httpx2-jsfetch==1.0 ; sys_platform == 'emscripten'
     # via httpx2
-huggingface-hub==1.33.0
+huggingface-hub==2.4.0
     # via
     #   litellm
     #   tokenizers
@@ -127,7 +128,7 @@ jsonschema==4.26.0
     # via litellm
 jsonschema-specifications==2025.9.1
     # via jsonschema
-litellm==1.109.1
+litellm==1.110.2
     # via jobfoundry-scorer (server/scorer/pyproject.toml)
 markdown-it-py==4.3.0
     # via rich
@@ -153,7 +154,7 @@ propcache==0.5.4
     # via
     #   aiohttp
     #   yarl
-pydantic==2.14.3
+pydantic==2.14.4
     # via
     #   jobfoundry-scorer (server/scorer/pyproject.toml)
     #   fastapi
@@ -162,7 +163,7 @@ pydantic==2.14.3
     #   openai
     #   pydantic-settings
     #   typer
-pydantic-core==2.50.4
+pydantic-core==2.50.5
     # via
     #   instructor
     #   pydantic
@@ -176,7 +177,7 @@ python-dotenv==1.2.4
     # via
     #   litellm
     #   pydantic-settings
-pyyaml==6.0.3
+pyyaml==6.0.4
     # via
     #   huggingface-hub
     #   litellm
@@ -184,7 +185,7 @@ referencing==0.37.0
     # via
     #   jsonschema
     #   jsonschema-specifications
-regex==2026.11.15
+regex==2026.11.19
     # via
     #   instructor
     #   tiktoken
@@ -224,7 +225,7 @@ truststore==0.10.5 ; sys_platform != 'emscripten'
     # via
     #   httpcore2
     #   httpx2
-typer==0.29.1
+typer==0.29.2
     # via instructor
 typing-extensions==4.16.0
     # via
