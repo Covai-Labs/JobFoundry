@@ -46,7 +46,6 @@ import {
   MessageSquare,
   ShieldCheck,
   Cpu,
-  Save,
   Download,
   FileJson,
   FileSpreadsheet,
@@ -1759,71 +1758,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
 
   return (
     <div className="settings-container">
-      {/* Page Header */}
-      <div className="settings-header">
-        <div>
-          <h1
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: '1.8rem',
-              fontWeight: 700,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.6rem',
-              marginBottom: '0.35rem',
-            }}
-          >
-            <Sliders size={24} style={{ color: 'var(--accent-primary)' }} />
-            System & Dashboard Settings
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
-            Configure runtime AI scoring, master profile, resume tailoring models, and ingestion
-            filters.
-          </p>
-        </div>
-
-        <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-          {isQuickSetupDismissed && (
-            <button
-              type="button"
-              onClick={handleReopenQuickSetup}
-              className="btn btn-secondary btn-sm"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-              title="Reopen Quick Setup progression checklist"
-            >
-              <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
-              <span>Setup Guide</span>
-            </button>
-          )}
-          {isDirty && (
-            <span
-              className="badge badge-amber animate-pulse"
-              style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}
-            >
-              <AlertTriangle size={12} /> Unsaved Changes
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={handleResetToDefaults}
-            disabled={saving || loading}
-            className="btn btn-secondary btn-sm"
-          >
-            Reset Defaults
-          </button>
-          <button
-            type="button"
-            onClick={() => handleSaveAll()}
-            disabled={saving || loading}
-            className="btn btn-primary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', minWidth: '110px' }}
-          >
-            <CheckCircle2 size={15} />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
-        </div>
-      </div>
-
       {/* Onboarding & Setup Stepper Header */}
       {(() => {
         if (isQuickSetupDismissed) return null;
@@ -2018,6 +1952,26 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       <div className="settings-layout">
         {/* Left Sidebar Navigation */}
         <aside className="settings-sidebar">
+          {isQuickSetupDismissed && (
+            <button
+              type="button"
+              onClick={handleReopenQuickSetup}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '0.45rem',
+                width: '100%',
+                marginBottom: '0.5rem',
+                fontSize: '0.8rem',
+              }}
+              title="Reopen Quick Setup progression checklist"
+            >
+              <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
+              <span>Quick Setup Guide</span>
+            </button>
+          )}
           {/* GROUP 1: CORE SETUP & INTELLIGENCE */}
           <div className="settings-nav-group">
             <div className="settings-nav-group-title">Core Setup</div>
@@ -6117,51 +6071,79 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       {/* Floating Sticky Save Bar when settings are modified */}
       {isDirty && (
         <div
+          role="region"
+          aria-label="Unsaved settings banner"
           style={{
             position: 'fixed',
-            bottom: '1.5rem',
-            right: '2rem',
-            zIndex: 50,
+            bottom: '1.75rem',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            zIndex: 100,
             display: 'flex',
             alignItems: 'center',
-            gap: '0.75rem',
-            background: 'var(--bg-card)',
-            border: '1px solid var(--accent-primary)',
-            boxShadow: '0 8px 30px rgba(0, 0, 0, 0.4)',
-            padding: '0.65rem 1.25rem',
-            borderRadius: 'var(--radius-full)',
-            backdropFilter: 'blur(8px)',
+            justifyContent: 'space-between',
+            gap: '1.5rem',
+            background: 'var(--bg-card, #1e293b)',
+            border: '1px solid var(--accent-primary, #6366f1)',
+            boxShadow: '0 12px 36px -4px rgba(0, 0, 0, 0.5), 0 4px 12px -2px rgba(0, 0, 0, 0.4)',
+            padding: '0.75rem 1.25rem',
+            borderRadius: 'var(--radius-full, 9999px)',
+            backdropFilter: 'blur(12px)',
+            maxWidth: '90vw',
           }}
         >
-          <span
-            style={{
-              fontSize: '0.82rem',
-              color: 'var(--color-warning, #f59e0b)',
-              fontWeight: 600,
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.35rem',
-            }}
-          >
-            ● Unsaved Settings
-          </span>
-          <button
-            type="button"
-            onClick={handleResetToDefaults}
-            className="btn btn-secondary btn-sm"
-          >
-            Reset
-          </button>
-          <button
-            type="button"
-            onClick={handleSaveAll}
-            className="btn btn-primary btn-sm"
-            disabled={saving}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-          >
-            <Save size={14} />
-            {saving ? 'Saving...' : 'Save Changes'}
-          </button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <span
+              className="badge badge-amber animate-pulse"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                fontSize: '0.8rem',
+                fontWeight: 600,
+              }}
+            >
+              <AlertTriangle size={13} /> Unsaved Changes
+            </span>
+            <span
+              style={{
+                fontSize: '0.84rem',
+                color: 'var(--text-secondary, #94a3b8)',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              You have unsaved changes in your settings.
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <button
+              type="button"
+              onClick={handleResetToDefaults}
+              disabled={saving || loading}
+              className="btn btn-secondary btn-sm"
+              style={{ borderRadius: 'var(--radius-full, 9999px)', padding: '0.4rem 0.9rem' }}
+            >
+              Reset Defaults
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSaveAll()}
+              disabled={saving || loading}
+              className="btn btn-primary btn-sm"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                minWidth: '110px',
+                borderRadius: 'var(--radius-full, 9999px)',
+                padding: '0.4rem 1rem',
+              }}
+            >
+              <CheckCircle2 size={15} />
+              {saving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
       )}
 

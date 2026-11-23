@@ -139,13 +139,12 @@ describe('SettingsPage', () => {
     );
   };
 
-  it('renders page header and tabs', async () => {
+  it('renders settings navigation and tabs', async () => {
     renderComponent();
     await waitFor(() => {
-      expect(screen.getByText('System & Dashboard Settings')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /Master Profile/i })).toBeInTheDocument();
     });
 
-    expect(screen.getByRole('button', { name: /Master Profile/i })).toBeInTheDocument();
     expect(screen.getByText(/Appearance & UI/i)).toBeInTheDocument();
     expect(screen.getByText(/AI Engine & Models/i)).toBeInTheDocument();
     expect(screen.getByText(/AI Fit Scorer/i)).toBeInTheDocument();
