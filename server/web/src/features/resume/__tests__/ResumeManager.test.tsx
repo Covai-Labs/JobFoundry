@@ -459,15 +459,14 @@ describe('ResumeManager', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /AI Convert Raw Resume/i }));
 
-    const fileInputs = document.querySelectorAll('input[type="file"][accept*=".json"]');
-    const fileInputElement = fileInputs[fileInputs.length - 1] as HTMLInputElement;
-    expect(fileInputElement).toBeDefined();
+    const fileInput = screen.getByLabelText(/Browse File/i);
+    expect(fileInput).toBeDefined();
 
     const invalidJsonFile = new File(['{"basics": {"email": "not-an-email"}}'], 'invalid.json', {
       type: 'application/json',
     });
 
-    fireEvent.change(fileInputElement, { target: { files: [invalidJsonFile] } });
+    fireEvent.change(fileInput, { target: { files: [invalidJsonFile] } });
 
     await waitFor(() => {
       expect(screen.getByText(/Invalid JSON Resume schema/i)).toBeDefined();

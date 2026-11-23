@@ -103,7 +103,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     try {
       const list = await api.getResumes();
       setResumes(list);
-      const active = list.find((r) => r.isActive) ?? list[0] ?? null;
+      const active = list.length > 0 ? (list.find((r) => r.isActive) ?? list[0]) : null;
       setActiveResume(active);
       onActiveResumeChange?.(Boolean(active));
       if (active) {
@@ -1628,29 +1628,26 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         Experience Highlights
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        {extractedResume.work
-                          .filter((job): job is WorkItem => Boolean(job && typeof job === 'object'))
-                          .slice(0, 3)
-                          .map((job: WorkItem, idx: number) => (
-                            <div
-                              key={job.name ? `${job.name}-${idx}` : `job-${idx}`}
-                              style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'baseline',
-                              }}
-                            >
-                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                                {job.position ?? 'Role'}{' '}
-                                <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
-                                  at {job.name ?? 'Company'}
-                                </span>
+                        {extractedResume.work.slice(0, 3).map((job: WorkItem, idx: number) => (
+                          <div
+                            key={job.name ? `${job.name}-${idx}` : `job-${idx}`}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'baseline',
+                            }}
+                          >
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {job.position ?? 'Role'}{' '}
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+                                at {job.name ?? 'Company'}
                               </span>
-                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                                {job.startDate ?? ''} – {job.endDate ?? 'Present'}
-                              </span>
-                            </div>
-                          ))}
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {job.startDate ?? ''} – {job.endDate ?? 'Present'}
+                            </span>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   )}
