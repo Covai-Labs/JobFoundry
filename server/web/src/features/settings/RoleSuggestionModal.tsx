@@ -1,3 +1,4 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, X, Check, Plus } from 'lucide-react';
 
@@ -7,7 +8,7 @@ export interface RoleSuggestionModalProps {
   roles: string[];
   source?: 'llm' | 'heuristic';
   notice?: string;
-  onApply: (_selectedRoles: string[], _mode: 'append' | 'replace') => void;
+  onApply: (selectedRoles: string[], mode: 'append' | 'replace') => void;
 }
 
 export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
@@ -24,7 +25,6 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
   const overlayRef = useRef<HTMLDivElement>(null);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
 
   // Initialize all roles as selected whenever a new set of roles is passed
   useEffect(() => {
@@ -34,11 +34,10 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
     }
   }, [isOpen, roles]);
 
-  // Handle focus trapping, initial focus, focus restoration, and Escape key
+  // Handle focus trapping, initial focus, and Escape key
   useEffect(() => {
     if (!isOpen) return;
 
-    previousFocusRef.current = document.activeElement as HTMLElement | null;
     closeButtonRef.current?.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -73,7 +72,6 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
     window.addEventListener('keydown', handleKeyDown);
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
-      previousFocusRef.current?.focus();
     };
   }, [isOpen, onClose]);
 

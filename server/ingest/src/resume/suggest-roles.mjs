@@ -5,6 +5,7 @@
  */
 
 import { safeFetch } from '../security/ssrf.mjs';
+import { defaultBaseForProvider, inferProviderFromModel } from '../settings/llm-resolve.mjs';
 
 /**
  * Clean and summarize JSON Resume into a compact text overview for LLM analysis.
@@ -167,7 +168,8 @@ export async function suggestRolesFromResume({
   resume,
   model = 'openrouter/openrouter/free',
   apiKey = '',
-  apiBase = 'https://openrouter.ai/api/v1',
+  apiBase = '',
+  provider = '',
   suppressEnvKeyFallback = false,
 }) {
   const resumeOverview = formatResumeForAnalysis(resume);
@@ -190,6 +192,14 @@ export async function suggestRolesFromResume({
     };
   }
 
+  const effectiveProvider = provider || inferProviderFromModel(model) || 'openrouter';
+  const effectiveBase =
+    apiBase || defaultBaseForProvider(effectiveProvider, model) || 'https://openrouter.ai/api/v1';
+  let cleanModel = model;
+  if (effectiveProvider === 'openrouter' && cleanModel.startsWith('openrouter/')) {
+    cleanModel = cleanModel.replace('openrouter/', '');
+  }
+
   const prompt = `You are an expert talent acquisition strategist and technical recruiter.
 Analyze the candidate's master resume details below.
 Synthesize a list of 10 to 18 standardized, modern job titles that recruiters and ATS systems use when hiring for this candidate's exact profile, adjacent roles, and skill level.
@@ -204,9 +214,7 @@ STRICT RULES:
 ${resumeOverview}
 `;
 
-  const effectiveBase = apiBase || 'https://openrouter.ai/api/v1';
   const endpoint = `${effectiveBase.replace(/\/$/, '')}/chat/completions`;
-  const cleanModel = model.startsWith('openrouter/') ? model.replace('openrouter/', '') : model;
 
   try {
     const res = await safeFetch(endpoint, {
@@ -268,9 +276,15 @@ ${resumeOverview}
       : Array.isArray(parsed)
         ? parsed
         : [];
-    const roles = cleanAndDeduplicateRoles(rawRoles);
+    let roles = cleanAndDeduplicateRoles(rawRoles);
 
     if (roles.length > 0) {
+      if (roles.length > 18) {
+        roles = roles.slice(0, 18);
+      } else if (roles.length < 10) {
+        const heuristic = heuristicSuggestRoles(resume);
+        roles = cleanAndDeduplicateRoles([...roles, ...heuristic]).slice(0, 18);
+      }
       return { ok: true, roles, source: 'llm' };
     }
 
