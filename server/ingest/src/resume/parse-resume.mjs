@@ -13,6 +13,279 @@ function cleanText(text) {
 }
 
 /**
+ * Sanitize and normalize a resume object to ensure strict compliance with JSON Resume schema.
+ * - Strips empty strings from URI fields (which otherwise fail format: "uri").
+ * - Normalizes URLs by prepending https:// if missing protocol (including queries/fragments).
+ * - Normalizes or removes invalid dates and converts ongoing roles (e.g. "Present") to omitted endDate.
+ * - Filters out empty strings from string arrays (highlights, keywords, courses).
+ * - Prunes empty objects and ensures appropriate array types.
+ */
+export function sanitizeResumeJson(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+    throw new Error('Parsed resume must be a valid JSON object');
+  }
+
+  // Helper: clean URI
+  const cleanUri = (val) => {
+    if (typeof val !== 'string') return undefined;
+    const trimmed = val.trim();
+    if (!trimmed) return undefined;
+    if (/^(https?|mailto|ftp):\/\//i.test(trimmed)) {
+      try {
+        new URL(trimmed);
+        return trimmed;
+      } catch {
+        return undefined;
+      }
+    }
+    // Bare domain with optional path, query, or fragment
+    if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}([/?#].*)?$/i.test(trimmed)) {
+      try {
+        const candidate = `https://${trimmed}`;
+        new URL(candidate);
+        return candidate;
+      } catch {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
+  // Helper: clean Date (ISO 8601: YYYY, YYYY-MM, or YYYY-MM-DD)
+  const cleanDate = (val) => {
+    if (typeof val !== 'string') return undefined;
+    const trimmed = val.trim();
+    if (!trimmed) return undefined;
+    const lower = trimmed.toLowerCase();
+    if (
+      ['present', 'current', 'now', 'ongoing', 'active', 'n/a', 'none', 'till date'].includes(lower)
+    ) {
+      return undefined;
+    }
+    // Direct regex match for YYYY-MM-DD, YYYY-MM, YYYY
+    const isoPattern =
+      /^([1-2][0-9]{3}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])|[1-2][0-9]{3}-(0[1-9]|1[0-2])|[1-2][0-9]{3})$/;
+    if (isoPattern.test(trimmed)) return trimmed;
+
+    // Check for YYYY/MM/DD or YYYY/MM
+    const slashIso = trimmed.replace(/\//g, '-');
+    if (isoPattern.test(slashIso)) return slashIso;
+
+    // Try parsing Month Year (e.g. "January 2022" or "Jan 2022")
+    const monthYear = trimmed.match(/^([a-zA-Z]+)[,\s]+(\d{4})$/);
+    if (monthYear) {
+      const parsedDate = new Date(`${monthYear[1]} 1, ${monthYear[2]}`);
+      if (!isNaN(parsedDate.getTime())) {
+        const year = parsedDate.getFullYear();
+        const month = String(parsedDate.getMonth() + 1).padStart(2, '0');
+        const candidate = `${year}-${month}`;
+        if (isoPattern.test(candidate)) return candidate;
+      }
+    }
+
+    return undefined;
+  };
+
+  // Helper: clean string arrays
+  const cleanStringArray = (arr) => {
+    if (!Array.isArray(arr)) return [];
+    return arr
+      .map((item) => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
+      .filter((item) => item.length > 0);
+  };
+
+  const result = { ...raw };
+
+  // $schema
+  result.$schema =
+    'https://raw.githubusercontent.com/jsonresume/jsonresume.org/master/packages/schema/schema.json';
+
+  // basics
+  if (result.basics && typeof result.basics === 'object') {
+    const basics = { ...result.basics };
+    if (basics.name) basics.name = String(basics.name).trim();
+    if (basics.label) basics.label = String(basics.label).trim();
+    if (basics.email !== undefined) {
+      const email = String(basics.email).trim();
+      if (email && email.includes('@') && !/\s/.test(email)) {
+        basics.email = email;
+      } else {
+        delete basics.email;
+      }
+    }
+    if (basics.phone) basics.phone = String(basics.phone).trim();
+    if (!basics.phone) delete basics.phone;
+
+    const cleanWebsite = cleanUri(basics.url);
+    if (cleanWebsite) basics.url = cleanWebsite;
+    else delete basics.url;
+
+    const cleanImg = cleanUri(basics.image);
+    if (cleanImg) basics.image = cleanImg;
+    else delete basics.image;
+
+    if (basics.summary) basics.summary = String(basics.summary).trim();
+
+    // location
+    if (typeof basics.location === 'string') {
+      const locStr = basics.location.trim();
+      basics.location = { address: locStr };
+    } else if (basics.location && typeof basics.location === 'object') {
+      const loc = { ...basics.location };
+      ['address', 'postalCode', 'city', 'countryCode', 'region'].forEach((k) => {
+        if (loc[k]) loc[k] = String(loc[k]).trim();
+        if (!loc[k]) delete loc[k];
+      });
+      if (Object.keys(loc).length === 0) delete basics.location;
+      else basics.location = loc;
+    }
+
+    // profiles
+    if (Array.isArray(basics.profiles)) {
+      basics.profiles = basics.profiles
+        .map((p) => {
+          if (!p || typeof p !== 'object') return null;
+          const profile = { ...p };
+          if (profile.network) profile.network = String(profile.network).trim();
+          if (profile.username) profile.username = String(profile.username).trim();
+          const pUrl = cleanUri(profile.url);
+          if (pUrl) profile.url = pUrl;
+          else delete profile.url;
+
+          if (!profile.network && !profile.username && !profile.url) return null;
+          return profile;
+        })
+        .filter(Boolean);
+    } else {
+      delete basics.profiles;
+    }
+
+    result.basics = basics;
+  }
+
+  // meta
+  if (result.meta && typeof result.meta === 'object') {
+    const meta = { ...result.meta };
+    if (meta.canonical !== undefined) {
+      const canonical = cleanUri(meta.canonical);
+      if (canonical) meta.canonical = canonical;
+      else delete meta.canonical;
+    }
+    if (Array.isArray(meta.translations)) {
+      meta.translations = meta.translations
+        .map((t) => {
+          if (!t || typeof t !== 'object') return null;
+          const tr = { ...t };
+          if (tr.url !== undefined) {
+            const u = cleanUri(tr.url);
+            if (u) tr.url = u;
+            else delete tr.url;
+          }
+          if (tr.language !== undefined) {
+            tr.language = String(tr.language).trim();
+            if (!tr.language) delete tr.language;
+          }
+          return Object.keys(tr).length > 0 ? tr : null;
+        })
+        .filter(Boolean);
+    }
+    result.meta = meta;
+  }
+
+  // Clean arrays of objects: work, volunteer, education, awards, certificates, publications, skills, languages, interests, references, projects
+  const arraySections = [
+    'work',
+    'volunteer',
+    'education',
+    'awards',
+    'certificates',
+    'publications',
+    'skills',
+    'languages',
+    'interests',
+    'references',
+    'projects',
+  ];
+
+  for (const section of arraySections) {
+    if (result[section] !== undefined) {
+      if (!Array.isArray(result[section])) {
+        delete result[section];
+        continue;
+      }
+      result[section] = result[section]
+        .map((item) => {
+          if (!item || typeof item !== 'object') return null;
+          const entry = { ...item };
+
+          // Clean URLs
+          if (entry.url !== undefined) {
+            const u = cleanUri(entry.url);
+            if (u) entry.url = u;
+            else delete entry.url;
+          }
+
+          // Clean Dates
+          ['startDate', 'endDate', 'date', 'releaseDate', 'expiryDate'].forEach((dateKey) => {
+            if (entry[dateKey] !== undefined) {
+              const d = cleanDate(entry[dateKey]);
+              if (d) entry[dateKey] = d;
+              else delete entry[dateKey];
+            }
+          });
+
+          // Clean string arrays
+          ['highlights', 'keywords', 'courses'].forEach((arrKey) => {
+            if (entry[arrKey] !== undefined) {
+              entry[arrKey] = cleanStringArray(entry[arrKey]);
+            }
+          });
+
+          // Trim text fields
+          [
+            'name',
+            'position',
+            'summary',
+            'description',
+            'institution',
+            'area',
+            'studyType',
+            'score',
+            'organization',
+            'title',
+            'awarder',
+            'issuer',
+            'publisher',
+            'language',
+            'fluency',
+            'reference',
+          ].forEach((textKey) => {
+            if (entry[textKey] !== undefined) {
+              entry[textKey] = String(entry[textKey]).trim();
+              if (!entry[textKey]) delete entry[textKey];
+            }
+          });
+
+          // Discard empty entry if all fields were deleted
+          const hasContent = Object.entries(entry).some(([k, v]) => {
+            if (k === 'skills' && Array.isArray(v) && v.length === 0) return false;
+            if (v === undefined || v === null) return false;
+            if (Array.isArray(v)) return v.length > 0;
+            if (typeof v === 'object') return Object.keys(v).length > 0;
+            if (typeof v === 'string') return v.trim().length > 0;
+            return true;
+          });
+
+          return hasContent ? entry : null;
+        })
+        .filter(Boolean);
+    }
+  }
+
+  return result;
+}
+
+/**
  * Call OpenRouter, OpenAI, or LiteLLM-compatible endpoint to convert raw resume text to JSON Resume v1.0.0.
  */
 async function callLlmResumeParser({
@@ -22,24 +295,144 @@ async function callLlmResumeParser({
   apiBase = process.env.DEFAULT_LLM_API_BASE || 'https://openrouter.ai/api/v1',
 }) {
   const prompt = `You are an expert resume parsing and ATS optimization engine.
-Convert the following candidate resume text into a strictly valid JSON Resume v1.0.0 schema object.
+Convert the candidate resume text below into a strictly conforming JSON Resume v1.0.0 specification object (https://jsonresume.org/schema/).
 
-The output MUST be a single, valid JSON object matching the JSON Resume schema (https://jsonresume.org/schema/).
-Schema guidelines:
-- basics: { name, label, email, phone, url, summary, location: { address, postalCode, city, countryCode, region }, profiles: [{ network, username, url }] }
-- work: [{ name, position, url, startDate, endDate, summary, highlights: ["bullet point 1", "bullet point 2"] }]
-- education: [{ institution, url, area, studyType, startDate, endDate, score, courses: [] }]
-- skills: [{ name: "Category Name (e.g. Languages, Frameworks, Cloud)", level: "Master/Intermediate/Beginner", keywords: ["Tool1", "Tool2"] }]
-- projects: [{ name, description, highlights: [], keywords: [], url }]
-- certificates: [{ name, date, issuer, url }]
+Follow this JSON structure:
+{
+  "$schema": "https://raw.githubusercontent.com/jsonresume/jsonresume.org/master/packages/schema/schema.json",
+  "basics": {
+    "name": "Full Name",
+    "label": "Professional Headline / Current Title",
+    "email": "email@example.com",
+    "phone": "Phone Number",
+    "url": "https://portfolio-or-site.com",
+    "summary": "2-4 sentence executive overview / professional biography",
+    "location": {
+      "address": "Street address or line",
+      "postalCode": "Postal Code",
+      "city": "City",
+      "countryCode": "Two-letter ISO country code e.g. US, GB, IN, CA",
+      "region": "State / Province / Region"
+    },
+    "profiles": [
+      {
+        "network": "LinkedIn / GitHub / Twitter",
+        "username": "Username or handle",
+        "url": "https://profile.url"
+      }
+    ]
+  },
+  "objective": "Candidate's forward-looking career objective or target role statement (if mentioned)",
+  "work": [
+    {
+      "name": "Company Name",
+      "position": "Job Title",
+      "url": "https://company.url (omit if unknown)",
+      "startDate": "YYYY-MM-DD, YYYY-MM, or YYYY",
+      "endDate": "YYYY-MM-DD, YYYY-MM, or YYYY (omit entirely if current role)",
+      "summary": "Overview of role and scope",
+      "highlights": [
+        "Action verb + quantifiable impact / outcome bullet point 1",
+        "Bullet point 2 with metrics and technologies"
+      ],
+      "keywords": ["Core technologies / domains used in this role"]
+    }
+  ],
+  "volunteer": [
+    {
+      "organization": "Organization Name",
+      "position": "Role",
+      "url": "https://org.url",
+      "startDate": "YYYY-MM",
+      "endDate": "YYYY-MM",
+      "summary": "Description",
+      "highlights": ["Impact bullets"]
+    }
+  ],
+  "education": [
+    {
+      "institution": "University / College Name",
+      "url": "https://institution.url",
+      "area": "Field of Study / Major (e.g. Computer Science)",
+      "studyType": "Degree Type (e.g. B.S., M.S., Ph.D., B.Tech)",
+      "startDate": "YYYY-MM or YYYY",
+      "endDate": "YYYY-MM or YYYY",
+      "score": "GPA or honours (e.g. 3.9/4.0 or First Class)",
+      "courses": ["Notable Course 1", "Notable Course 2"]
+    }
+  ],
+  "awards": [
+    {
+      "title": "Award Title",
+      "date": "YYYY-MM or YYYY",
+      "awarder": "Granting Organization",
+      "summary": "Award description"
+    }
+  ],
+  "certificates": [
+    {
+      "name": "Certification Name (e.g. AWS Certified Solutions Architect)",
+      "date": "YYYY-MM or YYYY",
+      "issuer": "Issuing Body (e.g. Amazon Web Services)",
+      "url": "https://certificate.url"
+    }
+  ],
+  "publications": [
+    {
+      "name": "Publication Title",
+      "publisher": "Journal or Conference",
+      "releaseDate": "YYYY-MM-DD or YYYY",
+      "url": "https://doi.org/...",
+      "summary": "Brief abstract"
+    }
+  ],
+  "skills": [
+    {
+      "name": "Category (e.g. Languages, Distributed Systems, Cloud & DevOps, Machine Learning)",
+      "level": "Master, Advanced, or Intermediate",
+      "keywords": ["Skill 1", "Skill 2", "Skill 3"]
+    }
+  ],
+  "languages": [
+    {
+      "language": "Language name (e.g. English, French, Spanish)",
+      "fluency": "Native speaker, Fluent, Professional working proficiency"
+    }
+  ],
+  "interests": [
+    {
+      "name": "Interest category",
+      "keywords": ["Topic 1", "Topic 2"]
+    }
+  ],
+  "references": [
+    {
+      "name": "Reference or Referee Name",
+      "reference": "Reference endorsement or statement"
+    }
+  ],
+  "projects": [
+    {
+      "name": "Project Name",
+      "description": "Project overview",
+      "highlights": ["Key achievements and architecture decisions"],
+      "keywords": ["Tech stack used"],
+      "url": "https://project.url",
+      "startDate": "YYYY-MM",
+      "endDate": "YYYY-MM"
+    }
+  ]
+}
 
-CRITICAL INSTRUCTIONS:
-1. Return ONLY the raw JSON object. Do NOT wrap in markdown code blocks like \`\`\`json.
-2. Ensure dates use YYYY-MM-DD or YYYY-MM or YYYY format when possible, or leave as empty string if unknown.
-3. Ensure all keys and arrays conform to JSON Resume v1.0.0. Do not invent non-standard root keys.
+STRICT CONSTRAINTS:
+1. Return ONLY the JSON object. Do not wrap in markdown or conversational commentary.
+2. DATES: Format as YYYY-MM-DD, YYYY-MM, or YYYY. For current/ongoing roles, OMIT the "endDate" property entirely. NEVER output empty strings ("") or "Present" for dates.
+3. URLS: Must be absolute URLs starting with http:// or https://. If no URL is available, OMIT the "url" property. NEVER output empty strings ("").
+4. ACCURACY: Extract all candidate details truthfully. Do not invent or hallucinate facts, dates, or companies not present in the input text.
+5. COMPLETENESS: Extract all jobs, degrees, certifications, skills, projects, and references found in the text.
 
 --- CANDIDATE RESUME TEXT ---
-${text.slice(0, 30000)}
+${text.slice(0, 40000)}
 `;
 
   const endpoint = `${apiBase.replace(/\/$/, '')}/chat/completions`;
@@ -60,7 +453,7 @@ ${text.slice(0, 30000)}
         {
           role: 'system',
           content:
-            'You are an expert ATS parser. Convert resumes into valid JSON Resume v1.0.0 specifications. Return pure JSON only.',
+            'You are an expert ATS parser. Convert resumes into valid JSON Resume v1.0.0 specifications. Return pure JSON only conforming to JSON Resume schema.',
         },
         { role: 'user', content: prompt },
       ],
@@ -86,7 +479,17 @@ ${text.slice(0, 30000)}
     .replace(/\s*```$/i, '')
     .trim();
 
-  return JSON.parse(cleanJsonStr);
+  try {
+    return JSON.parse(cleanJsonStr);
+  } catch (initialErr) {
+    // Attempt extracting outermost {...} if wrapped in commentary
+    const firstBrace = cleanJsonStr.indexOf('{');
+    const lastBrace = cleanJsonStr.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      return JSON.parse(cleanJsonStr.slice(firstBrace, lastBrace + 1));
+    }
+    throw initialErr;
+  }
 }
 
 /**
@@ -123,7 +526,8 @@ export function heuristicParseResume({ text }) {
   };
 
   return {
-    $schema: 'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json',
+    $schema:
+      'https://raw.githubusercontent.com/jsonresume/jsonresume.org/master/packages/schema/schema.json',
     basics,
     skills: [{ name: 'Core Skills', keywords: [] }],
     work: [],
@@ -165,17 +569,16 @@ export async function parseResumeText({
         ...(apiBase ? { apiBase } : {}),
       });
 
-      // Ensure $schema is present
-      if (!llmResult.$schema) {
-        llmResult.$schema =
-          'https://raw.githubusercontent.com/jsonresume/resume-schema/v1.0.0/schema.json';
-      }
-      return validateResumeJson(llmResult);
+      const sanitized = sanitizeResumeJson(llmResult);
+      return validateResumeJson(sanitized);
     } catch (err) {
-      console.warn(`[Parse-Resume] LLM extraction failed (${err.message}); fallback to heuristic`);
+      console.error(`[Parse-Resume] LLM extraction error: ${err.message}`);
+      throw new Error(`AI resume conversion failed: ${err.message}`, { cause: err });
     }
   }
 
+  // Heuristic parser when no LLM key is configured
   const heuristic = heuristicParseResume({ text: content });
-  return validateResumeJson(heuristic);
+  const sanitizedHeuristic = sanitizeResumeJson(heuristic);
+  return validateResumeJson(sanitizedHeuristic);
 }

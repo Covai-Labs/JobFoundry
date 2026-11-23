@@ -44,29 +44,49 @@ test('validateResumeJson checks JSON Resume v1.0.0 schema compliance', () => {
     /email/
   );
 
-  // Disallowed root property throws
+  // Invalid property types throw
   assert.throws(
     () =>
       validateResumeJson({
         basics: { name: 'Bob' },
-        disallowedRootProperty: true,
+        work: 'not-an-array',
       }),
-    /additional properties/
+    /must be array/
+  );
+
+  // Invalid date format throws
+  assert.throws(
+    () =>
+      validateResumeJson({
+        basics: { name: 'Bob' },
+        work: [
+          {
+            name: 'Company',
+            startDate: 'invalid-date-format',
+          },
+        ],
+      }),
+    /pattern/
   );
 });
 
-test('validateResumeJson stops after the first schema error', () => {
+test('validateResumeJson reports all schema errors when multiple violations occur', () => {
   assert.throws(
     () =>
       validateResumeJson({
-        basics: { name: 'Bob' },
-        firstUnexpectedProperty: true,
-        secondUnexpectedProperty: true,
+        basics: {
+          name: 'Bob',
+          email: 'invalid-email',
+          url: 'invalid-uri',
+        },
+        work: 'not-an-array',
       }),
     (error) => {
       assert.match(error.message, /^JSON Resume validation failed:/);
-      assert.equal(error.message.includes(';'), false);
-      assert.equal((error.message.match(/additional properties/g) || []).length, 1);
+      assert.ok(error.message.includes('email'));
+      assert.ok(error.message.includes('uri'));
+      assert.ok(error.message.includes('array'));
+      assert.ok(error.message.includes(';'));
       return true;
     }
   );
