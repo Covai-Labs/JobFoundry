@@ -1081,6 +1081,55 @@ h6 {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-muted);
 }
+.badge-neutral {
+  background: var(--btn-secondary-bg);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
+}
+
+/* Light Mode Badge Contrast Overrides */
+html[data-color-mode='light'] .badge-indigo,
+html.light .badge-indigo {
+  background: #e0e7ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+html[data-color-mode='light'] .badge-purple,
+html.light .badge-purple {
+  background: #f3e8ff;
+  color: #6b21a8;
+  border: 1px solid #e9d5ff;
+}
+html[data-color-mode='light'] .badge-blue,
+html.light .badge-blue {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+html[data-color-mode='light'] .badge-green,
+html.light .badge-green {
+  background: #d1fae5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+html[data-color-mode='light'] .badge-amber,
+html.light .badge-amber {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+html[data-color-mode='light'] .badge-red,
+html.light .badge-red {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+html[data-color-mode='light'] .badge-neutral,
+html.light .badge-neutral {
+  background: #f1f5f9;
+  color: #1e293b;
+  border: 1px solid #cbd5e1;
+}
 
 /* Skills Chips */
 .skills-container {

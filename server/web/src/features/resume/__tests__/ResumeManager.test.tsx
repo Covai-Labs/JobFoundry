@@ -256,4 +256,220 @@ describe('ResumeManager', () => {
       expect(screen.getByText('Kubernetes')).toBeDefined();
     });
   });
+
+  it('opens AI Resume Converter modal, parses resume text, reviews extracted entities, and applies to active profile', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+    const mockParsedResume = {
+      basics: {
+        name: 'Jordan Lee',
+        label: 'Senior ML Engineer',
+        email: 'jordan@example.com',
+        phone: '+1 555-0144',
+        summary: 'Experienced ML engineer building distributed models.',
+        location: { city: 'San Francisco', countryCode: 'US' },
+      },
+      work: [
+        {
+          name: 'AI Labs',
+          position: 'ML Engineer',
+          startDate: '2022-01-01',
+          endDate: 'Present',
+        },
+      ],
+      education: [
+        {
+          institution: 'Stanford University',
+          studyType: 'M.S.',
+          area: 'Computer Science',
+        },
+      ],
+      skills: [{ name: 'ML/AI', keywords: ['PyTorch', 'TensorFlow', 'LLMs'] }],
+      projects: [{ name: 'LLM Evaluator', description: 'Evaluation benchmark' }],
+    };
+
+    const parseSpy = vi.spyOn(api, 'parseResumeRaw').mockResolvedValue({
+      ok: true,
+      resumeJson: mockParsedResume,
+    });
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    // Click "AI Convert Raw Resume" button
+    const openConverterBtn = screen.getByRole('button', { name: /AI Convert Raw Resume/i });
+    fireEvent.click(openConverterBtn);
+
+    // Modal should be open showing input and dropzone
+    expect(screen.getByText(/Drag & drop/i)).toBeDefined();
+    const textarea = screen.getByPlaceholderText(/Paste your resume contents here/i);
+    expect(textarea).toBeDefined();
+
+    // Paste resume text
+    fireEvent.change(textarea, {
+      target: {
+        value:
+          'Jordan Lee - Senior ML Engineer\njordan@example.com\nWorked at AI Labs as ML Engineer.',
+      },
+    });
+
+    // Click "Parse & Convert to JSON"
+    const convertBtn = screen.getByRole('button', { name: /Parse & Convert to JSON/i });
+    fireEvent.click(convertBtn);
+
+    expect(parseSpy).toHaveBeenCalledWith({
+      text: 'Jordan Lee - Senior ML Engineer\njordan@example.com\nWorked at AI Labs as ML Engineer.',
+    });
+
+    // Review step should appear with extracted summary & badges
+    await waitFor(() => {
+      expect(screen.getByText('Review Converted Resume')).toBeDefined();
+    });
+
+    expect(screen.getByText('Jordan Lee')).toBeDefined();
+    expect(screen.getByText('Senior ML Engineer')).toBeDefined();
+    expect(screen.getByText('Work Roles')).toBeDefined();
+    expect(screen.getByText('ML/AI')).toBeDefined();
+
+    // Toggle raw JSON inspector
+    const inspectJsonBtn = screen.getByRole('button', { name: /Inspect Raw JSON Output/i });
+    fireEvent.click(inspectJsonBtn);
+    expect(screen.getByText(/Hide Raw JSON/i)).toBeDefined();
+
+    // Click "Apply to Active Profile"
+    const applyBtn = screen.getByRole('button', { name: /Apply to Active Profile/i });
+    fireEvent.click(applyBtn);
+
+    // Form editor should now have Jordan Lee
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Jordan Lee')).toBeDefined();
+    });
+    expect(screen.getByDisplayValue('Senior ML Engineer')).toBeDefined();
+    expect(
+      screen.getByText(
+        'Converted resume applied to editor! Review your sections and click Save Changes to persist.'
+      )
+    ).toBeDefined();
+  });
+
+  it('allows saving converted resume directly as a new profile', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+    const mockParsedResume = {
+      basics: {
+        name: 'Samantha Ray',
+        label: 'DevOps Specialist',
+      },
+      work: [],
+      education: [],
+      skills: [],
+    };
+
+    vi.spyOn(api, 'parseResumeRaw').mockResolvedValue({
+      ok: true,
+      resumeJson: mockParsedResume,
+    });
+
+    const uploadSpy = vi.spyOn(api, 'uploadResume').mockResolvedValue({
+      id: 'resume-samantha',
+      userId: 'user-1',
+      title: 'Samantha Ray Resume',
+      resume: mockParsedResume,
+      isActive: true,
+      createdAt: 2000,
+      updatedAt: 2000,
+    });
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Convert Raw Resume/i }));
+
+    const textarea = screen.getByPlaceholderText(/Paste your resume contents here/i);
+    fireEvent.change(textarea, {
+      target: { value: 'Samantha Ray - DevOps Specialist' },
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /Parse & Convert to JSON/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Review Converted Resume')).toBeDefined();
+    });
+
+    // Click "Save as New Profile" in review modal
+    const saveNewBtns = screen.getAllByRole('button', { name: /Save as New Profile/i });
+    fireEvent.click(saveNewBtns[saveNewBtns.length - 1]);
+
+    await waitFor(() => {
+      expect(uploadSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: 'Samantha Ray Resume',
+          setActive: false,
+        })
+      );
+    });
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('Saved "Samantha Ray Resume" as a new profile in your library!')
+      ).toBeDefined();
+    });
+  });
+
+  it('dismisses alert banner when dismiss button is clicked', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+    vi.spyOn(api, 'patchResume').mockResolvedValue({
+      ...mockResume,
+      title: 'Updated Title',
+    });
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    const saveBtn = screen.getAllByText('Save Changes')[0];
+    fireEvent.click(saveBtn);
+
+    await waitFor(() => {
+      expect(screen.getByRole('status')).toBeDefined();
+      expect(screen.getByText('Resume updated in-place successfully!')).toBeDefined();
+    });
+
+    // Dismiss banner
+    const dismissBtn = screen.getByTitle('Dismiss');
+    fireEvent.click(dismissBtn);
+
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('validates uploaded JSON file against schema and displays error if invalid', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Convert Raw Resume/i }));
+
+    const fileInput = screen.getByLabelText(/Browse File/i);
+    expect(fileInput).toBeDefined();
+
+    const invalidJsonFile = new File(['{"basics": {"email": "not-an-email"}}'], 'invalid.json', {
+      type: 'application/json',
+    });
+
+    fireEvent.change(fileInput, { target: { files: [invalidJsonFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid JSON Resume schema/i)).toBeDefined();
+    });
+  });
 });
