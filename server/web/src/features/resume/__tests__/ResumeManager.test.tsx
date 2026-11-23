@@ -609,9 +609,10 @@ describe('ResumeManager', () => {
     expect(screen.getByRole('button', { name: /Upload JSON Resume/i })).toBeDefined();
     expect(screen.getByRole('button', { name: /Smart Resume Import/i })).toBeDefined();
 
-    // Close on Escape key
+    // Close on Escape key and verify focus returns to trigger
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(screen.queryByRole('button', { name: /Upload JSON Resume/i })).toBeNull();
+    expect(document.activeElement).toBe(importMenuBtn);
 
     // Reopen menu and simulate file selection via hidden input
     fireEvent.click(importMenuBtn);

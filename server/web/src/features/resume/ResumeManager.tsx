@@ -158,6 +158,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   // Import dropdown state
   const [showImportMenu, setShowImportMenu] = useState<boolean>(false);
   const importMenuRef = useRef<HTMLDivElement>(null);
+  const importTriggerRef = useRef<HTMLButtonElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -170,6 +171,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setShowImportMenu(false);
+        importTriggerRef.current?.focus();
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -898,6 +900,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           {/* Import Dropdown */}
           <div ref={importMenuRef} style={{ position: 'relative' }}>
             <button
+              ref={importTriggerRef}
               type="button"
               onClick={() => {
                 setShowImportMenu((prev) => !prev);
