@@ -303,7 +303,7 @@ describe('ResumeManager', () => {
     fireEvent.click(openConverterBtn);
 
     // Modal should be open showing input and dropzone
-    expect(screen.getByText(/Drag & drop resume file, or paste text below/i)).toBeDefined();
+    expect(screen.getByText(/Drag & drop/i)).toBeDefined();
     const textarea = screen.getByPlaceholderText(/Paste your resume contents here/i);
     expect(textarea).toBeDefined();
 

@@ -82,6 +82,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   const [extractedResume, setExtractedResume] = useState<ResumeData | null>(null);
   const [isDragging, setIsDragging] = useState<boolean>(false);
   const [loadedFile, setLoadedFile] = useState<{ name: string; size: string } | null>(null);
+  const [isExtractingPdf, setIsExtractingPdf] = useState<boolean>(false);
   const [showRawExtractedJson, setShowRawExtractedJson] = useState<boolean>(false);
   const [savingAsNew, setSavingAsNew] = useState<boolean>(false);
 
@@ -278,16 +279,43 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  const processResumeFile = (file: File) => {
+  const processResumeFile = async (file: File) => {
     const isJson = file.name.endsWith('.json') || file.type === 'application/json';
+    const isPdf = file.name.endsWith('.pdf') || file.type === 'application/pdf';
     const isText =
       file.name.endsWith('.txt') ||
       file.name.endsWith('.md') ||
       file.type.startsWith('text/') ||
       file.type === '';
 
-    if (!isJson && !isText) {
-      setConvertError('Unsupported file type. Please upload a .txt, .md, or .json file.');
+    if (!isJson && !isPdf && !isText) {
+      setConvertError('Unsupported file type. Please upload a .pdf, .txt, .md, or .json file.');
+      return;
+    }
+
+    if (isPdf) {
+      try {
+        setIsExtractingPdf(true);
+        setConvertError(null);
+        const { extractText } = await import('unpdf');
+        const arrayBuffer = await file.arrayBuffer();
+        const result = await extractText(new Uint8Array(arrayBuffer));
+        const text = Array.isArray(result.text) ? result.text.join('\n\n') : result.text || '';
+        if (!text.trim()) {
+          setConvertError(
+            'No selectable text found in PDF. If this is a scanned document/image, please paste the text directly.'
+          );
+          return;
+        }
+        setRawResumeText(text);
+        setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
+        setConvertError(null);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        setConvertError(`Failed to extract text from PDF: ${msg}`);
+      } finally {
+        setIsExtractingPdf(false);
+      }
       return;
     }
 
@@ -1721,7 +1749,11 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                           flexShrink: 0,
                         }}
                       >
-                        <UploadCloud size={19} />
+                        {isExtractingPdf ? (
+                          <RefreshCw size={19} className="animate-spin" />
+                        ) : (
+                          <UploadCloud size={19} />
+                        )}
                       </div>
                       <div>
                         <div
@@ -1731,16 +1763,20 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                             color: 'var(--text-primary)',
                           }}
                         >
-                          {isDragging
-                            ? 'Drop resume file here...'
-                            : loadedFile
-                              ? `File Loaded: ${loadedFile.name}`
-                              : 'Drag & drop resume file, or paste text below'}
+                          {isExtractingPdf
+                            ? 'Extracting text from PDF...'
+                            : isDragging
+                              ? 'Drop PDF, text, or markdown file here...'
+                              : loadedFile
+                                ? `File Loaded: ${loadedFile.name}`
+                                : 'Drag & drop PDF, Markdown, or text file'}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {loadedFile
-                            ? `Size: ${loadedFile.size}`
-                            : 'Supports .txt, .md, or .json files'}
+                          {isExtractingPdf
+                            ? 'Reading document pages via client-side PDF parser'
+                            : loadedFile
+                              ? `Size: ${loadedFile.size}`
+                              : 'Supports .pdf, .txt, .md, or .json files'}
                         </div>
                       </div>
                     </div>
@@ -1775,7 +1811,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         <FileText size={13} /> Browse File
                         <input
                           type="file"
-                          accept=".txt,.md,.json,text/plain,text/markdown,application/json"
+                          accept=".pdf,.txt,.md,.json,application/pdf,text/plain,text/markdown,application/json"
                           onChange={handleRawFileUpload}
                           style={{ display: 'none' }}
                         />

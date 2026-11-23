@@ -16,7 +16,8 @@
     "lucide-react": "^1.41.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
-    "react-router-dom": "^7.18.3"
+    "react-router-dom": "^7.18.3",
+    "unpdf": "^2.2.1"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^8.0.0",
