@@ -529,4 +529,56 @@ describe('ResumeManager', () => {
       expect(exportBtn).toBeDisabled();
     });
   });
+
+  it('renders setup message in overview tab when no master profile exists', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Active Profile$/i })).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Active Profile$/i }));
+
+    expect(screen.getByText('No active master profile set yet.')).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Create Master Profile' })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Create Master Profile' }));
+    expect(screen.getByRole('button', { name: /^Form Editor$/i })).toBeDefined();
+  });
+
+  it('renders region in overview when city is empty and falls back to title on export when basics.name is blank', async () => {
+    const resumeWithEmptyCity = {
+      ...mockResume,
+      resume: {
+        ...mockResume.resume,
+        basics: {
+          ...mockResume.resume.basics,
+          name: '   ',
+          location: {
+            city: '',
+            region: 'WA',
+          },
+        },
+      },
+    };
+    vi.spyOn(api, 'getResumes').mockResolvedValue([resumeWithEmptyCity]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByRole('button', { name: /^Active Profile$/i })).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Active Profile$/i }));
+    expect(screen.getByText('WA')).toBeDefined();
+
+    const exportBtn = screen.getByRole('button', { name: /Export JSON/i });
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Exported master resume JSON successfully!')).toBeDefined();
+    });
+  });
 });

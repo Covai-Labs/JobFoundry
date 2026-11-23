@@ -591,7 +591,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', dataStr);
-      const fileName = (exportData.basics?.name ?? (title.trim() ? title : 'master_resume'))
+      const exportName = exportData.basics?.name?.trim();
+      const profileTitle = title.trim();
+      const fileName = (exportName || profileTitle || 'master_resume')
         .toLowerCase()
         .replace(/\s+/g, '_');
       downloadAnchor.setAttribute('download', `${fileName}.json`);
@@ -892,7 +894,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             className="card"
             style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}
           >
-            {Object.keys(parsedActive).length > 0 ? (
+            {activeResume ? (
               <>
                 <div
                   style={{
@@ -1006,7 +1008,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     </div>
                   )}
                   {Boolean(
-                    parsedActive.basics?.location?.city ?? parsedActive.basics?.location?.region
+                    parsedActive.basics?.location?.city || parsedActive.basics?.location?.region
                   ) && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Location:</span>
