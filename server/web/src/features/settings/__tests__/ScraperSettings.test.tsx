@@ -130,7 +130,7 @@ describe('ScraperSettingsTab', () => {
       />
     );
 
-    const fetchBtn = screen.getByRole('button', { name: /Fetch from Master Resume/i });
+    const fetchBtn = screen.getByRole('button', { name: /Suggest Roles with AI/i });
     fireEvent.click(fetchBtn);
 
     expect(onExtract).toHaveBeenCalled();

@@ -588,9 +588,10 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
             disabled={extractingResume}
             className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            title="Analyze active master resume with AI and select role keywords to target"
           >
             <Sparkles size={14} style={{ color: 'var(--color-amber)' }} />
-            {extractingResume ? 'Extracting...' : 'Fetch from Master Resume'}
+            {extractingResume ? 'Analyzing Resume...' : 'Suggest Roles with AI'}
           </button>
         </div>
 

@@ -27,6 +27,7 @@ import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
 import { analyzeRepost, normalizeCompany } from './jobs/detect-reposts.mjs';
 import { parseJobDescription } from './jobs/parse-jd.mjs';
 import { parseResumeText } from './resume/parse-resume.mjs';
+import { suggestRolesFromResume } from './resume/suggest-roles.mjs';
 import { renderResumeMarkdown } from './resumes/resume-markdown.mjs';
 import { cleanBoilerplate } from './jobs/decant.mjs';
 import {
@@ -1849,6 +1850,73 @@ export function buildApp({
       } catch (err) {
         request.log.error(err, 'Failed to parse resume text');
         return reply.code(500).send({ error: `Failed to parse resume: ${err.message}` });
+      }
+    }
+  );
+
+  // POST /api/v1/resumes/suggest-roles - AI-assisted role keyword synthesis
+  app.post(
+    '/api/v1/resumes/suggest-roles',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
+      },
+      rateLimit: {
+        max: 30,
+        timeWindow: '1 minute',
+      },
+    },
+    async (request, reply) => {
+      if (!checkRateLimit(request, reply, 30)) return;
+      if (!authenticate(request, reply)) return;
+
+      const body = request.body || {};
+      let targetResume = body.resume;
+
+      if (body.resumeId) {
+        const resumes = getUserResumes(db, request.user.id);
+        const match = resumes.find((r) => r.id === body.resumeId);
+        if (!match) {
+          return reply.code(404).send({ error: 'Resume not found' });
+        }
+        targetResume = match.resume;
+      } else if (!targetResume) {
+        const active = getActiveResume(db, request.user.id);
+        if (active?.resume) {
+          targetResume = active.resume;
+        }
+      }
+
+      if (!targetResume || typeof targetResume !== 'object') {
+        return reply.code(400).send({
+          error:
+            'No active master resume found. Please provide a resume or activate a master resume.',
+        });
+      }
+
+      try {
+        const userId = request.user.id;
+        const registered = isRegisteredUser(db, userId);
+        const resolved = resolveFeatureLlmConfig(db, 'copilot', { userId });
+        const apiKey = resolved.apiKey || '';
+        const model = resolved.model || 'openrouter/openrouter/free';
+        const apiBase = resolved.apiBase || '';
+
+        const result = await suggestRolesFromResume({
+          resume: targetResume,
+          model,
+          apiKey,
+          apiBase,
+          suppressEnvKeyFallback: registered,
+        });
+
+        return result;
+      } catch (err) {
+        request.log.error(err, 'Failed to suggest roles from resume');
+        return reply.code(500).send({ error: `Failed to suggest roles: ${err.message}` });
       }
     }
   );
