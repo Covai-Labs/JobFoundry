@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Sparkles, X, Check, Plus } from 'lucide-react';
 
 export interface RoleSuggestionModalProps {
@@ -7,7 +7,7 @@ export interface RoleSuggestionModalProps {
   roles: string[];
   source?: 'llm' | 'heuristic';
   notice?: string;
-  onApply: (selectedRoles: string[], mode: 'append' | 'replace') => void;
+  onApply: (_selectedRoles: string[], _mode: 'append' | 'replace') => void;
 }
 
 export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
@@ -21,6 +21,11 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [insertMode, setInsertMode] = useState<'append' | 'replace'>('append');
 
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const previousFocusRef = useRef<HTMLElement | null>(null);
+
   // Initialize all roles as selected whenever a new set of roles is passed
   useEffect(() => {
     if (isOpen) {
@@ -29,15 +34,47 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
     }
   }, [isOpen, roles]);
 
+  // Handle focus trapping, initial focus, focus restoration, and Escape key
   useEffect(() => {
     if (!isOpen) return;
+
+    previousFocusRef.current = document.activeElement as HTMLElement | null;
+    closeButtonRef.current?.focus();
+
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
+        return;
+      }
+
+      if (e.key === 'Tab' && dialogRef.current) {
+        const focusableElements = dialogRef.current.querySelectorAll<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusableElements.length === 0) return;
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (e.shiftKey) {
+          if (document.activeElement === firstElement) {
+            e.preventDefault();
+            lastElement.focus();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            e.preventDefault();
+            firstElement.focus();
+          }
+        }
       }
     };
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      previousFocusRef.current?.focus();
+    };
   }, [isOpen, onClose]);
 
   if (!isOpen) return null;
@@ -54,8 +91,13 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
     });
   };
 
-  const handleSelectAll = () => setSelected(new Set(roles));
-  const handleDeselectAll = () => setSelected(new Set());
+  const handleSelectAll = () => {
+    setSelected(new Set(roles));
+  };
+
+  const handleDeselectAll = () => {
+    setSelected(new Set());
+  };
 
   const handleConfirm = () => {
     const chosen = roles.filter((r) => selected.has(r));
@@ -64,11 +106,19 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
     onClose();
   };
 
+  const handleOverlayClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === overlayRef.current) {
+      onClose();
+    }
+  };
+
   return (
     <div
+      ref={overlayRef}
       role="dialog"
       aria-modal="true"
       aria-labelledby="role-suggestion-title"
+      onClick={handleOverlayClick}
       style={{
         position: 'fixed',
         top: 0,
@@ -85,6 +135,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
       }}
     >
       <div
+        ref={dialogRef}
         style={{
           background: 'var(--bg-card, #1e293b)',
           borderRadius: 'var(--radius-lg, 12px)',
@@ -167,6 +218,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
             )}
           </div>
           <button
+            ref={closeButtonRef}
             type="button"
             onClick={onClose}
             aria-label="Close"
@@ -192,7 +244,9 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
           <div style={{ display: 'flex', gap: '0.5rem' }}>
             <button
               type="button"
-              onClick={handleSelectAll}
+              onClick={() => {
+                handleSelectAll();
+              }}
               className="btn btn-secondary btn-sm"
               style={{ fontSize: '0.75rem', padding: '0.2rem 0.55rem' }}
             >
@@ -200,7 +254,9 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
             </button>
             <button
               type="button"
-              onClick={handleDeselectAll}
+              onClick={() => {
+                handleDeselectAll();
+              }}
               className="btn btn-secondary btn-sm"
               style={{ fontSize: '0.75rem', padding: '0.2rem 0.55rem' }}
             >
@@ -243,7 +299,9 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
                   type="button"
                   role="checkbox"
                   aria-checked={isChecked}
-                  onClick={() => toggleRole(role)}
+                  onClick={() => {
+                    toggleRole(role);
+                  }}
                   style={{
                     display: 'inline-flex',
                     alignItems: 'center',
@@ -301,7 +359,9 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
               name="insertMode"
               value="append"
               checked={insertMode === 'append'}
-              onChange={() => setInsertMode('append')}
+              onChange={() => {
+                setInsertMode('append');
+              }}
             />
             Append to existing keywords
           </label>
@@ -318,7 +378,9 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
               name="insertMode"
               value="replace"
               checked={insertMode === 'replace'}
-              onChange={() => setInsertMode('replace')}
+              onChange={() => {
+                setInsertMode('replace');
+              }}
             />
             Replace all existing
           </label>

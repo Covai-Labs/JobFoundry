@@ -136,13 +136,19 @@ export function cleanAndDeduplicateRoles(roles) {
 
   for (const item of roles) {
     if (typeof item !== 'string') continue;
-    // Remove markdown bullet prefixes, numbers, or quotes
-    let title = item
-      .trim()
-      .replace(/^[-*•\d.)\s]+/, '')
-      .trim()
-      .replace(/^["']+|["']+$/g, '')
-      .trim();
+    let title = item.trim().replace(/^[-*•]\s*/, '');
+    // Strip numeric list prefixes only when followed by list punctuation or whitespace (e.g. "1. " or "2) ")
+    // Preserves leading numbers in titles such as "3D Artist" or "2D Animator"
+    title = title.replace(/^\d+[\s.)-]+\s*/, '').trim();
+
+    // Safely strip surrounding quotes without polynomial regular expressions
+    while (title.startsWith('"') || title.startsWith("'")) {
+      title = title.slice(1).trim();
+    }
+    while (title.endsWith('"') || title.endsWith("'")) {
+      title = title.slice(0, -1).trim();
+    }
+
     if (!title || title.length < 3 || title.length > 60) continue;
 
     const lower = title.toLowerCase();

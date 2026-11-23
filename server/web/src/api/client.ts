@@ -299,7 +299,7 @@ export class ApiClient {
       notice?: string;
     }>('/api/v1/resumes/suggest-roles', {
       method: 'POST',
-      body: JSON.stringify(payload || {}),
+      body: JSON.stringify(payload ?? {}),
     });
   }
 

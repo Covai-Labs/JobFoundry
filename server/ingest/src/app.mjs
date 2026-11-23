@@ -1876,13 +1876,14 @@ export function buildApp({
       const body = request.body || {};
       let targetResume = body.resume;
 
-      if (!targetResume && body.resumeId) {
+      if (body.resumeId) {
         const resumes = getUserResumes(db, request.user.id);
         const match = resumes.find((r) => r.id === body.resumeId);
-        if (match) targetResume = match.resume;
-      }
-
-      if (!targetResume) {
+        if (!match) {
+          return reply.code(404).send({ error: 'Resume not found' });
+        }
+        targetResume = match.resume;
+      } else if (!targetResume) {
         const active = getActiveResume(db, request.user.id);
         if (active?.resume) {
           targetResume = active.resume;
@@ -1899,17 +1900,10 @@ export function buildApp({
       try {
         const userId = request.user.id;
         const registered = isRegisteredUser(db, userId);
-        const keySetting = getEffectiveSettingWithSource(db, 'default_llm_api_key', { userId });
-        const apiKey = registered
-          ? keySetting.source === 'user'
-            ? keySetting.value
-            : ''
-          : keySetting.value;
-
-        const model =
-          getEffectiveSetting(db, 'default_llm_model', process.env, userId) ||
-          'openrouter/openrouter/free';
-        const apiBase = getEffectiveSetting(db, 'default_llm_api_base', process.env, userId) || '';
+        const resolved = resolveFeatureLlmConfig(db, 'copilot', { userId });
+        const apiKey = resolved.apiKey || '';
+        const model = resolved.model || 'openrouter/openrouter/free';
+        const apiBase = resolved.apiBase || '';
 
         const result = await suggestRolesFromResume({
           resume: targetResume,

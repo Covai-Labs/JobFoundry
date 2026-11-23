@@ -26,7 +26,7 @@ describe('RoleSuggestionModal', () => {
     expect(screen.getByText('4 of 4 selected')).toBeInTheDocument();
 
     sampleRoles.forEach((role) => {
-      const chip = screen.getByRole('checkbox', { name: new RegExp(role, 'i') });
+      const chip = screen.getByRole('checkbox', { name: role });
       expect(chip).toBeInTheDocument();
       expect(chip).toHaveAttribute('aria-checked', 'true');
     });
@@ -44,7 +44,7 @@ describe('RoleSuggestionModal', () => {
     );
 
     // Toggle off the first role
-    const firstRoleChip = screen.getByRole('checkbox', { name: /AI Operations Specialist/i });
+    const firstRoleChip = screen.getByRole('checkbox', { name: 'AI Operations Specialist' });
     fireEvent.click(firstRoleChip);
     expect(firstRoleChip).toHaveAttribute('aria-checked', 'false');
     expect(screen.getByText('3 of 4 selected')).toBeInTheDocument();
@@ -108,5 +108,10 @@ describe('RoleSuggestionModal', () => {
     // Escape key
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).toHaveBeenCalledTimes(2);
+
+    // Overlay click
+    const dialog = screen.getByRole('dialog');
+    fireEvent.click(dialog);
+    expect(onClose).toHaveBeenCalledTimes(3);
   });
 });
