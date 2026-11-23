@@ -591,7 +591,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', dataStr);
-      const fileName = (exportData.basics?.name ?? title ?? 'master_resume')
+      const fileName = (exportData.basics?.name ?? (title.trim() ? title : 'master_resume'))
         .toLowerCase()
         .replace(/\s+/g, '_');
       downloadAnchor.setAttribute('download', `${fileName}.json`);
@@ -783,7 +783,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
           <button
             type="button"
-            onClick={() => setEditorMode('overview')}
+            onClick={() => {
+              setEditorMode('overview');
+            }}
             className={`btn btn-sm ${editorMode === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
             style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             title="View candidate overview, role keywords, top skills, and manage saved profile versions"
@@ -959,7 +961,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     </button>
                     <button
                       type="button"
-                      onClick={() => setEditorMode('preview')}
+                      onClick={() => {
+                        setEditorMode('preview');
+                      }}
                       disabled={validationErrors.length > 0}
                       className="btn btn-secondary btn-sm"
                       style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
@@ -1007,7 +1011,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Location:</span>
                       <span>
-                        {[parsedActive.basics.location.city, parsedActive.basics.location.region]
+                        {[
+                          parsedActive.basics?.location?.city,
+                          parsedActive.basics?.location?.region,
+                        ]
                           .filter(Boolean)
                           .join(', ')}
                       </span>
@@ -1307,7 +1314,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       {!r.isActive && (
                         <button
                           type="button"
-                          onClick={() => handleSwitchActive(r.id)}
+                          onClick={() => {
+                            void handleSwitchActive(r.id);
+                          }}
                           className="btn btn-secondary btn-sm"
                           style={{ padding: '0.25rem 0.55rem', fontSize: '0.75rem' }}
                           title="Make this profile the active master resume"
@@ -1317,7 +1326,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       )}
                       <button
                         type="button"
-                        onClick={() => handleDelete(r.id)}
+                        onClick={() => {
+                          void handleDelete(r.id);
+                        }}
                         className="btn btn-danger btn-sm"
                         style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
                         title="Delete this profile version"
@@ -1394,7 +1405,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             </div>
             <button
               type="button"
-              onClick={() => setEditorMode('overview')}
+              onClick={() => {
+                setEditorMode('overview');
+              }}
               className="btn btn-secondary btn-xs"
               style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
               title="View the active profile summary, keywords, and saved versions"
@@ -1608,7 +1621,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
               </div>
               <button
                 type="button"
-                onClick={() => setShowAiConvertModal(false)}
+                onClick={() => {
+                  setShowAiConvertModal(false);
+                }}
                 disabled={convertingRaw || savingAsNew}
                 className="btn btn-secondary btn-sm"
                 style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
@@ -2298,7 +2313,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
                   <button
                     type="button"
-                    onClick={() => setShowAiConvertModal(false)}
+                    onClick={() => {
+                      setShowAiConvertModal(false);
+                    }}
                     disabled={convertingRaw}
                     className="btn btn-secondary btn-sm"
                   >
