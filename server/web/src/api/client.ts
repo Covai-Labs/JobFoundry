@@ -286,6 +286,23 @@ export class ApiClient {
     return res.resume;
   }
 
+  async suggestRoles(payload?: { resume?: Record<string, unknown>; resumeId?: string }): Promise<{
+    ok: boolean;
+    roles: string[];
+    source?: 'llm' | 'heuristic';
+    notice?: string;
+  }> {
+    return this.request<{
+      ok: boolean;
+      roles: string[];
+      source?: 'llm' | 'heuristic';
+      notice?: string;
+    }>('/api/v1/resumes/suggest-roles', {
+      method: 'POST',
+      body: JSON.stringify(payload || {}),
+    });
+  }
+
   // --- Candidate Facts Endpoints ---
   async getFacts(options?: { activeOnly?: boolean }): Promise<UserFact[]> {
     const query = options?.activeOnly ? '?active=true' : '';

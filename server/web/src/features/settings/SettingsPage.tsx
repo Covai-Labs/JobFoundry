@@ -13,11 +13,11 @@ import {
 import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
 import { ScraperSettingsTab } from './ScraperSettingsTab';
+import { RoleSuggestionModal } from './RoleSuggestionModal';
 import { ResumeManager } from '../resume/ResumeManager';
 import { THEME_CATALOG, findThemeMetadata } from '../resume/themeCatalog';
 import { ExtensionSyncView } from '../sync/ExtensionSyncView';
 import { RegistrationControls } from '../auth/RegistrationControls';
-import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
 import {
   Laptop,
   Moon,
@@ -678,6 +678,10 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [_isExtensionDirty, setIsExtensionDirty] = useState(false);
   const [savingScrapers, setSavingScrapers] = useState(false);
   const [extractingResume, setExtractingResume] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [suggestedRoles, setSuggestedRoles] = useState<string[]>([]);
+  const [suggestedSource, setSuggestedSource] = useState<'llm' | 'heuristic'>('llm');
+  const [suggestedNotice, setSuggestedNotice] = useState<string | undefined>(undefined);
   const [exportingFormat, setExportingFormat] = useState<ExportFormat | null>(null);
   const [exportingJobId, setExportingJobId] = useState<string | null>(null);
   const [tailoredJobs, setTailoredJobs] = useState<Array<{ id: string; label: string }>>([]);
@@ -1154,33 +1158,41 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const handleExtractFromResume = async () => {
     setExtractingResume(true);
     try {
-      const activeResume = await api.getActiveResume();
-      if (!activeResume?.resume) {
-        toast.error('No active master resume found. Please upload or activate a resume first.');
+      const res = await api.suggestRoles();
+      if (!res.ok || !res.roles || res.roles.length === 0) {
+        toast.info(res.notice || 'No role keywords detected in active resume.');
         return;
       }
-      const titles = extractKeywordsFromResume(activeResume.resume);
-      if (titles.length === 0) {
-        toast.info('No role keywords detected in active resume.');
-        return;
-      }
-      const existing = extensionConfig.titleFilter?.positive || [];
-      const combined = Array.from(new Set([...existing, ...titles]));
-      setExtensionConfig((prev) => ({
-        ...prev,
-        titleFilter: {
-          ...prev.titleFilter,
-          positive: combined,
-        },
-      }));
-      setIsExtensionDirty(true);
-      setIsDirty(true);
-      toast.success(`Fetched ${titles.length} role keyword(s) from master resume`);
+      setSuggestedRoles(res.roles);
+      setSuggestedSource(res.source || 'llm');
+      setSuggestedNotice(res.notice);
+      setShowRoleModal(true);
     } catch (err: any) {
-      toast.error(`Failed to fetch resume keywords: ${err?.message || 'Unknown error'}`);
+      toast.error(`Failed to suggest resume roles: ${err?.message || 'Unknown error'}`);
     } finally {
       setExtractingResume(false);
     }
+  };
+
+  const handleApplySuggestedRoles = (selectedRoles: string[], mode: 'append' | 'replace') => {
+    const existing = extensionConfig.titleFilter?.positive || [];
+    const updated =
+      mode === 'replace' ? selectedRoles : Array.from(new Set([...existing, ...selectedRoles]));
+
+    setExtensionConfig((prev) => ({
+      ...prev,
+      titleFilter: {
+        ...prev.titleFilter,
+        positive: updated,
+      },
+    }));
+    setIsExtensionDirty(true);
+    setIsDirty(true);
+    toast.success(
+      mode === 'replace'
+        ? `Replaced target keywords with ${selectedRoles.length} role(s)`
+        : `Added ${selectedRoles.length} role keyword(s) to search filters`
+    );
   };
 
   const handleExport = async (format: ExportFormat, jobId?: string) => {
@@ -6167,6 +6179,16 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         setBaseUrl={setInlineConnBaseUrl}
         apiKey={inlineConnApiKey}
         setApiKey={setInlineConnApiKey}
+      />
+
+      {/* Modal: AI Role Keyword Suggestions */}
+      <RoleSuggestionModal
+        isOpen={showRoleModal}
+        onClose={() => setShowRoleModal(false)}
+        roles={suggestedRoles}
+        source={suggestedSource}
+        notice={suggestedNotice}
+        onApply={handleApplySuggestedRoles}
       />
     </div>
   );
