@@ -536,15 +536,19 @@ describe('ResumeManager', () => {
     render(<ResumeManager />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^Active Profile$/i })).toBeDefined();
+      expect(screen.queryByText('Loading profile...')).toBeNull();
     });
 
     fireEvent.click(screen.getByRole('button', { name: /^Active Profile$/i }));
 
-    expect(screen.getByText('No active master profile set yet.')).toBeDefined();
-    expect(screen.getByRole('button', { name: 'Create Master Profile' })).toBeDefined();
+    expect(
+      screen.getByText(
+        'No master resume uploaded yet. Save the template or import with AI to get started!'
+      )
+    ).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Open Form Editor' })).toBeDefined();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create Master Profile' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open Form Editor' }));
     expect(screen.getByRole('button', { name: /^Form Editor$/i })).toBeDefined();
   });
 
@@ -568,7 +572,7 @@ describe('ResumeManager', () => {
     render(<ResumeManager />);
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /^Active Profile$/i })).toBeDefined();
+      expect(screen.queryByText('Loading profile...')).toBeNull();
     });
 
     fireEvent.click(screen.getByRole('button', { name: /^Active Profile$/i }));

@@ -591,12 +591,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', dataStr);
-      const exportName = exportData.basics?.name?.trim();
-      const profileTitle = title.trim();
-      const fileName = (exportName || profileTitle || 'master_resume')
-        .toLowerCase()
-        .replace(/\s+/g, '_');
-      downloadAnchor.setAttribute('download', `${fileName}.json`);
+      let fileName = 'master_resume';
+      if (exportData.basics?.name?.trim()) {
+        fileName = exportData.basics.name.trim();
+      } else if (title.trim()) {
+        fileName = title.trim();
+      }
+      const sanitizedFileName = fileName.toLowerCase().replace(/\s+/g, '_');
+      downloadAnchor.setAttribute('download', `${sanitizedFileName}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -936,7 +938,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         <h3 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0 }}>
                           {parsedActive.basics?.name ?? 'Unnamed Candidate'}
                         </h3>
-                        {activeResume && <span className="badge badge-success">Active Master</span>}
+                        <span className="badge badge-success">Active Master</span>
                       </div>
                       <div
                         style={{
@@ -1007,15 +1009,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       <span>{parsedActive.basics.phone}</span>
                     </div>
                   )}
-                  {Boolean(
-                    parsedActive.basics?.location?.city || parsedActive.basics?.location?.region
-                  ) && (
+                  {(Boolean(parsedActive.basics?.location?.city?.trim()) ||
+                    Boolean(parsedActive.basics?.location?.region?.trim())) && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Location:</span>
                       <span>
                         {[
-                          parsedActive.basics?.location?.city,
-                          parsedActive.basics?.location?.region,
+                          parsedActive.basics?.location?.city?.trim(),
+                          parsedActive.basics?.location?.region?.trim(),
                         ]
                           .filter(Boolean)
                           .join(', ')}
