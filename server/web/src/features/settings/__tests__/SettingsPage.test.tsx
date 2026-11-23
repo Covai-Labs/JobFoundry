@@ -831,4 +831,31 @@ describe('SettingsPage', () => {
       expect(screen.getByText('Default Resume Theme')).toBeInTheDocument();
     });
   });
+
+  it('allows dismissing and reopening Quick Setup progression banner with localStorage persistence', async () => {
+    localStorage.clear();
+    renderComponent();
+    await waitFor(() => {
+      expect(screen.queryByText(/Loading system configuration/i)).not.toBeInTheDocument();
+    });
+
+    expect(screen.getByText('Quick Setup Progression')).toBeInTheDocument();
+
+    // Dismiss banner
+    const dismissBtn = screen.getByTitle('Dismiss Quick Setup progression banner');
+    fireEvent.click(dismissBtn);
+
+    // Banner is dismissed
+    expect(screen.queryByText('Quick Setup Progression')).not.toBeInTheDocument();
+    expect(localStorage.getItem('jobfoundry_dismiss_quick_setup')).toBe('true');
+
+    // Reopen button appears in top actions
+    const reopenBtn = screen.getByTitle('Reopen Quick Setup progression checklist');
+    expect(reopenBtn).toBeInTheDocument();
+    fireEvent.click(reopenBtn);
+
+    // Banner is back
+    expect(screen.getByText('Quick Setup Progression')).toBeInTheDocument();
+    expect(localStorage.getItem('jobfoundry_dismiss_quick_setup')).toBeNull();
+  });
 });

@@ -472,4 +472,117 @@ describe('ResumeManager', () => {
       expect(screen.getByText(/Invalid JSON Resume schema/i)).toBeDefined();
     });
   });
+
+  it('switches to Active Profile tab and displays candidate overview, role keywords, and saved profiles', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    // Switch to Active Profile overview tab
+    const activeProfileTab = screen.getByRole('button', { name: /^Active Profile$/i });
+    fireEvent.click(activeProfileTab);
+
+    // Verify candidate card elements
+    expect(
+      screen.getByText('Specializing in fault-tolerant high-throughput event logs.')
+    ).toBeDefined();
+    expect(screen.getByText('alex@mercer.dev')).toBeDefined();
+    expect(screen.getByText(/Role Keywords/i)).toBeDefined();
+    expect(screen.getByText(/Top Skills/i)).toBeDefined();
+    expect(screen.getByText('Saved Profiles (1)')).toBeDefined();
+
+    // Verify button to jump back to form editor
+    const editInFormBtn = screen.getByRole('button', { name: /Edit in Form Editor/i });
+    fireEvent.click(editInFormBtn);
+
+    expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+  });
+
+  it('triggers JSON resume download when Export JSON button is clicked and disables export when validation errors exist', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    const exportBtn = screen.getByRole('button', { name: /Export JSON/i });
+    expect(exportBtn).toBeDefined();
+    expect(exportBtn).toBeEnabled();
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Exported master resume JSON successfully!')).toBeDefined();
+    });
+
+    // Switch to Raw JSON and introduce invalid JSON
+    fireEvent.click(screen.getByText('Raw JSON'));
+    const textarea = screen.getByLabelText('Raw JSON Schema Content');
+    fireEvent.change(textarea, { target: { value: '{"broken": json}' } });
+
+    await waitFor(() => {
+      expect(exportBtn).toBeDisabled();
+    });
+  });
+
+  it('renders setup message in overview tab when no master profile exists', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading profile...')).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Active Profile$/i }));
+
+    expect(
+      screen.getByText(
+        'No master resume uploaded yet. Save the template or import with AI to get started!'
+      )
+    ).toBeDefined();
+    expect(screen.getByRole('button', { name: 'Open Form Editor' })).toBeDefined();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Open Form Editor' }));
+    expect(screen.getByRole('button', { name: /^Form Editor$/i })).toBeDefined();
+  });
+
+  it('renders region in overview when city is empty and falls back to title on export when basics.name is blank', async () => {
+    const resumeWithEmptyCity = {
+      ...mockResume,
+      resume: {
+        ...mockResume.resume,
+        basics: {
+          ...mockResume.resume.basics,
+          name: '   ',
+          location: {
+            city: '',
+            region: 'WA',
+          },
+        },
+      },
+    };
+    vi.spyOn(api, 'getResumes').mockResolvedValue([resumeWithEmptyCity]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.queryByText('Loading profile...')).toBeNull();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Active Profile$/i }));
+    expect(screen.getByText('WA')).toBeDefined();
+
+    const exportBtn = screen.getByRole('button', { name: /Export JSON/i });
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Exported master resume JSON successfully!')).toBeDefined();
+    });
+  });
 });
