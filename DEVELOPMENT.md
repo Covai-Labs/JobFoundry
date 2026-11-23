@@ -1,163 +1,172 @@
 # Development Guide
 
-This document provides technical details for developing and debugging JobFoundry locally.
+This guide covers setting up, running, and testing JobFoundry locally for development.
 
 ---
 
-## Monorepo Architecture
-
-JobFoundry is structured as an npm multi-workspace repository
-(workspaces: `extension`, `server/ingest`, `server/web`, `site`):
+## Project Structure
 
 ```
 JobFoundry/
 ├── extension/            # WXT MV3 browser extension (Chrome + Firefox)
-│   ├── src/background/   # service worker: scan.js, relay.js, safe-url.js
-│   │   └── providers/    # 87 ATS/job-board adapters (see ADDING_A_PROVIDER.md)
-│   ├── src/content/      # in-page extractors (LinkedIn, Indeed, Glassdoor …)
-│   ├── src/entrypoints/  # popup, options, sidepanel, dashboard
-│   ├── scripts/          # vendor.mjs, sync-providers.mjs, ports/, gen-provider-index.mjs
-│   └── test/             # node:test suites (run: npm --workspace=extension test)
+│   ├── src/background/   # Service worker: scan, relay, safe-url
+│   │   └── providers/    # 70+ ATS/job-board adapters
+│   ├── src/content/      # In-page extractors (LinkedIn, Indeed, Glassdoor …)
+│   ├── src/entrypoints/  # Popup, options, sidepanel, dashboard
+│   └── test/             # node:test suites
 ├── server/
-│   ├── ingest/           # Fastify REST API, SQLite, auth, SimHash dedup (:8080)
-│   ├── scorer/           # FastAPI fit screener + worker daemon (:8001, loopback)
-│   ├── tailor/           # LangGraph resume engine + folio-export PDF bridge (:8081, loopback)
+│   ├── ingest/           # Fastify REST API, SQLite, auth, dedup  (:8080)
+│   ├── scorer/           # FastAPI fit scorer + worker daemon       (:8001, loopback)
+│   ├── tailor/           # LangGraph resume engine + PDF export    (:8081, loopback)
 │   └── web/              # Vite + React 19 SPA (Kanban, feed, resume manager)
-├── site/                 # Astro docs site source (builds to site/dist/, deployed to Pages)
-├── packaging/            # Docker container (default, CI-built); AppImage (Linux), MSIX (Windows), macOS Homebrew/tarball convenience builders
-├── scripts/              # healthcheck, metadata checks, career-ops import
-├── test/                 # multi-service E2E + metadata assertions
-├── compose.yaml          # local full-stack container orchestration
-├── supervisord.conf      # in-container process supervision
-└── install.sh            # one-command installer
+├── site/                 # Astro marketing/docs site
+├── packaging/            # Docker (default), AppImage, MSIX, Homebrew builders
+├── scripts/              # Healthcheck, metadata checks, misc utilities
+├── test/                 # Multi-service E2E tests
+├── compose.yaml          # Full-stack container orchestration
+├── supervisord.conf      # In-container process supervision
+└── install.sh            # One-command installer
 ```
 
-Related design docs: [ARCHITECTURE.md](ARCHITECTURE.md) (pipeline + principles),
-[.agents/AGENTS.md](.agents/AGENTS.md) (AI-agent constraints, ports, pre-commit commands).
+Design docs: [ARCHITECTURE.md](ARCHITECTURE.md) · [.agents/AGENTS.md](.agents/AGENTS.md)
 
 ---
 
 ## Prerequisites
 
-- **Node.js**: v26 or newer
-- **Python**: 3.12 or newer
-- **uv**: Modern fast Python package manager ([installation instructions](https://docs.astral.sh/uv/))
-- **Docker & Docker Compose**: Optional, for running containerized services
+| Tool             | Version                                        |
+| :--------------- | :--------------------------------------------- |
+| Node.js          | v26+                                           |
+| Python           | 3.12+                                          |
+| uv               | Latest ([install](https://docs.astral.sh/uv/)) |
+| Docker or Podman | Optional (for containerized runs)              |
 
 ---
 
-## Local Setup & Running Services
+## Running Services Locally
 
-### 1. Ingest Server (`server/ingest`)
+### Recommended: Docker / Podman
 
-The ingest server handles job listing ingestion, deduplication with SimHash/fingerprinting, multi-user authentication, and serves static tailored artifacts (PDFs/plaintext).
+The fastest way to run the full stack:
+
+```bash
+docker compose up -d   # or: podman compose up -d
+```
+
+Dashboard available at `http://localhost:8080`.
+
+---
+
+### Running Services Individually
+
+#### 1. Ingest Server (`server/ingest`)
+
+Handles job ingestion, deduplication, authentication, and artifact serving.
 
 ```bash
 cd server/ingest
 npm install
 npm run dev
+# → http://localhost:8080
 ```
 
-- Runs by default on `http://localhost:8080`
-- Database file is stored at `data/jobfoundry.db` (or in-memory when testing)
+#### 2. Scorer (`server/scorer`)
 
-### 2. Scorer & Worker Service (`server/scorer`)
-
-The scorer service evaluates job descriptions against user master resumes, computes fit scores, identifies missing skills, and calls the resume-ops tailoring bridge.
+Evaluates jobs against your master resume and computes 0–100 fit scores.
 
 ```bash
 cd server/scorer
 uv sync --dev
 uv run uvicorn src.app:app --port 8001 --reload
-```
 
-To run the background worker daemon standalone:
-
-```bash
+# Run the background worker standalone:
 uv run python -m src.worker
 ```
 
-### 3. Resume Tailor Service (`server/tailor`)
+#### 3. Resume Tailor (`server/tailor`)
 
-The tailoring engine (`resume_ops_api`) uses LangGraph state machines to truthfully tailor resumes to job requirements and compiles PDFs using `folio-export` (Puppeteer).
+LangGraph pipeline for truthful resume tailoring + PDF export via `jsonresume-theme-folio`.
 
 ```bash
 cd server/tailor
 uv sync --dev
 uv run python -m resume_ops_api
+# → http://localhost:8081
 ```
 
-- Runs by default on `http://localhost:8081`
+#### 4. Web Dashboard (`server/web`)
 
-### 4. Web Dashboard (`server/web`)
-
-The web UI is a React 19 Single Page Application built with Vite and Tailwind/Vanilla CSS.
+React 19 SPA with Vite.
 
 ```bash
 cd server/web
 npm install
 npm run dev
+# → http://localhost:5173
 ```
 
-- Accessible at `http://localhost:5173`
+#### 5. Browser Extension (`extension`)
 
-### 5. Browser Extension (`extension`)
-
-Built using the [WXT](https://wxt.dev/) framework for Manifest V3.
+Built with [WXT](https://wxt.dev/) for Manifest V3.
 
 ```bash
 cd extension
 npm install
 
-# Live development with hot reloading:
-npm run dev
-
-# Production build for Chrome:
-npm run build
-
-# Production build for Firefox:
-npm run build:firefox
+npm run dev            # Chrome dev mode with hot reload
+npm run build          # Production build → .output/chrome-mv3/
+npm run build:firefox  # Firefox build   → .output/firefox-mv3/
 ```
+
+Load unpacked:
+
+- **Chrome:** `chrome://extensions/` → Load unpacked → `.output/chrome-mv3/`
+- **Firefox:** `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `.output/firefox-mv3/manifest.json`
 
 ---
 
 ## Running Tests
 
-JobFoundry has comprehensive unit, workspace, and end-to-end integration tests:
-
 ```bash
-# 1. Monorepo E2E tests + metadata assertions
+# Full monorepo: E2E + metadata assertions
 npm test
 
-# 2. Extension unit & content extractor tests
+# Extension unit + extractor tests
 npm --workspace=extension test
 
-# 3. Ingest server API & database migration tests
+# Ingest server API + migration tests
 npm --workspace=server/ingest test
 
-# 4. Web UI component and unit tests
+# Web dashboard unit tests
 npm --workspace=server/web test
 
-# 5. Scorer Python pytest suite
+# Scorer Python test suite
 cd server/scorer && uv run pytest
 
-# 6. Tailor Python pytest suite
+# Tailor Python test suite
 cd server/tailor && uv run pytest
 ```
 
 ---
 
-## Code Quality & Pre-Commit Checks
+## Code Quality
 
-Always run these commands before submitting changes:
+Always run before committing:
 
 ```bash
-# Lint all JavaScript/TypeScript files
-npm run lint
+npm run lint           # ESLint (flat config)
+npm run format:check   # Prettier check
+npm run format         # Auto-format
+```
 
-# Check Prettier formatting
-npm run format:check
+---
 
-# Auto-format files
-npm run format
+## Marketing Site (`site/`)
+
+The docs and marketing site is built with [Astro](https://astro.build):
+
+```bash
+cd site
+npm run dev    # → http://localhost:4321
+npm run build  # → site/dist/
 ```

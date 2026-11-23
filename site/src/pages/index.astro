@@ -6,8 +6,8 @@ import { resolvePath } from '../utils/paths.js';
 ---
 
 <MarketingLayout
-  title="JobFoundry — Local-First Job Search & Resume Tailoring Infrastructure"
-  description="Local-first AI pipeline for 87 job boards, available as a Docker deployment or ready-made Linux AppImage, Windows MSIX, or macOS (Apple Silicon) Homebrew."
+  title="JobFoundry — Your Private, Free AI Job Search Copilot"
+  description="Capture jobs from 70+ boards as you browse. Get instant fit scores. Generate truthful, tailored resumes. 100% on your machine — no subscriptions, no cloud, no hallucinations."
   currentPath={resolvePath('/')}
 >
   <!-- Metro-Bento Hero Section -->
@@ -18,14 +18,14 @@ import { resolvePath } from '../utils/paths.js';
         <BentoTile colSpan={3} variant="accent" class="hero-main-tile">
           <div class="tile-content">
             <div class="tile-badge-row">
-              <span class="site-badge cyan">LOCAL-FIRST PIPELINE</span>
-              <span class="site-badge emerald">AGPL-3.0 FREE & OPEN SOURCE</span>
+              <span class="site-badge cyan">FREE & FREE FOREVER</span>
+              <span class="site-badge emerald">AGPL-3.0 FREE & FREE FOREVER</span>
             </div>
             <h1 class="hero-headline">
-              JOB SEARCH THAT MEETS YOU WHERE YOU ARE: YOUR BROWSER
+              YOUR PRIVATE, FREE AI JOB SEARCH COPILOT
             </h1>
             <p class="hero-subtext">
-              JobFoundry captures listings across 87 platforms through a companion browser extension — no terminal, no AI coding tools, no new habits. It deduplicates cross-postings with 64-bit SimHash, scores your fit with local LLMs, and compiles truthful, ATS-compliant PDF resumes. Everything stays on your machine.
+              Browse any job board like you always do — JobFoundry captures listings automatically, collapses duplicate cross-postings, scores your fit with local AI, and generates truthful tailored resumes. No subscriptions. No cloud. No hallucinated experience. Everything runs on your machine.
             </p>
           </div>
 
@@ -46,9 +46,9 @@ import { resolvePath } from '../utils/paths.js';
         <BentoTile colSpan={1} variant="elevated" class="invariant-tile">
           <div class="tile-top">
             <span class="site-badge amber">STRICT INVARIANT</span>
-            <h3 class="tile-title">Zero Server Scraping</h3>
+            <h3 class="tile-title">No Server Scraping. Ever.</h3>
             <p class="tile-desc">
-              The JobFoundry server <strong>never</strong> performs outbound job-board scraping. All scraping and job-board HTTP requests originate exclusively from your browser extension.
+              JobFoundry’s server <strong>never</strong> reaches out to job boards. All capture happens in your browser extension — through your authenticated session, not a datacenter IP that gets blocked.
             </p>
           </div>
           <div class="tile-footer">
@@ -63,10 +63,10 @@ import { resolvePath } from '../utils/paths.js';
         <BentoTile colSpan={1} class="metric-tile">
           <div>
             <span class="site-badge cyan">COVERAGE</span>
-            <div class="metric-number">87</div>
+            <div class="metric-number">70+</div>
             <h4 class="metric-title">Supported Providers</h4>
             <p class="metric-desc">
-              Workday, Greenhouse, Lever, Ashby, LinkedIn, Indeed, Dice, and 75+ niche platforms.
+              Greenhouse, Lever, Ashby, Workday, LinkedIn, Indeed, Dice, and dozens of niche and remote boards.
             </p>
           </div>
           <a href={resolvePath('/docs/providers/')} class="tile-action-link">
@@ -78,14 +78,14 @@ import { resolvePath } from '../utils/paths.js';
         <BentoTile colSpan={1} class="metric-tile">
           <div>
             <span class="site-badge violet">DEDUPLICATION</span>
-            <div class="metric-number">64-Bit</div>
-            <h4 class="metric-title">SimHash Fingerprints</h4>
+            <div class="metric-number">0 Noise</div>
+            <h4 class="metric-title">Auto-Dedup</h4>
             <p class="metric-desc">
-              Locality-sensitive hashing eliminates cross-posted duplicates with Hamming distance analysis.
+              The same job cross-posted on 5 boards? You see it once. Duplicate detection runs automatically.
             </p>
           </div>
           <a href={resolvePath('/docs/architecture/')} class="tile-action-link">
-            SimHash Mechanics →
+            Architecture Details →
           </a>
         </BentoTile>
 
@@ -96,7 +96,7 @@ import { resolvePath } from '../utils/paths.js';
             <div class="metric-number">0–100</div>
             <h4 class="metric-title">Local LLM Fit Scoring</h4>
             <p class="metric-desc">
-              Strict JSON schema evaluation with Ollama or vLLM. Computes match grades and gap analyses.
+              Every captured job gets a 0–100 fit score with strengths and gap analysis. Works with Ollama, OpenAI, Anthropic, or OpenRouter.
             </p>
           </div>
           <a href={resolvePath('/docs/getting-started/')} class="tile-action-link">
@@ -111,7 +111,7 @@ import { resolvePath } from '../utils/paths.js';
             <div class="metric-number">PDF</div>
             <h4 class="metric-title">ATS Resume Export</h4>
             <p class="metric-desc">
-              Deterministic PDF compiler highlighting authentic matched experience without hallucination.
+              Outputs a polished PDF resume and ATS-ready plaintext — your real experience, re-ranked and rephrased, never invented.
             </p>
           </div>
           <a href={resolvePath('/docs/architecture/')} class="tile-action-link">
@@ -124,9 +124,9 @@ import { resolvePath } from '../utils/paths.js';
           <div class="quickstart-inner">
             <div class="quickstart-meta">
               <span class="site-badge cyan">DEFAULT INSTALL</span>
-              <h3 class="quickstart-title">Up and Running in Seconds</h3>
+              <h3 class="quickstart-title">Get Running in One Command</h3>
               <p class="quickstart-text">
-                Containerized via Docker or Podman is the recommended default. A single command auto-detects your container runtime and starts the entire stack. Portable desktop convenience builds (AppImage, MSIX, Homebrew) are also available.
+                Docker or Podman is the recommended way to run JobFoundry. One command auto-detects your runtime, sets up your config, and launches the full stack. A standalone Linux AppImage is also available if you prefer no containers.
               </p>
             </div>
             <div class="quickstart-options">
@@ -156,10 +156,10 @@ import { resolvePath } from '../utils/paths.js';
   <section class="pipeline-section">
     <div class="site-container">
       <div class="section-header">
-        <span class="site-badge cyan">SYSTEM ARCHITECTURE</span>
-        <h2 class="section-title">The 5-Stage Local-First Pipeline</h2>
+        <span class="site-badge cyan">HOW IT WORKS</span>
+        <h2 class="section-title">From Browse to Application in 5 Steps</h2>
         <p class="section-desc">
-          How JobFoundry transforms unstructured job board web pages into prioritized, scored matches with tailored ATS resumes.
+          Browse any job board normally. JobFoundry handles the rest — capturing, deduping, scoring, and tailoring — so you spend your energy on interviews, not spreadsheets.
         </p>
       </div>
 
@@ -171,43 +171,43 @@ import { resolvePath } from '../utils/paths.js';
   <section class="principles-section">
     <div class="site-container">
       <div class="section-header">
-        <span class="site-badge violet">CORE FOUNDATIONS</span>
-        <h2 class="section-title">Made for Jobseekers, Not Just Engineers</h2>
+        <span class="site-badge violet">WHAT MAKES IT DIFFERENT</span>
+        <h2 class="section-title">Built for Real People in a Real Job Search</h2>
         <p class="section-desc">
-          Job hunting is stressful enough. JobFoundry removes technical barriers and cloud dependency, and puts you in complete control of your career data.
+          No subscriptions. No tracking. No hallucinated resume claims. Just honest, private tooling for the hardest part of anyone’s professional life.
         </p>
       </div>
 
       <div class="bento-grid">
         <BentoTile colSpan={2} variant="elevated">
-          <span class="site-badge emerald">NO CLOUD LOCK-IN</span>
-          <h3 class="principle-title">Local SQLite Storage</h3>
+          <span class="site-badge emerald">YOUR DATA, YOUR MACHINE</span>
+          <h3 class="principle-title">Nothing Leaves Your Computer</h3>
           <p class="principle-desc">
-            Your applications, fit scores, and resume variants are stored locally in a standard SQLite database. Back it up, migrate to PostgreSQL, or delete it anytime with zero external cloud dependencies.
+            Your resume, applications, fit scores, and tailored variants are stored locally in SQLite. Zero telemetry. Zero tracking. When using local models via Ollama, zero data leaves your machine; with cloud LLMs, only prompts needed for scoring are sent to your chosen provider.
           </p>
         </BentoTile>
 
         <BentoTile colSpan={2} variant="elevated">
-          <span class="site-badge cyan">AUTHENTIC SESSIONS</span>
-          <h3 class="principle-title">Bypasses Anti-Bot Barriers</h3>
+          <span class="site-badge cyan">GETS PAST THE WALLS</span>
+          <h3 class="principle-title">Works Where Server Scrapers Fail</h3>
           <p class="principle-desc">
-            Server scrapers constantly fail against Cloudflare and CAPTCHAs. Because JobFoundry captures listings through your companion browser extension, ingestion operates within your authentic user session.
+            Datacenter IPs get blocked by Cloudflare, CAPTCHAs, and login walls every day. Your browser session walks straight through — so JobFoundry captures the listings that scrapers miss.
           </p>
         </BentoTile>
 
         <BentoTile colSpan={2} variant="elevated">
-          <span class="site-badge violet">DETERMINISTIC TAILORING</span>
-          <h3 class="principle-title">Zero LLM Hallucination</h3>
+          <span class="site-badge violet">ZERO HALLUCINATIONS</span>
+          <h3 class="principle-title">Your Real Experience, Honestly Presented</h3>
           <p class="principle-desc">
-            Generative AI tools frequently invent fictional employers and qualifications. JobFoundry enforces strict schema-constrained re-ranking of your genuine accomplishments, verified by structured tests.
+            Other AI resume tools invent fake employers, skills, and metrics. JobFoundry re-ranks and rephrases your existing experience. Listed skills are matched against your master resume before they appear in the output.
           </p>
         </BentoTile>
 
         <BentoTile colSpan={2} variant="elevated">
-          <span class="site-badge amber">OPEN SOURCE</span>
-          <h3 class="principle-title">AGPL-3.0 Copyleft Licensed</h3>
+          <span class="site-badge amber">FREE FOREVER</span>
+          <h3 class="principle-title">AGPL-3.0 Open Source</h3>
           <p class="principle-desc">
-            Free software designed to remain free. Inspect every line of code across the companion extension, ingestion microservices, and web Kanban dashboard.
+            Inspect every line. Self-host it. Fork it. Leave with your data at any time. Tools for stressful moments in people’s lives must never become traps.
           </p>
         </BentoTile>
       </div>

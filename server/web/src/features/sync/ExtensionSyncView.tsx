@@ -174,22 +174,49 @@ export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingC
 
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <a
-            href="https://jobfoundry.covai.org/welcome"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-secondary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
-          >
-            <ExternalLink size={14} /> Extension Guide & Docs
-          </a>
-          <a
-            href="https://github.com/Covai-Labs/JobFoundry/releases"
+            href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
           >
-            <Download size={14} /> Download Extension ZIP
+            Chrome / Brave
+          </a>
+          <a
+            href="https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+          >
+            Firefox
+          </a>
+          <a
+            href="https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-primary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+          >
+            Edge
+          </a>
+          <a
+            href="https://github.com/Covai-Labs/JobFoundry/releases"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+          >
+            <Download size={14} /> ZIP (manual)
+          </a>
+          <a
+            href="https://jobfoundry.covai.org/docs/extension/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+          >
+            <ExternalLink size={14} /> Install Guide
           </a>
         </div>
       </div>

@@ -11,8 +11,7 @@ reading every posting with an LLM, or produced low-quality tailoring that
 hallucinated fake experience.
 
 I couldn't afford subscriptions, and I refused to apply with fabricated claims.
-So I started building tools to survive my own search. First came resume-ops —
-a CLI-first experiment in truthful, zero-token resume tailoring. But parsing
+So I started building tools to survive my own search. First came a small CLI experiment in truthful, zero-token resume tailoring —
 needed to be much better, and the whole search cycle needed care: capturing from
 authenticated browser tabs, deduplicating cross-postings across 80+ boards,
 scoring fit locally, and tracking applications. That became JobFoundry.

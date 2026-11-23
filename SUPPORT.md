@@ -1,90 +1,55 @@
 # Support
 
-Stuck? You are in the right place. This page explains where to get help with
-JobFoundry depending on what kind of help you need.
+Stuck? You're in the right place.
 
-> **New here and not technical?** Start with the
-> [Quickstart Guide](https://jobfoundry.covai.org/welcome.html) —
-> it walks through installing the app and the browser extension with no
-> terminal required. You do not need to know programming, Docker, or AI tools
-> to use JobFoundry.
+> [!NOTE]
+> **New here?** Start with the [Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/) — it walks through the full setup with no terminal required beyond the one-line install command.
 
-## I need help using JobFoundry
+---
 
-- **Documentation first:** the [docs portal](https://jobfoundry.covai.org/)
-  covers installation, the browser extension, architecture, providers, and
-  privacy. Most setup questions are answered in
-  [Getting Started](https://jobfoundry.covai.org/docs/getting-started/)
-  and the [Extension guide](https://jobfoundry.covai.org/docs/extension/).
-- **Ask the community:** open a
-  [GitHub Discussion](https://github.com/Covai-Labs/JobFoundry/discussions)
-  (Q&A category) describing what you were trying to do, what you expected,
-  and what happened instead. Screenshots of the dashboard or extension popup
-  help far more than log pastes.
-- **Found a bug?** File it as a
-  [GitHub Issue](https://github.com/Covai-Labs/JobFoundry/issues) using the
-  bug report template. Please include: your install method (Docker, AppImage,
-  MSIX, Homebrew/macOS), your OS and browser, and steps to reproduce.
+## Getting Help
 
-When asking for help, **never share** your `.env` file, API keys, or your
-full resume in public threads. Maintainers will never ask for your keys.
+- **Documentation:** The [docs site](https://jobfoundry.covai.org/) covers installation, the browser extension, architecture, providers, and privacy.
+- **Ask a question:** Open a [GitHub Discussion](https://github.com/Covai-Labs/JobFoundry/discussions) in the Q&A category. Describe what you were trying to do, what you expected, and what happened. Screenshots of the dashboard or extension popup help far more than log dumps.
+- **Found a bug?** File a [GitHub Issue](https://github.com/Covai-Labs/JobFoundry/issues) using the bug report template. Include: your install method (Docker, AppImage, MSIX, or Homebrew), your OS and browser, and steps to reproduce.
 
-## I want a new job board supported
+> [!CAUTION]
+> Never share your `.env` file, API keys, or your full resume in public GitHub threads. Maintainers will never ask for your keys.
 
-Check the [provider directory](https://jobfoundry.covai.org/docs/providers/)
-first — your board may already be covered. If not, file a **provider
-request** issue with a link to a sample public job posting on that board.
-If you are comfortable contributing code, the
-[provider authoring guide](extension/src/background/providers/ADDING_A_PROVIDER.md)
-walks through the whole process.
+---
 
-## I am coming from career-ops
+## Requesting a New Job Board
 
-Welcome — the tools are complementary, and migration is supported:
+Check the [provider directory](https://jobfoundry.covai.org/docs/providers/) first — your board may already be supported. If not, file a **provider request** issue with a link to a sample public job posting.
 
-- Bring your discovered postings over with the import script, which reads a
-  career-ops `pipeline.md` (or workspace directory) and ingests each posting
-  into JobFoundry (deduplication is automatic):
-  ```bash
-  node scripts/import-career-ops.mjs --from /path/to/career-ops/data/pipeline.md
-  ```
-- Relationship notes: career-ops is an excellent AI-CLI-native power tool;
-  JobFoundry exists for people who would rather drive everything from their
-  browser and dashboard. See
-  ["JobFoundry vs career-ops" in the README](README.md#jobfoundry-vs-career-ops)
-  for the full story.
+Comfortable contributing code? The [provider authoring guide](extension/src/background/providers/ADDING_A_PROVIDER.md) walks through the whole process — most adapters are under 100 lines.
 
-## I found a security vulnerability
+---
 
-Do **not** open a public issue. Follow
-[SECURITY.md](SECURITY.md) and submit a
-[private security advisory](https://github.com/Covai-Labs/JobFoundry/security/advisories/new).
+## Security Vulnerabilities
 
-## I want to contribute
+Do **not** open a public issue. Follow [SECURITY.md](SECURITY.md) and submit a [private security advisory](https://github.com/Covai-Labs/JobFoundry/security/advisories/new).
 
-Read [CONTRIBUTING.md](CONTRIBUTING.md) and the
-[Development Guide](DEVELOPMENT.md). Provider contributions follow
-[ADDING_A_PROVIDER.md](extension/src/background/providers/ADDING_A_PROVIDER.md).
-All participation is covered by our [Code of Conduct](CODE_OF_CONDUCT.md).
+---
 
-## Response expectations
+## Contributing
 
-JobFoundry is developed and maintained by a solo developer in my spare time. I
-triage issues and discussions as fast as I can, roughly in this order: security
-reports, data-loss bugs, broken installs, provider breakage, feature requests.
-If your issue hasn't had a response in two weeks, a polite bump is welcome —
-progress is happening every day.
+Read [CONTRIBUTING.md](CONTRIBUTING.md) and the [Development Guide](DEVELOPMENT.md). All participation is covered by our [Code of Conduct](CODE_OF_CONDUCT.md).
 
-## How to support JobFoundry
+---
 
-JobFoundry is completely free, local-first, and open-source (AGPL-3.0). If it has
-saved you time, reduced your job-search anxiety, or helped you land a job, here
-is how you can support it:
+## Response Time
 
-- **Star the repository:** Helps other job seekers discover the project on
-  [GitHub](https://github.com/Covai-Labs/JobFoundry).
-- **Report bugs and test:** Try it on your favorite job sites and open an issue
-  if something feels rough.
-- **[Sponsor on GitHub](https://github.com/sponsors/deadrat-in):** Helps fund
-  testing infrastructure and ongoing development so the project stays free of
-  ads and subscriptions.
+JobFoundry is maintained by a solo developer. Issues are triaged roughly in this order: security reports → data-loss bugs → broken installs → provider breakage → feature requests.
+
+If your issue hasn't had a response in two weeks, a polite bump is welcome.
+
+---
+
+## Supporting the Project
+
+JobFoundry is free, local-first, and open-source (AGPL-3.0 with a FOSS Linking Exception — see [FOSS-EXCEPTION.md](FOSS-EXCEPTION.md)). If it has saved you time or helped you land a job:
+
+- ⭐ **[Star the repo](https://github.com/Covai-Labs/JobFoundry)** — helps other job seekers find it.
+- 🐛 **Report bugs and test** — try it on your favorite job boards and open an issue if something feels off.
+- 💖 **[Sponsor on GitHub](https://github.com/sponsors/deadrat-in)** — funds testing infrastructure and ongoing development.
