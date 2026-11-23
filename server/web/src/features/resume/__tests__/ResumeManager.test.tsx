@@ -472,4 +472,49 @@ describe('ResumeManager', () => {
       expect(screen.getByText(/Invalid JSON Resume schema/i)).toBeDefined();
     });
   });
+
+  it('switches to Active Profile tab and displays candidate overview, role keywords, and saved profiles', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    // Switch to Active Profile overview tab
+    const activeProfileTab = screen.getByRole('button', { name: /^Active Profile$/i });
+    fireEvent.click(activeProfileTab);
+
+    // Verify candidate card elements
+    expect(screen.getByText('Specializing in fault-tolerant high-throughput event logs.')).toBeDefined();
+    expect(screen.getByText('alex@mercer.dev')).toBeDefined();
+    expect(screen.getByText(/Role Keywords/i)).toBeDefined();
+    expect(screen.getByText(/Top Skills/i)).toBeDefined();
+    expect(screen.getByText('Saved Profiles (1)')).toBeDefined();
+
+    // Verify button to jump back to form editor
+    const editInFormBtn = screen.getByRole('button', { name: /Edit in Form Editor/i });
+    fireEvent.click(editInFormBtn);
+
+    expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+  });
+
+  it('triggers JSON resume download when Export JSON button is clicked', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    const exportBtn = screen.getByRole('button', { name: /Export JSON/i });
+    expect(exportBtn).toBeDefined();
+    fireEvent.click(exportBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Exported master resume JSON successfully!')).toBeDefined();
+    });
+  });
 });

@@ -19,6 +19,8 @@ import {
   GraduationCap,
   Wrench,
   FolderGit2,
+  User,
+  Download,
 } from 'lucide-react';
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
@@ -52,7 +54,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   const [success, setSuccess] = useState<string | null>(null);
 
   // Editor states
-  const [editorMode, setEditorMode] = useState<'form' | 'json' | 'preview'>('form');
+  const [editorMode, setEditorMode] = useState<'overview' | 'form' | 'json' | 'preview'>('form');
   const [title, setTitle] = useState<string>('Master Resume');
   const [jsonText, setJsonText] = useState<string>('');
   const [initialJsonText, setInitialJsonText] = useState<string>('');
@@ -579,6 +581,33 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     }
   };
 
+  const handleExportJson = () => {
+    try {
+      const exportData =
+        parsedResume && Object.keys(parsedResume).length > 0
+          ? parsedResume
+          : ((activeResume?.resume ?? {}) as ResumeData);
+      const dataStr =
+        'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      const fileName = (
+        ((exportData as any).basics?.name as string) ||
+        title ||
+        'master_resume'
+      )
+        .toLowerCase()
+        .replace(/\s+/g, '_');
+      downloadAnchor.setAttribute('download', `${fileName}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+      setSuccess('Exported master resume JSON successfully!');
+    } catch {
+      setError('Failed to export JSON resume');
+    }
+  };
+
   const parsedActive = (activeResume?.resume ?? parsedResume) as ResumeData;
 
   return (
@@ -603,7 +632,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           </p>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <button
             type="button"
             onClick={() => {
@@ -614,12 +643,24 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             }}
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            title="Paste unformatted text, old PDF text dump, or LinkedIn profile. AI will parse and map it into the JSON Resume schema."
+            aria-label="Smart Resume Import (AI Convert Raw Resume)"
           >
-            <Sparkles size={15} /> AI Convert Raw Resume
+            <Sparkles size={15} /> Smart Resume Import
           </button>
 
-          <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', margin: 0 }}>
-            📁 Upload JSON Resume
+          <label
+            className="btn btn-secondary btn-sm"
+            style={{
+              cursor: 'pointer',
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.35rem',
+            }}
+            title="Upload a standardized JSON Resume (.json) file compliant with JSON Resume v1.0.0 specification"
+          >
+            <span>📁 Upload JSON</span>
             <input
               type="file"
               accept=".json,application/json"
@@ -627,6 +668,16 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
               style={{ display: 'none' }}
             />
           </label>
+
+          <button
+            type="button"
+            onClick={handleExportJson}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Download active master resume as standard JSON file"
+          >
+            <Download size={14} /> Export JSON
+          </button>
         </div>
       </div>
 
@@ -709,441 +760,619 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         </output>
       )}
 
-      {/* Main Dual Grid: Active Preview / Versions + Visual Editor */}
-      <div className="resume-dual-grid">
-        {/* Left Column: Active Profile Overview & Versions */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div
-            className="card"
-            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+      {/* Sub-Navigation & Global Action Bar */}
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          position: 'sticky',
+          top: '72px',
+          zIndex: 10,
+          background: 'var(--bg-card)',
+          padding: '0.65rem 1rem',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-sm)',
+          flexWrap: 'wrap',
+          gap: '0.75rem',
+        }}
+      >
+        {/* Navigation Sub-Tabs */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setEditorMode('overview')}
+            className={`btn btn-sm ${editorMode === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="View candidate overview, role keywords, top skills, and manage saved profile versions"
           >
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1.05rem', fontWeight: 600, margin: 0 }}>Active Profile</h3>
-              {activeResume && <span className="badge badge-success">Active Master</span>}
-            </div>
+            <User size={14} /> Active Profile
+          </button>
 
-            {loading ? (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                Loading profile...
-              </div>
-            ) : Object.keys(parsedActive).length > 0 ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                <div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 700 }}>
-                    {parsedActive.basics?.name ?? 'Unnamed Candidate'}
+          <button
+            type="button"
+            onClick={handleSwitchToForm}
+            className={`btn btn-sm ${editorMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Visual form editing with organized sections for basics, work, education, and skills"
+          >
+            <FileEdit size={14} /> Form Editor
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditorMode('json');
+            }}
+            className={`btn btn-sm ${editorMode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Direct code editor for canonical JSON Resume v1.0.0 schema"
+          >
+            <Code2 size={14} /> Raw JSON
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              setEditorMode('preview');
+            }}
+            className={`btn btn-sm ${editorMode === 'preview' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            disabled={validationErrors.length > 0}
+            title={
+              validationErrors.length > 0
+                ? 'Resolve schema validation errors to preview themes'
+                : 'Preview master resume across 14 curated themes with live PDF render'
+            }
+          >
+            <Eye size={14} /> Theme Preview
+          </button>
+
+          {/* Validation Status Badge */}
+          {validationErrors.length > 0 ? (
+            <span
+              className="badge badge-danger"
+              style={{ fontSize: '0.75rem', cursor: 'help' }}
+              title="Click or view below to review validation errors against JSON Resume v1.0.0 specification"
+            >
+              ❌ {validationErrors.length} Schema Error(s)
+            </span>
+          ) : (
+            <span
+              className="badge badge-success"
+              style={{ fontSize: '0.75rem', cursor: 'help' }}
+              title="Passed canonical JSON Resume v1.0.0 schema validation"
+            >
+              ✓ JSON Resume v1.0.0 Valid
+            </span>
+          )}
+        </div>
+
+        {/* Global Save Controls */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => void handleSave(false)}
+            disabled={saving || validationErrors.length > 0}
+            className="btn btn-primary btn-sm"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              padding: '0.4rem 0.9rem',
+              fontWeight: 600,
+              boxShadow: 'var(--shadow-sm)',
+            }}
+            title="Save changes to active master resume (Ctrl+S / ⌘S)"
+          >
+            <Save size={14} />
+            {saving ? 'Saving...' : activeResume ? 'Save Changes' : 'Save & Activate'}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      {loading ? (
+        <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+          Loading profile...
+        </div>
+      ) : editorMode === 'overview' ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+          {/* Active Profile Overview Card */}
+          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}>
+            {Object.keys(parsedActive).length > 0 ? (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div
+                      style={{
+                        width: '56px',
+                        height: '56px',
+                        borderRadius: '50%',
+                        background: 'linear-gradient(135deg, var(--accent-primary), #818cf8)',
+                        color: '#ffffff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '1.5rem',
+                        fontWeight: 700,
+                        boxShadow: 'var(--shadow-sm)',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {(parsedActive.basics?.name || 'U').charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                        <h3 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0 }}>
+                          {parsedActive.basics?.name ?? 'Unnamed Candidate'}
+                        </h3>
+                        {activeResume && <span className="badge badge-success">Active Master</span>}
+                      </div>
+                      <div style={{ color: 'var(--accent-primary)', fontWeight: 600, fontSize: '0.95rem', marginTop: '0.2rem' }}>
+                        {parsedActive.basics?.label ?? 'No professional headline set'}
+                      </div>
+                    </div>
                   </div>
-                  <div
-                    style={{
-                      color: 'var(--accent-primary)',
-                      fontWeight: 500,
-                      fontSize: '0.9rem',
-                    }}
-                  >
-                    {parsedActive.basics?.label ?? 'No title'}
-                  </div>
-                  <div
-                    style={{
-                      color: 'var(--text-muted)',
-                      fontSize: '0.82rem',
-                      marginTop: '0.25rem',
-                    }}
-                  >
-                    {parsedActive.basics?.email}{' '}
-                    {parsedActive.basics?.location?.city
-                      ? `• ${parsedActive.basics.location.city}`
-                      : ''}
+
+                  <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={handleSwitchToForm}
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      title="Edit resume details in the visual form builder"
+                    >
+                      <FileEdit size={14} /> Edit in Form Editor
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditorMode('preview')}
+                      disabled={validationErrors.length > 0}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                      title="View rendered PDF and choose themes"
+                    >
+                      <Eye size={14} /> Theme & PDF Preview
+                    </button>
                   </div>
                 </div>
 
+                {/* Contact & Location Strip */}
+                <div
+                  style={{
+                    display: 'flex',
+                    flexWrap: 'wrap',
+                    gap: '1.25rem',
+                    fontSize: '0.85rem',
+                    color: 'var(--text-secondary)',
+                    padding: '0.75rem 1rem',
+                    background: 'var(--bg-input)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  {parsedActive.basics?.email && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Email:</span>
+                      <a href={`mailto:${parsedActive.basics.email}`} style={{ color: 'var(--accent-primary)' }}>
+                        {parsedActive.basics.email}
+                      </a>
+                    </div>
+                  )}
+                  {parsedActive.basics?.phone && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Phone:</span>
+                      <span>{parsedActive.basics.phone}</span>
+                    </div>
+                  )}
+                  {(parsedActive.basics?.location?.city || parsedActive.basics?.location?.region) && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Location:</span>
+                      <span>
+                        {[parsedActive.basics.location.city, parsedActive.basics.location.region].filter(Boolean).join(', ')}
+                      </span>
+                    </div>
+                  )}
+                  {parsedActive.basics?.url && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>Portfolio / URL:</span>
+                      <a href={parsedActive.basics.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)' }}>
+                        {parsedActive.basics.url}
+                      </a>
+                    </div>
+                  )}
+                </div>
+
+                {/* Professional Summary */}
                 {parsedActive.basics?.summary && (
-                  <div
-                    style={{
-                      fontSize: '0.82rem',
-                      color: 'var(--text-secondary)',
-                      lineHeight: 1.45,
-                    }}
-                  >
-                    {parsedActive.basics.summary}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                      Professional Summary
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.88rem',
+                        color: 'var(--text-secondary)',
+                        lineHeight: 1.5,
+                        background: 'var(--bg-card)',
+                        padding: '0.85rem 1rem',
+                        borderRadius: 'var(--radius-md)',
+                        border: '1px solid var(--border-subtle)',
+                      }}
+                    >
+                      {parsedActive.basics.summary}
+                    </div>
                   </div>
                 )}
 
-                {/* Extracted Role Keywords */}
-                {(() => {
-                  const keywords = extractKeywordsFromResume(parsedActive);
-                  if (keywords.length === 0) return null;
-                  return (
-                    <div
-                      style={{
-                        background: 'rgba(99, 102, 241, 0.08)',
-                        border: '1px solid rgba(99, 102, 241, 0.2)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '0.75rem 0.85rem',
-                      }}
-                    >
+                {/* Role Keywords & Top Skills Grid */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                  {/* Extracted Role Keywords */}
+                  {(() => {
+                    const keywords = extractKeywordsFromResume(parsedActive);
+                    return (
                       <div
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '0.35rem',
-                          fontSize: '0.78rem',
-                          fontWeight: 600,
-                          color: 'var(--accent-primary)',
-                          marginBottom: '0.45rem',
+                          background: 'rgba(99, 102, 241, 0.06)',
+                          border: '1px solid rgba(99, 102, 241, 0.2)',
+                          borderRadius: 'var(--radius-md)',
+                          padding: '0.85rem 1rem',
                         }}
                       >
-                        <Tag size={13} /> Role Keywords ({keywords.length})
+                        <div
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.4rem',
+                            fontSize: '0.82rem',
+                            fontWeight: 600,
+                            color: 'var(--accent-primary)',
+                            marginBottom: '0.6rem',
+                          }}
+                        >
+                          <Tag size={14} /> Role Keywords ({keywords.length})
+                        </div>
+                        {keywords.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                            {keywords.map((kw, idx) => (
+                              <span key={idx} className="badge badge-indigo" style={{ fontSize: '0.75rem' }}>
+                                {kw}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No role keywords detected yet.</div>
+                        )}
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                        {keywords.map((kw, idx) => (
-                          <span
-                            key={idx}
-                            className="badge badge-indigo"
-                            style={{
-                              fontSize: '0.72rem',
-                            }}
-                          >
-                            {kw}
-                          </span>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })()}
 
-                {/* Skills Preview */}
-                {Array.isArray(parsedActive.skills) && parsedActive.skills.length > 0 && (
-                  <div>
+                  {/* Top Skills Preview */}
+                  <div
+                    style={{
+                      background: 'var(--bg-input)',
+                      border: '1px solid var(--border-subtle)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '0.85rem 1rem',
+                    }}
+                  >
                     <div
                       style={{
-                        fontSize: '0.78rem',
+                        fontSize: '0.82rem',
                         fontWeight: 600,
                         color: 'var(--text-muted)',
                         textTransform: 'uppercase',
-                        marginBottom: '0.45rem',
+                        marginBottom: '0.6rem',
                       }}
                     >
-                      Top Skills
+                      Top Skills ({Array.isArray(parsedActive.skills) ? parsedActive.skills.length : 0} groups)
                     </div>
-                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                      {parsedActive.skills
-                        .flatMap((s: SkillItem) =>
-                          Array.isArray(s.keywords) ? s.keywords : s.name ? [s.name] : []
-                        )
-                        .slice(0, 15)
-                        .map((skill: string, idx: number) => (
-                          <span
-                            key={idx}
-                            className="badge badge-neutral"
-                            style={{ fontSize: '0.72rem' }}
-                          >
-                            {skill}
-                          </span>
-                        ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                No master resume uploaded yet. Save the template on the right to get started!
-              </div>
-            )}
-
-            {/* Saved versions list */}
-            {resumes.length > 0 && (
-              <div
-                style={{
-                  borderTop: '1px solid rgba(255,255,255,0.08)',
-                  paddingTop: '0.85rem',
-                  marginTop: '0.25rem',
-                }}
-              >
-                <div
-                  style={{
-                    fontSize: '0.78rem',
-                    fontWeight: 600,
-                    color: 'var(--text-muted)',
-                    marginBottom: '0.5rem',
-                  }}
-                >
-                  Saved Profiles ({resumes.length})
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                  {resumes.map((r) => (
-                    <div
-                      key={r.id}
-                      style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '0.4rem 0.6rem',
-                        background: r.isActive ? 'rgba(99, 102, 241, 0.1)' : 'transparent',
-                        borderRadius: 'var(--radius-sm)',
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: '0.82rem',
-                          fontWeight: r.isActive ? 600 : 400,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                          maxWidth: '180px',
-                        }}
-                      >
-                        {r.title}
-                      </span>
-                      <div style={{ display: 'flex', gap: '0.35rem' }}>
-                        {!r.isActive && (
-                          <button
-                            type="button"
-                            onClick={() => handleSwitchActive(r.id)}
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
-                          >
-                            Activate
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(r.id)}
-                          className="btn btn-danger btn-sm"
-                          style={{ padding: '0.15rem 0.45rem', fontSize: '0.72rem' }}
-                        >
-                          ✕
-                        </button>
+                    {Array.isArray(parsedActive.skills) && parsedActive.skills.length > 0 ? (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                        {parsedActive.skills
+                          .flatMap((s: SkillItem) => (Array.isArray(s.keywords) ? s.keywords : s.name ? [s.name] : []))
+                          .slice(0, 20)
+                          .map((skill: string, idx: number) => (
+                            <span key={idx} className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>
+                              {skill}
+                            </span>
+                          ))}
                       </div>
-                    </div>
-                  ))}
+                    ) : (
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No skills listed yet.</div>
+                    )}
+                  </div>
+                </div>
+              </>
+            ) : (
+              <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+                <p style={{ margin: '0 0 1rem 0' }}>No master resume uploaded yet. Save the template or import with AI to get started!</p>
+                <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center' }}>
+                  <button type="button" onClick={handleSwitchToForm} className="btn btn-primary btn-sm">
+                    Open Form Editor
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowAiConvertModal(true);
+                      setConvertStep('input');
+                      setConvertError(null);
+                      setExtractedResume(null);
+                    }}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <Sparkles size={14} /> Smart Resume Import
+                  </button>
                 </div>
               </div>
             )}
           </div>
-        </div>
 
-        {/* Right Column: Visual Form Editor / JSON Editor */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {/* Tab Header & Title */}
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                position: 'sticky',
-                top: '72px',
-                zIndex: 10,
-                background: 'var(--bg-card)',
-                padding: '0.4rem 0',
-                borderBottom: '1px solid var(--border-subtle)',
-                marginBottom: '0.5rem',
-                flexWrap: 'wrap',
-                gap: '0.5rem',
-              }}
-            >
-              <div
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}
-              >
-                <button
-                  type="button"
-                  onClick={handleSwitchToForm}
-                  className={`btn btn-sm ${editorMode === 'form' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                >
-                  <FileEdit size={14} /> Form Editor
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditorMode('json');
-                  }}
-                  className={`btn btn-sm ${editorMode === 'json' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                >
-                  <Code2 size={14} /> Raw JSON
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditorMode('preview');
-                  }}
-                  className={`btn btn-sm ${editorMode === 'preview' ? 'btn-primary' : 'btn-secondary'}`}
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                  disabled={validationErrors.length > 0}
-                  title={
-                    validationErrors.length > 0
-                      ? 'Resolve schema validation errors to preview themes'
-                      : 'Preview master resume across 14 curated themes'
-                  }
-                >
-                  <Eye size={14} /> Theme Preview
-                </button>
-                {validationErrors.length > 0 ? (
-                  <span className="badge badge-danger" style={{ fontSize: '0.75rem' }}>
-                    ❌ {validationErrors.length} Schema Error(s)
-                  </span>
-                ) : (
-                  <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
-                    ✓ JSON Resume v1.0.0 Valid
-                  </span>
-                )}
+          {/* Saved Profiles & Versions Section */}
+          <div className="card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <div>
+                <h4 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Saved Profiles ({resumes.length})</h4>
+                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                  Manage alternate resume versions and select which is the active master profile.
+                </p>
               </div>
-
               <button
                 type="button"
-                onClick={() => void handleSave(false)}
-                disabled={saving || validationErrors.length > 0}
-                className="btn btn-primary btn-sm"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.4rem 0.9rem',
-                  fontWeight: 600,
-                  boxShadow: 'var(--shadow-sm)',
-                }}
+                onClick={() => void handleSave(true)}
+                disabled={validationErrors.length > 0 || saving}
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                title="Fork current resume into a new saved profile version"
               >
-                <Save size={14} />
-                {saving ? 'Saving...' : activeResume ? 'Save Changes' : 'Save & Activate'}
+                <PlusCircle size={14} /> Save as New Profile
               </button>
             </div>
 
-            {editorMode === 'preview' ? (
-              <ThemePreviewGallery
-                activeTheme={activeTheme}
-                selectedTheme={selectedTheme}
-                onSelectTheme={setSelectedTheme}
-                onSetDefaultTheme={handleSetDefaultTheme}
-                previewPdfUrl={previewUrl}
-                previewLoading={previewLoading}
-                previewError={previewError}
-                onRetryPreview={() => void loadThemePreview(selectedTheme)}
-                onDownloadPdf={handleDownloadPreviewPdf}
-                isSavingDefault={savingDefaultTheme}
-              />
-            ) : (
-              <>
-                {/* Resume Title Input */}
-                <div>
-                  <label
+            {resumes.length > 0 ? (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+                {resumes.map((r) => (
+                  <div
+                    key={r.id}
                     style={{
-                      display: 'block',
-                      fontSize: '0.82rem',
-                      fontWeight: 500,
-                      marginBottom: '0.3rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      padding: '0.75rem 1rem',
+                      background: r.isActive ? 'rgba(99, 102, 241, 0.08)' : 'var(--bg-input)',
+                      border: `1px solid ${r.isActive ? 'var(--accent-primary)' : 'var(--border-subtle)'}`,
+                      borderRadius: 'var(--radius-md)',
                     }}
                   >
-                    Profile / Resume Title
-                  </label>
-                  <input
-                    type="text"
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    placeholder="e.g. Senior Backend Engineer"
-                    className="input-text"
-                    style={{ height: '36px', fontSize: '0.85rem' }}
-                  />
-                </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span
+                          style={{
+                            fontSize: '0.88rem',
+                            fontWeight: r.isActive ? 600 : 500,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                            maxWidth: '170px',
+                          }}
+                        >
+                          {r.title}
+                        </span>
+                        {r.isActive && (
+                          <span className="badge badge-success" style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                            Active
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                        {r.updatedAt ? `Updated ${new Date(r.updatedAt).toLocaleDateString()}` : 'Master version'}
+                      </span>
+                    </div>
 
-                {/* Mode-specific Editor */}
-                {editorMode === 'form' ? (
-                  <ResumeFormEditor resume={parsedResume} onChange={handleFormChange} />
-                ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <textarea
-                      aria-label="Raw JSON Schema Content"
-                      value={jsonText}
-                      onChange={(e) => handleJsonChange(e.target.value)}
-                      className="input-text"
-                      rows={20}
-                      style={{
-                        fontFamily: 'monospace',
-                        fontSize: '0.8rem',
-                        lineHeight: 1.4,
-                        resize: 'vertical',
-                        whiteSpace: 'pre',
-                        tabSize: 2,
-                      }}
-                      spellCheck={false}
-                    />
+                    <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexShrink: 0 }}>
+                      {!r.isActive && (
+                        <button
+                          type="button"
+                          onClick={() => handleSwitchActive(r.id)}
+                          className="btn btn-secondary btn-sm"
+                          style={{ padding: '0.25rem 0.55rem', fontSize: '0.75rem' }}
+                          title="Make this profile the active master resume"
+                        >
+                          Activate
+                        </button>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(r.id)}
+                        className="btn btn-danger btn-sm"
+                        style={{ padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                        title="Delete this profile version"
+                      >
+                        ✕
+                      </button>
+                    </div>
                   </div>
-                )}
-              </>
-            )}
-
-            {validationErrors.length > 0 && (
-              <div
-                style={{
-                  background: 'rgba(239, 68, 68, 0.1)',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
-                  borderRadius: 'var(--radius-sm)',
-                  padding: '0.6rem 0.8rem',
-                  fontSize: '0.8rem',
-                  color: '#fca5a5',
-                  maxHeight: '120px',
-                  overflowY: 'auto',
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
-                  Schema Validation Issues:
-                </div>
-                <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
-                  {validationErrors.map((err, idx) => (
-                    <li key={idx}>{err}</li>
-                  ))}
-                </ul>
+                ))}
+              </div>
+            ) : (
+              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>
+                No saved profile versions yet.
               </div>
             )}
+          </div>
+        </div>
+      ) : editorMode === 'preview' ? (
+        <div className="card" style={{ padding: '1.5rem' }}>
+          <ThemePreviewGallery
+            activeTheme={activeTheme}
+            selectedTheme={selectedTheme}
+            onSelectTheme={setSelectedTheme}
+            onSetDefaultTheme={handleSetDefaultTheme}
+            previewPdfUrl={previewUrl}
+            previewLoading={previewLoading}
+            previewError={previewError}
+            onRetryPreview={() => void loadThemePreview(selectedTheme)}
+            onDownloadPdf={handleDownloadPreviewPdf}
+            isSavingDefault={savingDefaultTheme}
+          />
+        </div>
+      ) : (
+        /* Visual Form Editor OR Raw JSON Editor (Full Width) */
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}>
+          {/* Active Context Banner */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'center',
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border-subtle)',
+              borderRadius: 'var(--radius-md)',
+              padding: '0.6rem 0.9rem',
+              flexWrap: 'wrap',
+              gap: '0.5rem',
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+              <span style={{ color: 'var(--text-muted)' }}>Editing Profile:</span>
+              <strong style={{ color: 'var(--text-primary)' }}>{parsedActive.basics?.name || title}</strong>
+              {activeResume && <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>Active Master</span>}
+            </div>
+            <button
+              type="button"
+              onClick={() => setEditorMode('overview')}
+              className="btn btn-secondary btn-xs"
+              style={{ fontSize: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}
+              title="View the active profile summary, keywords, and saved versions"
+            >
+              <User size={13} /> View Active Profile Card →
+            </button>
+          </div>
 
-            {/* Action Buttons */}
-            <div
+          {/* Resume Title Input */}
+          <div>
+            <label
               style={{
-                display: 'flex',
-                justifyContent: 'flex-end',
-                alignItems: 'center',
-                gap: '0.6rem',
-                borderTop: '1px solid rgba(255,255,255,0.08)',
-                paddingTop: '0.85rem',
+                display: 'block',
+                fontSize: '0.82rem',
+                fontWeight: 500,
+                marginBottom: '0.3rem',
               }}
             >
-              {activeResume && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    void handleSave(true);
-                  }}
-                  disabled={validationErrors.length > 0 || saving}
-                  className="btn btn-secondary btn-sm"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                >
-                  <PlusCircle size={14} /> Save as New Profile
-                </button>
-              )}
+              Profile / Resume Title
+            </label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Senior Backend Engineer"
+              className="input-text"
+              style={{ height: '36px', fontSize: '0.85rem' }}
+            />
+          </div>
+
+          {/* Mode Content */}
+          {editorMode === 'form' ? (
+            <ResumeFormEditor resume={parsedResume} onChange={handleFormChange} />
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+              <textarea
+                aria-label="Raw JSON Schema Content"
+                value={jsonText}
+                onChange={(e) => handleJsonChange(e.target.value)}
+                className="input-text"
+                rows={22}
+                style={{
+                  fontFamily: 'monospace',
+                  fontSize: '0.82rem',
+                  lineHeight: 1.45,
+                  resize: 'vertical',
+                  whiteSpace: 'pre',
+                  tabSize: 2,
+                }}
+                spellCheck={false}
+              />
+            </div>
+          )}
+
+          {/* Validation Issues Alert */}
+          {validationErrors.length > 0 && (
+            <div
+              style={{
+                background: 'rgba(239, 68, 68, 0.1)',
+                border: '1px solid rgba(239, 68, 68, 0.25)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0.6rem 0.8rem',
+                fontSize: '0.8rem',
+                color: '#fca5a5',
+                maxHeight: '120px',
+                overflowY: 'auto',
+              }}
+            >
+              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>
+                Schema Validation Issues:
+              </div>
+              <ul style={{ margin: 0, paddingLeft: '1.2rem' }}>
+                {validationErrors.map((err, idx) => (
+                  <li key={idx}>{err}</li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Footer Action Buttons */}
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              alignItems: 'center',
+              gap: '0.6rem',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              paddingTop: '0.85rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            {activeResume && (
               <button
                 type="button"
                 onClick={() => {
-                  void handleSave(false);
+                  void handleSave(true);
                 }}
                 disabled={validationErrors.length > 0 || saving}
-                className="btn btn-primary"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  padding: '0.55rem 1.25rem',
-                }}
+                className="btn btn-secondary btn-sm"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                title="Save current details as an alternate profile version without overwriting active master"
               >
-                <Save size={15} />
-                {saving
-                  ? 'Saving...'
-                  : activeResume
-                    ? 'Save Changes'
-                    : 'Save & Activate Master Resume'}
+                <PlusCircle size={14} /> Save as New Profile
               </button>
-            </div>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                void handleSave(false);
+              }}
+              disabled={validationErrors.length > 0 || saving}
+              className="btn btn-primary"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.4rem',
+                padding: '0.55rem 1.25rem',
+              }}
+              title="Save changes to active master resume (Ctrl+S / ⌘S)"
+            >
+              <Save size={15} />
+              {saving
+                ? 'Saving...'
+                : activeResume
+                  ? 'Save Changes'
+                  : 'Save & Activate Master Resume'}
+            </button>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Candidate Facts Knowledge Store Panel */}
       <CandidateFactsPanel />

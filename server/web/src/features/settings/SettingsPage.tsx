@@ -52,6 +52,7 @@ import {
   FileSpreadsheet,
   Archive,
   Link2,
+  X,
 } from 'lucide-react';
 import { ConnectionsManager } from './ConnectionsManager';
 import { ConnectionSelector } from './ConnectionSelector';
@@ -616,6 +617,28 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsInfo | null>(null);
+
+  const [isQuickSetupDismissed, setIsQuickSetupDismissed] = useState<boolean>(() => {
+    try {
+      return localStorage.getItem('jobfoundry_dismiss_quick_setup') === 'true';
+    } catch {
+      return false;
+    }
+  });
+
+  const handleDismissQuickSetup = () => {
+    setIsQuickSetupDismissed(true);
+    try {
+      localStorage.setItem('jobfoundry_dismiss_quick_setup', 'true');
+    } catch {}
+  };
+
+  const handleReopenQuickSetup = () => {
+    setIsQuickSetupDismissed(false);
+    try {
+      localStorage.removeItem('jobfoundry_dismiss_quick_setup');
+    } catch {}
+  };
 
   const handleTabChange = (tab: SettingsTab) => {
     setActiveTab(tab);
@@ -1748,6 +1771,18 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         </div>
 
         <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
+          {isQuickSetupDismissed && (
+            <button
+              type="button"
+              onClick={handleReopenQuickSetup}
+              className="btn btn-secondary btn-sm"
+              style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+              title="Reopen Quick Setup progression checklist"
+            >
+              <Sparkles size={14} style={{ color: 'var(--accent-primary)' }} />
+              <span>Setup Guide</span>
+            </button>
+          )}
           {isDirty && (
             <span
               className="badge badge-amber animate-pulse"
@@ -1779,6 +1814,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
 
       {/* Onboarding & Setup Stepper Header */}
       {(() => {
+        if (isQuickSetupDismissed) return null;
+
         const isLlmConfigured = Boolean(
           formSettings.default_llm_api_key ||
           meta?.default_llm_api_key?.hasCustomKey ||
@@ -1938,6 +1975,30 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                 );
               })}
             </div>
+
+            <button
+              type="button"
+              onClick={handleDismissQuickSetup}
+              className="btn btn-secondary btn-xs"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: '26px',
+                height: '26px',
+                padding: 0,
+                border: '1px solid var(--border-subtle)',
+                background: 'var(--bg-input)',
+                color: 'var(--text-muted)',
+                cursor: 'pointer',
+                borderRadius: 'var(--radius-sm)',
+                flexShrink: 0,
+              }}
+              title="Dismiss Quick Setup progression banner"
+              aria-label="Dismiss Quick Setup progression"
+            >
+              <X size={14} />
+            </button>
           </div>
         );
       })()}
