@@ -34,12 +34,12 @@ Design docs: [ARCHITECTURE.md](ARCHITECTURE.md) · [.agents/AGENTS.md](.agents/A
 
 ## Prerequisites
 
-| Tool | Version |
-|:---|:---|
-| Node.js | v26+ |
-| Python | 3.12+ |
-| uv | Latest ([install](https://docs.astral.sh/uv/)) |
-| Docker or Podman | Optional (for containerized runs) |
+| Tool             | Version                                        |
+| :--------------- | :--------------------------------------------- |
+| Node.js          | v26+                                           |
+| Python           | 3.12+                                          |
+| uv               | Latest ([install](https://docs.astral.sh/uv/)) |
+| Docker or Podman | Optional (for containerized runs)              |
 
 ---
 
@@ -119,6 +119,7 @@ npm run build:firefox  # Firefox build   → .output/firefox-mv3/
 ```
 
 Load unpacked:
+
 - **Chrome:** `chrome://extensions/` → Load unpacked → `.output/chrome-mv3/`
 - **Firefox:** `about:debugging#/runtime/this-firefox` → Load Temporary Add-on → `.output/firefox-mv3/manifest.json`
 

@@ -64,34 +64,40 @@ Browse normally  →  Extension captures  →  Dedup + Score  →  Tailor + Trac
 ## Features
 
 ### 🔍 Capture from 70+ Job Boards
+
 Browse LinkedIn, Indeed, Greenhouse, Lever, Workday, Ashby, and dozens more — the extension captures listings silently in the background. No copy-pasting. No server scraping. Your authenticated browser session does the work, which means it gets through login walls and CAPTCHAs that server scrapers can't.
 
 ### 🧹 Automatic Dedup
+
 The same job cross-posted on 5 boards? You see it once. Duplicate detection runs automatically so you spend time on jobs, not noise.
 
 ### 🎯 AI Fit Scoring
+
 Every captured job gets a 0–100 fit score with strengths and gap analysis. Works with OpenRouter, OpenAI, Anthropic, or **free local models via Ollama** — your choice, your keys, on your machine.
 
 ### 📄 Truthful Resume Tailoring
+
 Your genuine experience, re-ranked and rephrased to match each job. Never invented employers, skills, or metrics. Outputs a polished PDF (via `jsonresume-theme-folio`) and an ATS-optimized plaintext version.
 
 ### 📋 Kanban Tracking
+
 Track every application from Discovered → Applied → Interview → Offer. Each job gets paired artifacts (tailored resume + score) so you can see exactly what you sent.
 
 ### 🔒 100% Private, 100% Free
+
 Everything runs on your machine. SQLite storage. Zero telemetry. Zero tracking. Your resume and job data never leave your computer. AGPL-3.0 forever.
 
 ---
 
 ## Supported Boards
 
-| Category | Examples |
-|:---|:---|
-| **Modern ATS** | Greenhouse, Lever, Ashby, Workable, SmartRecruiters, BambooHR |
-| **Enterprise ATS** | Workday, SuccessFactors, Taleo, iCIMS, Jobvite, Phenom |
-| **Major Job Boards** | LinkedIn, Indeed, Dice, Glassdoor, ZipRecruiter, Monster |
-| **Niche & Remote** | Wellfound, YC Jobs, We Work Remotely, RemoteOK, Hacker News |
-| **Regional & Feeds** | 30+ regional boards, RSS feeds, and aggregators |
+| Category             | Examples                                                      |
+| :------------------- | :------------------------------------------------------------ |
+| **Modern ATS**       | Greenhouse, Lever, Ashby, Workable, SmartRecruiters, BambooHR |
+| **Enterprise ATS**   | Workday, SuccessFactors, Taleo, iCIMS, Jobvite, Phenom        |
+| **Major Job Boards** | LinkedIn, Indeed, Dice, Glassdoor, ZipRecruiter, Monster      |
+| **Niche & Remote**   | Wellfound, YC Jobs, We Work Remotely, RemoteOK, Hacker News   |
+| **Regional & Feeds** | 30+ regional boards, RSS feeds, and aggregators               |
 
 Browse the full list: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add one yourself](extension/src/background/providers/ADDING_A_PROVIDER.md) — most adapters are under 100 lines.
 
