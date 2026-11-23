@@ -85,7 +85,7 @@ Track every application from Discovered → Applied → Interview → Offer. Eac
 
 ### 🔒 100% Private, 100% Free
 
-Everything runs on your machine. SQLite storage. Zero telemetry. Zero tracking. Your resume and job data never leave your computer. AGPL-3.0 forever.
+Everything runs on your machine. SQLite storage. Zero telemetry. Zero tracking. When using local models via Ollama, zero data ever leaves your computer; when using cloud LLMs, only necessary inference prompts are sent to your chosen provider. AGPL-3.0 forever.
 
 ---
 
@@ -102,6 +102,8 @@ Everything runs on your machine. SQLite storage. Zero telemetry. Zero tracking. 
 Browse the full list: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add one yourself](extension/src/background/providers/ADDING_A_PROVIDER.md) — most adapters are under 100 lines.
 
 ---
+
+<a id="quick-install"></a>
 
 ## Get Started
 
@@ -126,7 +128,9 @@ docker compose up -d   # or: podman compose up -d
 
 [Chrome / Brave](https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm) · [Firefox](https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/) · [Edge](https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe)
 
-### 3. Browse Jobs. That's It.
+### 3. Upload Resume & Browse Jobs
+
+Upload your master resume in the dashboard (`http://localhost:8080`), then browse job sites normally. Captured jobs appear on your Kanban board with instant match scores.
 
 Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting-started/)**
 
@@ -134,7 +138,7 @@ Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting
 
 ### Alternative: Linux Desktop App (No Docker)
 
-Download the `.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), `chmod +x`, and run. Bundles the full stack — no container runtime needed.
+On x86_64 Linux with glibc 2.39+ (e.g. Ubuntu 24.04+, Fedora 40+, Arch), download the `.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), `chmod +x`, and run. Bundles the full stack — no container runtime needed. On older distributions or ARM Linux, use Docker or Podman instead.
 
 > Other desktop builds (Windows `.msix`, macOS Homebrew) are also on the [Releases](https://github.com/Covai-Labs/JobFoundry/releases) page.
 

@@ -157,7 +157,7 @@ import { resolvePath } from '../utils/paths.js';
     <div class="site-container">
       <div class="section-header">
         <span class="site-badge cyan">HOW IT WORKS</span>
-        <h2 class="section-title">From Browse to Application in 4 Steps</h2>
+        <h2 class="section-title">From Browse to Application in 5 Steps</h2>
         <p class="section-desc">
           Browse any job board normally. JobFoundry handles the rest — capturing, deduping, scoring, and tailoring — so you spend your energy on interviews, not spreadsheets.
         </p>
@@ -183,7 +183,7 @@ import { resolvePath } from '../utils/paths.js';
           <span class="site-badge emerald">YOUR DATA, YOUR MACHINE</span>
           <h3 class="principle-title">Nothing Leaves Your Computer</h3>
           <p class="principle-desc">
-            Your resume, applications, fit scores, and tailored variants are stored locally in a SQLite database. Zero telemetry. Zero tracking. No third party ever sees your data.
+            Your resume, applications, fit scores, and tailored variants are stored locally in SQLite. Zero telemetry. Zero tracking. When using local models via Ollama, zero data leaves your machine; with cloud LLMs, only prompts needed for scoring are sent to your chosen provider.
           </p>
         </BentoTile>
 
@@ -199,7 +199,7 @@ import { resolvePath } from '../utils/paths.js';
           <span class="site-badge violet">ZERO HALLUCINATIONS</span>
           <h3 class="principle-title">Your Real Experience, Honestly Presented</h3>
           <p class="principle-desc">
-            Other AI resume tools invent fake employers, skills, and metrics. JobFoundry only re-ranks and rephrases your genuine experience — under strict schema constraints that prevent fabrication.
+            Other AI resume tools invent fake employers, skills, and metrics. JobFoundry re-ranks and rephrases your existing experience. Listed skills are matched against your master resume before they appear in the output.
           </p>
         </BentoTile>
 

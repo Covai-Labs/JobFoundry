@@ -2,7 +2,7 @@
 
 This software is primarily licensed under the **GNU Affero General Public License Version 3 (AGPL-3.0-only)**. For the full base license terms, see [LICENSE](LICENSE).
 
-As an additional permission under **Section 7 of the GNU AGPLv3**, the copyright holders grant the following exception:
+As an additional permission under **Section 7 of the GNU AGPLv3**, the copyright holders (Covai Labs and contributors) grant the following exception:
 
 ---
 
