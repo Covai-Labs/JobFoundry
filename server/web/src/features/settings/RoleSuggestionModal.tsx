@@ -363,8 +363,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
               onChange={() => {
                 setInsertMode('append');
               }}
-            />
-            {' '}
+            />{' '}
             Append to existing keywords
           </label>
           <label
@@ -383,8 +382,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
               onChange={() => {
                 setInsertMode('replace');
               }}
-            />
-            {' '}
+            />{' '}
             Replace all existing
           </label>
         </div>

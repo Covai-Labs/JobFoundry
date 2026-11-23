@@ -107,7 +107,8 @@ function extractWorkRoles(work, rawCandidates) {
   }
 }
 
-const ROLE_KEYWORD_REGEX = /engineer|developer|architect|lead|manager|analyst|specialist|consultant|scientist/i;
+const ROLE_KEYWORD_REGEX =
+  /engineer|developer|architect|lead|manager|analyst|specialist|consultant|scientist/i;
 
 function extractSkillRoles(skills, rawCandidates) {
   if (!Array.isArray(skills)) return;
