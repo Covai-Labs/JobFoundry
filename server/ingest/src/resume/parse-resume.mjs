@@ -15,14 +15,14 @@ function cleanText(text) {
 /**
  * Sanitize and normalize a resume object to ensure strict compliance with JSON Resume schema.
  * - Strips empty strings from URI fields (which otherwise fail format: "uri").
- * - Normalizes URLs by prepending https:// if missing protocol.
+ * - Normalizes URLs by prepending https:// if missing protocol (including queries/fragments).
  * - Normalizes or removes invalid dates and converts ongoing roles (e.g. "Present") to omitted endDate.
  * - Filters out empty strings from string arrays (highlights, keywords, courses).
  * - Prunes empty objects and ensures appropriate array types.
  */
 export function sanitizeResumeJson(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
-    return {};
+    throw new Error('Parsed resume must be a valid JSON object');
   }
 
   // Helper: clean URI
@@ -30,16 +30,25 @@ export function sanitizeResumeJson(raw) {
     if (typeof val !== 'string') return undefined;
     const trimmed = val.trim();
     if (!trimmed) return undefined;
-    if (/^(https?|mailto|ftp):\/\//i.test(trimmed)) return trimmed;
-    if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}(\/.*)?$/.test(trimmed)) {
-      return `https://${trimmed}`;
+    if (/^(https?|mailto|ftp):\/\//i.test(trimmed)) {
+      try {
+        new URL(trimmed);
+        return trimmed;
+      } catch {
+        return undefined;
+      }
     }
-    try {
-      new URL(trimmed);
-      return trimmed;
-    } catch {
-      return undefined;
+    // Bare domain with optional path, query, or fragment
+    if (/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}([/?#].*)?$/i.test(trimmed)) {
+      try {
+        const candidate = `https://${trimmed}`;
+        new URL(candidate);
+        return candidate;
+      } catch {
+        return undefined;
+      }
     }
+    return undefined;
   };
 
   // Helper: clean Date (ISO 8601: YYYY, YYYY-MM, or YYYY-MM-DD)
@@ -49,9 +58,7 @@ export function sanitizeResumeJson(raw) {
     if (!trimmed) return undefined;
     const lower = trimmed.toLowerCase();
     if (
-      ['present', 'current', 'now', 'ongoing', 'active', 'n/a', 'none', 'till date'].includes(
-        lower
-      )
+      ['present', 'current', 'now', 'ongoing', 'active', 'n/a', 'none', 'till date'].includes(lower)
     ) {
       return undefined;
     }
@@ -98,10 +105,13 @@ export function sanitizeResumeJson(raw) {
     const basics = { ...result.basics };
     if (basics.name) basics.name = String(basics.name).trim();
     if (basics.label) basics.label = String(basics.label).trim();
-    if (basics.email) {
+    if (basics.email !== undefined) {
       const email = String(basics.email).trim();
-      if (email.includes('@')) basics.email = email;
-      else delete basics.email;
+      if (email && email.includes('@') && !/\s/.test(email)) {
+        basics.email = email;
+      } else {
+        delete basics.email;
+      }
     }
     if (basics.phone) basics.phone = String(basics.phone).trim();
     if (!basics.phone) delete basics.phone;
@@ -153,6 +163,35 @@ export function sanitizeResumeJson(raw) {
     result.basics = basics;
   }
 
+  // meta
+  if (result.meta && typeof result.meta === 'object') {
+    const meta = { ...result.meta };
+    if (meta.canonical !== undefined) {
+      const canonical = cleanUri(meta.canonical);
+      if (canonical) meta.canonical = canonical;
+      else delete meta.canonical;
+    }
+    if (Array.isArray(meta.translations)) {
+      meta.translations = meta.translations
+        .map((t) => {
+          if (!t || typeof t !== 'object') return null;
+          const tr = { ...t };
+          if (tr.url !== undefined) {
+            const u = cleanUri(tr.url);
+            if (u) tr.url = u;
+            else delete tr.url;
+          }
+          if (tr.language !== undefined) {
+            tr.language = String(tr.language).trim();
+            if (!tr.language) delete tr.language;
+          }
+          return Object.keys(tr).length > 0 ? tr : null;
+        })
+        .filter(Boolean);
+    }
+    result.meta = meta;
+  }
+
   // Clean arrays of objects: work, volunteer, education, awards, certificates, publications, skills, languages, interests, references, projects
   const arraySections = [
     'work',
@@ -187,7 +226,7 @@ export function sanitizeResumeJson(raw) {
           }
 
           // Clean Dates
-          ['startDate', 'endDate', 'date', 'releaseDate'].forEach((dateKey) => {
+          ['startDate', 'endDate', 'date', 'releaseDate', 'expiryDate'].forEach((dateKey) => {
             if (entry[dateKey] !== undefined) {
               const d = cleanDate(entry[dateKey]);
               if (d) entry[dateKey] = d;
@@ -219,6 +258,7 @@ export function sanitizeResumeJson(raw) {
             'publisher',
             'language',
             'fluency',
+            'reference',
           ].forEach((textKey) => {
             if (entry[textKey] !== undefined) {
               entry[textKey] = String(entry[textKey]).trim();
@@ -226,7 +266,17 @@ export function sanitizeResumeJson(raw) {
             }
           });
 
-          return entry;
+          // Discard empty entry if all fields were deleted
+          const hasContent = Object.entries(entry).some(([k, v]) => {
+            if (k === 'skills' && Array.isArray(v) && v.length === 0) return false;
+            if (v === undefined || v === null) return false;
+            if (Array.isArray(v)) return v.length > 0;
+            if (typeof v === 'object') return Object.keys(v).length > 0;
+            if (typeof v === 'string') return v.trim().length > 0;
+            return true;
+          });
+
+          return hasContent ? entry : null;
         })
         .filter(Boolean);
     }
@@ -355,6 +405,12 @@ Follow this JSON structure:
       "keywords": ["Topic 1", "Topic 2"]
     }
   ],
+  "references": [
+    {
+      "name": "Reference or Referee Name",
+      "reference": "Reference endorsement or statement"
+    }
+  ],
   "projects": [
     {
       "name": "Project Name",
@@ -373,7 +429,7 @@ STRICT CONSTRAINTS:
 2. DATES: Format as YYYY-MM-DD, YYYY-MM, or YYYY. For current/ongoing roles, OMIT the "endDate" property entirely. NEVER output empty strings ("") or "Present" for dates.
 3. URLS: Must be absolute URLs starting with http:// or https://. If no URL is available, OMIT the "url" property. NEVER output empty strings ("").
 4. ACCURACY: Extract all candidate details truthfully. Do not invent or hallucinate facts, dates, or companies not present in the input text.
-5. COMPLETENESS: Extract all jobs, degrees, certifications, skills, and projects found in the text.
+5. COMPLETENESS: Extract all jobs, degrees, certifications, skills, projects, and references found in the text.
 
 --- CANDIDATE RESUME TEXT ---
 ${text.slice(0, 40000)}

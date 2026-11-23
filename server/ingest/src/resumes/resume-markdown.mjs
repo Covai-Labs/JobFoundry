@@ -57,7 +57,7 @@ export function renderResumeMarkdown(resume = {}) {
         .filter(Boolean)
         .join(' at ');
       lines.push('', `### ${heading || 'Role'}`);
-      const meta = [dateRange(role.startDate, role.endDate), asText(role.location)]
+      const meta = [dateRange(role.startDate, role.endDate), locationText(role.location)]
         .filter(Boolean)
         .join(' · ');
       if (meta) lines.push(`_${meta}_`);

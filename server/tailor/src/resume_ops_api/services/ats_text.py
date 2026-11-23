@@ -82,6 +82,15 @@ def _render_summary(b: dict) -> str:
     return "\n".join(out)
 
 
+def _fmt_work_location(loc) -> str:
+    if isinstance(loc, dict):
+        parts = [p for p in (loc.get("city", ""), loc.get("region", ""), loc.get("countryCode", "")) if p]
+        return ", ".join(parts)
+    elif isinstance(loc, str):
+        return loc.strip()
+    return ""
+
+
 def _render_work(work: list) -> str:
     if not work:
         return ""
@@ -91,7 +100,7 @@ def _render_work(work: list) -> str:
             out.append(_sub_section())
         out.append(f"Job Title: {job.get('position', '')}")
         out.append(f"Company: {job.get('name', '')}")
-        out.append(f"Location: {job.get('location', '')}")
+        out.append(f"Location: {_fmt_work_location(job.get('location'))}")
         out.append(f"From: {_fmt_date(job.get('startDate', ''))}")
         out.append(f"To: {_fmt_date(job.get('endDate', ''))}")
 
