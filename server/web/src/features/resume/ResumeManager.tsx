@@ -12,6 +12,13 @@ import {
   Save,
   PlusCircle,
   Eye,
+  CheckCircle2,
+  UploadCloud,
+  FileText,
+  Briefcase,
+  GraduationCap,
+  Wrench,
+  FolderGit2,
 } from 'lucide-react';
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
@@ -68,9 +75,23 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
 
   // AI Raw Resume Converter states
   const [showAiConvertModal, setShowAiConvertModal] = useState<boolean>(false);
+  const [convertStep, setConvertStep] = useState<'input' | 'review'>('input');
   const [rawResumeText, setRawResumeText] = useState<string>('');
   const [convertingRaw, setConvertingRaw] = useState<boolean>(false);
   const [convertError, setConvertError] = useState<string | null>(null);
+  const [extractedResume, setExtractedResume] = useState<ResumeData | null>(null);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const [loadedFile, setLoadedFile] = useState<{ name: string; size: string } | null>(null);
+  const [showRawExtractedJson, setShowRawExtractedJson] = useState<boolean>(false);
+  const [savingAsNew, setSavingAsNew] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!success) return;
+    const timer = setTimeout(() => {
+      setSuccess(null);
+    }, 8000);
+    return () => clearTimeout(timer);
+  }, [success]);
 
   const fetchResumes = async () => {
     setLoading(true);
@@ -251,17 +272,76 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     reader.readAsText(file);
   };
 
-  const handleRawFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const formatFileSize = (bytes: number): string => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const processResumeFile = (file: File) => {
+    const isJson = file.name.endsWith('.json') || file.type === 'application/json';
+    const isText =
+      file.name.endsWith('.txt') ||
+      file.name.endsWith('.md') ||
+      file.type.startsWith('text/') ||
+      file.type === '';
+
+    if (!isJson && !isText) {
+      setConvertError('Unsupported file type. Please upload a .txt, .md, or .json file.');
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      const content = event.target?.result as string;
+      const content = (event.target?.result as string) || '';
+      if (isJson) {
+        try {
+          const parsed = JSON.parse(content);
+          if (parsed && typeof parsed === 'object') {
+            setExtractedResume(parsed);
+            setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
+            setRawResumeText(content);
+            setConvertStep('review');
+            setConvertError(null);
+            return;
+          }
+        } catch {
+          // If JSON parsing fails, fall back to setting raw text
+        }
+      }
       setRawResumeText(content);
+      setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
       setConvertError(null);
     };
     reader.readAsText(file);
+  };
+
+  const handleRawFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    processResumeFile(file);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      processResumeFile(file);
+    }
   };
 
   const handleConvertRawResume = async () => {
@@ -276,15 +356,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
       const res = await api.parseResumeRaw({ text: rawResumeText.trim() });
       if (res.ok && res.resumeJson) {
         const parsedResume = res.resumeJson as ResumeData;
-        handleFormChange(parsedResume);
-        if (parsedResume.basics?.name) {
-          setTitle(`${parsedResume.basics.name} Resume`);
-        }
-        setShowAiConvertModal(false);
-        setRawResumeText('');
-        setSuccess(
-          'Resume successfully converted to JSON Resume v1.0.0 via AI! Review and save below.'
-        );
+        setExtractedResume(parsedResume);
+        setConvertStep('review');
       } else {
         setConvertError('Failed to convert resume. Please check your AI Gateway configuration.');
       }
@@ -295,6 +368,50 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
       );
     } finally {
       setConvertingRaw(false);
+    }
+  };
+
+  const handleApplyExtracted = () => {
+    if (!extractedResume) return;
+    handleFormChange(extractedResume);
+    if (extractedResume.basics?.name) {
+      setTitle(`${extractedResume.basics.name} Resume`);
+    }
+    setShowAiConvertModal(false);
+    setRawResumeText('');
+    setLoadedFile(null);
+    setExtractedResume(null);
+    setConvertStep('input');
+    setSuccess(
+      'Converted resume applied to editor! Review your sections and click Save Changes to persist.'
+    );
+  };
+
+  const handleSaveExtractedAsNew = async () => {
+    if (!extractedResume) return;
+    try {
+      setSavingAsNew(true);
+      setConvertError(null);
+      const resumeTitle = extractedResume.basics?.name
+        ? `${extractedResume.basics.name} Resume`
+        : 'Master Resume';
+      await api.uploadResume({
+        title: resumeTitle,
+        resumeJson: extractedResume,
+        setActive: true,
+      });
+      setShowAiConvertModal(false);
+      setRawResumeText('');
+      setLoadedFile(null);
+      setExtractedResume(null);
+      setConvertStep('input');
+      setSuccess(`Saved and set "${resumeTitle}" as your active master profile!`);
+      await fetchResumes();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setConvertError(msg || 'Failed to save new resume profile.');
+    } finally {
+      setSavingAsNew(false);
     }
   };
 
@@ -396,7 +513,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             type="button"
             onClick={() => {
               setShowAiConvertModal(true);
+              setConvertStep('input');
               setConvertError(null);
+              setExtractedResume(null);
             }}
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -418,31 +537,77 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
 
       {error && (
         <div
+          role="alert"
           style={{
-            padding: '0.875rem 1rem',
-            background: 'rgba(239, 68, 68, 0.15)',
+            padding: '0.75rem 1rem',
+            background: 'var(--color-red-bg, rgba(239, 68, 68, 0.12))',
             border: '1px solid rgba(239, 68, 68, 0.3)',
             borderRadius: 'var(--radius-md)',
-            color: '#fca5a5',
+            color: 'var(--color-red, #dc2626)',
             fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
           }}
         >
-          {error}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <AlertCircle size={16} style={{ flexShrink: 0 }} />
+            <span>{error}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setError(null)}
+            className="btn btn-secondary btn-xs"
+            style={{
+              padding: '0.15rem 0.4rem',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              color: 'inherit',
+            }}
+            title="Dismiss"
+          >
+            ✕
+          </button>
         </div>
       )}
 
       {success && (
         <div
+          role="status"
           style={{
-            padding: '0.875rem 1rem',
-            background: 'rgba(16, 185, 129, 0.15)',
+            padding: '0.75rem 1rem',
+            background: 'var(--color-green-bg, rgba(16, 185, 129, 0.12))',
             border: '1px solid rgba(16, 185, 129, 0.3)',
             borderRadius: 'var(--radius-md)',
-            color: '#6ee7b7',
+            color: 'var(--color-green, #059669)',
             fontSize: '0.85rem',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: '0.75rem',
           }}
         >
-          {success}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+            <span>{success}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSuccess(null)}
+            className="btn btn-secondary btn-xs"
+            style={{
+              padding: '0.15rem 0.4rem',
+              border: 'none',
+              background: 'transparent',
+              cursor: 'pointer',
+              color: 'inherit',
+            }}
+            title="Dismiss"
+          >
+            ✕
+          </button>
         </div>
       )}
 
@@ -471,7 +636,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   </div>
                   <div
                     style={{
-                      color: 'var(--color-primary-light, #818cf8)',
+                      color: 'var(--accent-primary)',
                       fontWeight: 500,
                       fontSize: '0.9rem',
                     }}
@@ -534,12 +699,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         {keywords.map((kw, idx) => (
                           <span
                             key={idx}
-                            className="badge"
+                            className="badge badge-indigo"
                             style={{
                               fontSize: '0.72rem',
-                              background: 'rgba(99, 102, 241, 0.15)',
-                              color: '#e0e7ff',
-                              border: '1px solid rgba(99, 102, 241, 0.3)',
                             }}
                           >
                             {kw}
@@ -903,7 +1065,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             padding: '1rem',
           }}
           onClick={(e) => {
-            if (e.target === e.currentTarget && !convertingRaw) {
+            if (e.target === e.currentTarget && !convertingRaw && !savingAsNew) {
               setShowAiConvertModal(false);
             }
           }}
@@ -912,15 +1074,17 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             className="settings-card"
             style={{
               width: '100%',
-              maxWidth: '680px',
+              maxWidth: convertStep === 'review' ? '740px' : '680px',
               maxHeight: '90vh',
               overflowY: 'auto',
               padding: '1.75rem',
               boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5)',
               border: '1px solid var(--border-subtle)',
               position: 'relative',
+              transition: 'max-width 0.2s ease-in-out',
             }}
           >
+            {/* Modal Header */}
             <div
               style={{
                 display: 'flex',
@@ -940,8 +1104,17 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     gap: '0.5rem',
                   }}
                 >
-                  <Sparkles size={18} style={{ color: 'var(--accent-primary)' }} />
-                  AI Resume Converter
+                  {convertStep === 'review' ? (
+                    <>
+                      <CheckCircle2 size={18} style={{ color: 'var(--color-green, #10b981)' }} />
+                      Review Converted Resume
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles size={18} style={{ color: 'var(--accent-primary)' }} />
+                      AI Resume Converter
+                    </>
+                  )}
                 </h3>
                 <p
                   style={{
@@ -951,16 +1124,18 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     marginBottom: 0,
                   }}
                 >
-                  Paste your plain text or Markdown resume, or select a file. The AI engine will
-                  parse and structure it into standard JSON Resume v1.0.0.
+                  {convertStep === 'review'
+                    ? 'Successfully structured according to JSON Resume v1.0.0. Inspect extracted details before applying.'
+                    : 'Paste your plain text or Markdown resume, or drop a file. The AI engine will parse and structure it into standard JSON Resume v1.0.0.'}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowAiConvertModal(false)}
-                disabled={convertingRaw}
+                disabled={convertingRaw || savingAsNew}
                 className="btn btn-secondary btn-sm"
                 style={{ padding: '0.25rem 0.5rem', fontSize: '0.85rem' }}
+                title="Close modal"
               >
                 ✕
               </button>
@@ -970,10 +1145,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
               <div
                 style={{
                   padding: '0.75rem 1rem',
-                  background: 'rgba(239, 68, 68, 0.15)',
+                  background: 'var(--color-red-bg, rgba(239, 68, 68, 0.15))',
                   border: '1px solid rgba(239, 68, 68, 0.3)',
                   borderRadius: 'var(--radius-sm)',
-                  color: '#fca5a5',
+                  color: 'var(--color-red, #dc2626)',
                   fontSize: '0.85rem',
                   marginBottom: '1rem',
                   display: 'flex',
@@ -981,85 +1156,702 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   gap: '0.5rem',
                 }}
               >
-                <AlertCircle size={16} />
+                <AlertCircle size={16} style={{ flexShrink: 0 }} />
                 <span>{convertError}</span>
               </div>
             )}
 
-            <div style={{ marginBottom: '1rem' }}>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginBottom: '0.4rem',
-                }}
-              >
-                <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
-                  Resume Text or Markdown
-                </label>
-                <label
-                  className="btn btn-secondary btn-sm"
-                  style={{ cursor: 'pointer', fontSize: '0.75rem', padding: '0.2rem 0.6rem' }}
+            {convertingRaw ? (
+              /* Converting Progress Stepper */
+              <div style={{ padding: '2.5rem 1rem', textAlign: 'center' }}>
+                <div
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: 54,
+                    height: 54,
+                    borderRadius: '50%',
+                    background: 'rgba(99, 102, 241, 0.12)',
+                    color: 'var(--accent-primary)',
+                    marginBottom: '1rem',
+                  }}
                 >
-                  📁 Choose .txt or .md
-                  <input
-                    type="file"
-                    accept=".txt,.md,text/plain,text/markdown"
-                    onChange={handleRawFileUpload}
-                    style={{ display: 'none' }}
-                  />
-                </label>
-              </div>
-              <textarea
-                value={rawResumeText}
-                onChange={(e) => setRawResumeText(e.target.value)}
-                placeholder="Paste your resume contents here (e.g. contact info, work history, skills, education)..."
-                className="input-text"
-                rows={12}
-                disabled={convertingRaw}
-                style={{
-                  fontFamily: 'var(--font-mono, monospace)',
-                  fontSize: '0.82rem',
-                  lineHeight: 1.45,
-                  resize: 'vertical',
-                }}
-              />
-            </div>
+                  <RefreshCw size={24} className="animate-spin" />
+                </div>
+                <h4 style={{ fontSize: '1.15rem', fontWeight: 700, margin: '0 0 0.35rem 0' }}>
+                  Structuring Resume with AI...
+                </h4>
+                <p
+                  style={{
+                    color: 'var(--text-muted)',
+                    fontSize: '0.85rem',
+                    maxWidth: '440px',
+                    margin: '0 auto 1.75rem auto',
+                    lineHeight: 1.45,
+                  }}
+                >
+                  Extracting candidate profile, employment history, degrees, and skills into
+                  standard JSON Resume Draft-07 format.
+                </p>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-              <button
-                type="button"
-                onClick={() => setShowAiConvertModal(false)}
-                disabled={convertingRaw}
-                className="btn btn-secondary btn-sm"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                onClick={handleConvertRawResume}
-                disabled={convertingRaw || !rawResumeText.trim()}
-                className="btn btn-primary btn-sm"
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.4rem',
-                  minWidth: '150px',
-                  justifyContent: 'center',
-                }}
-              >
-                {convertingRaw ? (
-                  <>
-                    <RefreshCw size={14} className="animate-spin" /> Converting via AI...
-                  </>
-                ) : (
-                  <>
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '0.65rem',
+                    maxWidth: '380px',
+                    margin: '0 auto',
+                    textAlign: 'left',
+                    background: 'var(--bg-secondary, rgba(255, 255, 255, 0.03))',
+                    padding: '1rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      fontSize: '0.82rem',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    <CheckCircle2 size={16} style={{ color: 'var(--color-green, #10b981)' }} />
+                    <span>Normalized input text & formatting</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      fontSize: '0.82rem',
+                      color: 'var(--accent-primary)',
+                      fontWeight: 600,
+                    }}
+                  >
+                    <RefreshCw size={15} className="animate-spin" />
+                    <span>Extracting work history, education & skills</span>
+                  </div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.6rem',
+                      fontSize: '0.82rem',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 15,
+                        height: 15,
+                        borderRadius: '50%',
+                        border: '2px solid var(--border-subtle)',
+                      }}
+                    />
+                    <span>Validating against JSON Resume schema</span>
+                  </div>
+                </div>
+              </div>
+            ) : convertStep === 'review' && extractedResume ? (
+              /* Review Extracted Resume Step */
+              <div>
+                {/* Candidate Overview Card */}
+                <div
+                  style={{
+                    padding: '1rem',
+                    background: 'var(--bg-secondary, rgba(255, 255, 255, 0.03))',
+                    border: '1px solid var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'flex-start',
+                    }}
+                  >
+                    <div>
+                      <div
+                        style={{
+                          fontSize: '1.2rem',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                        }}
+                      >
+                        {extractedResume.basics?.name || 'Unnamed Candidate'}
+                      </div>
+                      {extractedResume.basics?.label && (
+                        <div
+                          style={{
+                            color: 'var(--accent-primary)',
+                            fontSize: '0.9rem',
+                            fontWeight: 500,
+                            marginTop: '0.15rem',
+                          }}
+                        >
+                          {extractedResume.basics.label}
+                        </div>
+                      )}
+                    </div>
+                    <span className="badge badge-success">✓ Schema Validated</span>
+                  </div>
+
+                  <div
+                    style={{
+                      display: 'flex',
+                      flexWrap: 'wrap',
+                      gap: '0.75rem',
+                      marginTop: '0.45rem',
+                      fontSize: '0.8rem',
+                      color: 'var(--text-muted)',
+                    }}
+                  >
+                    {extractedResume.basics?.email && (
+                      <span>✉️ {extractedResume.basics.email}</span>
+                    )}
+                    {extractedResume.basics?.phone && (
+                      <span>📞 {extractedResume.basics.phone}</span>
+                    )}
+                    {(extractedResume.basics?.location?.city ||
+                      extractedResume.basics?.location?.countryCode) && (
+                      <span>
+                        📍{' '}
+                        {[
+                          extractedResume.basics?.location?.city,
+                          extractedResume.basics?.location?.region,
+                          extractedResume.basics?.location?.countryCode,
+                        ]
+                          .filter(Boolean)
+                          .join(', ')}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4 Stat Badges Grid */}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(4, 1fr)',
+                    gap: '0.6rem',
+                    marginBottom: '1rem',
+                  }}
+                >
+                  <div
+                    className="card"
+                    style={{
+                      padding: '0.65rem',
+                      textAlign: 'center',
+                      background: 'var(--bg-secondary)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                        fontSize: '1.15rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <Briefcase size={14} style={{ color: 'var(--accent-primary)' }} />
+                      {extractedResume.work?.length || 0}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      Work Roles
+                    </div>
+                  </div>
+
+                  <div
+                    className="card"
+                    style={{
+                      padding: '0.65rem',
+                      textAlign: 'center',
+                      background: 'var(--bg-secondary)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                        fontSize: '1.15rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <GraduationCap size={15} style={{ color: 'var(--color-blue, #3b82f6)' }} />
+                      {extractedResume.education?.length || 0}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      Education
+                    </div>
+                  </div>
+
+                  <div
+                    className="card"
+                    style={{
+                      padding: '0.65rem',
+                      textAlign: 'center',
+                      background: 'var(--bg-secondary)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                        fontSize: '1.15rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <Wrench size={14} style={{ color: 'var(--color-purple, #8b5cf6)' }} />
+                      {extractedResume.skills?.length || 0}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      Skill Groups
+                    </div>
+                  </div>
+
+                  <div
+                    className="card"
+                    style={{
+                      padding: '0.65rem',
+                      textAlign: 'center',
+                      background: 'var(--bg-secondary)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.35rem',
+                        fontSize: '1.15rem',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                      }}
+                    >
+                      <FolderGit2 size={14} style={{ color: 'var(--color-amber, #f59e0b)' }} />
+                      {extractedResume.projects?.length || 0}
+                    </div>
+                    <div
+                      style={{
+                        fontSize: '0.7rem',
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                        fontWeight: 600,
+                        marginTop: '0.2rem',
+                      }}
+                    >
+                      Projects
+                    </div>
+                  </div>
+                </div>
+
+                {/* Extracted Details Scroll Box */}
+                <div
+                  style={{
+                    maxHeight: '200px',
+                    overflowY: 'auto',
+                    padding: '0.85rem',
+                    background: 'var(--bg-primary)',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--border-subtle)',
+                    marginBottom: '1rem',
+                    fontSize: '0.82rem',
+                  }}
+                >
+                  {extractedResume.basics?.summary && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          fontSize: '0.72rem',
+                          marginBottom: '0.2rem',
+                        }}
+                      >
+                        Summary
+                      </div>
+                      <p
+                        style={{
+                          margin: 0,
+                          color: 'var(--text-secondary)',
+                          lineHeight: 1.45,
+                          fontSize: '0.8rem',
+                        }}
+                      >
+                        {extractedResume.basics.summary}
+                      </p>
+                    </div>
+                  )}
+
+                  {Array.isArray(extractedResume.work) && extractedResume.work.length > 0 && (
+                    <div style={{ marginBottom: '0.75rem' }}>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          fontSize: '0.72rem',
+                          marginBottom: '0.3rem',
+                        }}
+                      >
+                        Experience Highlights
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {extractedResume.work.slice(0, 3).map((job: any, idx: number) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'baseline',
+                            }}
+                          >
+                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {job.position || 'Role'}{' '}
+                              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+                                at {job.name || 'Company'}
+                              </span>
+                            </span>
+                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                              {job.startDate || ''} – {job.endDate || 'Present'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {Array.isArray(extractedResume.skills) && extractedResume.skills.length > 0 && (
+                    <div>
+                      <div
+                        style={{
+                          fontWeight: 600,
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          fontSize: '0.72rem',
+                          marginBottom: '0.3rem',
+                        }}
+                      >
+                        Extracted Skills
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
+                        {extractedResume.skills
+                          .flatMap((s: any) =>
+                            Array.isArray(s.keywords)
+                              ? s.name
+                                ? [s.name, ...s.keywords]
+                                : s.keywords
+                              : s.name
+                                ? [s.name]
+                                : []
+                          )
+                          .slice(0, 15)
+                          .map((skill: string, idx: number) => (
+                            <span
+                              key={idx}
+                              className="badge badge-indigo"
+                              style={{ fontSize: '0.72rem' }}
+                            >
+                              {skill}
+                            </span>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Inspect JSON Output Toggle */}
+                <div style={{ marginBottom: '1.25rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowRawExtractedJson(!showRawExtractedJson)}
+                    className="btn btn-secondary btn-xs"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                  >
+                    <Code2 size={13} />{' '}
+                    {showRawExtractedJson ? 'Hide Raw JSON' : 'Inspect Raw JSON Output'}
+                  </button>
+                  {showRawExtractedJson && (
+                    <pre
+                      style={{
+                        marginTop: '0.5rem',
+                        padding: '0.75rem',
+                        background: 'var(--bg-primary)',
+                        border: '1px solid var(--border-subtle)',
+                        borderRadius: 'var(--radius-sm)',
+                        fontSize: '0.75rem',
+                        maxHeight: '180px',
+                        overflowY: 'auto',
+                        fontFamily: 'var(--font-mono, monospace)',
+                        color: 'var(--text-secondary)',
+                      }}
+                    >
+                      {JSON.stringify(extractedResume, null, 2)}
+                    </pre>
+                  )}
+                </div>
+
+                {/* Review Step Actions */}
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    gap: '0.75rem',
+                    flexWrap: 'wrap',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setConvertStep('input')}
+                    disabled={savingAsNew}
+                    className="btn btn-secondary btn-sm"
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                  >
+                    ⟵ Re-edit Input
+                  </button>
+                  <div style={{ display: 'flex', gap: '0.6rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => void handleSaveExtractedAsNew()}
+                      disabled={savingAsNew}
+                      className="btn btn-secondary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      {savingAsNew ? (
+                        <RefreshCw size={13} className="animate-spin" />
+                      ) : (
+                        <Save size={13} />
+                      )}
+                      Save as New Profile
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleApplyExtracted}
+                      disabled={savingAsNew}
+                      className="btn btn-primary btn-sm"
+                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    >
+                      <Sparkles size={14} /> Apply to Active Profile
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Input & Drag-and-Drop Step */
+              <div>
+                {/* Drag-and-Drop Dropzone */}
+                <div
+                  onDragOver={handleDragOver}
+                  onDragEnter={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                  style={{
+                    border: isDragging
+                      ? '2px dashed var(--accent-primary)'
+                      : '1px dashed var(--border-subtle)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '0.85rem 1rem',
+                    background: isDragging
+                      ? 'rgba(99, 102, 241, 0.08)'
+                      : 'var(--bg-secondary, rgba(255, 255, 255, 0.02))',
+                    marginBottom: '1rem',
+                    transition: 'all 0.15s ease-in-out',
+                  }}
+                >
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: '0.75rem',
+                      flexWrap: 'wrap',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                      <div
+                        style={{
+                          width: 36,
+                          height: 36,
+                          borderRadius: 'var(--radius-sm)',
+                          background: 'rgba(99, 102, 241, 0.12)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          color: 'var(--accent-primary)',
+                          flexShrink: 0,
+                        }}
+                      >
+                        <UploadCloud size={19} />
+                      </div>
+                      <div>
+                        <div
+                          style={{
+                            fontSize: '0.84rem',
+                            fontWeight: 600,
+                            color: 'var(--text-primary)',
+                          }}
+                        >
+                          {isDragging
+                            ? 'Drop resume file here...'
+                            : loadedFile
+                              ? `File Loaded: ${loadedFile.name}`
+                              : 'Drag & drop resume file, or paste text below'}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                          {loadedFile
+                            ? `Size: ${loadedFile.size}`
+                            : 'Supports .txt, .md, or .json files'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      {loadedFile && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setLoadedFile(null);
+                            setRawResumeText('');
+                          }}
+                          className="btn btn-secondary btn-xs"
+                          style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem' }}
+                          title="Clear loaded file"
+                        >
+                          Clear
+                        </button>
+                      )}
+                      <label
+                        className="btn btn-secondary btn-sm"
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: '0.75rem',
+                          padding: '0.25rem 0.65rem',
+                          margin: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                        }}
+                      >
+                        <FileText size={13} /> Browse File
+                        <input
+                          type="file"
+                          accept=".txt,.md,.json,text/plain,text/markdown,application/json"
+                          onChange={handleRawFileUpload}
+                          style={{ display: 'none' }}
+                        />
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Textarea Input */}
+                <div style={{ marginBottom: '1rem' }}>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: '0.4rem',
+                    }}
+                  >
+                    <label style={{ fontSize: '0.85rem', fontWeight: 600 }}>
+                      Resume Text or Markdown
+                    </label>
+                    {rawResumeText && (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {rawResumeText.trim().split(/\s+/).length} words • {rawResumeText.length}{' '}
+                        characters
+                      </span>
+                    )}
+                  </div>
+                  <textarea
+                    value={rawResumeText}
+                    onChange={(e) => {
+                      setRawResumeText(e.target.value);
+                      if (loadedFile) setLoadedFile(null);
+                    }}
+                    placeholder="Paste your resume contents here (e.g. contact info, work history, skills, education)..."
+                    className="input-text"
+                    rows={11}
+                    disabled={convertingRaw}
+                    style={{
+                      fontFamily: 'var(--font-mono, monospace)',
+                      fontSize: '0.82rem',
+                      lineHeight: 1.45,
+                      resize: 'vertical',
+                      width: '100%',
+                    }}
+                  />
+                </div>
+
+                {/* Action Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowAiConvertModal(false)}
+                    disabled={convertingRaw}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleConvertRawResume()}
+                    disabled={convertingRaw || !rawResumeText.trim()}
+                    className="btn btn-primary btn-sm"
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.4rem',
+                      minWidth: '160px',
+                      justifyContent: 'center',
+                    }}
+                  >
                     <Sparkles size={14} /> Parse & Convert to JSON
-                  </>
-                )}
-              </button>
-            </div>
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
