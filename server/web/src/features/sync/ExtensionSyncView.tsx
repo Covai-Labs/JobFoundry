@@ -180,6 +180,7 @@ export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingC
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
             title="Available on Firefox Add-ons (AMO). Compatible with Firefox, LibreWolf, Floorp, IceCat, and other Gecko-based browsers."
+            aria-label="Install for Firefox, LibreWolf, Floorp, IceCat, and other Gecko-based browsers"
           >
             Firefox
           </a>
@@ -190,6 +191,7 @@ export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingC
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
             title="Available on Chrome Web Store. Compatible with Chrome, Edge, Brave, Opera, Vivaldi, and other Chromium browsers."
+            aria-label="Install for Chromium browsers including Chrome, Edge, Brave, Opera, and Vivaldi"
           >
             Chromium
           </a>
