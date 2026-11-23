@@ -487,7 +487,9 @@ describe('ResumeManager', () => {
     fireEvent.click(activeProfileTab);
 
     // Verify candidate card elements
-    expect(screen.getByText('Specializing in fault-tolerant high-throughput event logs.')).toBeDefined();
+    expect(
+      screen.getByText('Specializing in fault-tolerant high-throughput event logs.')
+    ).toBeDefined();
     expect(screen.getByText('alex@mercer.dev')).toBeDefined();
     expect(screen.getByText(/Role Keywords/i)).toBeDefined();
     expect(screen.getByText(/Top Skills/i)).toBeDefined();
@@ -500,7 +502,7 @@ describe('ResumeManager', () => {
     expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
   });
 
-  it('triggers JSON resume download when Export JSON button is clicked', async () => {
+  it('triggers JSON resume download when Export JSON button is clicked and disables export when validation errors exist', async () => {
     vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
 
     render(<ResumeManager />);
@@ -511,10 +513,20 @@ describe('ResumeManager', () => {
 
     const exportBtn = screen.getByRole('button', { name: /Export JSON/i });
     expect(exportBtn).toBeDefined();
+    expect((exportBtn as HTMLButtonElement).disabled).toBe(false);
     fireEvent.click(exportBtn);
 
     await waitFor(() => {
       expect(screen.getByText('Exported master resume JSON successfully!')).toBeDefined();
+    });
+
+    // Switch to Raw JSON and introduce invalid JSON
+    fireEvent.click(screen.getByText('Raw JSON'));
+    const textarea = screen.getByLabelText('Raw JSON Schema Content');
+    fireEvent.change(textarea, { target: { value: '{"broken": json}' } });
+
+    await waitFor(() => {
+      expect((exportBtn as HTMLButtonElement).disabled).toBe(true);
     });
   });
 });

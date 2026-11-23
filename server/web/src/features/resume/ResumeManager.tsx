@@ -584,18 +584,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   const handleExportJson = () => {
     try {
       const exportData =
-        parsedResume && Object.keys(parsedResume).length > 0
-          ? parsedResume
+        Object.keys(parsedResume).length > 0
+          ? (parsedResume as ResumeData)
           : ((activeResume?.resume ?? {}) as ResumeData);
       const dataStr =
         'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(exportData, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', dataStr);
-      const fileName = (
-        ((exportData as any).basics?.name as string) ||
-        title ||
-        'master_resume'
-      )
+      const fileName = (exportData.basics?.name || title || 'master_resume')
         .toLowerCase()
         .replace(/\s+/g, '_');
       downloadAnchor.setAttribute('download', `${fileName}.json`);
@@ -672,9 +668,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           <button
             type="button"
             onClick={handleExportJson}
+            disabled={loading || validationErrors.length > 0}
             className="btn btn-secondary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Download active master resume as standard JSON file"
+            title={
+              validationErrors.length > 0
+                ? 'Resolve validation errors before exporting'
+                : 'Download active master resume as standard JSON file'
+            }
           >
             <Download size={14} /> Export JSON
           </button>
@@ -864,7 +865,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
               fontWeight: 600,
               boxShadow: 'var(--shadow-sm)',
             }}
-            title="Save changes to active master resume (Ctrl+S / ⌘S)"
+            title="Save changes to active master resume"
           >
             <Save size={14} />
             {saving ? 'Saving...' : activeResume ? 'Save Changes' : 'Save & Activate'}
@@ -874,16 +875,30 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
 
       {/* Main Content Area */}
       {loading ? (
-        <div className="card" style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}>
+        <div
+          className="card"
+          style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-muted)' }}
+        >
           Loading profile...
         </div>
       ) : editorMode === 'overview' ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Active Profile Overview Card */}
-          <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}>
+          <div
+            className="card"
+            style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}
+          >
             {Object.keys(parsedActive).length > 0 ? (
               <>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+                <div
+                  style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'flex-start',
+                    flexWrap: 'wrap',
+                    gap: '1rem',
+                  }}
+                >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                     <div
                       style={{
@@ -904,13 +919,27 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       {(parsedActive.basics?.name || 'U').charAt(0).toUpperCase()}
                     </div>
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.6rem',
+                          flexWrap: 'wrap',
+                        }}
+                      >
                         <h3 style={{ fontSize: '1.35rem', fontWeight: 700, margin: 0 }}>
                           {parsedActive.basics?.name ?? 'Unnamed Candidate'}
                         </h3>
                         {activeResume && <span className="badge badge-success">Active Master</span>}
                       </div>
-                      <div style={{ color: 'var(--accent-primary)', fontWeight: 600, fontSize: '0.95rem', marginTop: '0.2rem' }}>
+                      <div
+                        style={{
+                          color: 'var(--accent-primary)',
+                          fontWeight: 600,
+                          fontSize: '0.95rem',
+                          marginTop: '0.2rem',
+                        }}
+                      >
                         {parsedActive.basics?.label ?? 'No professional headline set'}
                       </div>
                     </div>
@@ -956,7 +985,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   {parsedActive.basics?.email && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Email:</span>
-                      <a href={`mailto:${parsedActive.basics.email}`} style={{ color: 'var(--accent-primary)' }}>
+                      <a
+                        href={`mailto:${parsedActive.basics.email}`}
+                        style={{ color: 'var(--accent-primary)' }}
+                      >
                         {parsedActive.basics.email}
                       </a>
                     </div>
@@ -967,18 +999,26 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       <span>{parsedActive.basics.phone}</span>
                     </div>
                   )}
-                  {(parsedActive.basics?.location?.city || parsedActive.basics?.location?.region) && (
+                  {(parsedActive.basics?.location?.city ||
+                    parsedActive.basics?.location?.region) && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Location:</span>
                       <span>
-                        {[parsedActive.basics.location.city, parsedActive.basics.location.region].filter(Boolean).join(', ')}
+                        {[parsedActive.basics.location.city, parsedActive.basics.location.region]
+                          .filter(Boolean)
+                          .join(', ')}
                       </span>
                     </div>
                   )}
                   {parsedActive.basics?.url && (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                       <span style={{ color: 'var(--text-muted)' }}>Portfolio / URL:</span>
-                      <a href={parsedActive.basics.url} target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)' }}>
+                      <a
+                        href={parsedActive.basics.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: 'var(--accent-primary)' }}
+                      >
                         {parsedActive.basics.url}
                       </a>
                     </div>
@@ -988,7 +1028,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 {/* Professional Summary */}
                 {parsedActive.basics?.summary && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                    <div
+                      style={{
+                        fontSize: '0.82rem',
+                        fontWeight: 600,
+                        color: 'var(--text-muted)',
+                        textTransform: 'uppercase',
+                      }}
+                    >
                       Professional Summary
                     </div>
                     <div
@@ -1008,7 +1055,13 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 )}
 
                 {/* Role Keywords & Top Skills Grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1rem' }}>
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+                    gap: '1rem',
+                  }}
+                >
                   {/* Extracted Role Keywords */}
                   {(() => {
                     const keywords = extractKeywordsFromResume(parsedActive);
@@ -1037,13 +1090,19 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         {keywords.length > 0 ? (
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                             {keywords.map((kw, idx) => (
-                              <span key={idx} className="badge badge-indigo" style={{ fontSize: '0.75rem' }}>
+                              <span
+                                key={idx}
+                                className="badge badge-indigo"
+                                style={{ fontSize: '0.75rem' }}
+                              >
                                 {kw}
                               </span>
                             ))}
                           </div>
                         ) : (
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No role keywords detected yet.</div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                            No role keywords detected yet.
+                          </div>
                         )}
                       </div>
                     );
@@ -1067,30 +1126,49 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         marginBottom: '0.6rem',
                       }}
                     >
-                      Top Skills ({Array.isArray(parsedActive.skills) ? parsedActive.skills.length : 0} groups)
+                      Top Skills (
+                      {Array.isArray(parsedActive.skills) ? parsedActive.skills.length : 0} groups)
                     </div>
                     {Array.isArray(parsedActive.skills) && parsedActive.skills.length > 0 ? (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
                         {parsedActive.skills
-                          .flatMap((s: SkillItem) => (Array.isArray(s.keywords) ? s.keywords : s.name ? [s.name] : []))
+                          .flatMap((s: SkillItem) =>
+                            Array.isArray(s.keywords) && s.keywords.length > 0
+                              ? s.keywords
+                              : s.name
+                                ? [s.name]
+                                : []
+                          )
                           .slice(0, 20)
                           .map((skill: string, idx: number) => (
-                            <span key={idx} className="badge badge-neutral" style={{ fontSize: '0.75rem' }}>
+                            <span
+                              key={idx}
+                              className="badge badge-neutral"
+                              style={{ fontSize: '0.75rem' }}
+                            >
                               {skill}
                             </span>
                           ))}
                       </div>
                     ) : (
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>No skills listed yet.</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        No skills listed yet.
+                      </div>
                     )}
                   </div>
                 </div>
               </>
             ) : (
               <div style={{ padding: '2.5rem', textAlign: 'center', color: 'var(--text-muted)' }}>
-                <p style={{ margin: '0 0 1rem 0' }}>No master resume uploaded yet. Save the template or import with AI to get started!</p>
+                <p style={{ margin: '0 0 1rem 0' }}>
+                  No master resume uploaded yet. Save the template or import with AI to get started!
+                </p>
                 <div style={{ display: 'flex', gap: '0.6rem', justifyContent: 'center' }}>
-                  <button type="button" onClick={handleSwitchToForm} className="btn btn-primary btn-sm">
+                  <button
+                    type="button"
+                    onClick={handleSwitchToForm}
+                    className="btn btn-primary btn-sm"
+                  >
                     Open Form Editor
                   </button>
                   <button
@@ -1111,11 +1189,35 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           </div>
 
           {/* Saved Profiles & Versions Section */}
-          <div className="card" style={{ padding: '1.25rem 1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div
+            className="card"
+            style={{
+              padding: '1.25rem 1.5rem',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '1rem',
+            }}
+          >
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: '0.5rem',
+              }}
+            >
               <div>
-                <h4 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>Saved Profiles ({resumes.length})</h4>
-                <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: '0.2rem 0 0 0' }}>
+                <h4 style={{ fontSize: '1rem', fontWeight: 600, margin: 0 }}>
+                  Saved Profiles ({resumes.length})
+                </h4>
+                <p
+                  style={{
+                    fontSize: '0.78rem',
+                    color: 'var(--text-muted)',
+                    margin: '0.2rem 0 0 0',
+                  }}
+                >
                   Manage alternate resume versions and select which is the active master profile.
                 </p>
               </div>
@@ -1132,7 +1234,13 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
             </div>
 
             {resumes.length > 0 ? (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '0.75rem' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                  gap: '0.75rem',
+                }}
+              >
                 {resumes.map((r) => (
                   <div
                     key={r.id}
@@ -1146,7 +1254,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       borderRadius: 'var(--radius-md)',
                     }}
                   >
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem', overflow: 'hidden' }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.2rem',
+                        overflow: 'hidden',
+                      }}
+                    >
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <span
                           style={{
@@ -1161,17 +1276,29 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                           {r.title}
                         </span>
                         {r.isActive && (
-                          <span className="badge badge-success" style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
+                          <span
+                            className="badge badge-success"
+                            style={{ fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}
+                          >
                             Active
                           </span>
                         )}
                       </div>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
-                        {r.updatedAt ? `Updated ${new Date(r.updatedAt).toLocaleDateString()}` : 'Master version'}
+                        {r.updatedAt
+                          ? `Updated ${new Date(r.updatedAt).toLocaleDateString()}`
+                          : 'Master version'}
                       </span>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', flexShrink: 0 }}>
+                    <div
+                      style={{
+                        display: 'flex',
+                        gap: '0.35rem',
+                        alignItems: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
                       {!r.isActive && (
                         <button
                           type="button"
@@ -1197,7 +1324,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 ))}
               </div>
             ) : (
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', textAlign: 'center', padding: '1rem' }}>
+              <div
+                style={{
+                  fontSize: '0.82rem',
+                  color: 'var(--text-muted)',
+                  textAlign: 'center',
+                  padding: '1rem',
+                }}
+              >
                 No saved profile versions yet.
               </div>
             )}
@@ -1220,7 +1354,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         </div>
       ) : (
         /* Visual Form Editor OR Raw JSON Editor (Full Width) */
-        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}>
+        <div
+          className="card"
+          style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', padding: '1.5rem' }}
+        >
           {/* Active Context Banner */}
           <div
             style={{
@@ -1235,10 +1372,18 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
               gap: '0.5rem',
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}
+            >
               <span style={{ color: 'var(--text-muted)' }}>Editing Profile:</span>
-              <strong style={{ color: 'var(--text-primary)' }}>{parsedActive.basics?.name || title}</strong>
-              {activeResume && <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>Active Master</span>}
+              <strong style={{ color: 'var(--text-primary)' }}>
+                {parsedActive.basics?.name || title}
+              </strong>
+              {activeResume && (
+                <span className="badge badge-success" style={{ fontSize: '0.72rem' }}>
+                  Active Master
+                </span>
+              )}
             </div>
             <button
               type="button"
@@ -1343,7 +1488,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 disabled={validationErrors.length > 0 || saving}
                 className="btn btn-secondary btn-sm"
                 style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-                title="Save current details as an alternate profile version without overwriting active master"
+                title="Save current details as a new profile and make it the active master"
               >
                 <PlusCircle size={14} /> Save as New Profile
               </button>
@@ -1361,7 +1506,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 gap: '0.4rem',
                 padding: '0.55rem 1.25rem',
               }}
-              title="Save changes to active master resume (Ctrl+S / ⌘S)"
+              title="Save changes to active master resume"
             >
               <Save size={15} />
               {saving
