@@ -85,14 +85,16 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   const [isExtractingPdf, setIsExtractingPdf] = useState<boolean>(false);
   const [showRawExtractedJson, setShowRawExtractedJson] = useState<boolean>(false);
   const [savingAsNew, setSavingAsNew] = useState<boolean>(false);
-  const fileReadTokenRef = useRef<number>(0);
+  const readSequenceIdRef = useRef<number>(0);
 
   useEffect(() => {
     if (!success) return;
     const timer = setTimeout(() => {
       setSuccess(null);
     }, 8000);
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+    };
   }, [success]);
 
   const fetchResumes = async () => {
@@ -101,7 +103,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     try {
       const list = await api.getResumes();
       setResumes(list);
-      const active = list.find((r) => r.isActive) || list[0] || null;
+      const active = list.find((r) => r.isActive) ?? list[0] ?? null;
       setActiveResume(active);
       onActiveResumeChange?.(Boolean(active));
       if (active) {
@@ -281,7 +283,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   };
 
   const processResumeFile = async (file: File) => {
-    const token = ++fileReadTokenRef.current;
+    const readSeq = ++readSequenceIdRef.current;
     const isJson = file.name.endsWith('.json') || file.type === 'application/json';
     const isPdf = file.name.endsWith('.pdf') || file.type === 'application/pdf';
     const isText =
@@ -301,9 +303,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         setConvertError(null);
         const { extractText } = await import('unpdf');
         const arrayBuffer = await file.arrayBuffer();
-        if (token !== fileReadTokenRef.current) return;
+        if (readSeq !== readSequenceIdRef.current) return;
         const result = await extractText(new Uint8Array(arrayBuffer));
-        if (token !== fileReadTokenRef.current) return;
+        if (readSeq !== readSequenceIdRef.current) return;
         const text = Array.isArray(result.text) ? result.text.join('\n\n') : result.text || '';
         if (!text.trim()) {
           setConvertError(
@@ -315,11 +317,11 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
         setConvertError(null);
       } catch (err: unknown) {
-        if (token !== fileReadTokenRef.current) return;
+        if (readSeq !== readSequenceIdRef.current) return;
         const msg = err instanceof Error ? err.message : String(err);
         setConvertError(`Failed to extract text from PDF: ${msg}`);
       } finally {
-        if (token === fileReadTokenRef.current) {
+        if (readSeq === readSequenceIdRef.current) {
           setIsExtractingPdf(false);
         }
       }
@@ -328,7 +330,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      if (token !== fileReadTokenRef.current) return;
+      if (readSeq !== readSequenceIdRef.current) return;
       const content = (event.target?.result as string) || '';
       if (isJson) {
         try {
@@ -413,14 +415,18 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     return 'Paste your plain text or Markdown resume, or drop a file. The AI engine will parse and structure it into standard JSON Resume v1.0.0.';
   };
 
-  const extractSkillTokens = (skills: SkillItem[]): string[] => {
+  const extractSkillTokens = (skills?: unknown[]): string[] => {
+    if (!Array.isArray(skills)) return [];
     return skills
+      .filter((s): s is SkillItem => Boolean(s && typeof s === 'object'))
       .flatMap((s) => {
         if (Array.isArray(s.keywords)) {
-          return s.name ? [s.name, ...s.keywords] : s.keywords;
+          const validKeywords = s.keywords.filter((k): k is string => typeof k === 'string');
+          return s.name ? [s.name, ...validKeywords] : validKeywords;
         }
         return s.name ? [s.name] : [];
       })
+      .filter(Boolean)
       .slice(0, 15);
   };
 
@@ -453,6 +459,15 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
 
   const handleApplyExtracted = () => {
     if (!extractedResume) return;
+    if (initialJsonText && jsonText !== initialJsonText) {
+      if (
+        !window.confirm(
+          'You have unsaved changes in the editor. Applying this resume will overwrite them. Continue?'
+        )
+      ) {
+        return;
+      }
+    }
     handleFormChange(extractedResume);
     if (extractedResume.basics?.name) {
       setTitle(`${extractedResume.basics.name} Resume`);
@@ -478,14 +493,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
       await api.uploadResume({
         title: resumeTitle,
         resumeJson: extractedResume,
-        setActive: true,
+        setActive: false,
       });
       setShowAiConvertModal(false);
       setRawResumeText('');
       setLoadedFile(null);
       setExtractedResume(null);
       setConvertStep('input');
-      setSuccess(`Saved and set "${resumeTitle}" as your active master profile!`);
+      setSuccess(`Saved "${resumeTitle}" as a new profile in your library!`);
       await fetchResumes();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -637,7 +652,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => setError(null)}
+            onClick={() => {
+              setError(null);
+            }}
             className="btn btn-secondary btn-xs"
             style={{
               padding: '0.15rem 0.4rem',
@@ -674,7 +691,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           </div>
           <button
             type="button"
-            onClick={() => setSuccess(null)}
+            onClick={() => {
+              setSuccess(null);
+            }}
             className="btn btn-secondary btn-xs"
             style={{
               padding: '0.15rem 0.4rem',
@@ -1345,69 +1364,65 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     marginBottom: '1rem',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'flex-start',
-                    }}
-                  >
-                    <div>
-                      <div
-                        style={{
-                          fontSize: '1.2rem',
-                          fontWeight: 700,
-                          color: 'var(--text-primary)',
-                        }}
-                      >
-                        {extractedResume.basics?.name || 'Unnamed Candidate'}
-                      </div>
-                      {extractedResume.basics?.label && (
+                  {(() => {
+                    const basics = extractedResume.basics;
+                    const location = basics?.location;
+                    const locationString = [location?.city, location?.region, location?.countryCode]
+                      .filter(Boolean)
+                      .join(', ');
+
+                    return (
+                      <>
                         <div
                           style={{
-                            color: 'var(--accent-primary)',
-                            fontSize: '0.9rem',
-                            fontWeight: 500,
-                            marginTop: '0.15rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'flex-start',
                           }}
                         >
-                          {extractedResume.basics.label}
+                          <div>
+                            <div
+                              style={{
+                                fontSize: '1.2rem',
+                                fontWeight: 700,
+                                color: 'var(--text-primary)',
+                              }}
+                            >
+                              {basics?.name ?? 'Unnamed Candidate'}
+                            </div>
+                            {basics?.label && (
+                              <div
+                                style={{
+                                  color: 'var(--accent-primary)',
+                                  fontSize: '0.9rem',
+                                  fontWeight: 500,
+                                  marginTop: '0.15rem',
+                                }}
+                              >
+                                {basics.label}
+                              </div>
+                            )}
+                          </div>
+                          <span className="badge badge-success">✓ Schema Validated</span>
                         </div>
-                      )}
-                    </div>
-                    <span className="badge badge-success">✓ Schema Validated</span>
-                  </div>
 
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: '0.75rem',
-                      marginTop: '0.45rem',
-                      fontSize: '0.8rem',
-                      color: 'var(--text-muted)',
-                    }}
-                  >
-                    {extractedResume.basics?.email && (
-                      <span>✉️ {extractedResume.basics.email}</span>
-                    )}
-                    {extractedResume.basics?.phone && (
-                      <span>📞 {extractedResume.basics.phone}</span>
-                    )}
-                    {(extractedResume.basics?.location?.city ||
-                      extractedResume.basics?.location?.countryCode) && (
-                      <span>
-                        📍{' '}
-                        {[
-                          extractedResume.basics?.location?.city,
-                          extractedResume.basics?.location?.region,
-                          extractedResume.basics?.location?.countryCode,
-                        ]
-                          .filter(Boolean)
-                          .join(', ')}
-                      </span>
-                    )}
-                  </div>
+                        <div
+                          style={{
+                            display: 'flex',
+                            flexWrap: 'wrap',
+                            gap: '0.75rem',
+                            marginTop: '0.45rem',
+                            fontSize: '0.8rem',
+                            color: 'var(--text-muted)',
+                          }}
+                        >
+                          {basics?.email && <span>✉️ {basics.email}</span>}
+                          {basics?.phone && <span>📞 {basics.phone}</span>}
+                          {Boolean(locationString) && <span>📍 {locationString}</span>}
+                        </div>
+                      </>
+                    );
+                  })()}
                 </div>
 
                 {/* 4 Stat Badges Grid */}
@@ -1439,7 +1454,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       }}
                     >
                       <Briefcase size={14} style={{ color: 'var(--accent-primary)' }} />
-                      {extractedResume.work?.length || 0}
+                      {extractedResume.work?.length ?? 0}
                     </div>
                     <div
                       style={{
@@ -1474,7 +1489,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       }}
                     >
                       <GraduationCap size={15} style={{ color: 'var(--color-blue, #3b82f6)' }} />
-                      {extractedResume.education?.length || 0}
+                      {extractedResume.education?.length ?? 0}
                     </div>
                     <div
                       style={{
@@ -1509,7 +1524,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       }}
                     >
                       <Wrench size={14} style={{ color: 'var(--color-purple, #8b5cf6)' }} />
-                      {extractedResume.skills?.length || 0}
+                      {extractedResume.skills?.length ?? 0}
                     </div>
                     <div
                       style={{
@@ -1544,7 +1559,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                       }}
                     >
                       <FolderGit2 size={14} style={{ color: 'var(--color-amber, #f59e0b)' }} />
-                      {extractedResume.projects?.length || 0}
+                      {extractedResume.projects?.length ?? 0}
                     </div>
                     <div
                       style={{
@@ -1613,26 +1628,29 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         Experience Highlights
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        {extractedResume.work.slice(0, 3).map((job: WorkItem, idx: number) => (
-                          <div
-                            key={job.name ? `${job.name}-${idx}` : `job-${idx}`}
-                            style={{
-                              display: 'flex',
-                              justifyContent: 'space-between',
-                              alignItems: 'baseline',
-                            }}
-                          >
-                            <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                              {job.position || 'Role'}{' '}
-                              <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
-                                at {job.name || 'Company'}
+                        {extractedResume.work
+                          .filter((job): job is WorkItem => Boolean(job && typeof job === 'object'))
+                          .slice(0, 3)
+                          .map((job: WorkItem, idx: number) => (
+                            <div
+                              key={job.name ? `${job.name}-${idx}` : `job-${idx}`}
+                              style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'baseline',
+                              }}
+                            >
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                                {job.position ?? 'Role'}{' '}
+                                <span style={{ color: 'var(--text-muted)', fontWeight: 400 }}>
+                                  at {job.name ?? 'Company'}
+                                </span>
                               </span>
-                            </span>
-                            <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                              {job.startDate || ''} – {job.endDate || 'Present'}
-                            </span>
-                          </div>
-                        ))}
+                              <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                                {job.startDate ?? ''} – {job.endDate ?? 'Present'}
+                              </span>
+                            </div>
+                          ))}
                       </div>
                     </div>
                   )}
@@ -1671,7 +1689,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 <div style={{ marginBottom: '1.25rem' }}>
                   <button
                     type="button"
-                    onClick={() => setShowRawExtractedJson(!showRawExtractedJson)}
+                    onClick={() => {
+                      setShowRawExtractedJson((prev) => !prev);
+                    }}
                     className="btn btn-secondary btn-xs"
                     style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
                   >
@@ -1710,7 +1730,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                 >
                   <button
                     type="button"
-                    onClick={() => setConvertStep('input')}
+                    onClick={() => {
+                      setConvertStep('input');
+                    }}
                     disabled={savingAsNew}
                     className="btn btn-secondary btn-sm"
                     style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
@@ -1816,7 +1838,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         <button
                           type="button"
                           onClick={() => {
-                            fileReadTokenRef.current++;
+                            readSequenceIdRef.current += 1;
                             setLoadedFile(null);
                             setRawResumeText('');
                           }}
@@ -1874,14 +1896,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   <textarea
                     value={rawResumeText}
                     onChange={(e) => {
-                      fileReadTokenRef.current++;
+                      readSequenceIdRef.current += 1;
                       setRawResumeText(e.target.value);
                       if (loadedFile) setLoadedFile(null);
                     }}
                     placeholder="Paste your resume contents here (e.g. contact info, work history, skills, education)..."
                     className="input-text"
                     rows={11}
-                    disabled={convertingRaw || isExtractingPdf}
+                    disabled={isExtractingPdf}
                     style={{
                       fontFamily: 'var(--font-mono, monospace)',
                       fontSize: '0.82rem',
@@ -1905,7 +1927,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   <button
                     type="button"
                     onClick={() => void handleConvertRawResume()}
-                    disabled={convertingRaw || !rawResumeText.trim()}
+                    disabled={!rawResumeText.trim()}
                     className="btn btn-primary btn-sm"
                     style={{
                       display: 'flex',

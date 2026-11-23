@@ -408,14 +408,14 @@ describe('ResumeManager', () => {
       expect(uploadSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           title: 'Samantha Ray Resume',
-          setActive: true,
+          setActive: false,
         })
       );
     });
 
     await waitFor(() => {
       expect(
-        screen.getByText('Saved and set "Samantha Ray Resume" as your active master profile!')
+        screen.getByText('Saved "Samantha Ray Resume" as a new profile in your library!')
       ).toBeDefined();
     });
   });
@@ -460,14 +460,14 @@ describe('ResumeManager', () => {
     fireEvent.click(screen.getByRole('button', { name: /AI Convert Raw Resume/i }));
 
     const fileInputs = document.querySelectorAll('input[type="file"][accept*=".json"]');
-    const converterFileInput = fileInputs[fileInputs.length - 1] as HTMLInputElement;
-    expect(converterFileInput).toBeDefined();
+    const fileInputElement = fileInputs[fileInputs.length - 1] as HTMLInputElement;
+    expect(fileInputElement).toBeDefined();
 
     const invalidJsonFile = new File(['{"basics": {"email": "not-an-email"}}'], 'invalid.json', {
       type: 'application/json',
     });
 
-    fireEvent.change(converterFileInput, { target: { files: [invalidJsonFile] } });
+    fireEvent.change(fileInputElement, { target: { files: [invalidJsonFile] } });
 
     await waitFor(() => {
       expect(screen.getByText(/Invalid JSON Resume schema/i)).toBeDefined();
