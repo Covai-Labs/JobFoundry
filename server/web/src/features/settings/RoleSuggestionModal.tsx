@@ -60,11 +60,9 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
             e.preventDefault();
             lastElement.focus();
           }
-        } else {
-          if (document.activeElement === lastElement) {
-            e.preventDefault();
-            firstElement.focus();
-          }
+        } else if (document.activeElement === lastElement) {
+          e.preventDefault();
+          firstElement.focus();
         }
       }
     };
@@ -117,6 +115,11 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
       aria-modal="true"
       aria-labelledby="role-suggestion-title"
       onClick={handleOverlayClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          onClose();
+        }
+      }}
       style={{
         position: 'fixed',
         top: 0,
@@ -361,6 +364,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
                 setInsertMode('append');
               }}
             />
+            {' '}
             Append to existing keywords
           </label>
           <label
@@ -380,6 +384,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
                 setInsertMode('replace');
               }}
             />
+            {' '}
             Replace all existing
           </label>
         </div>

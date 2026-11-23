@@ -58,6 +58,7 @@ test('cleanAndDeduplicateRoles standardizes and deduplicates strings', () => {
     'Software Engineer',
     '• Frontend Developer',
     '1. AI Operations Specialist',
+    'Junior Research Fellow / Research Fellow',
     '',
     'x', // too short (< 3 chars)
   ];
@@ -66,6 +67,8 @@ test('cleanAndDeduplicateRoles standardizes and deduplicates strings', () => {
     'Software Engineer',
     'Frontend Developer',
     'AI Operations Specialist',
+    'Junior Research Fellow',
+    'Research Fellow',
   ]);
 });
 

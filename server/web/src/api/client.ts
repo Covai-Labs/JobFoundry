@@ -541,7 +541,7 @@ export class ApiClient {
   }
 
   getArtifactUrl(id: string, filename: string): string {
-    return `${this.baseUrl}/api/v1/jobs/${id}/artifacts/${filename}`;
+    return `${this.baseUrl}/api/v1/jobs/${encodeURIComponent(id)}/artifacts/${encodeURIComponent(filename)}`;
   }
 
   async downloadPdf(id: string, theme: 'folio' | 'concise' = 'folio'): Promise<Blob> {

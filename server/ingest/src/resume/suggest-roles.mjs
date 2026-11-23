@@ -7,6 +7,62 @@
 import { safeFetch } from '../security/ssrf.mjs';
 import { defaultBaseForProvider, inferProviderFromModel } from '../settings/llm-resolve.mjs';
 
+function formatWorkExperience(work) {
+  if (!Array.isArray(work) || work.length === 0) return '';
+  const lines = ['\nWork Experience:'];
+  for (const job of work) {
+    if (!job || typeof job !== 'object') continue;
+    const pos = job.position ? job.position.trim() : '';
+    const comp = job.name ? job.name.trim() : '';
+    if (!pos && !comp) continue;
+    const atComp = comp ? ` at ${comp}` : '';
+    let line = `- ${pos}${atComp}`;
+    if (job.summary) {
+      line += ` (${job.summary.slice(0, 150).trim()})`;
+    }
+    lines.push(line);
+    if (Array.isArray(job.highlights) && job.highlights.length > 0) {
+      for (const h of job.highlights.slice(0, 2)) {
+        if (typeof h === 'string' && h.trim()) {
+          lines.push(`  * ${h.trim().slice(0, 150)}`);
+        }
+      }
+    }
+  }
+  return lines.join('\n');
+}
+
+function formatSkills(skills) {
+  if (!Array.isArray(skills) || skills.length === 0) return '';
+  const lines = ['\nCore Skills & Competencies:'];
+  for (const skill of skills) {
+    if (!skill || typeof skill !== 'object') continue;
+    const cat = skill.name ? skill.name.trim() : '';
+    const kws = Array.isArray(skill.keywords)
+      ? skill.keywords.filter((k) => typeof k === 'string' && k.trim()).join(', ')
+      : '';
+    if (cat || kws) {
+      const catPrefix = cat ? `${cat}: ` : '';
+      lines.push(`- ${catPrefix}${kws}`);
+    }
+  }
+  return lines.join('\n');
+}
+
+function formatProjects(projects) {
+  if (!Array.isArray(projects) || projects.length === 0) return '';
+  const lines = ['\nKey Projects:'];
+  for (const proj of projects.slice(0, 3)) {
+    if (!proj || typeof proj !== 'object') continue;
+    const name = proj.name ? proj.name.trim() : '';
+    const desc = proj.description ? proj.description.trim() : '';
+    if (name) {
+      lines.push(`- ${name}: ${desc.slice(0, 100)}`);
+    }
+  }
+  return lines.join('\n');
+}
+
 /**
  * Clean and summarize JSON Resume into a compact text overview for LLM analysis.
  */
@@ -15,61 +71,61 @@ export function formatResumeForAnalysis(resume) {
 
   const parts = [];
 
-  // Basics
   if (resume.basics) {
     const { label, summary } = resume.basics;
     if (label) parts.push(`Target / Current Headline: ${label.trim()}`);
     if (summary) parts.push(`Professional Summary: ${summary.trim()}`);
   }
 
-  // Work experience
-  if (Array.isArray(resume.work) && resume.work.length > 0) {
-    parts.push('\nWork Experience:');
-    for (const job of resume.work) {
-      if (!job || typeof job !== 'object') continue;
-      const pos = job.position ? job.position.trim() : '';
-      const comp = job.name ? job.name.trim() : '';
-      if (!pos && !comp) continue;
-      let line = `- ${pos}${comp ? ` at ${comp}` : ''}`;
-      if (job.summary) line += ` (${job.summary.slice(0, 150).trim()})`;
-      parts.push(line);
-      if (Array.isArray(job.highlights) && job.highlights.length > 0) {
-        for (const h of job.highlights.slice(0, 2)) {
-          if (typeof h === 'string' && h.trim()) {
-            parts.push(`  * ${h.trim().slice(0, 150)}`);
-          }
+  const workSection = formatWorkExperience(resume.work);
+  if (workSection) parts.push(workSection);
+
+  const skillsSection = formatSkills(resume.skills);
+  if (skillsSection) parts.push(skillsSection);
+
+  const projectsSection = formatProjects(resume.projects);
+  if (projectsSection) parts.push(projectsSection);
+
+  return parts.join('\n').trim();
+}
+
+function extractWorkRoles(work, rawCandidates) {
+  if (!Array.isArray(work)) return;
+  for (const item of work) {
+    if (typeof item?.position === 'string' && item.position.trim()) {
+      const pos = item.position.trim();
+      if (pos.includes('/') || pos.includes('|')) {
+        pos
+          .split(/[/|]/)
+          .map((p) => p.trim())
+          .filter((p) => p.length >= 3)
+          .forEach((p) => rawCandidates.add(p));
+      } else {
+        rawCandidates.add(pos);
+      }
+    }
+  }
+}
+
+const ROLE_KEYWORD_REGEX = /engineer|developer|architect|lead|manager|analyst|specialist|consultant|scientist/i;
+
+function extractSkillRoles(skills, rawCandidates) {
+  if (!Array.isArray(skills)) return;
+  for (const skill of skills) {
+    if (typeof skill?.name === 'string' && skill.name.trim()) {
+      const name = skill.name.trim();
+      if (ROLE_KEYWORD_REGEX.test(name)) {
+        rawCandidates.add(name);
+      }
+    }
+    if (Array.isArray(skill?.keywords)) {
+      for (const kw of skill.keywords) {
+        if (typeof kw === 'string' && ROLE_KEYWORD_REGEX.test(kw)) {
+          rawCandidates.add(kw.trim());
         }
       }
     }
   }
-
-  // Skills
-  if (Array.isArray(resume.skills) && resume.skills.length > 0) {
-    parts.push('\nCore Skills & Competencies:');
-    for (const skill of resume.skills) {
-      if (!skill || typeof skill !== 'object') continue;
-      const cat = skill.name ? skill.name.trim() : '';
-      const kws = Array.isArray(skill.keywords)
-        ? skill.keywords.filter((k) => typeof k === 'string' && k.trim()).join(', ')
-        : '';
-      if (cat || kws) {
-        parts.push(`- ${cat ? `${cat}: ` : ''}${kws}`);
-      }
-    }
-  }
-
-  // Projects
-  if (Array.isArray(resume.projects) && resume.projects.length > 0) {
-    parts.push('\nKey Projects:');
-    for (const proj of resume.projects.slice(0, 3)) {
-      if (!proj || typeof proj !== 'object') continue;
-      const name = proj.name ? proj.name.trim() : '';
-      const desc = proj.description ? proj.description.trim() : '';
-      if (name) parts.push(`- ${name}: ${desc.slice(0, 100)}`);
-    }
-  }
-
-  return parts.join('\n').trim();
 }
 
 /**
@@ -84,44 +140,8 @@ export function heuristicSuggestRoles(resume) {
     rawCandidates.add(resume.basics.label.trim());
   }
 
-  if (Array.isArray(resume.work)) {
-    for (const item of resume.work) {
-      if (typeof item?.position === 'string' && item.position.trim()) {
-        const pos = item.position.trim();
-        // Split on common dividers like slashes or pipes e.g. "Fellow / Researcher"
-        if (pos.includes('/') || pos.includes('|')) {
-          pos
-            .split(/[/|]/)
-            .map((p) => p.trim())
-            .filter((p) => p.length >= 3)
-            .forEach((p) => rawCandidates.add(p));
-        } else {
-          rawCandidates.add(pos);
-        }
-      }
-    }
-  }
-
-  if (Array.isArray(resume.skills)) {
-    for (const skill of resume.skills) {
-      if (typeof skill?.name === 'string' && skill.name.trim()) {
-        const name = skill.name.trim();
-        if (/engineer|developer|architect|lead|manager|analyst|specialist|consultant/i.test(name)) {
-          rawCandidates.add(name);
-        }
-      }
-      if (Array.isArray(skill?.keywords)) {
-        for (const kw of skill.keywords) {
-          if (
-            typeof kw === 'string' &&
-            /engineer|developer|scientist|specialist|lead|analyst|manager/i.test(kw)
-          ) {
-            rawCandidates.add(kw.trim());
-          }
-        }
-      }
-    }
-  }
+  extractWorkRoles(resume.work, rawCandidates);
+  extractSkillRoles(resume.skills, rawCandidates);
 
   return cleanAndDeduplicateRoles(Array.from(rawCandidates));
 }
@@ -137,28 +157,59 @@ export function cleanAndDeduplicateRoles(roles) {
 
   for (const item of roles) {
     if (typeof item !== 'string') continue;
-    let title = item.trim().replace(/^[-*•]\s*/, '');
-    // Strip numeric list prefixes only when followed by list punctuation or whitespace (e.g. "1. " or "2) ")
-    // Preserves leading numbers in titles such as "3D Artist" or "2D Animator"
-    title = title.replace(/^\d+[\s.)-]+\s*/, '').trim();
+    const subItems = item.includes('/') || item.includes('|') ? item.split(/[/|]/) : [item];
 
-    // Safely strip surrounding quotes without polynomial regular expressions
-    while (title.startsWith('"') || title.startsWith("'")) {
-      title = title.slice(1).trim();
+    for (const sub of subItems) {
+      let title = sub.trim().replace(/^[-*•]\s*/, '');
+      title = title.replace(/^\d+[\s.)-]+\s*/, '').trim();
+
+      while (title.startsWith('"') || title.startsWith("'")) {
+        title = title.slice(1).trim();
+      }
+      while (title.endsWith('"') || title.endsWith("'")) {
+        title = title.slice(0, -1).trim();
+      }
+
+      if (!title || title.length < 3 || title.length > 60) continue;
+
+      const lower = title.toLowerCase();
+      if (seen.has(lower)) continue;
+      seen.add(lower);
+      cleaned.push(title);
     }
-    while (title.endsWith('"') || title.endsWith("'")) {
-      title = title.slice(0, -1).trim();
-    }
-
-    if (!title || title.length < 3 || title.length > 60) continue;
-
-    const lower = title.toLowerCase();
-    if (seen.has(lower)) continue;
-    seen.add(lower);
-    cleaned.push(title);
   }
 
   return cleaned;
+}
+
+function parseRolesFromLlm(rawContent) {
+  const cleanJsonStr = rawContent
+    .replace(/^```json\s*/i, '')
+    .replace(/^```\s*/i, '')
+    .replace(/\s*```$/i, '')
+    .trim();
+
+  let parsed;
+  try {
+    parsed = JSON.parse(cleanJsonStr);
+  } catch {
+    const firstBrace = cleanJsonStr.indexOf('{');
+    const lastBrace = cleanJsonStr.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      parsed = JSON.parse(cleanJsonStr.slice(firstBrace, lastBrace + 1));
+    } else {
+      throw new Error('Could not parse JSON from LLM response');
+    }
+  }
+
+  let rawRoles = [];
+  if (Array.isArray(parsed?.roles)) {
+    rawRoles = parsed.roles;
+  } else if (Array.isArray(parsed)) {
+    rawRoles = parsed;
+  }
+
+  return cleanAndDeduplicateRoles(rawRoles);
 }
 
 /**
@@ -182,7 +233,6 @@ export async function suggestRolesFromResume({
     effectiveKey = process.env.DEFAULT_LLM_API_KEY || process.env.OPENROUTER_API_KEY || '';
   }
 
-  // If no API key is available, fallback to heuristic extraction
   if (!effectiveKey) {
     return {
       ok: true,
@@ -252,31 +302,7 @@ ${resumeOverview}
       throw new Error('LLM returned empty message content');
     }
 
-    const cleanJsonStr = rawContent
-      .replace(/^```json\s*/i, '')
-      .replace(/^```\s*/i, '')
-      .replace(/\s*```$/i, '')
-      .trim();
-
-    let parsed;
-    try {
-      parsed = JSON.parse(cleanJsonStr);
-    } catch {
-      const firstBrace = cleanJsonStr.indexOf('{');
-      const lastBrace = cleanJsonStr.lastIndexOf('}');
-      if (firstBrace !== -1 && lastBrace > firstBrace) {
-        parsed = JSON.parse(cleanJsonStr.slice(firstBrace, lastBrace + 1));
-      } else {
-        throw new Error('Could not parse JSON from LLM response');
-      }
-    }
-
-    const rawRoles = Array.isArray(parsed?.roles)
-      ? parsed.roles
-      : Array.isArray(parsed)
-        ? parsed
-        : [];
-    let roles = cleanAndDeduplicateRoles(rawRoles);
+    let roles = parseRolesFromLlm(rawContent);
 
     if (roles.length > 0) {
       if (roles.length > 18) {
@@ -288,7 +314,6 @@ ${resumeOverview}
       return { ok: true, roles, source: 'llm' };
     }
 
-    // If LLM returned empty array, fallback to heuristic
     return {
       ok: true,
       roles: heuristicSuggestRoles(resume),
@@ -296,7 +321,6 @@ ${resumeOverview}
       notice: 'LLM returned no roles; fell back to heuristic titles.',
     };
   } catch (err) {
-    // Graceful fallback to heuristic extraction on LLM failure
     return {
       ok: true,
       roles: heuristicSuggestRoles(resume),
