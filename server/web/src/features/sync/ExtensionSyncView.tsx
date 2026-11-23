@@ -166,39 +166,34 @@ export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingC
               Don&apos;t have the Browser Extension yet?
             </h3>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem', margin: 0 }}>
-              Install the companion extension in Chrome, Brave, Edge, or Firefox to capture jobs and
-              run scrapers.
+              Install the companion extension in Firefox or Chromium-based browsers to capture jobs
+              and run scrapers.
             </p>
           </div>
         </div>
 
         <div style={{ display: 'flex', gap: '0.6rem', alignItems: 'center', flexWrap: 'wrap' }}>
           <a
-            href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="btn btn-primary btn-sm"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
-          >
-            Chrome / Brave
-          </a>
-          <a
             href="https://addons.mozilla.org/en-US/firefox/addon/jobfoundry/"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+            title="Available on Firefox Add-ons (AMO). Compatible with Firefox, LibreWolf, Floorp, IceCat, and other Gecko-based browsers."
+            aria-label="Install for Firefox, LibreWolf, Floorp, IceCat, and other Gecko-based browsers"
           >
             Firefox
           </a>
           <a
-            href="https://microsoftedge.microsoft.com/addons/detail/ldnjhehiegnljjlmajlipldlhdkadnpe"
+            href="https://chromewebstore.google.com/detail/jobfoundry/kacfnebbiekbofdkgfpgmdcncgohhonm"
             target="_blank"
             rel="noopener noreferrer"
             className="btn btn-primary btn-sm"
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none' }}
+            title="Available on Chrome Web Store. Compatible with Chrome, Edge, Brave, Opera, Vivaldi, and other Chromium browsers."
+            aria-label="Install for Chromium browsers including Chrome, Edge, Brave, Opera, and Vivaldi"
           >
-            Edge
+            Chromium
           </a>
           <a
             href="https://github.com/Covai-Labs/JobFoundry/releases"
