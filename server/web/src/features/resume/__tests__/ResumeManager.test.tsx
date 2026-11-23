@@ -447,4 +447,30 @@ describe('ResumeManager', () => {
 
     expect(screen.queryByRole('status')).toBeNull();
   });
+
+  it('validates uploaded JSON file against schema and displays error if invalid', async () => {
+    vi.spyOn(api, 'getResumes').mockResolvedValue([mockResume]);
+
+    render(<ResumeManager />);
+
+    await waitFor(() => {
+      expect(screen.getByDisplayValue('Alex Mercer')).toBeDefined();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /AI Convert Raw Resume/i }));
+
+    const fileInputs = document.querySelectorAll('input[type="file"][accept*=".json"]');
+    const converterFileInput = fileInputs[fileInputs.length - 1] as HTMLInputElement;
+    expect(converterFileInput).toBeDefined();
+
+    const invalidJsonFile = new File(['{"basics": {"email": "not-an-email"}}'], 'invalid.json', {
+      type: 'application/json',
+    });
+
+    fireEvent.change(converterFileInput, { target: { files: [invalidJsonFile] } });
+
+    await waitFor(() => {
+      expect(screen.getByText(/Invalid JSON Resume schema/i)).toBeDefined();
+    });
+  });
 });

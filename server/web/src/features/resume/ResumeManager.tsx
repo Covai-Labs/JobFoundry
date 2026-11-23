@@ -23,8 +23,8 @@ import {
 import { api, UserResume } from '../../api/client';
 import resumeSchema from './resume-schema.json';
 import { extractKeywordsFromResume } from '../../lib/resumeKeywords';
-import { ResumeFormEditor, ResumeData, SkillItem } from './ResumeFormEditor';
-import { STARTER_RESUME_TEMPLATE } from './resumeTypes';
+import { ResumeFormEditor } from './ResumeFormEditor';
+import { STARTER_RESUME_TEMPLATE, ResumeData, SkillItem, WorkItem } from './resumeTypes';
 import { CandidateFactsPanel } from './CandidateFactsPanel';
 import { ThemePreviewGallery } from './ThemePreviewGallery';
 import { findThemeMetadata } from './themeCatalog';
@@ -85,6 +85,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   const [isExtractingPdf, setIsExtractingPdf] = useState<boolean>(false);
   const [showRawExtractedJson, setShowRawExtractedJson] = useState<boolean>(false);
   const [savingAsNew, setSavingAsNew] = useState<boolean>(false);
+  const fileReadTokenRef = useRef<number>(0);
 
   useEffect(() => {
     if (!success) return;
@@ -280,6 +281,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   };
 
   const processResumeFile = async (file: File) => {
+    const token = ++fileReadTokenRef.current;
     const isJson = file.name.endsWith('.json') || file.type === 'application/json';
     const isPdf = file.name.endsWith('.pdf') || file.type === 'application/pdf';
     const isText =
@@ -299,7 +301,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         setConvertError(null);
         const { extractText } = await import('unpdf');
         const arrayBuffer = await file.arrayBuffer();
+        if (token !== fileReadTokenRef.current) return;
         const result = await extractText(new Uint8Array(arrayBuffer));
+        if (token !== fileReadTokenRef.current) return;
         const text = Array.isArray(result.text) ? result.text.join('\n\n') : result.text || '';
         if (!text.trim()) {
           setConvertError(
@@ -311,26 +315,42 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
         setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
         setConvertError(null);
       } catch (err: unknown) {
+        if (token !== fileReadTokenRef.current) return;
         const msg = err instanceof Error ? err.message : String(err);
         setConvertError(`Failed to extract text from PDF: ${msg}`);
       } finally {
-        setIsExtractingPdf(false);
+        if (token === fileReadTokenRef.current) {
+          setIsExtractingPdf(false);
+        }
       }
       return;
     }
 
     const reader = new FileReader();
     reader.onload = (event) => {
+      if (token !== fileReadTokenRef.current) return;
       const content = (event.target?.result as string) || '';
       if (isJson) {
         try {
           const parsed = JSON.parse(content);
           if (parsed && typeof parsed === 'object') {
-            setExtractedResume(parsed);
-            setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
+            const isValid = schemaValidator(parsed);
+            if (isValid) {
+              setExtractedResume(parsed as ResumeData);
+              setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
+              setRawResumeText(content);
+              setConvertStep('review');
+              setConvertError(null);
+              return;
+            }
+            const schemaIssues = schemaValidator.errors
+              ? schemaValidator.errors
+                  .map((e: ErrorObject) => `${e.instancePath || 'root'}: ${e.message}`)
+                  .join('; ')
+              : 'Uploaded file is not a valid JSON Resume v1.0.0.';
+            setConvertError(`Invalid JSON Resume schema: ${schemaIssues}`);
             setRawResumeText(content);
-            setConvertStep('review');
-            setConvertError(null);
+            setLoadedFile({ name: file.name, size: formatFileSize(file.size) });
             return;
           }
         } catch {
@@ -347,7 +367,8 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
   const handleRawFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    processResumeFile(file);
+    void processResumeFile(file);
+    e.target.value = '';
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -368,8 +389,39 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) {
-      processResumeFile(file);
+      void processResumeFile(file);
     }
+  };
+
+  const getDropzoneTitle = (): string => {
+    if (isExtractingPdf) return 'Extracting text from PDF...';
+    if (isDragging) return 'Drop PDF, text, or markdown file here...';
+    if (loadedFile) return `File Loaded: ${loadedFile.name}`;
+    return 'Drag & drop PDF, Markdown, or text file';
+  };
+
+  const getDropzoneSubtitle = (): string => {
+    if (isExtractingPdf) return 'Reading document pages via client-side PDF parser';
+    if (loadedFile) return `Size: ${loadedFile.size}`;
+    return 'Supports .pdf, .txt, .md, or .json files';
+  };
+
+  const getModalSubtitle = (): string => {
+    if (convertStep === 'review') {
+      return 'Successfully structured according to JSON Resume v1.0.0. Inspect extracted details before applying.';
+    }
+    return 'Paste your plain text or Markdown resume, or drop a file. The AI engine will parse and structure it into standard JSON Resume v1.0.0.';
+  };
+
+  const extractSkillTokens = (skills: SkillItem[]): string[] => {
+    return skills
+      .flatMap((s) => {
+        if (Array.isArray(s.keywords)) {
+          return s.name ? [s.name, ...s.keywords] : s.keywords;
+        }
+        return s.name ? [s.name] : [];
+      })
+      .slice(0, 15);
   };
 
   const handleConvertRawResume = async () => {
@@ -602,8 +654,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
       )}
 
       {success && (
-        <div
-          role="status"
+        <output
           style={{
             padding: '0.75rem 1rem',
             background: 'var(--color-green-bg, rgba(16, 185, 129, 0.12))',
@@ -636,7 +687,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
           >
             ✕
           </button>
-        </div>
+        </output>
       )}
 
       {/* Main Dual Grid: Active Preview / Versions + Visual Editor */}
@@ -1152,9 +1203,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                     marginBottom: 0,
                   }}
                 >
-                  {convertStep === 'review'
-                    ? 'Successfully structured according to JSON Resume v1.0.0. Inspect extracted details before applying.'
-                    : 'Paste your plain text or Markdown resume, or drop a file. The AI engine will parse and structure it into standard JSON Resume v1.0.0.'}
+                  {getModalSubtitle()}
                 </p>
               </div>
               <button
@@ -1564,9 +1613,9 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         Experience Highlights
                       </div>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
-                        {extractedResume.work.slice(0, 3).map((job: any, idx: number) => (
+                        {extractedResume.work.slice(0, 3).map((job: WorkItem, idx: number) => (
                           <div
-                            key={idx}
+                            key={job.name ? `${job.name}-${idx}` : `job-${idx}`}
                             style={{
                               display: 'flex',
                               justifyContent: 'space-between',
@@ -1602,26 +1651,17 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         Extracted Skills
                       </div>
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem' }}>
-                        {extractedResume.skills
-                          .flatMap((s: any) =>
-                            Array.isArray(s.keywords)
-                              ? s.name
-                                ? [s.name, ...s.keywords]
-                                : s.keywords
-                              : s.name
-                                ? [s.name]
-                                : []
-                          )
-                          .slice(0, 15)
-                          .map((skill: string, idx: number) => (
+                        {extractSkillTokens(extractedResume.skills).map(
+                          (skill: string, idx: number) => (
                             <span
-                              key={idx}
+                              key={`${skill}-${idx}`}
                               className="badge badge-indigo"
                               style={{ fontSize: '0.72rem' }}
                             >
                               {skill}
                             </span>
-                          ))}
+                          )
+                        )}
                       </div>
                     </div>
                   )}
@@ -1763,20 +1803,10 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                             color: 'var(--text-primary)',
                           }}
                         >
-                          {isExtractingPdf
-                            ? 'Extracting text from PDF...'
-                            : isDragging
-                              ? 'Drop PDF, text, or markdown file here...'
-                              : loadedFile
-                                ? `File Loaded: ${loadedFile.name}`
-                                : 'Drag & drop PDF, Markdown, or text file'}
+                          {getDropzoneTitle()}
                         </div>
                         <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                          {isExtractingPdf
-                            ? 'Reading document pages via client-side PDF parser'
-                            : loadedFile
-                              ? `Size: ${loadedFile.size}`
-                              : 'Supports .pdf, .txt, .md, or .json files'}
+                          {getDropzoneSubtitle()}
                         </div>
                       </div>
                     </div>
@@ -1786,6 +1816,7 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                         <button
                           type="button"
                           onClick={() => {
+                            fileReadTokenRef.current++;
                             setLoadedFile(null);
                             setRawResumeText('');
                           }}
@@ -1843,13 +1874,14 @@ export const ResumeManager: React.FC<ResumeManagerProps> = ({
                   <textarea
                     value={rawResumeText}
                     onChange={(e) => {
+                      fileReadTokenRef.current++;
                       setRawResumeText(e.target.value);
                       if (loadedFile) setLoadedFile(null);
                     }}
                     placeholder="Paste your resume contents here (e.g. contact info, work history, skills, education)..."
                     className="input-text"
                     rows={11}
-                    disabled={convertingRaw}
+                    disabled={convertingRaw || isExtractingPdf}
                     style={{
                       fontFamily: 'var(--font-mono, monospace)',
                       fontSize: '0.82rem',
