@@ -507,6 +507,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                   onJobUpdated={onJobUpdated}
                   onJobDeleted={onJobDeleted}
                   onStatusChange={onStatusChange}
+                  onRefreshJobs={onRefresh}
                 />
               }
             />
@@ -563,6 +564,7 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                     onJobDeleted={onJobDeleted}
                     onStatusChange={onStatusChange}
                     selectedJobId={location.pathname.split('/')[2]}
+                    onRefreshJobs={onRefresh}
                   />
                   <JobDetailWrapper
                     jobs={jobs}

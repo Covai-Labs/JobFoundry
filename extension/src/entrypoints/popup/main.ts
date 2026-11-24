@@ -1,6 +1,8 @@
 import { getConfig, setConfig } from '../../shared/config.ts';
 import type { Config } from '../../shared/config.ts';
 import { sendMessage } from '../../shared/messaging.ts';
+import { getScanState, watchScanState } from '../../shared/scan-state.ts';
+import type { ScanState } from '../../shared/scan-state.ts';
 
 export const DOM = {
   connBadge: '#popup-conn-badge',
@@ -90,7 +92,62 @@ export async function hydrate({
     mainEl.classList.add('sidepanel');
   }
 
+  // Restore persistent scan / search state if active or recent
+  try {
+    const scanState = await getScanState();
+    applyScanStateToUI(doc, scanState);
+  } catch {
+    // ignore storage read failure
+  }
+
   return config;
+}
+
+export function applyScanStateToUI(doc: Document, state: ScanState) {
+  const status = $<HTMLElement>(doc, DOM.status);
+  const searchBtn = $<HTMLButtonElement>(doc, DOM.searchBoardsNow);
+  const scanBtn = $<HTMLButtonElement>(doc, DOM.scanNow);
+  const captureBtn = $<HTMLButtonElement>(doc, DOM.captureTab);
+
+  if (state.inProgress) {
+    if (searchBtn) {
+      searchBtn.disabled = true;
+      if (state.type === 'search') {
+        searchBtn.textContent = '⏳ Searching Boards...';
+      }
+    }
+    if (scanBtn) {
+      scanBtn.disabled = true;
+      if (state.type === 'scan') {
+        scanBtn.textContent = '⏳ Scanning Portals...';
+      }
+    }
+    if (captureBtn) captureBtn.disabled = true;
+    if (status) {
+      status.textContent = state.statusMessage || 'Processing...';
+      status.style.color = 'var(--accent, #6366f1)';
+    }
+  } else {
+    if (searchBtn) {
+      searchBtn.disabled = false;
+      searchBtn.textContent = '🔍 Search Job Boards';
+    }
+    if (scanBtn) {
+      scanBtn.disabled = false;
+      scanBtn.textContent = '🚀 Scan Portals Now';
+    }
+    if (captureBtn) captureBtn.disabled = false;
+    if (status && state.statusMessage && state.statusMessage !== 'Ready') {
+      status.textContent = state.statusMessage;
+      if (state.errors?.length && !state.newIngested) {
+        status.style.color = '#ef4444';
+      } else if (state.newIngested && state.newIngested > 0) {
+        status.style.color = '#10b981';
+      } else {
+        status.style.color = '';
+      }
+    }
+  }
 }
 
 export async function autoConnect({
@@ -188,9 +245,14 @@ export async function scanNow({
   sendMessage?: (type: 'popup:scanNow', payload?: any) => Promise<any>;
 } = {}) {
   const status = $<HTMLElement>(doc, DOM.status);
+  const scanBtn = $<HTMLButtonElement>(doc, DOM.scanNow);
   if (status) {
     status.textContent = 'Scanning portals & filtering...';
     status.style.color = '';
+  }
+  if (scanBtn) {
+    scanBtn.disabled = true;
+    scanBtn.textContent = '⏳ Scanning Portals...';
   }
   try {
     const response = await send('popup:scanNow', undefined);
@@ -214,6 +276,11 @@ export async function scanNow({
       status.style.color = '#ef4444';
     }
     return { ok: false, error: err?.message ?? String(err) };
+  } finally {
+    if (scanBtn) {
+      scanBtn.disabled = false;
+      scanBtn.textContent = '🚀 Scan Portals Now';
+    }
   }
 }
 
@@ -225,9 +292,37 @@ export async function searchBoardsNow({
   sendMessage?: (type: 'popup:searchBoardsNow', payload?: any) => Promise<any>;
 } = {}) {
   const status = $<HTMLElement>(doc, DOM.status);
+  const searchBtn = $<HTMLButtonElement>(doc, DOM.searchBoardsNow);
+
+  // Check if keywords are configured before launching search
+  try {
+    const config = await getConfig();
+    const positiveTerms = config?.titleFilter?.positive || [];
+    if (!positiveTerms || positiveTerms.length === 0) {
+      if (status) {
+        status.innerHTML = `⚠️ No target keywords configured.<br/><a href="#" id="link-setup-keywords" style="color: var(--accent); text-decoration: underline; font-weight: 600;">Open Settings to add role titles</a>`;
+        status.style.color = '#f59e0b';
+        doc.getElementById('link-setup-keywords')?.addEventListener('click', (e) => {
+          e.preventDefault();
+          const url = `${uiBase(config)}/settings?tab=scrapers`;
+          const api = (globalThis as any).browser ?? (globalThis as any).chrome;
+          if (api?.tabs?.create) api.tabs.create({ url });
+          else window.open(url, '_blank');
+        });
+      }
+      return { ok: false, error: 'No target role keywords configured' };
+    }
+  } catch {
+    // proceed if config check fails
+  }
+
   if (status) {
     status.textContent = 'Searching enabled job boards...';
     status.style.color = '';
+  }
+  if (searchBtn) {
+    searchBtn.disabled = true;
+    searchBtn.textContent = '⏳ Searching Boards...';
   }
   try {
     const response = await send('popup:searchBoardsNow', undefined);
@@ -249,6 +344,11 @@ export async function searchBoardsNow({
       status.style.color = '#ef4444';
     }
     return { ok: false, error: err?.message ?? String(err) };
+  } finally {
+    if (searchBtn) {
+      searchBtn.disabled = false;
+      searchBtn.textContent = '🔍 Search Job Boards';
+    }
   }
 }
 
@@ -536,6 +636,13 @@ export function init(opts: { doc?: Document; [key: string]: any } = {}) {
     } catch {
       // ignore
     }
+  }
+
+  // Watch for scan state updates while popup/sidepanel remains open
+  try {
+    watchScanState((state) => applyScanStateToUI(doc, state));
+  } catch {
+    // ignore
   }
 
   return hydrated;

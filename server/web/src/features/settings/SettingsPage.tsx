@@ -1146,6 +1146,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         setExtensionConfig(res.config);
       }
       setIsExtensionDirty(false);
+      setIsDirty(false);
       toast.success('Scrapers and search filters saved successfully');
     } catch (err: any) {
       toast.error(`Failed to save scrapers config: ${err?.message || 'Unknown error'}`);

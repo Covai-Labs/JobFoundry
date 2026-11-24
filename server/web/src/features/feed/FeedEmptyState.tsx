@@ -12,6 +12,9 @@ interface FeedEmptyStateProps {
   isExtensionPaired: boolean;
   onShowAll: () => void;
   onResetFilters: () => void;
+  onSearchBoards?: () => void;
+  onScanPortals?: () => void;
+  isScanning?: boolean;
 }
 
 /**
@@ -27,6 +30,9 @@ export const FeedEmptyState: React.FC<FeedEmptyStateProps> = ({
   isExtensionPaired,
   onShowAll,
   onResetFilters,
+  onSearchBoards,
+  onScanPortals,
+  isScanning = false,
 }) => {
   if (isQueueView && !hasActiveFilters && totalJobs > 0) {
     return (
@@ -194,14 +200,35 @@ export const FeedEmptyState: React.FC<FeedEmptyStateProps> = ({
               >
                 ✓ Extension Paired & Ready
               </span>
-              <div className="onboarding-step-title">Capture Jobs as You Browse</div>
+              <div className="onboarding-step-title">Discover & Capture Jobs</div>
               <div className="onboarding-step-desc">
-                Your extension is paired. Browse LinkedIn, Indeed, Greenhouse, or Lever and click
-                the JobFoundry extension icon to capture jobs. Or add a listing manually via + Add
-                Job above.
+                Search multi-board aggregators for your target role keywords, scan 38 career
+                portals, or capture listings in 1 click as you browse.
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.5rem', flexWrap: 'wrap' }}>
+            <div style={{ display: 'flex', gap: '0.6rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
+              {onSearchBoards && (
+                <button
+                  type="button"
+                  onClick={onSearchBoards}
+                  disabled={isScanning}
+                  className="btn btn-primary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  🔍 {isScanning ? 'Searching...' : 'Search Job Boards'}
+                </button>
+              )}
+              {onScanPortals && (
+                <button
+                  type="button"
+                  onClick={onScanPortals}
+                  disabled={isScanning}
+                  className="btn btn-secondary btn-sm"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  🚀 {isScanning ? 'Scanning...' : 'Scan Portals Now'}
+                </button>
+              )}
               <a
                 href="/settings?tab=sync"
                 className="btn btn-secondary btn-sm"

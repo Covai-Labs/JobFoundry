@@ -7,6 +7,7 @@ import {
   enqueueOfflineJobs,
   flushOfflineJobs,
 } from '../shared/config.ts';
+import { setScanState } from '../shared/scan-state.ts';
 import type { Config, TitleFilterConfig } from '../shared/config.ts';
 import { runScanPipeline } from '../background/scan.js';
 import { runSearchPipeline } from '../background/search/index.ts';
@@ -422,6 +423,15 @@ export default defineBackground(() => {
         await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
         await flushOfflineJobs(sendJobs, { getConfig }).catch(() => {});
       }
+      await setScanState({
+        inProgress: true,
+        type: 'scan',
+        statusMessage: 'Scanning 38 portal feeds...',
+        startedAt: Date.now(),
+        totalFound: 0,
+        newIngested: 0,
+        errors: [],
+      });
       const jobs = await runScanPipeline({
         getConfig,
         sendJobs: async (args) => {
@@ -435,8 +445,24 @@ export default defineBackground(() => {
           }
         },
       });
-      return { ok: true, scanned: Array.isArray(jobs) ? jobs.length : 0 };
+      const scannedCount = Array.isArray(jobs) ? jobs.length : 0;
+      await setScanState({
+        inProgress: false,
+        type: 'scan',
+        statusMessage: `✓ Scan complete: ${scannedCount} job(s) matched keywords and queued`,
+        totalFound: scannedCount,
+        newIngested: scannedCount,
+        completedAt: Date.now(),
+      });
+      return { ok: true, scanned: scannedCount };
     } catch (err: any) {
+      await setScanState({
+        inProgress: false,
+        type: 'scan',
+        statusMessage: `Scan error: ${err?.message ?? err}`,
+        errors: [err?.message ?? String(err)],
+        completedAt: Date.now(),
+      });
       return { ok: false, error: err?.message ?? String(err) };
     }
   });
@@ -448,8 +474,26 @@ export default defineBackground(() => {
         await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
         await flushOfflineJobs(sendJobs, { getConfig }).catch(() => {});
       }
+      await setScanState({
+        inProgress: true,
+        type: 'search',
+        statusMessage: 'Searching job boards...',
+        startedAt: Date.now(),
+        totalFound: 0,
+        newIngested: 0,
+        errors: [],
+      });
       const result = await runSearchPipeline({
         getConfig,
+        onProgress: async (p) => {
+          await setScanState({
+            inProgress: true,
+            type: 'search',
+            currentTerm: p.currentTerm,
+            statusMessage: `Searching "${p.currentTerm}" (${p.termIndex + 1}/${p.totalTerms})...`,
+            totalFound: p.foundSoFar,
+          });
+        },
         sendJobs: async (args) => {
           try {
             return await sendJobs(args);
@@ -461,8 +505,28 @@ export default defineBackground(() => {
           }
         },
       });
+      await setScanState({
+        inProgress: false,
+        type: 'search',
+        currentTerm: undefined,
+        statusMessage: result.ok
+          ? `✓ Search complete: ${result.newIngested ?? 0} new job(s) ingested (${result.totalFound ?? 0} found)`
+          : `Search failed: ${result.errors?.[0] || 'No jobs found'}`,
+        totalFound: result.totalFound,
+        newIngested: result.newIngested,
+        droppedDedup: result.droppedDedup,
+        errors: result.errors,
+        completedAt: Date.now(),
+      });
       return result;
     } catch (err: any) {
+      await setScanState({
+        inProgress: false,
+        type: 'search',
+        statusMessage: `Search error: ${err?.message ?? err}`,
+        errors: [err?.message ?? String(err)],
+        completedAt: Date.now(),
+      });
       return { ok: false, error: err?.message ?? String(err) };
     }
   });

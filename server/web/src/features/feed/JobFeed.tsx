@@ -14,7 +14,9 @@ import {
   getStatusLabel,
 } from '../../lib/jobStages';
 import { useMediaQuery } from '../../lib/useMediaQuery';
-import { Search, LayoutList, LayoutGrid, X, Keyboard } from 'lucide-react';
+import { Search, LayoutList, LayoutGrid, X, Keyboard, Compass } from 'lucide-react';
+import { IngestionProgressBar } from './IngestionProgressBar';
+import { useExtensionBridge } from './useExtensionBridge';
 
 /** Below this width the split triage station collapses to cards. */
 const SPLIT_VIEW_MIN_WIDTH = 1080;
@@ -28,6 +30,7 @@ interface JobFeedProps {
   onJobUpdated?: (updatedJob: Job) => void;
   onJobDeleted?: (jobId: string) => void;
   onStatusChange?: (jobId: string, newStatus: JobStatus) => Promise<void> | void;
+  onRefreshJobs?: () => void;
 }
 
 export type SortOption =
@@ -48,7 +51,16 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   onJobUpdated,
   onJobDeleted,
   onStatusChange,
+  onRefreshJobs,
 }) => {
+  const {
+    isExtensionAvailable,
+    scanState,
+    bannerDismissed,
+    triggerSearchBoards,
+    triggerScanPortals,
+    dismissBanner,
+  } = useExtensionBridge(onRefreshJobs);
   const [filters, setFilters] = useState<FilterCriteria>({
     search: initialFilters?.search ?? '',
     status: initialFilters?.status ?? ACTIONABLE_FILTER,
@@ -404,11 +416,14 @@ export const JobFeed: React.FC<JobFeedProps> = ({
         hasActiveFilters={hasActiveFilters}
         totalJobs={jobs.length}
         hasActiveResume={hasActiveResume}
-        isExtensionPaired={isExtensionPaired}
+        isExtensionPaired={isExtensionPaired || isExtensionAvailable}
         onShowAll={() => {
           setFilters((f) => ({ ...f, status: 'all' }));
         }}
         onResetFilters={resetFilters}
+        onSearchBoards={triggerSearchBoards}
+        onScanPortals={triggerScanPortals}
+        isScanning={Boolean(scanState?.inProgress)}
       />
     );
   } else if (effectiveViewMode === 'split') {
@@ -469,6 +484,14 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     <div>
       {/* Keyboard Help Modal */}
       <KeyboardHelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
+
+      {/* Live Ingestion Progress Banner */}
+      <IngestionProgressBar
+        scanState={scanState}
+        bannerDismissed={bannerDismissed}
+        onDismiss={dismissBanner}
+        onRefreshFeed={onRefreshJobs}
+      />
 
       {/* Filters and Sorting Bar */}
       <div className="filters-bar">
@@ -585,6 +608,53 @@ export const JobFeed: React.FC<JobFeedProps> = ({
               <X size={13} /> Clear
             </button>
           )}
+
+          {/* Quick Job Discovery Actions */}
+          <div
+            className="feed-discovery-actions"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <button
+              type="button"
+              onClick={triggerSearchBoards}
+              disabled={Boolean(scanState?.inProgress)}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+              }}
+              title="Search job boards (LinkedIn, Indeed, Glassdoor, HiringCafe) for target role keywords"
+            >
+              <Search size={13} />
+              <span>
+                {scanState?.inProgress && scanState.type === 'search'
+                  ? 'Searching...'
+                  : 'Search Boards'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={triggerScanPortals}
+              disabled={Boolean(scanState?.inProgress)}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+              }}
+              title="Scan 38 portal feeds for matching opportunities"
+            >
+              <Compass size={13} />
+              <span>
+                {scanState?.inProgress && scanState.type === 'scan'
+                  ? 'Scanning...'
+                  : 'Scan Portals'}
+              </span>
+            </button>
+          </div>
 
           {/* View Mode Switcher — split view is hidden when the viewport can't fit it */}
           {!isNarrowViewport && (

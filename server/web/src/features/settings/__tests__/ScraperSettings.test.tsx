@@ -163,4 +163,25 @@ describe('ScraperSettingsTab', () => {
       })
     );
   });
+
+  it('renders theme-aware badges for positive and negative keyword chips', () => {
+    render(
+      <ScraperSettingsTab
+        config={sampleConfig}
+        onChange={vi.fn()}
+        onSave={vi.fn()}
+        saving={false}
+        onExtractFromResume={vi.fn()}
+        extractingResume={false}
+      />
+    );
+
+    const posChip = screen.getByText('Software Engineer').closest('span');
+    expect(posChip).toHaveClass('badge');
+    expect(posChip).toHaveClass('badge-indigo');
+
+    const negChip = screen.getByText('intern').closest('span');
+    expect(negChip).toHaveClass('badge');
+    expect(negChip).toHaveClass('badge-red');
+  });
 });
