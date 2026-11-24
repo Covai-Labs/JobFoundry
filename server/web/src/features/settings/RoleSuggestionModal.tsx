@@ -146,7 +146,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
           display: 'flex',
           flexDirection: 'column',
           border: '1px solid var(--border-subtle)',
-          boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.5))',
+          boxShadow: 'var(--shadow-lg)',
         }}
       >
         {/* Header */}

@@ -12,7 +12,6 @@
   --bg-kanban: rgba(17, 24, 39, 0.6);
 
   --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-color: var(--border-subtle);
   --border-focus: rgba(99, 102, 241, 0.6);
 
   --text-primary: #f9fafb;
@@ -76,7 +75,6 @@ html.light {
   --keyboard-hint-bg: rgba(0, 0, 0, 0.02);
 
   --border-subtle: #cbd5e1;
-  --border-color: var(--border-subtle);
   --border-focus: var(--accent-primary);
 
   --text-primary: #0f172a;
@@ -535,6 +533,55 @@ h6 {
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-card);
+}
+
+.auth-error-banner {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--color-red-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--color-red);
+  font-size: 0.85rem;
+}
+
+html[data-color-mode='light'] .auth-error-banner,
+html.light .auth-error-banner {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.auth-switch-link {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+html[data-color-mode='light'] .auth-switch-link,
+html.light .auth-switch-link {
+  color: #4338ca;
+}
+html[data-color-mode='light'][data-theme-accent='cyan'] .auth-switch-link,
+html.light[data-theme-accent='cyan'] .auth-switch-link {
+  color: #0e7490;
+}
+html[data-color-mode='light'][data-theme-accent='emerald'] .auth-switch-link,
+html.light[data-theme-accent='emerald'] .auth-switch-link {
+  color: #047857;
+}
+html[data-color-mode='light'][data-theme-accent='purple'] .auth-switch-link,
+html.light[data-theme-accent='purple'] .auth-switch-link {
+  color: #7e22ce;
+}
+html[data-color-mode='light'][data-theme-accent='amber'] .auth-switch-link,
+html.light[data-theme-accent='amber'] .auth-switch-link {
+  color: #b45309;
 }
 
 .settings-card {

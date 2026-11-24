@@ -82,6 +82,7 @@ When authoring or modifying UI components (`server/web/src/`):
   - Primary accent: `var(--accent-primary)` (hover: `var(--accent-primary-hover)`)
   - Accent text on solid background: `#ffffff` (or `var(--accent-text)`)
   - Subtle accent tint: `color-mix(in srgb, var(--accent-primary) 15%, transparent)`
+  - Contrast requirements per accent: When using accent colors for text/links on light backgrounds, always pair them to meet WCAG 2.1 AA contrast (≥ 4.5:1) rather than using bright primary values directly (e.g. in light mode use deep tones: indigo `#4338ca`, cyan `#0e7490`, emerald `#047857`, purple `#7e22ce`, amber `#b45309`), or default to `var(--text-primary)`.
 - **Pills, Chips & Checkboxes**:
   - **Selected / Active (Tinted)**:
     - `background`: `color-mix(in srgb, var(--accent-primary) 18%, transparent)`
