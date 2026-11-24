@@ -425,27 +425,36 @@ export default defineBackground(() => {
     }
   });
 
+  const prepareOperation = async (type: 'scan' | 'search', statusMessage: string) => {
+    const currentScanState = await getScanState();
+    if (currentScanState.inProgress) {
+      return { ok: false as const, error: 'A search or scan is already in progress' };
+    }
+
+    const config = await getConfig();
+    if (config.serverUrl && config.apiKey) {
+      await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
+      await flushOfflineJobs(sendJobs, { getConfig }).catch(() => {});
+    }
+
+    await setScanState({
+      inProgress: true,
+      type,
+      statusMessage,
+      startedAt: Date.now(),
+      totalFound: 0,
+      newIngested: 0,
+      errors: [],
+    });
+
+    return { ok: true as const, config };
+  };
+
   onMessage('popup:scanNow', async () => {
     try {
-      const currentScanState = await getScanState();
-      if (currentScanState.inProgress) {
-        return { ok: false, error: 'A search or scan is already in progress' };
-      }
+      const prep = await prepareOperation('scan', 'Scanning 38 portal feeds...');
+      if (!prep.ok) return prep;
 
-      const config = await getConfig();
-      if (config.serverUrl && config.apiKey) {
-        await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
-        await flushOfflineJobs(sendJobs, { getConfig }).catch(() => {});
-      }
-      await setScanState({
-        inProgress: true,
-        type: 'scan',
-        statusMessage: 'Scanning 38 portal feeds...',
-        startedAt: Date.now(),
-        totalFound: 0,
-        newIngested: 0,
-        errors: [],
-      });
       const jobs = await runScanPipeline({
         getConfig,
         sendJobs: async (args) => {
@@ -483,25 +492,9 @@ export default defineBackground(() => {
 
   onMessage('popup:searchBoardsNow', async () => {
     try {
-      const currentScanState = await getScanState();
-      if (currentScanState.inProgress) {
-        return { ok: false, error: 'A search or scan is already in progress' };
-      }
+      const prep = await prepareOperation('search', 'Searching job boards...');
+      if (!prep.ok) return prep;
 
-      const config = await getConfig();
-      if (config.serverUrl && config.apiKey) {
-        await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
-        await flushOfflineJobs(sendJobs, { getConfig }).catch(() => {});
-      }
-      await setScanState({
-        inProgress: true,
-        type: 'search',
-        statusMessage: 'Searching job boards...',
-        startedAt: Date.now(),
-        totalFound: 0,
-        newIngested: 0,
-        errors: [],
-      });
       const result = await runSearchPipeline({
         getConfig,
         onProgress: async (p) => {

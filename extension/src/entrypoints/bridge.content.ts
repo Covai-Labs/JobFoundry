@@ -32,40 +32,29 @@ export default defineContentScript({
       localStorage.setItem('jf_extension_paired', 'true');
     } catch {}
 
+    const forwardCommand = async (
+      action: 'popup:searchBoardsNow' | 'popup:scanNow',
+      responseType: 'JOBFOUNDRY_SEARCH_BOARDS_RESPONSE' | 'JOBFOUNDRY_SCAN_PORTALS_RESPONSE'
+    ) => {
+      try {
+        const result = await sendMessage(action, undefined);
+        window.postMessage({ type: responseType, result }, targetOrigin);
+      } catch (err: any) {
+        window.postMessage(
+          { type: responseType, error: err?.message || String(err) },
+          targetOrigin
+        );
+      }
+    };
+
     const handleMessage = async (data: any) => {
       if (!data || typeof data !== 'object') return;
 
       if (data.type === 'JOBFOUNDRY_SEARCH_BOARDS_REQUEST') {
-        try {
-          const res = await sendMessage('popup:searchBoardsNow', undefined);
-          window.postMessage(
-            { type: 'JOBFOUNDRY_SEARCH_BOARDS_RESPONSE', result: res },
-            targetOrigin
-          );
-        } catch (err: any) {
-          window.postMessage(
-            { type: 'JOBFOUNDRY_SEARCH_BOARDS_RESPONSE', error: err?.message || String(err) },
-            targetOrigin
-          );
-        }
-      }
-
-      if (data.type === 'JOBFOUNDRY_SCAN_PORTALS_REQUEST') {
-        try {
-          const res = await sendMessage('popup:scanNow', undefined);
-          window.postMessage(
-            { type: 'JOBFOUNDRY_SCAN_PORTALS_RESPONSE', result: res },
-            targetOrigin
-          );
-        } catch (err: any) {
-          window.postMessage(
-            { type: 'JOBFOUNDRY_SCAN_PORTALS_RESPONSE', error: err?.message || String(err) },
-            targetOrigin
-          );
-        }
-      }
-
-      if (data.type === 'JOBFOUNDRY_GET_SCAN_STATE_REQUEST') {
+        await forwardCommand('popup:searchBoardsNow', 'JOBFOUNDRY_SEARCH_BOARDS_RESPONSE');
+      } else if (data.type === 'JOBFOUNDRY_SCAN_PORTALS_REQUEST') {
+        await forwardCommand('popup:scanNow', 'JOBFOUNDRY_SCAN_PORTALS_RESPONSE');
+      } else if (data.type === 'JOBFOUNDRY_GET_SCAN_STATE_REQUEST') {
         try {
           const state = await getScanState();
           window.postMessage({ type: 'JOBFOUNDRY_SCAN_STATE_UPDATE', state }, targetOrigin);
