@@ -138,22 +138,22 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
       <div
         ref={dialogRef}
         style={{
-          background: 'var(--bg-card, #1e293b)',
+          background: 'var(--bg-card)',
           borderRadius: 'var(--radius-lg, 12px)',
           maxWidth: '560px',
           width: '100%',
           maxHeight: '90vh',
           display: 'flex',
           flexDirection: 'column',
-          border: '1px solid var(--border-color, #334155)',
-          boxShadow: 'var(--shadow-xl, 0 20px 25px -5px rgba(0, 0, 0, 0.5))',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-lg)',
         }}
       >
         {/* Header */}
         <div
           style={{
             padding: '1.25rem 1.25rem 0.75rem',
-            borderBottom: '1px solid var(--border-color, #334155)',
+            borderBottom: '1px solid var(--border-subtle)',
             display: 'flex',
             alignItems: 'flex-start',
             justifyContent: 'space-between',
@@ -234,12 +234,12 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
         <div
           style={{
             padding: '0.65rem 1.25rem',
-            background: 'rgba(0, 0, 0, 0.12)',
+            background: 'var(--btn-secondary-bg)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
             fontSize: '0.8rem',
-            borderBottom: '1px solid var(--border-color, #334155)',
+            borderBottom: '1px solid var(--border-subtle)',
           }}
         >
           <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -314,16 +314,16 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
                     cursor: 'pointer',
                     transition: 'all 0.15s ease',
                     border: isChecked
-                      ? '1px solid var(--accent-primary, #6366f1)'
-                      : '1px solid var(--border-color, #334155)',
-                    background: isChecked ? 'rgba(99, 102, 241, 0.2)' : 'rgba(255, 255, 255, 0.04)',
-                    color: isChecked
-                      ? 'var(--accent-text, #ffffff)'
-                      : 'var(--text-secondary, #94a3b8)',
+                      ? '1px solid var(--accent-primary)'
+                      : '1px solid var(--border-subtle)',
+                    background: isChecked
+                      ? 'color-mix(in srgb, var(--accent-primary) 18%, transparent)'
+                      : 'var(--btn-secondary-bg)',
+                    color: isChecked ? 'var(--text-primary)' : 'var(--text-secondary)',
                   }}
                 >
                   {isChecked ? (
-                    <Check size={14} style={{ color: 'var(--accent-primary, #6366f1)' }} />
+                    <Check size={14} style={{ color: 'var(--accent-primary)' }} />
                   ) : (
                     <Plus size={14} style={{ opacity: 0.5 }} />
                   )}
@@ -338,8 +338,8 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
         <div
           style={{
             padding: '0.75rem 1.25rem',
-            borderTop: '1px solid var(--border-color, #334155)',
-            background: 'rgba(0, 0, 0, 0.06)',
+            borderTop: '1px solid var(--border-subtle)',
+            background: 'var(--btn-secondary-bg)',
             display: 'flex',
             alignItems: 'center',
             gap: '1.25rem',
@@ -391,7 +391,7 @@ export const RoleSuggestionModal: React.FC<RoleSuggestionModalProps> = ({
         <div
           style={{
             padding: '1rem 1.25rem',
-            borderTop: '1px solid var(--border-color, #334155)',
+            borderTop: '1px solid var(--border-subtle)',
             display: 'flex',
             justifyContent: 'flex-end',
             gap: '0.75rem',

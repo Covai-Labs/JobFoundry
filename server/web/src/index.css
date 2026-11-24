@@ -20,6 +20,7 @@
 
   --accent-primary: #6366f1;
   --accent-primary-hover: #4f46e5;
+  --accent-text: #ffffff;
   --accent-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #ec4899 100%);
 
   --color-green: #10b981;
@@ -79,6 +80,8 @@ html.light {
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --text-muted: #64748b;
+
+  --accent-text: #ffffff;
 
   --shadow-sm: 0 1px 3px 0 rgba(15, 23, 42, 0.08), 0 1px 2px -1px rgba(15, 23, 42, 0.06);
   --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.1), 0 2px 4px -2px rgba(15, 23, 42, 0.06);
@@ -523,6 +526,62 @@ h6 {
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.auth-error-banner {
+  padding: 0.75rem 1rem;
+  margin-bottom: 1.25rem;
+  background: var(--color-red-bg);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: var(--color-red);
+  font-size: 0.85rem;
+}
+
+html[data-color-mode='light'] .auth-error-banner,
+html.light .auth-error-banner {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.auth-switch-link {
+  background: none;
+  border: none;
+  color: var(--accent-primary);
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+html[data-color-mode='light'] .auth-switch-link,
+html.light .auth-switch-link {
+  color: #4338ca;
+}
+html[data-color-mode='light'][data-theme-accent='cyan'] .auth-switch-link,
+html.light[data-theme-accent='cyan'] .auth-switch-link {
+  color: #0e7490;
+}
+html[data-color-mode='light'][data-theme-accent='emerald'] .auth-switch-link,
+html.light[data-theme-accent='emerald'] .auth-switch-link {
+  color: #047857;
+}
+html[data-color-mode='light'][data-theme-accent='purple'] .auth-switch-link,
+html.light[data-theme-accent='purple'] .auth-switch-link {
+  color: #7e22ce;
+}
+html[data-color-mode='light'][data-theme-accent='amber'] .auth-switch-link,
+html.light[data-theme-accent='amber'] .auth-switch-link {
+  color: #b45309;
 }
 
 .settings-card {

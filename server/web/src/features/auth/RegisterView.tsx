@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../api/client';
+import { AuthLayout } from './AuthLayout';
 
 interface RegisterViewProps {
   onSwitchToLogin: () => void;
@@ -52,21 +53,11 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
 
   if (registrationOpen === null) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
-          padding: '1.5rem',
-        }}
-      >
-        <div
-          className="card"
-          style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', textAlign: 'center' }}
-        >
-          <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Create Account</h1>
+      <AuthLayout>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>
+            Create Account
+          </h1>
           <p style={{ color: 'var(--text-muted)', margin: '0.75rem 0 1.5rem' }}>
             Checking whether registration is available…
           </p>
@@ -79,27 +70,17 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
             Retry
           </button>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
   if (registrationOpen === false) {
     return (
-      <div
-        style={{
-          minHeight: '100vh',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
-          padding: '1.5rem',
-        }}
-      >
-        <div
-          className="card"
-          style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', textAlign: 'center' }}
-        >
-          <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Registration Closed</h1>
+      <AuthLayout>
+        <div style={{ textAlign: 'center' }}>
+          <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>
+            Registration Closed
+          </h1>
           <p style={{ color: 'var(--text-muted)', margin: '0.75rem 0 1.5rem' }}>
             The local administrator is not accepting new accounts right now.
           </p>
@@ -112,177 +93,141 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
             Back to Sign In
           </button>
         </div>
-      </div>
+      </AuthLayout>
     );
   }
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
-        padding: '1.5rem',
-      }}
-    >
-      <div
-        className="card"
-        style={{
-          width: '100%',
-          maxWidth: '420px',
-          padding: '2.5rem',
-          background: 'rgba(20, 21, 33, 0.85)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <img
-            src="/icons/logo.webp"
-            alt="JobFoundry Logo"
-            style={{
-              width: 56,
-              height: 56,
-              borderRadius: 12,
-              marginBottom: '0.75rem',
-              objectFit: 'contain',
-            }}
-          />
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
-            {userCount === 0 ? 'Create Administrator Account' : 'Create Account'}
-          </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
-            {userCount === 0
-              ? 'Fresh start: Set up your administrator account to begin'
-              : 'Get your personal AI-powered job search pipeline'}
-          </p>
-        </div>
-
-        {error && (
-          <div
-            style={{
-              padding: '0.75rem 1rem',
-              marginBottom: '1.25rem',
-              background: 'rgba(239, 68, 68, 0.15)',
-              border: '1px solid rgba(239, 68, 68, 0.3)',
-              borderRadius: 'var(--radius-md)',
-              color: '#fca5a5',
-              fontSize: '0.85rem',
-            }}
-          >
-            {error}
-          </div>
-        )}
-
-        <form
-          onSubmit={handleSubmit}
-          style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
-        >
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                marginBottom: '0.4rem',
-              }}
-            >
-              Full Name
-            </label>
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Alice Developer"
-              className="input-text"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                marginBottom: '0.4rem',
-              }}
-            >
-              Email Address
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="input-text"
-              required
-            />
-          </div>
-
-          <div>
-            <label
-              style={{
-                display: 'block',
-                fontSize: '0.85rem',
-                fontWeight: 500,
-                marginBottom: '0.4rem',
-              }}
-            >
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="At least 6 characters"
-              className="input-text"
-              required
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="btn btn-primary"
-            style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }}
-          >
-            {submitting
-              ? 'Creating account...'
-              : userCount === 0
-                ? 'Create Administrator Account'
-                : 'Create Account'}
-          </button>
-        </form>
-
-        <div
+    <AuthLayout>
+      <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+        <img
+          src="/icons/logo.webp"
+          alt="JobFoundry Logo"
           style={{
-            marginTop: '2rem',
-            textAlign: 'center',
-            fontSize: '0.85rem',
-            color: 'var(--text-muted)',
+            width: 56,
+            height: 56,
+            borderRadius: 12,
+            marginBottom: '0.75rem',
+            objectFit: 'contain',
+          }}
+        />
+        <h1
+          style={{
+            fontSize: '1.75rem',
+            fontWeight: 700,
+            margin: 0,
+            color: 'var(--text-primary)',
           }}
         >
-          Already have an account?{' '}
-          <button
-            onClick={onSwitchToLogin}
+          {userCount === 0 ? 'Create Administrator Account' : 'Create Account'}
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
+          {userCount === 0
+            ? 'Fresh start: Set up your administrator account to begin'
+            : 'Get your personal AI-powered job search pipeline'}
+        </p>
+      </div>
+
+      {error && <div className="auth-error-banner">{error}</div>}
+
+      <form
+        onSubmit={handleSubmit}
+        style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}
+      >
+        <div>
+          <label
             style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-primary-light, #818cf8)',
-              cursor: 'pointer',
-              fontWeight: 600,
-              padding: 0,
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 500,
+              marginBottom: '0.4rem',
+              color: 'var(--text-primary)',
             }}
           >
-            Sign In
-          </button>
+            Full Name
+          </label>
+          <input
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder="Alice Developer"
+            className="input-text"
+            required
+            autoFocus
+          />
         </div>
+
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 500,
+              marginBottom: '0.4rem',
+              color: 'var(--text-primary)',
+            }}
+          >
+            Email Address
+          </label>
+          <input
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@example.com"
+            className="input-text"
+            required
+          />
+        </div>
+
+        <div>
+          <label
+            style={{
+              display: 'block',
+              fontSize: '0.85rem',
+              fontWeight: 500,
+              marginBottom: '0.4rem',
+              color: 'var(--text-primary)',
+            }}
+          >
+            Password
+          </label>
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="At least 6 characters"
+            className="input-text"
+            required
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={submitting}
+          className="btn btn-primary"
+          style={{ width: '100%', marginTop: '0.5rem', padding: '0.75rem' }}
+        >
+          {submitting
+            ? 'Creating account...'
+            : userCount === 0
+              ? 'Create Administrator Account'
+              : 'Create Account'}
+        </button>
+      </form>
+
+      <div
+        style={{
+          marginTop: '2rem',
+          textAlign: 'center',
+          fontSize: '0.85rem',
+          color: 'var(--text-muted)',
+        }}
+      >
+        Already have an account?{' '}
+        <button type="button" onClick={onSwitchToLogin} className="auth-switch-link">
+          Sign In
+        </button>
       </div>
-    </div>
+    </AuthLayout>
   );
 };
