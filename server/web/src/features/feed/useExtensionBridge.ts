@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export interface ExtensionScanState {
   inProgress: boolean;
@@ -25,15 +25,33 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
 
   const [scanState, setScanState] = useState<ExtensionScanState | null>(null);
   const [bannerDismissed, setBannerDismissed] = useState(false);
+  const pendingTimeoutRef = useRef<number | null>(null);
+
+  const clearPendingTimeout = useCallback(() => {
+    if (pendingTimeoutRef.current !== null) {
+      window.clearTimeout(pendingTimeoutRef.current);
+      pendingTimeoutRef.current = null;
+    }
+  }, []);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    // Check if extension is installed by sending a ping
-    window.postMessage({ type: 'JOBFOUNDRY_GET_SCAN_STATE_REQUEST' }, '*');
+    const targetOrigin = window.location.origin;
+
+    // Check if extension is installed by sending a ping with exact origin
+    window.postMessage({ type: 'JOBFOUNDRY_GET_SCAN_STATE_REQUEST' }, targetOrigin);
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.source !== window || !event.data || typeof event.data !== 'object') return;
+      // Validate origin and message payload
+      if (
+        event.origin !== targetOrigin ||
+        event.source !== window ||
+        !event.data ||
+        typeof event.data !== 'object'
+      ) {
+        return;
+      }
 
       const { type, state, result } = event.data;
 
@@ -43,17 +61,20 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
       }
 
       if (type === 'JOBFOUNDRY_SCAN_STATE_UPDATE' && state) {
+        clearPendingTimeout();
         setScanState(state);
         setBannerDismissed(false);
       }
 
       if (type === 'JOBFOUNDRY_SEARCH_BOARDS_RESPONSE') {
+        clearPendingTimeout();
         if (result?.ok && result.newIngested > 0 && onRefreshJobs) {
           onRefreshJobs();
         }
       }
 
       if (type === 'JOBFOUNDRY_SCAN_PORTALS_RESPONSE') {
+        clearPendingTimeout();
         if (result?.ok && result.scanned > 0 && onRefreshJobs) {
           onRefreshJobs();
         }
@@ -61,10 +82,17 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
     };
 
     window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
-  }, [onRefreshJobs]);
+    return () => {
+      clearPendingTimeout();
+      window.removeEventListener('message', handleMessage);
+    };
+  }, [onRefreshJobs, clearPendingTimeout]);
 
   const triggerSearchBoards = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const targetOrigin = window.location.origin;
+
+    clearPendingTimeout();
     setBannerDismissed(false);
     setScanState({
       inProgress: true,
@@ -74,10 +102,30 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
       totalFound: 0,
       newIngested: 0,
     });
-    window.postMessage({ type: 'JOBFOUNDRY_SEARCH_BOARDS_REQUEST' }, '*');
-  }, []);
+
+    window.postMessage({ type: 'JOBFOUNDRY_SEARCH_BOARDS_REQUEST' }, targetOrigin);
+
+    pendingTimeoutRef.current = window.setTimeout(() => {
+      setScanState((prev) => {
+        if (prev?.inProgress && prev?.type === 'search') {
+          return {
+            inProgress: false,
+            type: 'search',
+            statusMessage:
+              'Search request timed out. Please ensure the JobFoundry extension is installed and active.',
+            errors: ['Request timed out'],
+          };
+        }
+        return prev;
+      });
+    }, 45000);
+  }, [clearPendingTimeout]);
 
   const triggerScanPortals = useCallback(() => {
+    if (typeof window === 'undefined') return;
+    const targetOrigin = window.location.origin;
+
+    clearPendingTimeout();
     setBannerDismissed(false);
     setScanState({
       inProgress: true,
@@ -87,8 +135,24 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
       totalFound: 0,
       newIngested: 0,
     });
-    window.postMessage({ type: 'JOBFOUNDRY_SCAN_PORTALS_REQUEST' }, '*');
-  }, []);
+
+    window.postMessage({ type: 'JOBFOUNDRY_SCAN_PORTALS_REQUEST' }, targetOrigin);
+
+    pendingTimeoutRef.current = window.setTimeout(() => {
+      setScanState((prev) => {
+        if (prev?.inProgress && prev?.type === 'scan') {
+          return {
+            inProgress: false,
+            type: 'scan',
+            statusMessage:
+              'Scan request timed out. Please ensure the JobFoundry extension is installed and active.',
+            errors: ['Request timed out'],
+          };
+        }
+        return prev;
+      });
+    }, 45000);
+  }, [clearPendingTimeout]);
 
   const dismissBanner = useCallback(() => {
     setBannerDismissed(true);

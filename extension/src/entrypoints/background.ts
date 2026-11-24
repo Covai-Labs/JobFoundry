@@ -7,7 +7,7 @@ import {
   enqueueOfflineJobs,
   flushOfflineJobs,
 } from '../shared/config.ts';
-import { setScanState } from '../shared/scan-state.ts';
+import { setScanState, getScanState, resetScanState } from '../shared/scan-state.ts';
 import type { Config, TitleFilterConfig } from '../shared/config.ts';
 import { runScanPipeline } from '../background/scan.js';
 import { runSearchPipeline } from '../background/search/index.ts';
@@ -85,6 +85,15 @@ export default defineBackground(() => {
   } catch {
     // ignore in environments without fetch/storage
   }
+
+  // Reconcile interrupted operations on startup
+  void getScanState()
+    .then(async (state) => {
+      if (state.inProgress) {
+        await resetScanState();
+      }
+    })
+    .catch(() => {});
 
   const syncAlarms = async () => {
     try {
@@ -418,6 +427,11 @@ export default defineBackground(() => {
 
   onMessage('popup:scanNow', async () => {
     try {
+      const currentScanState = await getScanState();
+      if (currentScanState.inProgress) {
+        return { ok: false, error: 'A search or scan is already in progress' };
+      }
+
       const config = await getConfig();
       if (config.serverUrl && config.apiKey) {
         await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
@@ -469,6 +483,11 @@ export default defineBackground(() => {
 
   onMessage('popup:searchBoardsNow', async () => {
     try {
+      const currentScanState = await getScanState();
+      if (currentScanState.inProgress) {
+        return { ok: false, error: 'A search or scan is already in progress' };
+      }
+
       const config = await getConfig();
       if (config.serverUrl && config.apiKey) {
         await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});

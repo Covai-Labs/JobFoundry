@@ -87,7 +87,7 @@ describe('useExtensionBridge', () => {
 
     expect(postMessageSpy).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'JOBFOUNDRY_SEARCH_BOARDS_REQUEST' }),
-      '*'
+      window.location.origin
     );
     expect(result.current.scanState?.inProgress).toBe(true);
     expect(result.current.scanState?.type).toBe('search');
@@ -98,11 +98,30 @@ describe('useExtensionBridge', () => {
 
     expect(postMessageSpy).toHaveBeenCalledWith(
       expect.objectContaining({ type: 'JOBFOUNDRY_SCAN_PORTALS_REQUEST' }),
-      '*'
+      window.location.origin
     );
     expect(result.current.scanState?.inProgress).toBe(true);
     expect(result.current.scanState?.type).toBe('scan');
 
     postMessageSpy.mockRestore();
+  });
+
+  it('ignores messages from untrusted origins', () => {
+    const onRefresh = vi.fn();
+    const { result } = renderHook(() => useExtensionBridge(onRefresh));
+
+    act(() => {
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          origin: 'https://evil.example.com',
+          data: {
+            type: 'JOBFOUNDRY_SCAN_STATE_UPDATE',
+            state: { inProgress: true, type: 'search', statusMessage: 'Compromised' },
+          },
+        })
+      );
+    });
+
+    expect(result.current.scanState?.statusMessage).not.toBe('Compromised');
   });
 });

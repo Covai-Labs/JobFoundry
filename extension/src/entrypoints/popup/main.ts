@@ -296,7 +296,11 @@ export async function searchBoardsNow({
 
   // Check if keywords are configured before launching search
   try {
-    const config = await getConfig();
+    let config = await getConfig();
+    if (config?.serverUrl && config?.apiKey) {
+      await syncConfigFromServer(config.serverUrl, config.apiKey).catch(() => {});
+      config = await getConfig();
+    }
     const positiveTerms = config?.titleFilter?.positive || [];
     if (!positiveTerms || positiveTerms.length === 0) {
       if (status) {

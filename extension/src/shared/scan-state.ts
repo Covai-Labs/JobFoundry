@@ -26,6 +26,52 @@ const SCAN_STATE_KEY = 'jobfoundry-scan-state';
 
 let inMemoryScanState: ScanState = { ...DEFAULT_SCAN_STATE };
 
+export function sanitizeScanState(raw: unknown): ScanState {
+  if (!raw || typeof raw !== 'object') {
+    return { ...DEFAULT_SCAN_STATE };
+  }
+  const obj = raw as Record<string, unknown>;
+  const rawType = obj.type;
+  const validType: ScanState['type'] =
+    rawType === 'search' || rawType === 'scan' || rawType === 'capture' ? rawType : null;
+
+  return {
+    inProgress: Boolean(obj.inProgress),
+    type: validType,
+    statusMessage:
+      typeof obj.statusMessage === 'string' && obj.statusMessage.trim()
+        ? obj.statusMessage
+        : DEFAULT_SCAN_STATE.statusMessage,
+    termsSearched: Array.isArray(obj.termsSearched)
+      ? obj.termsSearched.filter((t): t is string => typeof t === 'string')
+      : undefined,
+    currentTerm: typeof obj.currentTerm === 'string' ? obj.currentTerm : undefined,
+    totalFound:
+      typeof obj.totalFound === 'number' && Number.isFinite(obj.totalFound)
+        ? Math.max(0, obj.totalFound)
+        : 0,
+    newIngested:
+      typeof obj.newIngested === 'number' && Number.isFinite(obj.newIngested)
+        ? Math.max(0, obj.newIngested)
+        : 0,
+    droppedDedup:
+      typeof obj.droppedDedup === 'number' && Number.isFinite(obj.droppedDedup)
+        ? Math.max(0, obj.droppedDedup)
+        : 0,
+    errors: Array.isArray(obj.errors)
+      ? obj.errors.filter((e): e is string => typeof e === 'string')
+      : [],
+    startedAt:
+      typeof obj.startedAt === 'number' && Number.isFinite(obj.startedAt)
+        ? obj.startedAt
+        : undefined,
+    completedAt:
+      typeof obj.completedAt === 'number' && Number.isFinite(obj.completedAt)
+        ? obj.completedAt
+        : undefined,
+  };
+}
+
 function getStorageArea(): any {
   const api = (globalThis as any).browser ?? (globalThis as any).chrome;
   return api?.storage?.local ?? api?.storage?.sync ?? null;
@@ -38,7 +84,7 @@ export async function getScanState(opts: { storageImpl?: any } = {}): Promise<Sc
   try {
     const res = await storage.get(SCAN_STATE_KEY);
     const stored = res?.[SCAN_STATE_KEY] ?? res ?? {};
-    return { ...DEFAULT_SCAN_STATE, ...stored };
+    return sanitizeScanState(stored);
   } catch {
     return { ...inMemoryScanState };
   }
@@ -49,7 +95,7 @@ export async function setScanState(
   opts: { storageImpl?: any } = {}
 ): Promise<ScanState> {
   const current = await getScanState(opts);
-  const updated: ScanState = { ...current, ...patch };
+  const updated = sanitizeScanState({ ...current, ...patch });
   inMemoryScanState = updated;
 
   const storage = opts.storageImpl ?? getStorageArea();
@@ -87,7 +133,7 @@ export function watchScanState(
   const listener = (changes: any, areaName?: string) => {
     if (areaName && areaName !== 'local' && areaName !== 'sync') return;
     if (changes[SCAN_STATE_KEY]?.newValue) {
-      callback({ ...DEFAULT_SCAN_STATE, ...changes[SCAN_STATE_KEY].newValue });
+      callback(sanitizeScanState(changes[SCAN_STATE_KEY].newValue));
     }
   };
 
