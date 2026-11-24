@@ -19,6 +19,12 @@ This document defines behavioral constraints, critical invariants, and internal 
 4. **Preserve Vendored Provider Hashes**
    - Files in `extension/src/background/providers/` are lifted from upstream toolkits. Do not reformat or modify them unnecessarily to maintain synchronization integrity.
 
+5. **Strict Theme Awareness for all UI Elements**
+   - JobFoundry natively supports both **Dark Mode** (default `:root`) and **Light Mode** (`html[data-color-mode='light']`, `html.light`), alongside curated accent themes (`indigo`, `cyan`, `emerald`, `purple`, `amber`).
+   - Every UI component, view, card, modal, toolbar, chip, badge, input, and label MUST be fully theme-aware and validated for high-contrast readability in **both** light and dark themes.
+   - Never hardcode dark colors or surfaces (e.g., `#1e293b`, `#141521`, `#334155`, `#000000`, `rgba(0,0,0,...)`, or `rgba(255,255,255,...)`) for surfaces, text, or borders.
+   - Never use white text (`#ffffff` or `--accent-text`) on soft/translucent tinted backgrounds (e.g., `rgba(99, 102, 241, 0.2)` or `color-mix(...)`), because in light mode the surface is light and white text becomes invisible. Use `var(--text-primary)` for high contrast across both modes, or reserve white text exclusively for solid `var(--accent-primary)` backgrounds.
+
 ---
 
 ## 2. Internal Subsystems & Gotchas
@@ -53,6 +59,43 @@ When modifying the task relay (`server/ingest/src/relay/` or `extension/src/back
 - The browser view is published at <https://jobfoundry.covai.org/graph.html> (rebuilt from `main` by `.github/workflows/pages.yml`), so it never needs to live in git.
 - The graph is a generated navigation aid, not a source of truth. Check `built_at_commit` in `graphify-out/graph.json`, verify claims against current source, and treat `INFERRED` connections as hypotheses.
 - Never force-add `graphify-out/` back into git; regenerate it instead.
+
+### 2.5 Frontend Design Tokens & Dual-Theme System
+
+When authoring or modifying UI components (`server/web/src/`):
+
+- **Surfaces & Backgrounds**:
+  - Main view/page background: `var(--bg-primary)`
+  - Cards & panels: `var(--bg-card)` or class `.card` / `.settings-card`
+  - Floating/glass containers: `var(--bg-glass)`
+  - Sub-bars, toolbars, and secondary controls: `var(--btn-secondary-bg)` (hover: `var(--btn-secondary-hover-bg)`)
+  - Inputs & selects: `var(--bg-input)` and class `.input-text`
+- **Borders & Dividers**:
+  - Always use `var(--border-subtle)` (focus states: `var(--border-focus)`).
+  - Do NOT invent non-existent variable names like `--border-color`.
+- **Typography & Text Contrast**:
+  - Primary text / titles / headings: `var(--text-primary)` (renders dark slate `#0f172a` in light mode, crisp `#f9fafb` in dark mode).
+  - Secondary text / subheadings: `var(--text-secondary)`
+  - Muted / timestamp text: `var(--text-muted)`
+  - Never provide dark-mode fallbacks like `var(--bg-card, #1e293b)` or `var(--text-secondary, #94a3b8)`. If a fallback is ever needed, it must be theme-neutral or omit the fallback so standard CSS cascade works.
+- **Accent Theming & Tints**:
+  - Primary accent: `var(--accent-primary)` (hover: `var(--accent-primary-hover)`)
+  - Accent text on solid background: `#ffffff` (or `var(--accent-text)`)
+  - Subtle accent tint: `color-mix(in srgb, var(--accent-primary) 15%, transparent)`
+- **Pills, Chips & Checkboxes**:
+  - **Selected / Active (Tinted)**:
+    - `background`: `color-mix(in srgb, var(--accent-primary) 18%, transparent)`
+    - `border`: `1px solid var(--accent-primary)`
+    - `color`: `var(--text-primary)` (preserves WCAG AAA contrast in both light and dark modes)
+    - Icon: `color: var(--accent-primary)`
+  - **Selected / Active (Solid)**:
+    - `background`: `var(--accent-primary)`
+    - `border`: `1px solid var(--accent-primary)`
+    - `color`: `#ffffff`
+  - **Unselected / Inactive**:
+    - `background`: `var(--btn-secondary-bg)`
+    - `border`: `1px solid var(--border-subtle)`
+    - `color`: `var(--text-secondary)`
 
 ---
 

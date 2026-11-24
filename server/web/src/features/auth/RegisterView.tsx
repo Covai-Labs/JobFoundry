@@ -58,15 +58,26 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
+          background: 'var(--bg-primary)',
           padding: '1.5rem',
         }}
       >
         <div
           className="card"
-          style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', textAlign: 'center' }}
+          style={{
+            width: '100%',
+            maxWidth: '420px',
+            padding: '2.5rem',
+            textAlign: 'center',
+            background: 'var(--bg-card)',
+            borderRadius: 'var(--radius-lg, 16px)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
+          }}
         >
-          <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Create Account</h1>
+          <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>
+            Create Account
+          </h1>
           <p style={{ color: 'var(--text-muted)', margin: '0.75rem 0 1.5rem' }}>
             Checking whether registration is available…
           </p>
@@ -91,15 +102,26 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
+          background: 'var(--bg-primary)',
           padding: '1.5rem',
         }}
       >
         <div
           className="card"
-          style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', textAlign: 'center' }}
+          style={{
+            width: '100%',
+            maxWidth: '420px',
+            padding: '2.5rem',
+            textAlign: 'center',
+            background: 'var(--bg-card)',
+            borderRadius: 'var(--radius-lg, 16px)',
+            border: '1px solid var(--border-subtle)',
+            boxShadow: 'var(--shadow-card)',
+          }}
         >
-          <h1 style={{ fontSize: '1.5rem', margin: 0 }}>Registration Closed</h1>
+          <h1 style={{ fontSize: '1.5rem', margin: 0, color: 'var(--text-primary)' }}>
+            Registration Closed
+          </h1>
           <p style={{ color: 'var(--text-muted)', margin: '0.75rem 0 1.5rem' }}>
             The local administrator is not accepting new accounts right now.
           </p>
@@ -123,7 +145,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
+        background: 'var(--bg-primary)',
         padding: '1.5rem',
       }}
     >
@@ -133,10 +155,10 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
           width: '100%',
           maxWidth: '420px',
           padding: '2.5rem',
-          background: 'rgba(20, 21, 33, 0.85)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius-lg, 16px)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -151,7 +173,14 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
               objectFit: 'contain',
             }}
           />
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
+          <h1
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              margin: 0,
+              color: 'var(--text-primary)',
+            }}
+          >
             {userCount === 0 ? 'Create Administrator Account' : 'Create Account'}
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
@@ -188,6 +217,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
                 fontSize: '0.85rem',
                 fontWeight: 500,
                 marginBottom: '0.4rem',
+                color: 'var(--text-primary)',
               }}
             >
               Full Name
@@ -210,6 +240,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
                 fontSize: '0.85rem',
                 fontWeight: 500,
                 marginBottom: '0.4rem',
+                color: 'var(--text-primary)',
               }}
             >
               Email Address
@@ -231,6 +262,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
                 fontSize: '0.85rem',
                 fontWeight: 500,
                 marginBottom: '0.4rem',
+                color: 'var(--text-primary)',
               }}
             >
               Password
@@ -273,7 +305,7 @@ export const RegisterView: React.FC<RegisterViewProps> = ({ onSwitchToLogin }) =
             style={{
               background: 'none',
               border: 'none',
-              color: 'var(--color-primary-light, #818cf8)',
+              color: 'var(--accent-primary)',
               cursor: 'pointer',
               fontWeight: 600,
               padding: 0,

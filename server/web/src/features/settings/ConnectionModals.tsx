@@ -35,12 +35,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   >
     <div
       style={{
-        background: 'var(--bg-card, #1e293b)',
-        borderRadius: '8px',
+        background: 'var(--bg-card)',
+        borderRadius: 'var(--radius-lg, 12px)',
         maxWidth,
         width: '100%',
         padding: '1.25rem',
-        border: '1px solid var(--border-color)',
+        border: '1px solid var(--border-subtle)',
+        boxShadow: 'var(--shadow-lg)',
       }}
     >
       <div

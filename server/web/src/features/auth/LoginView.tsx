@@ -48,7 +48,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
-        background: 'radial-gradient(ellipse at top, #1e1e38 0%, #0c0d14 100%)',
+        background: 'var(--bg-primary)',
         padding: '1.5rem',
       }}
     >
@@ -58,10 +58,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
           width: '100%',
           maxWidth: '420px',
           padding: '2.5rem',
-          background: 'rgba(20, 21, 33, 0.85)',
-          backdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 20px 40px rgba(0, 0, 0, 0.5)',
+          background: 'var(--bg-card)',
+          borderRadius: 'var(--radius-lg, 16px)',
+          border: '1px solid var(--border-subtle)',
+          boxShadow: 'var(--shadow-card)',
         }}
       >
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
@@ -76,7 +76,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
               objectFit: 'contain',
             }}
           />
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
+          <h1
+            style={{
+              fontSize: '1.75rem',
+              fontWeight: 700,
+              margin: 0,
+              color: 'var(--text-primary)',
+            }}
+          >
             Job<span className="brand-gradient">Foundry</span>
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginTop: '0.5rem' }}>
@@ -145,6 +152,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
                 fontSize: '0.85rem',
                 fontWeight: 500,
                 marginBottom: '0.4rem',
+                color: 'var(--text-primary)',
               }}
             >
               Email Address
@@ -167,6 +175,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
                 fontSize: '0.85rem',
                 fontWeight: 500,
                 marginBottom: '0.4rem',
+                color: 'var(--text-primary)',
               }}
             >
               Password
@@ -206,7 +215,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onSwitchToRegister }) => {
               style={{
                 background: 'none',
                 border: 'none',
-                color: 'var(--color-primary-light, #818cf8)',
+                color: 'var(--accent-primary)',
                 cursor: 'pointer',
                 fontWeight: 600,
                 padding: 0,
