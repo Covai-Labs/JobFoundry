@@ -1,5 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { sendMessage } from '../shared/messaging.ts';
+import { getConfig } from '../shared/config.ts';
 import { getScanState, watchScanState } from '../shared/scan-state.ts';
 
 function isAllowedOrigin(origin: string): boolean {
@@ -21,9 +22,26 @@ function isAllowedOrigin(origin: string): boolean {
 export default defineContentScript({
   matches: ['http://localhost/*', 'http://127.0.0.1/*', 'https://*.covai.org/*'],
   runAt: 'document_start',
-  main() {
+  async main() {
     const targetOrigin = window.location.origin;
     if (!isAllowedOrigin(targetOrigin)) return;
+
+    let pairedOrigin: string | null = null;
+    try {
+      const config = await getConfig();
+      if (config?.serverUrl) {
+        pairedOrigin = new URL(config.serverUrl).origin.toLowerCase();
+      }
+    } catch {}
+
+    const isPaired = pairedOrigin && targetOrigin.toLowerCase() === pairedOrigin;
+    const isDevUnpaired =
+      !pairedOrigin &&
+      (targetOrigin.startsWith('http://localhost') || targetOrigin.startsWith('http://127.0.0.1'));
+
+    if (!isPaired && !isDevUnpaired) {
+      return;
+    }
 
     // Notify dashboard that extension bridge is active
     window.postMessage({ type: 'JOBFOUNDRY_EXTENSION_AVAILABLE', version: '0.10.1' }, targetOrigin);

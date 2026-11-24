@@ -75,7 +75,21 @@ describe('IngestionProgressBar', () => {
 });
 
 describe('useExtensionBridge', () => {
+  it('reports extension not detected if triggered when unavailable', () => {
+    localStorage.clear();
+    sessionStorage.clear();
+    const { result } = renderHook(() => useExtensionBridge());
+
+    act(() => {
+      result.current.triggerSearchBoards();
+    });
+
+    expect(result.current.scanState?.inProgress).toBe(false);
+    expect(result.current.scanState?.statusMessage).toContain('not detected');
+  });
+
   it('posts search and scan messages to window when triggered', () => {
+    localStorage.setItem('jf_extension_paired', 'true');
     const postMessageSpy = vi.spyOn(window, 'postMessage');
     const onRefresh = vi.fn();
 

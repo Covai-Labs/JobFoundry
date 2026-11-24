@@ -35,13 +35,23 @@ export function sanitizeScanState(raw: unknown): ScanState {
   const validType: ScanState['type'] =
     rawType === 'search' || rawType === 'scan' || rawType === 'capture' ? rawType : null;
 
+  const isStale =
+    Boolean(obj.inProgress) &&
+    typeof obj.startedAt === 'number' &&
+    Number.isFinite(obj.startedAt) &&
+    Date.now() - obj.startedAt > 5 * 60 * 1000;
+
+  const inProgress = isStale ? false : Boolean(obj.inProgress);
+  const statusMessage = isStale
+    ? 'Previous operation timed out or was interrupted.'
+    : typeof obj.statusMessage === 'string' && obj.statusMessage.trim()
+      ? obj.statusMessage
+      : DEFAULT_SCAN_STATE.statusMessage;
+
   return {
-    inProgress: Boolean(obj.inProgress),
+    inProgress,
     type: validType,
-    statusMessage:
-      typeof obj.statusMessage === 'string' && obj.statusMessage.trim()
-        ? obj.statusMessage
-        : DEFAULT_SCAN_STATE.statusMessage,
+    statusMessage,
     termsSearched: Array.isArray(obj.termsSearched)
       ? obj.termsSearched.filter((t): t is string => typeof t === 'string')
       : undefined,

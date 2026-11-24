@@ -62,7 +62,17 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
 
       if (type === 'JOBFOUNDRY_SCAN_STATE_UPDATE' && state) {
         clearPendingTimeout();
-        setScanState(state);
+        setScanState((prev) => {
+          if (
+            prev?.inProgress &&
+            !state.inProgress &&
+            ((state.newIngested ?? 0) > 0 || (state.totalFound ?? 0) > 0) &&
+            onRefreshJobs
+          ) {
+            onRefreshJobs();
+          }
+          return state;
+        });
         setBannerDismissed(false);
       }
 
@@ -96,6 +106,19 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
       timeoutMessage: string
     ) => {
       if (typeof window === 'undefined') return;
+
+      if (!isExtensionAvailable) {
+        setBannerDismissed(false);
+        setScanState({
+          inProgress: false,
+          type: null,
+          statusMessage:
+            'JobFoundry companion extension is not detected. Please ensure the extension is installed and active.',
+          errors: ['Extension not connected'],
+        });
+        return;
+      }
+
       const targetOrigin = window.location.origin;
 
       clearPendingTimeout();
@@ -125,7 +148,7 @@ export function useExtensionBridge(onRefreshJobs?: () => void) {
         });
       }, 45000);
     },
-    [clearPendingTimeout]
+    [clearPendingTimeout, isExtensionAvailable]
   );
 
   const triggerSearchBoards = useCallback(() => {

@@ -848,7 +848,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     apiBase?: string;
   } | null>(null);
 
-  const [isDirty, setIsDirty] = useState(false);
+  const [isSettingsDirty, setIsSettingsDirty] = useState(false);
+  const isDirty = isSettingsDirty || _isExtensionDirty;
   const [fetchingModelsFeature, setFetchingModelsFeature] = useState<string | null>(null);
   const [fetchedModelsMap, setFetchedModelsMap] = useState<
     Record<string, { id: string; name: string }[]>
@@ -862,7 +863,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
 
   const handleFieldChange = (key: keyof SystemSettings, val: any) => {
     setFormSettings((prev) => ({ ...prev, [key]: val }));
-    setIsDirty(true);
+    setIsSettingsDirty(true);
   };
 
   const applyConnectionToField = useCallback(
@@ -940,7 +941,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         setConnections(updatedList);
       }
       applyConnectionToField(inlineTargetField as any, created);
-      setIsDirty(true);
+      setIsSettingsDirty(true);
       setIsInlineAddModalOpen(false);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to create connection';
@@ -1135,7 +1136,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const handleExtensionChange = (updated: ExtensionConfig) => {
     setExtensionConfig(updated);
     setIsExtensionDirty(true);
-    setIsDirty(true);
   };
 
   const handleSaveExtensionConfig = async () => {
@@ -1146,7 +1146,6 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         setExtensionConfig(res.config);
       }
       setIsExtensionDirty(false);
-      setIsDirty(false);
       toast.success('Scrapers and search filters saved successfully');
     } catch (err: any) {
       toast.error(`Failed to save scrapers config: ${err?.message || 'Unknown error'}`);
@@ -1187,7 +1186,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
       },
     }));
     setIsExtensionDirty(true);
-    setIsDirty(true);
+    setIsSettingsDirty(true);
     toast.success(
       mode === 'replace'
         ? `Replaced target keywords with ${selectedRoles.length} role(s)`
@@ -1331,7 +1330,8 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
         threshold: Number(formSettings.scorer_threshold) || 75,
       });
 
-      setIsDirty(false);
+      setIsSettingsDirty(false);
+      setIsExtensionDirty(false);
       toast.success('Settings updated and persisted successfully');
     } catch (err: any) {
       toast.error(`Failed to save settings: ${err?.message || 'Unknown error'}`);
@@ -1366,7 +1366,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
     setApiUrl(DEFAULT_SETTINGS.apiUrl);
     setTempColorMode('system');
     setTempAccentTheme('indigo');
-    setIsDirty(true);
+    setIsSettingsDirty(true);
     toast.info('Settings form reset. Click "Save Changes" to apply.');
   };
 
@@ -2175,7 +2175,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           className={`mode-selector-btn ${tempColorMode === 'system' ? 'active' : ''}`}
                           onClick={() => {
                             setTempColorMode('system');
-                            setIsDirty(true);
+                            setIsSettingsDirty(true);
                           }}
                         >
                           <Laptop size={16} /> Auto (System Match)
@@ -2185,7 +2185,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           className={`mode-selector-btn ${tempColorMode === 'dark' ? 'active' : ''}`}
                           onClick={() => {
                             setTempColorMode('dark');
-                            setIsDirty(true);
+                            setIsSettingsDirty(true);
                           }}
                         >
                           <Moon size={16} /> Dark Mode
@@ -2195,7 +2195,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           className={`mode-selector-btn ${tempColorMode === 'light' ? 'active' : ''}`}
                           onClick={() => {
                             setTempColorMode('light');
-                            setIsDirty(true);
+                            setIsSettingsDirty(true);
                           }}
                         >
                           <Sun size={16} /> Light Mode
@@ -2223,7 +2223,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             className={`accent-swatch-btn ${tempAccentTheme === theme.id ? 'active' : ''}`}
                             onClick={() => {
                               setTempAccentTheme(theme.id);
-                              setIsDirty(true);
+                              setIsSettingsDirty(true);
                             }}
                           >
                             <span
@@ -2361,7 +2361,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           if (chosen) {
                             applyConnectionToField('gateway_connection_id', chosen);
                           }
-                          setIsDirty(true);
+                          setIsSettingsDirty(true);
                         }}
                         onManageConnections={() => handleTabChange('connections')}
                         onAddConnection={() => handleOpenInlineAdd('gateway_connection_id')}
@@ -2432,7 +2432,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                             value={newDefaultKey}
                             onChange={(e) => {
                               setNewDefaultKey(e.target.value);
-                              setIsDirty(true);
+                              setIsSettingsDirty(true);
                             }}
                             onKeyDown={(e) => {
                               if (e.key === 'Enter' && newDefaultKey.trim() && !saving) {
@@ -2507,7 +2507,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           value={formSettings.default_llm_model || ''}
                           onChange={(val) => {
                             handleFieldChange('default_llm_model', val);
-                            setIsDirty(true);
+                            setIsSettingsDirty(true);
                             const current = LLM_PROVIDERS.find(
                               (p) => p.id === selectedDefaultProvider
                             );
@@ -2824,12 +2824,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       inheritDefault={formSettings.scorer_inherit_default !== false}
                       onToggleInheritDefault={(val) => {
                         handleFieldChange('scorer_inherit_default', val);
-                        setIsDirty(true);
+                        setIsSettingsDirty(true);
                       }}
                       inheritModel={formSettings.scorer_inherit_model !== false}
                       onToggleInheritModel={(val) => {
                         handleFieldChange('scorer_inherit_model', val);
-                        setIsDirty(true);
+                        setIsSettingsDirty(true);
                       }}
                       featureName="job fit scoring"
                       defaultProviderName={
@@ -2845,7 +2845,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         value={formSettings.scorer_model}
                         onChange={(val) => {
                           handleFieldChange('scorer_model', val);
-                          setIsDirty(true);
+                          setIsSettingsDirty(true);
                         }}
                         preferredTier="fast"
                         selectedDefaultProvider={selectedDefaultProvider}
@@ -2884,7 +2884,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               } else {
                                 handleFieldChange('scorer_connection_id', id);
                               }
-                              setIsDirty(true);
+                              setIsSettingsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
                             onAddConnection={() => handleOpenInlineAdd('scorer_connection_id')}
@@ -2955,7 +2955,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 value={newScorerKey}
                                 onChange={(e) => {
                                   setNewScorerKey(e.target.value);
-                                  setIsDirty(true);
+                                  setIsSettingsDirty(true);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && newScorerKey.trim() && !saving) {
@@ -3037,7 +3037,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               value={formSettings.scorer_model}
                               onChange={(val) => {
                                 handleFieldChange('scorer_model', val);
-                                setIsDirty(true);
+                                setIsSettingsDirty(true);
                                 const current = LLM_PROVIDERS.find(
                                   (p) => p.id === selectedScorerProvider
                                 );
@@ -3211,12 +3211,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       inheritDefault={formSettings.tailor_inherit_default !== false}
                       onToggleInheritDefault={(val) => {
                         handleFieldChange('tailor_inherit_default', val);
-                        setIsDirty(true);
+                        setIsSettingsDirty(true);
                       }}
                       inheritModel={formSettings.tailor_inherit_model !== false}
                       onToggleInheritModel={(val) => {
                         handleFieldChange('tailor_inherit_model', val);
-                        setIsDirty(true);
+                        setIsSettingsDirty(true);
                       }}
                       featureName="high-capacity resume tailoring"
                       defaultProviderName={
@@ -3232,7 +3232,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         value={formSettings.tailor_model}
                         onChange={(val) => {
                           handleFieldChange('tailor_model', val);
-                          setIsDirty(true);
+                          setIsSettingsDirty(true);
                         }}
                         preferredTier="reasoning"
                         selectedDefaultProvider={selectedDefaultProvider}
@@ -3272,7 +3272,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               } else {
                                 handleFieldChange('tailor_connection_id', id);
                               }
-                              setIsDirty(true);
+                              setIsSettingsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
                             onAddConnection={() => handleOpenInlineAdd('tailor_connection_id')}
@@ -3345,7 +3345,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                   value={newTailorKey}
                                   onChange={(e) => {
                                     setNewTailorKey(e.target.value);
-                                    setIsDirty(true);
+                                    setIsSettingsDirty(true);
                                   }}
                                   onKeyDown={(e) => {
                                     if (e.key === 'Enter' && newTailorKey.trim() && !saving) {
@@ -3431,7 +3431,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               value={formSettings.tailor_model}
                               onChange={(val) => {
                                 handleFieldChange('tailor_model', val);
-                                setIsDirty(true);
+                                setIsSettingsDirty(true);
                               }}
                               datalistId="tailor-model-suggestions"
                               tipText="Tip: For Resume Tailoring & Copilot, choose deep reasoning or thinking models for superior ATS alignment and nuanced writing."
@@ -4236,12 +4236,12 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                       inheritDefault={formSettings.copilot_inherit_default !== false}
                       onToggleInheritDefault={(val) => {
                         handleFieldChange('copilot_inherit_default', val);
-                        setIsDirty(true);
+                        setIsSettingsDirty(true);
                       }}
                       inheritModel={formSettings.copilot_inherit_model !== false}
                       onToggleInheritModel={(val) => {
                         handleFieldChange('copilot_inherit_model', val);
-                        setIsDirty(true);
+                        setIsSettingsDirty(true);
                       }}
                       featureName="Copilot drafts"
                       defaultProviderName={
@@ -4257,7 +4257,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                         value={formSettings.copilot_model || ''}
                         onChange={(val) => {
                           handleFieldChange('copilot_model', val);
-                          setIsDirty(true);
+                          setIsSettingsDirty(true);
                         }}
                         selectedDefaultProvider={selectedDefaultProvider}
                         datalistId="copilot-model-suggestions"
@@ -4303,7 +4303,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                               } else {
                                 handleFieldChange('copilot_connection_id', id);
                               }
-                              setIsDirty(true);
+                              setIsSettingsDirty(true);
                             }}
                             onManageConnections={() => handleTabChange('connections')}
                             onAddConnection={() => handleOpenInlineAdd('copilot_connection_id')}
@@ -4367,7 +4367,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 value={newCopilotKey}
                                 onChange={(e) => {
                                   setNewCopilotKey(e.target.value);
-                                  setIsDirty(true);
+                                  setIsSettingsDirty(true);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && newCopilotKey.trim() && !saving) {
@@ -4438,7 +4438,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           value={formSettings.copilot_model || ''}
                           onChange={(val) => {
                             handleFieldChange('copilot_model', val);
-                            setIsDirty(true);
+                            setIsSettingsDirty(true);
                           }}
                           datalistId="copilot-model-suggestions"
                           tipText="Tip: For Job Copilot, choose conversational or reasoning models for cover letters, Q&A, and recruiter outreach."
@@ -4598,7 +4598,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           checked={formSettings.copilot_stop_slop_enabled !== false}
                           onChange={(e) => {
                             handleFieldChange('copilot_stop_slop_enabled', e.target.checked);
-                            setIsDirty(true);
+                            setIsSettingsDirty(true);
                           }}
                           style={{
                             accentColor: 'var(--accent-primary)',
@@ -4699,7 +4699,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                           available.forEach((k) =>
                             handleFieldChange(k, defaultPromptTemplates[k] as string)
                           );
-                          setIsDirty(true);
+                          setIsSettingsDirty(true);
                           toast.info('Prompt templates restored to system defaults');
                         }}
                         className="btn btn-secondary btn-sm"
@@ -5188,7 +5188,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 value={newOpikKey}
                                 onChange={(e) => {
                                   setNewOpikKey(e.target.value);
-                                  setIsDirty(true);
+                                  setIsSettingsDirty(true);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && newOpikKey.trim() && !saving) {
@@ -5368,7 +5368,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 value={newLangfusePubKey}
                                 onChange={(e) => {
                                   setNewLangfusePubKey(e.target.value);
-                                  setIsDirty(true);
+                                  setIsSettingsDirty(true);
                                 }}
                                 className="input-text"
                                 placeholder="pk-lf-..."
@@ -5463,7 +5463,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 value={newLangfuseSecKey}
                                 onChange={(e) => {
                                   setNewLangfuseSecKey(e.target.value);
-                                  setIsDirty(true);
+                                  setIsSettingsDirty(true);
                                 }}
                                 className="input-text"
                                 placeholder="sk-lf-..."
@@ -5613,7 +5613,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
                                 value={newLangsmithKey}
                                 onChange={(e) => {
                                   setNewLangsmithKey(e.target.value);
-                                  setIsDirty(true);
+                                  setIsSettingsDirty(true);
                                 }}
                                 onKeyDown={(e) => {
                                   if (e.key === 'Enter' && newLangsmithKey.trim() && !saving) {

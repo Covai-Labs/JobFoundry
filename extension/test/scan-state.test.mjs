@@ -28,8 +28,8 @@ describe('scan-state synchronization & runtime validation', () => {
       newIngested: 4,
       droppedDedup: 6,
       errors: ['rate limit'],
-      startedAt: 1000,
-      completedAt: 2000,
+      startedAt: Date.now() - 10000,
+      completedAt: Date.now() - 5000,
       untrustedPayload: 'malicious',
     };
 
@@ -43,9 +43,20 @@ describe('scan-state synchronization & runtime validation', () => {
     assert.equal(sanitized.newIngested, 4);
     assert.equal(sanitized.droppedDedup, 6);
     assert.deepEqual(sanitized.errors, ['rate limit']);
-    assert.equal(sanitized.startedAt, 1000);
-    assert.equal(sanitized.completedAt, 2000);
+    assert.equal(sanitized.startedAt, raw.startedAt);
+    assert.equal(sanitized.completedAt, raw.completedAt);
     assert.equal(sanitized.untrustedPayload, undefined);
+  });
+
+  it('sanitizeScanState resets stale inProgress state older than 5 minutes', () => {
+    const raw = {
+      inProgress: true,
+      startedAt: Date.now() - 6 * 60 * 1000,
+      type: 'scan',
+    };
+    const sanitized = sanitizeScanState(raw);
+    assert.equal(sanitized.inProgress, false);
+    assert.match(sanitized.statusMessage, /timed out or was interrupted/i);
   });
 
   it('sanitizeScanState handles corrupt or non-finite numbers', () => {
