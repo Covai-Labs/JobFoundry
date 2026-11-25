@@ -330,12 +330,24 @@ test('resume-adapter bridges master-resume.json to jd-skill-gap and verify-cv-fa
         highlights: ['Reduced p99 latency by 40% using Redis and PostgreSQL.'],
       },
     ],
+    volunteer: [
+      {
+        organization: 'CodeClub',
+        position: 'Mentor',
+        highlights: ['Trained 20 people in Python fundamentals.'],
+      },
+    ],
+    projects: [{ name: 'OSS Tool', summary: 'Handled 500 daily builds.' }],
+    education: [{ institution: 'State U', studyType: 'BS', area: 'CS', courses: ['Compilers'] }],
+    certificates: [{ name: 'AWS Solutions Architect', issuer: 'Amazon', date: '2025-01' }],
     skills: [{ name: 'Backend', keywords: ['Python', 'PostgreSQL', 'Docker'] }],
   };
 
   const md = jsonResumeToMarkdown(masterResume);
   assert.ok(md.includes('# Jane Doe'));
   assert.ok(md.includes('## Skills'));
+  assert.ok(md.includes('Trained 20 people'));
+  assert.ok(md.includes('AWS Solutions Architect'));
 
   const gapResult = analyzeSkillGap(
     'Requirements: Python, PostgreSQL, Redis, and Kubernetes experience required.',
@@ -345,9 +357,16 @@ test('resume-adapter bridges master-resume.json to jd-skill-gap and verify-cv-fa
   assert.ok(gapResult.existing.includes('PostgreSQL'));
   assert.ok(gapResult.supportedByResume.includes('Redis'));
   assert.ok(gapResult.gap.includes('Kubernetes'));
+  assert.deepEqual(gapResult.warnings, []);
+
+  const cjkGap = analyzeSkillGap(
+    'Requirements:\n- Python\n- 熟悉微服务架构与高并发设计',
+    masterResume
+  );
+  assert.ok(cjkGap.warnings.some((w) => w.reason === 'untokenized-cjk'));
 
   const cleanAudit = auditTailoredResumeFacts(
-    'Reduced p99 latency by 40% using Redis and PostgreSQL.',
+    'Reduced p99 latency by 40% using Redis and PostgreSQL. Trained 20 people. Handled 500 daily builds.',
     masterResume
   );
   assert.deepEqual(cleanAudit.invented, []);
