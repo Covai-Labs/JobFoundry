@@ -667,6 +667,7 @@ const DashboardRoot: React.FC = () => {
     }
     const seq = ++fetchSeqRef.current;
     setLoading(true);
+    setLoadingMore(false);
     setError(null);
     try {
       const page = await api.getJobsPage({
@@ -770,6 +771,7 @@ const DashboardRoot: React.FC = () => {
   const handleJobDeleted = (deletedId: string) => {
     setJobs((prev) => prev.filter((j) => j.id !== deletedId));
     setTotalJobs((prev) => Math.max(0, prev - 1));
+    setNextOffset((prev) => Math.max(0, prev - 1));
   };
 
   const handleSaveSettings = (newSettings: AppSettings) => {
