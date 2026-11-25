@@ -14,6 +14,13 @@ import {
   lintPayload,
 } from '../src/vendored/ats-payload.mjs';
 import { flagValue, hasFlag, safeIntFlag } from '../src/vendored/lib/cli-flags.mjs';
+import { closesAtIso } from '../src/vendored/lib/posting-close.mjs';
+import { fingerprintText, similarity } from '../src/vendored/fingerprint-core.mjs';
+import {
+  jsonResumeToMarkdown,
+  analyzeSkillGap,
+  auditTailoredResumeFacts,
+} from '../src/jobs/resume-adapter.mjs';
 import { normalizeJob } from '../src/jobs/normalize.mjs';
 import { heuristicParseJd } from '../src/jobs/parse-jd.mjs';
 import { analyzeRepost } from '../src/jobs/detect-reposts.mjs';
@@ -291,4 +298,82 @@ test('ATS template and machine-readable rules exist and have valid structure', (
   const rulesContent = readFileSync(rulesYml, 'utf8');
   assert.ok(rulesContent.includes('rules:'));
   assert.ok(rulesContent.includes('single-column-layout'));
+});
+
+test('posting-close extracts ISO close dates from strings and ATS objects', () => {
+  assert.equal(closesAtIso('2026-12-15'), '2026-12-15');
+  assert.equal(closesAtIso({ validThrough: '2026-12-31T23:59:59Z' }), '2026-12-31');
+  assert.equal(closesAtIso({ applicationDeadline: '2026-11-30' }), '2026-11-30');
+  assert.equal(closesAtIso('not-a-date'), '');
+});
+
+test('fingerprint-core computes SimHash fingerprints and similarity', () => {
+  const jdA =
+    'We are looking for a Senior Backend Engineer experienced in Python, PostgreSQL, Docker, Kubernetes, distributed systems, microservices architecture, and REST API design for our platform team. You will own high-throughput ingestion pipelines, mentor junior engineers, and collaborate across product and infrastructure teams.';
+  const jdB =
+    'We are looking for a Senior Backend Engineer experienced in Python, PostgreSQL, Docker, Kubernetes, distributed systems, microservices architecture, and GraphQL API design for our platform team. You will own high-throughput ingestion pipelines, mentor junior engineers, and collaborate across product and infrastructure teams.';
+  const fpA = fingerprintText(jdA);
+  const fpB = fingerprintText(jdB);
+  assert.ok(fpA && fpB);
+  assert.ok(similarity(fpA, fpB) > 0.7);
+});
+
+test('resume-adapter bridges master-resume.json to jd-skill-gap and verify-cv-facts', () => {
+  const masterResume = {
+    basics: { name: 'Jane Doe', label: 'Staff Engineer', summary: 'Built distributed systems.' },
+    work: [
+      {
+        name: 'Acme Corp',
+        position: 'Senior Engineer',
+        startDate: '2022-01',
+        endDate: 'Present',
+        highlights: ['Reduced p99 latency by 40% using Redis and PostgreSQL.'],
+      },
+    ],
+    volunteer: [
+      {
+        organization: 'CodeClub',
+        position: 'Mentor',
+        highlights: ['Trained 20 people in Python fundamentals.'],
+      },
+    ],
+    projects: [{ name: 'OSS Tool', summary: 'Handled 500 daily builds.' }],
+    education: [{ institution: 'State U', studyType: 'BS', area: 'CS', courses: ['Compilers'] }],
+    certificates: [{ name: 'AWS Solutions Architect', issuer: 'Amazon', date: '2025-01' }],
+    skills: [{ name: 'Backend', keywords: ['Python', 'PostgreSQL', 'Docker'] }],
+  };
+
+  const md = jsonResumeToMarkdown(masterResume);
+  assert.ok(md.includes('# Jane Doe'));
+  assert.ok(md.includes('## Skills'));
+  assert.ok(md.includes('Trained 20 people'));
+  assert.ok(md.includes('AWS Solutions Architect'));
+
+  const gapResult = analyzeSkillGap(
+    'Requirements: Python, PostgreSQL, Redis, and Kubernetes experience required.',
+    masterResume
+  );
+  assert.ok(gapResult.existing.includes('Python'));
+  assert.ok(gapResult.existing.includes('PostgreSQL'));
+  assert.ok(gapResult.supportedByResume.includes('Redis'));
+  assert.ok(gapResult.gap.includes('Kubernetes'));
+  assert.deepEqual(gapResult.warnings, []);
+
+  const cjkGap = analyzeSkillGap(
+    'Requirements:\n- Python\n- 熟悉微服务架构与高并发设计',
+    masterResume
+  );
+  assert.ok(cjkGap.warnings.some((w) => w.reason === 'untokenized-cjk'));
+
+  const cleanAudit = auditTailoredResumeFacts(
+    'Reduced p99 latency by 40% using Redis and PostgreSQL. Trained 20 people. Handled 500 daily builds.',
+    masterResume
+  );
+  assert.deepEqual(cleanAudit.invented, []);
+
+  const hallucinatedAudit = auditTailoredResumeFacts(
+    'Increased revenue by 95% across 120 microservices.',
+    masterResume
+  );
+  assert.ok(hallucinatedAudit.invented.length > 0);
 });
