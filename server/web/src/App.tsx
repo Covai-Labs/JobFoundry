@@ -632,10 +632,12 @@ const DashboardRoot: React.FC = () => {
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [jobs, setJobs] = useState<Job[]>([]);
   const [totalJobs, setTotalJobs] = useState<number>(0);
+  const [nextOffset, setNextOffset] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userCount, setUserCount] = useState<number | null>(null);
+  const fetchSeqRef = useRef(0);
 
   useEffect(() => {
     if (!user) {
@@ -663,6 +665,7 @@ const DashboardRoot: React.FC = () => {
       setLoading(false);
       return;
     }
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -672,47 +675,58 @@ const DashboardRoot: React.FC = () => {
         sort_by: 'fit_score',
         order: 'desc',
       });
+      if (seq !== fetchSeqRef.current) return;
       setJobs(page.jobs);
       setTotalJobs(page.total);
+      setNextOffset(page.jobs.length);
     } catch (err: any) {
+      if (seq !== fetchSeqRef.current) return;
       if (err.status === 401) {
         logout();
         return;
       }
       setError(err.message || 'Failed to load jobs from server');
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [token, settings.apiKey, logout]);
 
   const loadMoreJobs = useCallback(async () => {
-    if ((!token && !settings.apiKey) || loadingMore || jobs.length >= totalJobs) {
+    if ((!token && !settings.apiKey) || loadingMore || nextOffset >= totalJobs) {
       return;
     }
+    const seq = fetchSeqRef.current;
     setLoadingMore(true);
     try {
       const page = await api.getJobsPage({
         limit: PAGE_SIZE,
-        offset: jobs.length,
+        offset: nextOffset,
         sort_by: 'fit_score',
         order: 'desc',
       });
+      if (seq !== fetchSeqRef.current) return;
       setJobs((prev) => {
         const seen = new Set(prev.map((j) => j.id));
         const next = page.jobs.filter((j) => !seen.has(j.id));
         return [...prev, ...next];
       });
       setTotalJobs(page.total);
+      setNextOffset((prev) => prev + page.jobs.length);
     } catch (err: any) {
+      if (seq !== fetchSeqRef.current) return;
       if (err.status === 401) {
         logout();
         return;
       }
       toast.error(`Failed to load more jobs: ${err.message || 'Unknown error'}`);
     } finally {
-      setLoadingMore(false);
+      if (seq === fetchSeqRef.current) {
+        setLoadingMore(false);
+      }
     }
-  }, [token, settings.apiKey, loadingMore, jobs.length, totalJobs, logout, toast]);
+  }, [token, settings.apiKey, loadingMore, nextOffset, totalJobs, logout, toast]);
 
   useEffect(() => {
     if (user) {
@@ -812,7 +826,7 @@ const DashboardRoot: React.FC = () => {
         onSaveSettings={handleSaveSettings}
         jobs={jobs}
         totalJobs={totalJobs}
-        hasMoreJobs={jobs.length < totalJobs}
+        hasMoreJobs={nextOffset < totalJobs}
         loadingMore={loadingMore}
         loading={loading}
         error={error}

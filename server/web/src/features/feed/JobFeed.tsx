@@ -415,6 +415,15 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     setRenderLimit(RENDER_BATCH_SIZE);
   }, [filters, sortOption, effectiveViewMode]);
 
+  // Ensure keyboard navigation (e.g. G or J/K past the window) keeps the active row rendered.
+  useEffect(() => {
+    if (!activeJobId) return;
+    const idx = sortedAndFilteredJobs.findIndex((j) => j.id === activeJobId);
+    if (idx >= renderLimit) {
+      setRenderLimit(idx + RENDER_BATCH_SIZE);
+    }
+  }, [activeJobId, sortedAndFilteredJobs, renderLimit]);
+
   const visibleJobs = useMemo(() => {
     return sortedAndFilteredJobs.slice(0, renderLimit);
   }, [sortedAndFilteredJobs, renderLimit]);
@@ -823,10 +832,11 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       {/* Results Header Info */}
       <div className="feed-results-meta">
         <div>
-          Showing <strong>{sortedAndFilteredJobs.length}</strong> of {knownTotal} jobs
+          Showing <strong>{sortedAndFilteredJobs.length}</strong> of{' '}
+          {jobs.length < knownTotal ? `${jobs.length} loaded` : knownTotal} jobs
           {jobs.length < knownTotal && (
             <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>
-              ({jobs.length} loaded
+              ({knownTotal} total in DB
               {onLoadMore && (
                 <button
                   type="button"

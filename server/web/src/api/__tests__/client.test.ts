@@ -63,10 +63,17 @@ describe('ApiClient', () => {
     });
     global.fetch = fetchMock;
 
-    const page = await client.getJobsPage({ limit: 200, offset: 200, sort_by: 'fit_score', order: 'desc' });
+    const page = await client.getJobsPage({
+      limit: 200,
+      offset: 200,
+      sort_by: 'fit_score',
+      order: 'desc',
+    });
 
     const [url] = fetchMock.mock.calls[0];
-    expect(url).toBe('http://api.test/api/v1/jobs?sort_by=fit_score&order=desc&limit=200&offset=200');
+    expect(url).toBe(
+      'http://api.test/api/v1/jobs?sort_by=fit_score&order=desc&limit=200&offset=200'
+    );
     expect(page).toEqual({ jobs: [mockJob], total: 305, limit: 200, offset: 200 });
   });
 

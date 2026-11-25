@@ -2106,8 +2106,10 @@ export function buildApp({
     const userId = request.user.id;
     const isMultiTenant = Boolean(userId && userId !== 'legacy-admin' && userId !== 'dev-user');
     const sortDirection = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
-    const parsedLimit = Math.min(Math.max(1, Number.parseInt(String(limit), 10) || 100), 1000);
-    const parsedOffset = Math.max(0, Number.parseInt(String(offset), 10) || 0);
+    const rawLimit = Number.parseInt(String(limit), 10);
+    const parsedLimit = Number.isNaN(rawLimit) ? 100 : Math.min(Math.max(1, rawLimit), 1000);
+    const rawOffset = Number.parseInt(String(offset), 10);
+    const parsedOffset = Number.isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
 
     let fromClause;
     let whereClause;
@@ -2151,21 +2153,24 @@ export function buildApp({
       whereParams.push(term, term, term);
     }
 
-    let orderClause = isMultiTenant ? 'ORDER BY uj.created_at DESC' : 'ORDER BY created_at DESC';
+    const idTieBreaker = isMultiTenant ? 'j.id ASC' : 'id ASC';
+    let orderClause = isMultiTenant
+      ? `ORDER BY uj.created_at DESC, ${idTieBreaker}`
+      : `ORDER BY created_at DESC, ${idTieBreaker}`;
     if (sort_by === 'fit_score') {
       orderClause = isMultiTenant
-        ? `ORDER BY (uj.fit_score IS NULL), uj.fit_score ${sortDirection}, uj.created_at DESC`
-        : `ORDER BY (fit_score IS NULL), fit_score ${sortDirection}, created_at DESC`;
+        ? `ORDER BY (uj.fit_score IS NULL), uj.fit_score ${sortDirection}, uj.created_at DESC, ${idTieBreaker}`
+        : `ORDER BY (fit_score IS NULL), fit_score ${sortDirection}, created_at DESC, ${idTieBreaker}`;
     } else if (sort_by === 'created_at') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'uj.created_at' : 'created_at'} ${sortDirection}`;
+      orderClause = `ORDER BY ${isMultiTenant ? 'uj.created_at' : 'created_at'} ${sortDirection}, ${idTieBreaker}`;
     } else if (sort_by === 'updated_at') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'uj.updated_at' : 'updated_at'} ${sortDirection}`;
+      orderClause = `ORDER BY ${isMultiTenant ? 'uj.updated_at' : 'updated_at'} ${sortDirection}, ${idTieBreaker}`;
     } else if (sort_by === 'title') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'j.title' : 'title'} COLLATE NOCASE ${sortDirection}`;
+      orderClause = `ORDER BY ${isMultiTenant ? 'j.title' : 'title'} COLLATE NOCASE ${sortDirection}, ${idTieBreaker}`;
     } else if (sort_by === 'company') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'j.company' : 'company'} COLLATE NOCASE ${sortDirection}`;
+      orderClause = `ORDER BY ${isMultiTenant ? 'j.company' : 'company'} COLLATE NOCASE ${sortDirection}, ${idTieBreaker}`;
     } else if (sort_by === 'status') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'uj.status' : 'status'} ${sortDirection}`;
+      orderClause = `ORDER BY ${isMultiTenant ? 'uj.status' : 'status'} ${sortDirection}, ${idTieBreaker}`;
     }
 
     const selectClause = isMultiTenant
