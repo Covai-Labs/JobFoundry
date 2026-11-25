@@ -42,18 +42,18 @@ function run(scriptRel, scriptArgs) {
 }
 
 const EXTRA_EXTENSION_VERBATIM = [
-  ['user-agent.mjs', 'extension/src/background/user-agent.mjs'],
-  ['ats-vendor.mjs', 'extension/src/background/ats-vendor.mjs'],
-  ['liveness-api.mjs', 'extension/src/background/liveness-api.mjs'],
-  ['lib/mjs-files.mjs', 'extension/src/background/lib/mjs-files.mjs'],
-  ['lib/walk-tree.mjs', 'extension/src/background/lib/walk-tree.mjs'],
-  ['lib/scratch-dirs.mjs', 'extension/src/background/lib/scratch-dirs.mjs'],
-  ['lib/local-today.mjs', 'extension/src/background/lib/local-today.mjs'],
-  ['lib/board-truncation.mjs', 'extension/src/background/lib/board-truncation.mjs'],
-  ['lib/ascii-fold.mjs', 'extension/src/background/lib/ascii-fold.mjs'],
-  ['lib/parse-date.mjs', 'extension/src/background/lib/parse-date.mjs'],
-  ['lib/linkedin-url.mjs', 'extension/src/background/lib/linkedin-url.mjs'],
-  ['lib/jd-parse.mjs', 'extension/src/background/lib/jd-parse.mjs'],
+  ['user-agent.mjs', 'extension/src/background/vendored/user-agent.mjs'],
+  ['ats-vendor.mjs', 'extension/src/background/vendored/ats-vendor.mjs'],
+  ['liveness-api.mjs', 'extension/src/background/vendored/liveness-api.mjs'],
+  ['lib/mjs-files.mjs', 'extension/src/background/vendored/lib/mjs-files.mjs'],
+  ['lib/walk-tree.mjs', 'extension/src/background/vendored/lib/walk-tree.mjs'],
+  ['lib/scratch-dirs.mjs', 'extension/src/background/vendored/lib/scratch-dirs.mjs'],
+  ['lib/local-today.mjs', 'extension/src/background/vendored/lib/local-today.mjs'],
+  ['lib/board-truncation.mjs', 'extension/src/background/vendored/lib/board-truncation.mjs'],
+  ['lib/ascii-fold.mjs', 'extension/src/background/vendored/lib/ascii-fold.mjs'],
+  ['lib/parse-date.mjs', 'extension/src/background/vendored/lib/parse-date.mjs'],
+  ['lib/linkedin-url.mjs', 'extension/src/background/vendored/lib/linkedin-url.mjs'],
+  ['lib/jd-parse.mjs', 'extension/src/background/vendored/lib/jd-parse.mjs'],
 ];
 
 function checkExtraExtensionFiles() {

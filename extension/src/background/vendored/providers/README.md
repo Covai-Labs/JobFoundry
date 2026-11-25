@@ -10,13 +10,13 @@ extension's normalized `Job` shape. Providers are zero-token by design: they
 hit public endpoints directly, with no LLM calls and no login. Captured jobs
 are sent to the local JobFoundry ingest API (`POST /api/v1/jobs/ingest`).
 The user-facing catalog of supported sources lives in the
-[providers directory on the docs site](../../../../site/src/pages/docs/providers.astro).
+[providers directory on the docs site](../../../../../site/src/pages/docs/providers.astro).
 
 A subset of this provider layer is adapted from the MIT-licensed
 [career-ops](https://github.com/career-ops) provider collection. Those files
 keep their original MIT headers and attribution; browser-incompatible modules
 are ported (never rewritten in place) — see
-[`scripts/ports/README.md`](../../../scripts/ports/README.md) for the port
+[`scripts/ports/README.md`](../../../../scripts/ports/README.md) for the port
 table and deviation notes. `scripts/vendor.mjs` + `scripts/sync-providers.mjs`
 own the sync process.
 

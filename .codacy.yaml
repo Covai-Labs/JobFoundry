@@ -10,14 +10,7 @@ exclude_paths:
   # Generated architecture-graph snapshots (`graphify update`): committed for
   # reference, never hand-edited, and not part of the shipped product.
   - 'graphify-out/**'
-  - 'extension/src/background/providers/**'
-  - 'extension/src/background/lib/**'
-  - 'extension/src/background/tests/fixtures/**'
-  - 'extension/src/background/user-agent.mjs'
-  - 'extension/src/background/ats-vendor.mjs'
-  - 'extension/src/background/liveness-api.mjs'
-  - 'extension/src/background/himalayas-posting.mjs'
-  - 'extension/src/background/robots-check.mjs'
+  - 'extension/src/background/vendored/**'
   - 'extension/scripts/ports/**'
   - 'server/ingest/src/vendored/**'
   - 'templates/**'

@@ -22,9 +22,9 @@
  * liveness, dedup cache, and the ingest client.
  */
 
-import { resolveProvider } from './providers/_registry.mjs';
-import { providerMap } from './providers/index.js';
-import { makeHttpCtx } from './providers/_http.mjs';
+import { resolveProvider } from './vendored/providers/_registry.mjs';
+import { providerMap } from './vendored/providers/index.js';
+import { makeHttpCtx } from './vendored/providers/_http.mjs';
 import { checkLiveness } from './liveness/index.js';
 import { normalizeJob, withFingerprint } from './normalize.js';
 import { fingerprintText } from './fingerprint.js';

@@ -2,7 +2,7 @@
  * helpers.js — DOM extraction utility functions ported from career-ops.
  */
 
-import { decodeEntities } from '../../background/providers/_html-entities.mjs';
+import { decodeEntities } from '../../background/vendored/providers/_html-entities.mjs';
 
 export function cleanText(text) {
   if (!text) return '';

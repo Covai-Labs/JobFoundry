@@ -8,8 +8,8 @@
 
 import { decantHtml } from '../content/extractors/helpers.js';
 import { checkLiveness } from './liveness/index.js';
-import { makeHttpCtx } from './providers/_http.mjs';
-import { BROWSER_LIKE_USER_AGENT } from './user-agent.mjs';
+import { makeHttpCtx } from './vendored/providers/_http.mjs';
+import { BROWSER_LIKE_USER_AGENT } from './vendored/user-agent.mjs';
 import { assertSafeDestination, fetchWithSafeRedirects } from './safe-url.js';
 
 export const SUPPORTED_TASK_TYPES = new Set([

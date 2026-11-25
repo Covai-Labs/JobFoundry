@@ -43,11 +43,12 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PROVIDERS_DST = join(EXT, 'src', 'background', 'providers');
+const VENDORED_DST = join(EXT, 'src', 'background', 'vendored');
+const PROVIDERS_DST = join(VENDORED_DST, 'providers');
 const TESTS_DST = join(PROVIDERS_DST, 'tests');
-const FIXTURES_DST = join(EXT, 'src', 'background', 'tests', 'fixtures');
+const FIXTURES_DST = join(VENDORED_DST, 'tests', 'fixtures');
 const PORTS = join(EXT, 'scripts', 'ports');
-const LIB_DST = join(EXT, 'src', 'background', 'lib');
+const LIB_DST = join(VENDORED_DST, 'lib');
 
 // _dns-cache.mjs patches node:dns at import time — impossible in a browser,
 // and pointless (the browser owns its own DNS). Not vendored.
@@ -180,11 +181,11 @@ for (const name of readdirSync(join(SRC, 'providers')).sort()) {
   providerFiles++;
 }
 
-copy(join(SRC, 'user-agent.mjs'), join(EXT, 'src', 'background', 'user-agent.mjs'));
-copy(join(SRC, 'ats-vendor.mjs'), join(EXT, 'src', 'background', 'ats-vendor.mjs'));
-copy(join(SRC, 'liveness-api.mjs'), join(EXT, 'src', 'background', 'liveness-api.mjs'));
-copy(join(PORTS, 'robots-check.mjs'), join(EXT, 'src', 'background', 'robots-check.mjs'));
-copy(join(PORTS, 'himalayas-posting.mjs'), join(EXT, 'src', 'background', 'himalayas-posting.mjs'));
+copy(join(SRC, 'user-agent.mjs'), join(VENDORED_DST, 'user-agent.mjs'));
+copy(join(SRC, 'ats-vendor.mjs'), join(VENDORED_DST, 'ats-vendor.mjs'));
+copy(join(SRC, 'liveness-api.mjs'), join(VENDORED_DST, 'liveness-api.mjs'));
+copy(join(PORTS, 'robots-check.mjs'), join(VENDORED_DST, 'robots-check.mjs'));
+copy(join(PORTS, 'himalayas-posting.mjs'), join(VENDORED_DST, 'himalayas-posting.mjs'));
 
 let testFiles = 0;
 for (const name of readdirSync(join(SRC, 'tests', 'providers')).sort()) {

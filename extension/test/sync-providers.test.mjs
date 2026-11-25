@@ -38,12 +38,19 @@ test(
   'sync-providers detects drift by copying a stray provider into the tree',
   { skip: !fromExists },
   () => {
-    const stray = join(EXT, 'src', 'background', 'providers', '_sync-providers-stray-probe.mjs');
+    const stray = join(
+      EXT,
+      'src',
+      'background',
+      'vendored',
+      'providers',
+      '_sync-providers-stray-probe.mjs'
+    );
     try {
       // A local-only file that upstream does not have must be reported as orphan.
       // (Add a file, run the check, expect a failure naming it, then remove it.)
       // Use an existing verbatim file's bytes so the probe itself is inert.
-      copyFileSync(join(EXT, 'src', 'background', 'providers', '4dayweek.mjs'), stray);
+      copyFileSync(join(EXT, 'src', 'background', 'vendored', 'providers', '4dayweek.mjs'), stray);
       const out = run([join(EXT, 'scripts', 'sync-providers.mjs'), '--from', SCRATCH_CAREER_OPS], {
         ok: false,
       });

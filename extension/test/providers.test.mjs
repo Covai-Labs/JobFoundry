@@ -6,7 +6,8 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PROVIDERS = join(EXT, 'src', 'background', 'providers');
+const VENDORED = join(EXT, 'src', 'background', 'vendored');
+const PROVIDERS = join(VENDORED, 'providers');
 const TESTS = join(PROVIDERS, 'tests');
 
 const providerFiles = readdirSync(PROVIDERS)
@@ -22,7 +23,7 @@ test('vendored provider tree matches the expected file inventory', () => {
   assert.ok(!nonTest.includes('_dns-cache.mjs'), '_dns-cache.mjs must not be vendored');
   assert.ok(existsSync(join(PROVIDERS, '_types.js')), '_types.js present');
   assert.ok(existsSync(join(PROVIDERS, 'README.md')), 'providers README present');
-  assert.ok(existsSync(join(EXT, 'src', 'background', 'user-agent.mjs')), 'user-agent.mjs present');
+  assert.ok(existsSync(join(VENDORED, 'user-agent.mjs')), 'user-agent.mjs present');
   const dropped = [
     'dns-cache.test.mjs',
     'dns-pacing.test.mjs',

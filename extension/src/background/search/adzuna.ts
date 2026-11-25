@@ -9,7 +9,7 @@ import type {
   SearchCriteria,
   SearchProviderOptions,
 } from './types.ts';
-import { htmlToText } from '../providers/_html-to-text.mjs';
+import { htmlToText } from '../vendored/providers/_html-to-text.mjs';
 
 export interface AdzunaSearchProvider extends AggregatorSearchProvider {
   search(criteria: SearchCriteria, options?: SearchProviderOptions): Promise<RawAggregatorJob[]>;

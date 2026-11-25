@@ -15,9 +15,9 @@ import {
   classifyLinkedInPosting,
   resolveAtsApi as upstreamResolveAtsApi,
   checkLivenessViaApi as upstreamCheckLivenessViaApi,
-} from '../liveness-api.mjs';
-import { resolveHimalayasPosting } from '../himalayas-posting.mjs';
-import { fetchResponse as defaultFetchResponse } from '../providers/_http.mjs';
+} from '../vendored/liveness-api.mjs';
+import { resolveHimalayasPosting } from '../vendored/himalayas-posting.mjs';
+import { fetchResponse as defaultFetchResponse } from '../vendored/providers/_http.mjs';
 
 export { classifyAshbyBoard, classifyLinkedInPosting };
 
