@@ -3,6 +3,8 @@
  * (`master-resume.json`) to vendored career-ops zero-LLM modules:
  *   - `jd-skill-gap.mjs` (`extractJdSkills`, `classifySkillGaps`, `diagnoseExtraction`, `diagnoseCoverage`)
  *   - `verify-cv-facts.mjs` (`auditClaims`)
+ *   - `role-clarity.mjs` (`analyzeRoleClarity`, `formatSummary`)
+ *   - `jd-similarity.mjs` (`jaccardSimilarity`, `recommendCvReuse`)
  *
  * Keeps vendored files 100% byte-identical to upstream.
  */
@@ -14,6 +16,32 @@ import {
   diagnoseCoverage,
 } from '../vendored/jd-skill-gap.mjs';
 import { auditClaims } from '../vendored/verify-cv-facts.mjs';
+import {
+  analyzeRoleClarity,
+  formatSummary as formatRoleClaritySummary,
+} from '../vendored/role-clarity.mjs';
+import { jaccardSimilarity, recommendCvReuse } from '../vendored/jd-similarity.mjs';
+
+export { analyzeRoleClarity, formatRoleClaritySummary, jaccardSimilarity, recommendCvReuse };
+
+const STANDARD_TOP_KEYS = new Set([
+  '$schema',
+  'meta',
+  'basics',
+  'work',
+  'volunteer',
+  'projects',
+  'education',
+  'certificates',
+  'awards',
+  'publications',
+  'languages',
+  'interests',
+  'references',
+  'skills',
+]);
+
+const SKIP_ENTRY_KEYS = new Set(['id', 'url', 'website', 'image', 'email', 'phone', 'profiles']);
 
 function pushHighlights(lines, items) {
   if (!Array.isArray(items)) return;
@@ -21,6 +49,33 @@ function pushHighlights(lines, items) {
     if (h) lines.push(`- ${h}`);
   }
 }
+
+function pushExtraValues(lines, obj, handledKeys) {
+  if (!obj || typeof obj !== 'object') return;
+  for (const [key, val] of Object.entries(obj)) {
+    if (handledKeys.has(key) || SKIP_ENTRY_KEYS.has(key) || val == null) continue;
+    if (typeof val === 'string' && val.trim()) {
+      lines.push(`- ${val.trim()}`);
+    } else if (Array.isArray(val)) {
+      for (const item of val) {
+        if (typeof item === 'string' && item.trim()) lines.push(`- ${item.trim()}`);
+        else if (item && typeof item === 'object') pushExtraValues(lines, item, new Set());
+      }
+    } else if (typeof val === 'object') {
+      pushExtraValues(lines, val, new Set());
+    }
+  }
+}
+
+const WORK_HANDLED_KEYS = new Set([
+  'position',
+  'name',
+  'organization',
+  'startDate',
+  'endDate',
+  'summary',
+  'highlights',
+]);
 
 function pushWorkEntries(lines, heading, entries) {
   if (!Array.isArray(entries) || entries.length === 0) return;
@@ -32,6 +87,7 @@ function pushWorkEntries(lines, heading, entries) {
     if (dates) lines.push(dates);
     if (w.summary) lines.push(w.summary);
     pushHighlights(lines, w.highlights);
+    pushExtraValues(lines, w, WORK_HANDLED_KEYS);
   }
 }
 
@@ -39,7 +95,8 @@ function pushWorkEntries(lines, heading, entries) {
  * Render a JSON Resume object into the Markdown structure expected by
  * `jd-skill-gap.mjs` and `verify-cv-facts.mjs` (with `## Skills` and prose
  * sections separated so `classifySkillGaps` distinguishes named skills from
- * prose-supported skills).
+ * prose-supported skills). Preserves standard sections plus any custom/extra
+ * JSON Resume keys.
  *
  * @param {Record<string, any>} resumeJson
  * @returns {string}
@@ -59,16 +116,19 @@ export function jsonResumeToMarkdown(resumeJson) {
 
   if (Array.isArray(r.projects) && r.projects.length > 0) {
     lines.push('', '## Projects');
+    const handled = new Set(['name', 'summary', 'description', 'highlights']);
     for (const p of r.projects) {
       if (p.name) lines.push(`### ${p.name}`);
       if (p.summary) lines.push(p.summary);
       if (p.description) lines.push(p.description);
       pushHighlights(lines, p.highlights);
+      pushExtraValues(lines, p, handled);
     }
   }
 
   if (Array.isArray(r.education) && r.education.length > 0) {
     lines.push('', '## Education');
+    const handled = new Set(['studyType', 'area', 'institution', 'courses']);
     for (const e of r.education) {
       const degree = [e.studyType, e.area].filter(Boolean).join(' in ');
       const line = [degree, e.institution].filter(Boolean).join(' — ');
@@ -76,6 +136,7 @@ export function jsonResumeToMarkdown(resumeJson) {
       if (Array.isArray(e.courses) && e.courses.length > 0) {
         lines.push(`  Courses: ${e.courses.filter(Boolean).join(', ')}`);
       }
+      pushExtraValues(lines, e, handled);
     }
   }
 
@@ -127,6 +188,27 @@ export function jsonResumeToMarkdown(resumeJson) {
     for (const ref of r.references) {
       const line = [ref.name, ref.reference].filter(Boolean).join(' — ');
       if (line) lines.push(`- ${line}`);
+    }
+  }
+
+  // Fallback for any custom/non-standard top-level JSON Resume sections (placed
+  // before ## Skills so splitSkillsSection treats ## Skills as the final section).
+  for (const [key, val] of Object.entries(r)) {
+    if (STANDARD_TOP_KEYS.has(key) || SKIP_ENTRY_KEYS.has(key) || val == null) continue;
+    const sectionTitle = key.charAt(0).toUpperCase() + key.slice(1);
+    const sectionLines = [];
+    if (typeof val === 'string' && val.trim()) {
+      sectionLines.push(val.trim());
+    } else if (Array.isArray(val)) {
+      for (const item of val) {
+        if (typeof item === 'string' && item.trim()) sectionLines.push(`- ${item.trim()}`);
+        else if (item && typeof item === 'object') pushExtraValues(sectionLines, item, new Set());
+      }
+    } else if (typeof val === 'object') {
+      pushExtraValues(sectionLines, val, new Set());
+    }
+    if (sectionLines.length > 0) {
+      lines.push('', `## ${sectionTitle}`, ...sectionLines);
     }
   }
 

@@ -20,6 +20,8 @@ import {
   jsonResumeToMarkdown,
   analyzeSkillGap,
   auditTailoredResumeFacts,
+  analyzeRoleClarity,
+  recommendCvReuse,
 } from '../src/jobs/resume-adapter.mjs';
 import { normalizeJob } from '../src/jobs/normalize.mjs';
 import { heuristicParseJd } from '../src/jobs/parse-jd.mjs';
@@ -376,4 +378,25 @@ test('resume-adapter bridges master-resume.json to jd-skill-gap and verify-cv-fa
     masterResume
   );
   assert.ok(hallucinatedAudit.invented.length > 0);
+
+  const withCustom = {
+    ...masterResume,
+    patents: [{ title: 'Zero-latency Cache', summary: 'Served 300k requests per second.' }],
+  };
+  const customAudit = auditTailoredResumeFacts('Served 300k requests per second.', withCustom);
+  assert.deepEqual(customAudit.invented, []);
+});
+
+test('role-clarity and jd-similarity evaluate JD quality and CV reuse', () => {
+  const clarity = analyzeRoleClarity(
+    'Responsibilities: Design APIs and ship services. Requirements: 3+ years Python.'
+  );
+  assert.ok(Array.isArray(clarity.points));
+  assert.equal(typeof clarity.counts?.missing, 'number');
+
+  const jd1 = 'Senior Backend Engineer with Python, PostgreSQL, Docker, and Kubernetes experience.';
+  const jd2 = 'Senior Backend Engineer with Python, PostgreSQL, Docker, and AWS experience.';
+  const reuse = recommendCvReuse(jd2, jd1);
+  assert.equal(typeof reuse.score, 'number');
+  assert.ok(reuse.score > 0.5);
 });
