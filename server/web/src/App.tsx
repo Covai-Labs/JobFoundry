@@ -50,9 +50,13 @@ interface DashboardContentProps {
   settings: AppSettings;
   onSaveSettings: (settings: AppSettings) => void;
   jobs: Job[];
+  totalJobs: number;
+  hasMoreJobs: boolean;
+  loadingMore: boolean;
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onLoadMore: () => void;
   onJobUpdated: (job: Job) => void;
   onJobDeleted: (jobId: string) => void;
   onStatusChange: (jobId: string, status: JobStatus) => Promise<void>;
@@ -173,9 +177,13 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   settings,
   onSaveSettings,
   jobs,
+  totalJobs,
+  hasMoreJobs,
+  loadingMore,
   loading,
   error,
   onRefresh,
+  onLoadMore,
   onJobUpdated,
   onJobDeleted,
   onStatusChange,
@@ -502,11 +510,16 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
               element={
                 <JobFeed
                   jobs={jobs}
+                  totalJobs={totalJobs}
+                  hasMore={hasMoreJobs}
+                  loadingMore={loadingMore}
+                  onLoadMore={onLoadMore}
                   threshold={settings.threshold}
                   onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                   onJobUpdated={onJobUpdated}
                   onJobDeleted={onJobDeleted}
                   onStatusChange={onStatusChange}
+                  onRefreshJobs={onRefresh}
                 />
               }
             />
@@ -557,12 +570,17 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                 <>
                   <JobFeed
                     jobs={jobs}
+                    totalJobs={totalJobs}
+                    hasMore={hasMoreJobs}
+                    loadingMore={loadingMore}
+                    onLoadMore={onLoadMore}
                     threshold={settings.threshold}
                     onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                     onJobUpdated={onJobUpdated}
                     onJobDeleted={onJobDeleted}
                     onStatusChange={onStatusChange}
                     selectedJobId={location.pathname.split('/')[2]}
+                    onRefreshJobs={onRefresh}
                   />
                   <JobDetailWrapper
                     jobs={jobs}
@@ -613,9 +631,13 @@ const DashboardRoot: React.FC = () => {
 
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [totalJobs, setTotalJobs] = useState<number>(0);
+  const [nextOffset, setNextOffset] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userCount, setUserCount] = useState<number | null>(null);
+  const fetchSeqRef = useRef(0);
 
   useEffect(() => {
     if (!user) {
@@ -636,26 +658,76 @@ const DashboardRoot: React.FC = () => {
     api.setApiKey(token || settings.apiKey || null);
   }, [settings, token]);
 
+  const PAGE_SIZE = 200;
+
   const fetchJobs = useCallback(async () => {
     if (!token && !settings.apiKey) {
       setLoading(false);
       return;
     }
+    const seq = ++fetchSeqRef.current;
     setLoading(true);
+    setLoadingMore(false);
     setError(null);
     try {
-      const data = await api.getJobs({ limit: 200 });
-      setJobs(data);
+      const page = await api.getJobsPage({
+        limit: PAGE_SIZE,
+        offset: 0,
+        sort_by: 'fit_score',
+        order: 'desc',
+      });
+      if (seq !== fetchSeqRef.current) return;
+      setJobs(page.jobs);
+      setTotalJobs(page.total);
+      setNextOffset(page.jobs.length);
     } catch (err: any) {
+      if (seq !== fetchSeqRef.current) return;
       if (err.status === 401) {
         logout();
         return;
       }
       setError(err.message || 'Failed to load jobs from server');
     } finally {
-      setLoading(false);
+      if (seq === fetchSeqRef.current) {
+        setLoading(false);
+      }
     }
   }, [token, settings.apiKey, logout]);
+
+  const loadMoreJobs = useCallback(async () => {
+    if ((!token && !settings.apiKey) || loadingMore || nextOffset >= totalJobs) {
+      return;
+    }
+    const seq = fetchSeqRef.current;
+    setLoadingMore(true);
+    try {
+      const page = await api.getJobsPage({
+        limit: PAGE_SIZE,
+        offset: nextOffset,
+        sort_by: 'fit_score',
+        order: 'desc',
+      });
+      if (seq !== fetchSeqRef.current) return;
+      setJobs((prev) => {
+        const seen = new Set(prev.map((j) => j.id));
+        const next = page.jobs.filter((j) => !seen.has(j.id));
+        return [...prev, ...next];
+      });
+      setTotalJobs(page.total);
+      setNextOffset((prev) => prev + page.jobs.length);
+    } catch (err: any) {
+      if (seq !== fetchSeqRef.current) return;
+      if (err.status === 401) {
+        logout();
+        return;
+      }
+      toast.error(`Failed to load more jobs: ${err.message || 'Unknown error'}`);
+    } finally {
+      if (seq === fetchSeqRef.current) {
+        setLoadingMore(false);
+      }
+    }
+  }, [token, settings.apiKey, loadingMore, nextOffset, totalJobs, logout, toast]);
 
   useEffect(() => {
     if (user) {
@@ -698,6 +770,8 @@ const DashboardRoot: React.FC = () => {
 
   const handleJobDeleted = (deletedId: string) => {
     setJobs((prev) => prev.filter((j) => j.id !== deletedId));
+    setTotalJobs((prev) => Math.max(0, prev - 1));
+    setNextOffset((prev) => Math.max(0, prev - 1));
   };
 
   const handleSaveSettings = (newSettings: AppSettings) => {
@@ -753,9 +827,13 @@ const DashboardRoot: React.FC = () => {
         settings={settings}
         onSaveSettings={handleSaveSettings}
         jobs={jobs}
+        totalJobs={totalJobs}
+        hasMoreJobs={nextOffset < totalJobs}
+        loadingMore={loadingMore}
         loading={loading}
         error={error}
         onRefresh={fetchJobs}
+        onLoadMore={loadMoreJobs}
         onJobUpdated={handleJobUpdated}
         onJobDeleted={handleJobDeleted}
         onStatusChange={handleStatusChange}

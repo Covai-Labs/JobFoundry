@@ -3,7 +3,13 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { JSDOM } from 'jsdom';
-import { hydrate, scanNow, verifyConnection } from '../src/entrypoints/popup/main.ts';
+import {
+  hydrate,
+  scanNow,
+  searchBoardsNow,
+  verifyConnection,
+  applyScanStateToUI,
+} from '../src/entrypoints/popup/main.ts';
 
 const EXT = resolve(import.meta.dirname, '..');
 const HTML = readFileSync(resolve(EXT, 'src/entrypoints/popup/index.html'), 'utf8');
@@ -110,18 +116,54 @@ test('verifyConnection sets Invalid API Key on 401', async () => {
   assert.equal(doc.querySelector('#popup-conn-badge').textContent, '🔴 Invalid API Key');
 });
 
-test('verifyConnection sets Server Offline on fetch rejection', async () => {
+test('applyScanStateToUI handles in-progress and completed states', () => {
   const { doc } = setupDom();
-  const mockFetch = async () => {
-    throw new Error('Failed to fetch');
-  };
+  const searchBtn = doc.querySelector('#search-boards-now');
+  const scanBtn = doc.querySelector('#scan-now');
+  const status = doc.querySelector('#status');
 
-  const res = await verifyConnection({
+  // 1. inProgress search
+  applyScanStateToUI(doc, {
+    inProgress: true,
+    type: 'search',
+    statusMessage: 'Searching "Data Analyst" (1/5)...',
+    totalFound: 3,
+    newIngested: 0,
+    droppedDedup: 0,
+    errors: [],
+  });
+  assert.equal(searchBtn.disabled, true);
+  assert.equal(searchBtn.textContent, '⏳ Searching Boards...');
+  assert.equal(scanBtn.disabled, true);
+  assert.equal(status.textContent, 'Searching "Data Analyst" (1/5)...');
+
+  // 2. completed search
+  applyScanStateToUI(doc, {
+    inProgress: false,
+    type: 'search',
+    statusMessage: '✓ Search complete: 5 new job(s) ingested (12 found)',
+    totalFound: 12,
+    newIngested: 5,
+    droppedDedup: 7,
+    errors: [],
+  });
+  assert.equal(searchBtn.disabled, false);
+  assert.equal(searchBtn.textContent, '🔍 Search Job Boards');
+  assert.equal(scanBtn.disabled, false);
+  assert.equal(status.textContent, '✓ Search complete: 5 new job(s) ingested (12 found)');
+});
+
+test('searchBoardsNow prompts user when positive keywords are empty', async () => {
+  const { doc } = setupDom();
+  const status = doc.querySelector('#status');
+
+  const res = await searchBoardsNow({
     doc,
-    config: { serverUrl: 'http://localhost:8080', apiKey: 'secret' },
-    fetchImpl: mockFetch,
+    sendMessage: async () => ({ ok: true }),
   });
 
   assert.equal(res.ok, false);
-  assert.equal(doc.querySelector('#popup-conn-badge').textContent, '🔴 Server Offline');
+  assert.equal(res.error, 'No target role keywords configured');
+  assert.ok(status.textContent.includes('No target keywords configured'));
+  assert.ok(doc.querySelector('#link-setup-keywords'));
 });

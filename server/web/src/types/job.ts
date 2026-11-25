@@ -48,6 +48,14 @@ export interface JobFilters {
   sort_by?: 'fit_score' | 'created_at' | 'updated_at' | 'title' | 'company' | 'status';
   order?: 'asc' | 'desc';
   limit?: number;
+  offset?: number;
+}
+
+export interface JobsPage {
+  jobs: Job[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface TailorResponse {

@@ -14,13 +14,20 @@ import {
   getStatusLabel,
 } from '../../lib/jobStages';
 import { useMediaQuery } from '../../lib/useMediaQuery';
-import { Search, LayoutList, LayoutGrid, X, Keyboard } from 'lucide-react';
+import { Search, LayoutList, LayoutGrid, X, Keyboard, Compass } from 'lucide-react';
+import { IngestionProgressBar } from './IngestionProgressBar';
+import { useExtensionBridge } from './useExtensionBridge';
 
 /** Below this width the split triage station collapses to cards. */
 const SPLIT_VIEW_MIN_WIDTH = 1080;
+const RENDER_BATCH_SIZE = 100;
 
 interface JobFeedProps {
   jobs: Job[];
+  totalJobs?: number;
+  hasMore?: boolean;
+  loadingMore?: boolean;
+  onLoadMore?: () => void;
   threshold?: number;
   initialFilters?: Partial<FilterCriteria>;
   selectedJobId?: string;
@@ -28,6 +35,7 @@ interface JobFeedProps {
   onJobUpdated?: (updatedJob: Job) => void;
   onJobDeleted?: (jobId: string) => void;
   onStatusChange?: (jobId: string, newStatus: JobStatus) => Promise<void> | void;
+  onRefreshJobs?: () => void;
 }
 
 export type SortOption =
@@ -41,6 +49,10 @@ export type SortOption =
 
 export const JobFeed: React.FC<JobFeedProps> = ({
   jobs,
+  totalJobs,
+  hasMore = false,
+  loadingMore = false,
+  onLoadMore,
   threshold = 75,
   initialFilters,
   selectedJobId: externalSelectedJobId,
@@ -48,7 +60,16 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   onJobUpdated,
   onJobDeleted,
   onStatusChange,
+  onRefreshJobs,
 }) => {
+  const {
+    isExtensionAvailable,
+    scanState,
+    bannerDismissed,
+    triggerSearchBoards,
+    triggerScanPortals,
+    dismissBanner,
+  } = useExtensionBridge(onRefreshJobs);
   const [filters, setFilters] = useState<FilterCriteria>({
     search: initialFilters?.search ?? '',
     status: initialFilters?.status ?? ACTIONABLE_FILTER,
@@ -69,6 +90,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   const effectiveViewMode: 'split' | 'grid' = isNarrowViewport ? 'grid' : viewMode;
 
   const [activeJobId, setActiveJobId] = useState<string | null>(externalSelectedJobId || null);
+  const [renderLimit, setRenderLimit] = useState<number>(RENDER_BATCH_SIZE);
 
   const [isHelpModalOpen, setIsHelpModalOpen] = useState(false);
 
@@ -383,11 +405,31 @@ export const JobFeed: React.FC<JobFeedProps> = ({
   const resetFilters = () => {
     setFilters({
       search: '',
-      status: ACTIONABLE_FILTER,
+      status: 'all',
       source: 'all',
       minScore: undefined,
     });
   };
+
+  useEffect(() => {
+    setRenderLimit(RENDER_BATCH_SIZE);
+  }, [filters, sortOption, effectiveViewMode]);
+
+  // Ensure keyboard navigation (e.g. G or J/K past the window) keeps the active row rendered.
+  useEffect(() => {
+    if (!activeJobId) return;
+    const idx = sortedAndFilteredJobs.findIndex((j) => j.id === activeJobId);
+    if (idx >= renderLimit) {
+      setRenderLimit(idx + RENDER_BATCH_SIZE);
+    }
+  }, [activeJobId, sortedAndFilteredJobs, renderLimit]);
+
+  const visibleJobs = useMemo(() => {
+    return sortedAndFilteredJobs.slice(0, renderLimit);
+  }, [sortedAndFilteredJobs, renderLimit]);
+
+  const knownTotal =
+    typeof totalJobs === 'number' && totalJobs >= jobs.length ? totalJobs : jobs.length;
 
   const activeJob = useMemo(() => {
     return (
@@ -404,11 +446,14 @@ export const JobFeed: React.FC<JobFeedProps> = ({
         hasActiveFilters={hasActiveFilters}
         totalJobs={jobs.length}
         hasActiveResume={hasActiveResume}
-        isExtensionPaired={isExtensionPaired}
+        isExtensionPaired={isExtensionPaired || isExtensionAvailable}
         onShowAll={() => {
           setFilters((f) => ({ ...f, status: 'all' }));
         }}
         onResetFilters={resetFilters}
+        onSearchBoards={triggerSearchBoards}
+        onScanPortals={triggerScanPortals}
+        isScanning={Boolean(scanState?.inProgress)}
       />
     );
   } else if (effectiveViewMode === 'split') {
@@ -421,7 +466,7 @@ export const JobFeed: React.FC<JobFeedProps> = ({
             <span>Use J / K to step</span>
           </div>
           <div className="triage-list-scroll">
-            {sortedAndFilteredJobs.map((job) => (
+            {visibleJobs.map((job) => (
               <div key={job.id} data-job-id={job.id}>
                 <TriageListItem
                   job={job}
@@ -431,6 +476,41 @@ export const JobFeed: React.FC<JobFeedProps> = ({
                 />
               </div>
             ))}
+            {(sortedAndFilteredJobs.length > renderLimit || (hasMore && onLoadMore)) && (
+              <div
+                style={{
+                  padding: '0.75rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  alignItems: 'center',
+                }}
+              >
+                {sortedAndFilteredJobs.length > renderLimit && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={() => setRenderLimit((prev) => prev + RENDER_BATCH_SIZE)}
+                    style={{ width: '100%' }}
+                  >
+                    Show more ({sortedAndFilteredJobs.length - renderLimit} remaining in view)
+                  </button>
+                )}
+                {hasMore && onLoadMore && (
+                  <button
+                    type="button"
+                    className="btn btn-secondary btn-sm"
+                    onClick={onLoadMore}
+                    disabled={loadingMore}
+                    style={{ width: '100%' }}
+                  >
+                    {loadingMore
+                      ? 'Loading more jobs…'
+                      : `Load more from server (${knownTotal - jobs.length} remaining)`}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -450,18 +530,53 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     );
   } else {
     content = (
-      <div className="job-grid">
-        {sortedAndFilteredJobs.map((job) => (
-          <JobCard
-            key={job.id}
-            job={job}
-            threshold={threshold}
-            onSelect={onSelectJob}
-            onTailored={onJobUpdated}
-            onStatusChange={onStatusChange}
-          />
-        ))}
-      </div>
+      <>
+        <div className="job-grid">
+          {visibleJobs.map((job) => (
+            <JobCard
+              key={job.id}
+              job={job}
+              threshold={threshold}
+              onSelect={onSelectJob}
+              onTailored={onJobUpdated}
+              onStatusChange={onStatusChange}
+            />
+          ))}
+        </div>
+        {(sortedAndFilteredJobs.length > renderLimit || (hasMore && onLoadMore)) && (
+          <div
+            style={{
+              marginTop: '1rem',
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '0.75rem',
+              flexWrap: 'wrap',
+            }}
+          >
+            {sortedAndFilteredJobs.length > renderLimit && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={() => setRenderLimit((prev) => prev + RENDER_BATCH_SIZE)}
+              >
+                Show more ({sortedAndFilteredJobs.length - renderLimit} remaining in view)
+              </button>
+            )}
+            {hasMore && onLoadMore && (
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={onLoadMore}
+                disabled={loadingMore}
+              >
+                {loadingMore
+                  ? 'Loading more jobs…'
+                  : `Load more from server (${knownTotal - jobs.length} remaining)`}
+              </button>
+            )}
+          </div>
+        )}
+      </>
     );
   }
 
@@ -469,6 +584,14 @@ export const JobFeed: React.FC<JobFeedProps> = ({
     <div>
       {/* Keyboard Help Modal */}
       <KeyboardHelpModal isOpen={isHelpModalOpen} onClose={() => setIsHelpModalOpen(false)} />
+
+      {/* Live Ingestion Progress Banner */}
+      <IngestionProgressBar
+        scanState={scanState}
+        bannerDismissed={bannerDismissed}
+        onDismiss={dismissBanner}
+        onRefreshFeed={onRefreshJobs}
+      />
 
       {/* Filters and Sorting Bar */}
       <div className="filters-bar">
@@ -586,6 +709,53 @@ export const JobFeed: React.FC<JobFeedProps> = ({
             </button>
           )}
 
+          {/* Quick Job Discovery Actions */}
+          <div
+            className="feed-discovery-actions"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+          >
+            <button
+              type="button"
+              onClick={triggerSearchBoards}
+              disabled={Boolean(scanState?.inProgress)}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+              }}
+              title="Search job boards (LinkedIn, Indeed, Glassdoor, HiringCafe) for target role keywords"
+            >
+              <Search size={13} />
+              <span>
+                {scanState?.inProgress && scanState.type === 'search'
+                  ? 'Searching...'
+                  : 'Search Boards'}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={triggerScanPortals}
+              disabled={Boolean(scanState?.inProgress)}
+              className="btn btn-secondary btn-sm"
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '0.35rem',
+                whiteSpace: 'nowrap',
+              }}
+              title="Scan 38 portal feeds for matching opportunities"
+            >
+              <Compass size={13} />
+              <span>
+                {scanState?.inProgress && scanState.type === 'scan'
+                  ? 'Scanning...'
+                  : 'Scan Portals'}
+              </span>
+            </button>
+          </div>
+
           {/* View Mode Switcher — split view is hidden when the viewport can't fit it */}
           {!isNarrowViewport && (
             <div className="view-segmented-control">
@@ -662,7 +832,32 @@ export const JobFeed: React.FC<JobFeedProps> = ({
       {/* Results Header Info */}
       <div className="feed-results-meta">
         <div>
-          Showing <strong>{sortedAndFilteredJobs.length}</strong> of {jobs.length} jobs
+          Showing <strong>{sortedAndFilteredJobs.length}</strong> of{' '}
+          {jobs.length < knownTotal ? `${jobs.length} loaded` : knownTotal} jobs
+          {jobs.length < knownTotal && (
+            <span style={{ marginLeft: '0.5rem', color: 'var(--text-muted)' }}>
+              ({knownTotal} total in DB
+              {onLoadMore && (
+                <button
+                  type="button"
+                  onClick={onLoadMore}
+                  disabled={loadingMore}
+                  style={{
+                    background: 'none',
+                    border: 'none',
+                    color: 'var(--accent-primary)',
+                    cursor: loadingMore ? 'default' : 'pointer',
+                    padding: '0 0.25rem',
+                    font: 'inherit',
+                    fontWeight: 500,
+                  }}
+                >
+                  {loadingMore ? '· Loading…' : '· Load more'}
+                </button>
+              )}
+              )
+            </span>
+          )}
           {hasActiveFilters && (
             <span style={{ marginLeft: '0.5rem', color: 'var(--accent-primary)', fontWeight: 500 }}>
               (filtered)

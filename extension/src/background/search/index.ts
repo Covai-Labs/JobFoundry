@@ -39,6 +39,12 @@ export interface RunSearchPipelineOptions {
   fetchFn?: typeof fetch;
   cache?: any;
   fingerprint?: typeof fingerprintText;
+  onProgress?: (progress: {
+    currentTerm: string;
+    termIndex: number;
+    totalTerms: number;
+    foundSoFar: number;
+  }) => Promise<void> | void;
   logger?: {
     info?: (msg: string) => void;
     warn?: (msg: string) => void;
@@ -65,6 +71,7 @@ export async function runSearchPipeline({
   fetchFn = globalThis.fetch,
   cache = null,
   fingerprint = fingerprintText,
+  onProgress,
   logger = console,
 }: RunSearchPipelineOptions = {}): Promise<SearchPipelineResult> {
   const config = getConfig ? await getConfig() : {};
@@ -133,7 +140,20 @@ export async function runSearchPipeline({
   const errors: string[] = [];
 
   // Execute search per term across enabled boards
-  for (const term of terms) {
+  for (let termIndex = 0; termIndex < terms.length; termIndex++) {
+    const term = terms[termIndex];
+    if (onProgress) {
+      try {
+        await onProgress({
+          currentTerm: term,
+          termIndex,
+          totalTerms: terms.length,
+          foundSoFar: rawPooled.length,
+        });
+      } catch {
+        // ignore progress update failure
+      }
+    }
     logger.info?.(
       `[aggregator-search] Searching for "${term}" across: ${activeProviders.map((p) => p.id).join(', ')}`
     );

@@ -385,7 +385,12 @@ export class ApiClient {
     });
   }
 
-  async getJobs(filters: JobFilters = {}): Promise<Job[]> {
+  async getJobsPage(filters: JobFilters = {}): Promise<{
+    jobs: Job[];
+    total: number;
+    limit: number;
+    offset: number;
+  }> {
     const params = new URLSearchParams();
     if (filters.status) params.set('status', filters.status);
     if (filters.source) params.set('source', filters.source);
@@ -393,12 +398,28 @@ export class ApiClient {
     if (filters.search) params.set('search', filters.search);
     if (filters.sort_by) params.set('sort_by', filters.sort_by);
     if (filters.order) params.set('order', filters.order);
-    if (filters.limit) params.set('limit', String(filters.limit));
+    if (filters.limit !== undefined) params.set('limit', String(filters.limit));
+    if (filters.offset !== undefined) params.set('offset', String(filters.offset));
 
     const queryString = params.toString();
     const path = `/api/v1/jobs${queryString ? `?${queryString}` : ''}`;
-    const res = await this.request<{ jobs: Job[] }>(path);
-    return res.jobs;
+    const res = await this.request<{
+      jobs: Job[];
+      total?: number;
+      limit?: number;
+      offset?: number;
+    }>(path);
+    return {
+      jobs: res.jobs,
+      total: res.total ?? res.jobs.length,
+      limit: res.limit ?? filters.limit ?? res.jobs.length,
+      offset: res.offset ?? filters.offset ?? 0,
+    };
+  }
+
+  async getJobs(filters: JobFilters = {}): Promise<Job[]> {
+    const page = await this.getJobsPage(filters);
+    return page.jobs;
   }
 
   async getTailoredJobs(): Promise<TailoredJob[]> {

@@ -615,15 +615,13 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
             {positiveKeywords.map((kw, i) => (
               <span
                 key={i}
-                className="badge"
+                className="badge badge-indigo"
                 style={{
-                  background: 'rgba(99, 102, 241, 0.15)',
-                  color: '#c7d2fe',
-                  border: '1px solid rgba(99, 102, 241, 0.3)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.35rem',
                   padding: '0.25rem 0.6rem',
+                  borderRadius: 'var(--radius-sm)',
                 }}
               >
                 {kw}
@@ -643,7 +641,8 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
                     border: 'none',
                     cursor: 'pointer',
                     padding: 0,
-                    color: '#c7d2fe',
+                    color: 'currentColor',
+                    opacity: 0.8,
                     display: 'flex',
                     alignItems: 'center',
                   }}
@@ -700,15 +699,13 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
             {negativeKeywords.map((kw, i) => (
               <span
                 key={i}
-                className="badge"
+                className="badge badge-red"
                 style={{
-                  background: 'rgba(239, 68, 68, 0.12)',
-                  color: '#fca5a5',
-                  border: '1px solid rgba(239, 68, 68, 0.25)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: '0.35rem',
                   padding: '0.25rem 0.6rem',
+                  borderRadius: 'var(--radius-sm)',
                 }}
               >
                 {kw}
@@ -728,7 +725,8 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
                     border: 'none',
                     cursor: 'pointer',
                     padding: 0,
-                    color: '#fca5a5',
+                    color: 'currentColor',
+                    opacity: 0.8,
                     display: 'flex',
                     alignItems: 'center',
                   }}
