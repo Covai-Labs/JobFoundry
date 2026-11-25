@@ -47,7 +47,7 @@ export function parseLinkedInJobCards(html: string): RawAggregatorJob[] {
         let salaryMax: number | undefined;
         let salaryCurrency: string | undefined;
 
-        if (salaryText && !/\b(?:\d+(?:\.\d+)?\s*(?:mm|[mb]illion|[mb])\b)/i.test(salaryText)) {
+        if (salaryText && !/\b\d+\s*(?:mm|[mb]illion|[mb])\b/i.test(salaryText)) {
           const matches = [...salaryText.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*([kK])?/g)];
           const hasK = matches.some(([, , suffix]) => Boolean(suffix));
           const numbers = matches.map(([, value, suffix]) => {
