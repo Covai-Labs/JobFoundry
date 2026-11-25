@@ -21,6 +21,8 @@ deviations in-file. Current ports:
 | `posting-close.mjs` | Upstream imports `../url-key.mjs` (uses `node:fs`/`node:path`) and `./scan-history-columns.mjs` (reads scan-history.tsv from disk). Port keeps the pure `closesAtIso` function unchanged and stubs `closeDatesByUrl`/`closeDateForUrl` as documented no-ops returning empty Map/`''`. Stored in `scripts/ports/` and applied to `src/background/lib/` (not `providers/`). |
 | `robots-check.mjs` | Upstream imports `isIP` from `node:net` and dynamically imports `node:dns/promises`. Port replaces `isIP` with a pure-JS IPv4/IPv6 literal check and skips `node:dns/promises` when no custom resolver is injected (browser owns DNS). Stored in `scripts/ports/` and applied to `src/background/`. |
 | `himalayas-posting.mjs` | Upstream has a CLI `main()` at the bottom importing `node:fs/promises` and `is-main-module.mjs`. Port strips the CLI `main()` block while keeping `resolveHimalayasPosting`, `classifyHimalayasPosting`, and `retrieveHimalayasPosting` intact for `liveness-api.mjs`. Stored in `scripts/ports/` and applied to `src/background/`. |
+| `paylocity.mjs` | Upstream reads `process.env.CAREER_OPS_PAYLOCITY_MIN_INTERVAL_MS` at module load time, which throws `ReferenceError: process is not defined` in browsers. Port guards `typeof process !== 'undefined'` before reading `process.env`. |
+| `deel.mjs` | Upstream `readTextRows()` uses `Buffer.from(stream, 'utf8')`, which throws `ReferenceError: Buffer is not defined` in browsers. Port replaces `Buffer` with `TextEncoder`/`TextDecoder` on `Uint8Array`. |
 
 `tests/` mirrors the lifted provider tests that had to change:
 

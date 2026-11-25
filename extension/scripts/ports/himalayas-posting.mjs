@@ -99,7 +99,13 @@ export async function retrieveHimalayasPosting(originalUrl, { fetchFn = globalTh
       if (size > MAX_BODY) return fail('response_too_large');
       chunks.push(chunk);
     }
-    const body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(Buffer.concat(chunks)));
+    const merged = new Uint8Array(size);
+    let offset = 0;
+    for (const chunk of chunks) {
+      merged.set(chunk, offset);
+      offset += chunk.byteLength;
+    }
+    const body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(merged));
     return classifyHimalayasPosting(originalUrl, response.status, body, metadata);
   } catch { return fail('transport_or_json_unconfirmed'); }
 }

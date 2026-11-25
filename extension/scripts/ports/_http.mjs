@@ -158,7 +158,36 @@ export async function fetchJson(url, opts = {}) {
 }
 
 export async function fetchText(url, opts = {}) {
-  return fetchWithTimeout(url, opts, (res) => res.text());
+  const maxBytes = resolveMaxBytes(opts.maxBytes);
+  return fetchWithTimeout(url, opts, async (res) => {
+    const reader = res.body?.getReader?.();
+    if (!reader) {
+      const text = await res.text();
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > maxBytes) throw bodyTooLarge(bytes, maxBytes);
+      return text;
+    }
+    const decoder = new TextDecoder('utf-8');
+    let out = '';
+    let bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.length;
+        if (bytes > maxBytes) throw bodyTooLarge(bytes, maxBytes);
+        out += decoder.decode(value, { stream: true });
+      }
+      out += decoder.decode();
+      return out;
+    } finally {
+      try {
+        await reader.cancel();
+      } catch {
+        /* body already closed */
+      }
+    }
+  });
 }
 
 export async function fetchTextHead(url, opts = {}) {

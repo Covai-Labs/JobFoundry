@@ -16,6 +16,8 @@ import {
   resolveAtsApi as upstreamResolveAtsApi,
   checkLivenessViaApi as upstreamCheckLivenessViaApi,
 } from '../liveness-api.mjs';
+import { resolveHimalayasPosting } from '../himalayas-posting.mjs';
+import { fetchResponse as defaultFetchResponse } from '../providers/_http.mjs';
 
 export { classifyAshbyBoard, classifyLinkedInPosting };
 
@@ -50,7 +52,14 @@ export function isAtsPosting(url) {
  * `liveness-api.mjs`'s `globalThis.fetch` call pattern.
  */
 async function withFetchAdapter(ctx, fn) {
-  if (!ctx || typeof ctx.fetchResponse !== 'function') {
+  // Only intercept globalThis.fetch when a custom/mock fetchResponse is injected;
+  // makeHttpCtx().fetchResponse is the default _http.mjs transport, which calls
+  // globalThis.fetch() itself and would otherwise infinitely recurse.
+  if (
+    !ctx ||
+    typeof ctx.fetchResponse !== 'function' ||
+    ctx.fetchResponse === defaultFetchResponse
+  ) {
     return fn();
   }
   const prevFetch = globalThis.fetch;
@@ -72,7 +81,8 @@ async function withFetchAdapter(ctx, fn) {
  */
 export async function checkLivenessViaApi(job, ctx, opts) {
   const url = typeof job === 'string' ? job : job?.url;
-  if (!url || !resolveAtsApi(url)) return null;
+  if (!url) return null;
+  if (!resolveAtsApi(url) && !resolveHimalayasPosting(url)) return null;
   return withFetchAdapter(ctx, () => upstreamCheckLivenessViaApi(url, opts));
 }
 

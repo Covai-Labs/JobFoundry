@@ -185,3 +185,37 @@ test('checkLiveness maps to the canonical tri-state', async () => {
     'unknown'
   );
 });
+
+test('checkLivenessViaApi: makeHttpCtx() does not infinitely recurse via globalThis.fetch', async () => {
+  const { makeHttpCtx } = await import(join(EXT, 'src', 'background', 'providers', '_http.mjs'));
+  const prevFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls++;
+    return mockResponse(200, '{"id":123}');
+  };
+  try {
+    const res = await checkLivenessViaApi(
+      { url: 'https://boards.greenhouse.io/acme/jobs/123' },
+      makeHttpCtx()
+    );
+    assert.equal(calls, 1);
+    assert.equal(res?.result, 'active');
+  } finally {
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test('checkLivenessViaApi: Himalayas URLs are not blocked by resolveAtsApi gate', async () => {
+  const res = await checkLivenessViaApi(
+    { url: 'https://himalayas.app/companies/acme/jobs/ai-engineer' },
+    ctxFor(
+      new Response(JSON.stringify({ ok: false, expired: true, expiryDate: 1700000000 }), {
+        status: 410,
+        headers: { 'content-type': 'application/json' },
+      })
+    )
+  );
+  assert.equal(res?.result, 'expired');
+  assert.equal(res?.code, 'himalayas_closed');
+});

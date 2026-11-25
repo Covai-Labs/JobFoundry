@@ -117,7 +117,9 @@ const PORTED_PROVIDERS = new Set([
   '_profile-keywords.mjs',
   'local-parser.mjs',
   'alibaba.mjs',
+  'deel.mjs',
   'mokahr.mjs',
+  'paylocity.mjs',
   'radancy.mjs',
 ]);
 

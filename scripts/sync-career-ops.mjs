@@ -9,7 +9,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,9 +41,48 @@ function run(scriptRel, scriptArgs) {
   });
 }
 
+const EXTRA_EXTENSION_VERBATIM = [
+  ['user-agent.mjs', 'extension/src/background/user-agent.mjs'],
+  ['ats-vendor.mjs', 'extension/src/background/ats-vendor.mjs'],
+  ['liveness-api.mjs', 'extension/src/background/liveness-api.mjs'],
+  ['lib/mjs-files.mjs', 'extension/src/background/lib/mjs-files.mjs'],
+  ['lib/walk-tree.mjs', 'extension/src/background/lib/walk-tree.mjs'],
+  ['lib/scratch-dirs.mjs', 'extension/src/background/lib/scratch-dirs.mjs'],
+  ['lib/local-today.mjs', 'extension/src/background/lib/local-today.mjs'],
+  ['lib/board-truncation.mjs', 'extension/src/background/lib/board-truncation.mjs'],
+  ['lib/ascii-fold.mjs', 'extension/src/background/lib/ascii-fold.mjs'],
+  ['lib/parse-date.mjs', 'extension/src/background/lib/parse-date.mjs'],
+  ['lib/linkedin-url.mjs', 'extension/src/background/lib/linkedin-url.mjs'],
+  ['lib/jd-parse.mjs', 'extension/src/background/lib/jd-parse.mjs'],
+];
+
+function checkExtraExtensionFiles() {
+  const drifted = [];
+  for (const [srcRel, dstRel] of EXTRA_EXTENSION_VERBATIM) {
+    const srcPath = join(SRC, srcRel);
+    const dstPath = join(ROOT, dstRel);
+    if (!existsSync(dstPath)) {
+      drifted.push(`missing: ${dstRel}`);
+      continue;
+    }
+    if (existsSync(srcPath) && !readFileSync(srcPath).equals(readFileSync(dstPath))) {
+      drifted.push(`drifted: ${dstRel}`);
+    }
+  }
+  if (drifted.length > 0) {
+    console.error(`sync-career-ops: ${drifted.length} extra extension file(s) out of sync:`);
+    for (const d of drifted) console.error(`  - ${d}`);
+    process.exit(1);
+  }
+  console.log(
+    `sync-career-ops: ${EXTRA_EXTENSION_VERBATIM.length} extra extension files match upstream verbatim.`
+  );
+}
+
 if (checkOnly) {
   console.log(`[sync-career-ops] Checking drift against ${SRC}...\n`);
   run('extension/scripts/sync-providers.mjs', ['--from', SRC]);
+  checkExtraExtensionFiles();
   run('scripts/vendor-career-ops.mjs', ['--from', SRC, '--check']);
   console.log('\n[sync-career-ops] All vendored trees are in sync.');
 } else {
@@ -53,6 +92,7 @@ if (checkOnly) {
   run('scripts/vendor-career-ops.mjs', ['--from', SRC]);
   console.log('\n[sync-career-ops] Running drift verification...');
   run('extension/scripts/sync-providers.mjs', ['--from', SRC]);
+  checkExtraExtensionFiles();
   run('scripts/vendor-career-ops.mjs', ['--from', SRC, '--check']);
   console.log('\n[sync-career-ops] Done.');
 }

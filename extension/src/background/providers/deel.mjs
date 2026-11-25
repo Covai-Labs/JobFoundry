@@ -114,22 +114,26 @@ export function readFlightStream(html) {
  * @param {string} stream
  * @returns {Map<string, string>}
  */
+// Browser port: Buffer replaced with TextEncoder/TextDecoder on Uint8Array.
+const _encoder = new TextEncoder();
+const _decoder = new TextDecoder('utf-8');
+
 export function readTextRows(stream) {
   const texts = new Map();
-  const buf = Buffer.from(stream, 'utf8');
+  const buf = _encoder.encode(stream);
   let o = 0;
   while (o < buf.length) {
     const colon = buf.indexOf(0x3a, o); // ':'
     if (colon < 0) break;
-    const id = buf.toString('utf8', o, colon);
+    const id = _decoder.decode(buf.subarray(o, colon));
     if (!/^[0-9a-f]*$/.test(id)) break;
     if (buf[colon + 1] === 0x54) { // 'T' — length-prefixed text row
       const comma = buf.indexOf(0x2c, colon + 2);
       if (comma < 0) break;
-      const hex = buf.toString('utf8', colon + 2, comma);
+      const hex = _decoder.decode(buf.subarray(colon + 2, comma));
       if (!/^[0-9a-f]+$/.test(hex)) break;
       const len = parseInt(hex, 16);
-      texts.set(id, buf.toString('utf8', comma + 1, comma + 1 + len));
+      texts.set(id, _decoder.decode(buf.subarray(comma + 1, comma + 1 + len)));
       o = comma + 1 + len;
       if (buf[o] === 0x0a) o++; // newline between rows, when the stream has one
     } else {

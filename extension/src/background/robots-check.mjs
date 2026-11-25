@@ -498,7 +498,7 @@ async function loadPolicy(origin, { fetchImpl, resolver, timeoutMs, userAgent, m
     if (status >= 500) return deny('robots_server_error', `answered HTTP ${status}`);
     if (status < 200 || status >= 300) return deny('robots_http_error', `answered HTTP ${status}`);
 
-    if (Buffer.byteLength(body, 'utf8') > ROBOTS_MAX_BYTES) {
+    if (new TextEncoder().encode(body).length > ROBOTS_MAX_BYTES) {
       return deny('robots_too_large', `body is larger than ${ROBOTS_MAX_BYTES} bytes`);
     }
     if (!stripBom(body).trim()) return verdict(true, 'robots_empty', 'is empty');

@@ -56,9 +56,11 @@ const TIMEOUT_MS = 30_000;
 // time inside 30 s blocks (9,052 of 10,252 boards got a 429; 10 h run).
 // The provider therefore spaces requests itself, for every worker, and treats a
 // 429 as a host-wide pause rather than a per-board retry.
-const MIN_INTERVAL_MS = Number.isFinite(Number(process.env.CAREER_OPS_PAYLOCITY_MIN_INTERVAL_MS))
-  && process.env.CAREER_OPS_PAYLOCITY_MIN_INTERVAL_MS !== undefined
-  ? Number(process.env.CAREER_OPS_PAYLOCITY_MIN_INTERVAL_MS)
+// Browser port: guard process.env access (browsers have no `process` global).
+const _env = typeof process !== 'undefined' && process?.env ? process.env : {};
+const MIN_INTERVAL_MS = Number.isFinite(Number(_env.CAREER_OPS_PAYLOCITY_MIN_INTERVAL_MS))
+  && _env.CAREER_OPS_PAYLOCITY_MIN_INTERVAL_MS !== undefined
+  ? Number(_env.CAREER_OPS_PAYLOCITY_MIN_INTERVAL_MS)
   : 400;
 const DEFAULT_BLOCK_MS = 30_000;
 // The shared retry honours a Retry-After header (up to maxDelayMs * 4) and
