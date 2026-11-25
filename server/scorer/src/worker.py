@@ -8,6 +8,7 @@ from src.llm import LiteLLMClient, _log_safe
 from src.screener import Screener
 from src.store import JobStore
 from src.tailor_bridge import TailorBridge
+from src.tracing import build_trace_config_from_settings, trace_context
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +32,8 @@ async def process_unscored_user_jobs(
     4. Updates user_jobs status and score.
     """
     unscored = store.get_unscored_user_jobs(limit=limit)
+    system_settings = store.get_system_settings() if hasattr(store, "get_system_settings") else {}
+    trace_config = build_trace_config_from_settings(system_settings)
     processed = 0
     handled = 0
     passed = 0
@@ -88,7 +91,19 @@ async def process_unscored_user_jobs(
             if user_facts:
                 user_llm["user_facts"] = user_facts
 
-            result = await screener.score(job=job_dict, master_resume=resume, llm_settings=user_llm)
+            with trace_context(
+                trace_config=trace_config,
+                trace_metadata={"user_id": user_id, "job_id": job_id, "feature": "score"},
+                span_name="score_job",
+                input_data={
+                    "job_id": job_id,
+                    "title": job_dict.get("title"),
+                    "company": job_dict.get("company"),
+                    "model": user_llm.get("model"),
+                },
+            ) as trace_ctx:
+                result = await screener.score(job=job_dict, master_resume=resume, llm_settings=user_llm)
+                trace_ctx.set_output({"score": result.score, "is_valid_job": getattr(result, "is_valid_job", True)})
             updated_uj = store.score_user_job(user_job_id=user_job_id, result=result)
             processed += 1
 
@@ -135,6 +150,8 @@ async def process_unscored_user_jobs(
                             api_key=tailor_llm.get("api_key"),
                             api_base=tailor_llm.get("api_base"),
                             custom_instructions=custom_instructions,
+                            trace_config=trace_config,
+                            trace_metadata={"user_id": user_id, "job_id": job_id, "feature": "tailor"},
                         )
                         concise_res = await tailor_bridge.tailor(
                             job=job_dict,
@@ -144,6 +161,8 @@ async def process_unscored_user_jobs(
                             api_key=tailor_llm.get("api_key"),
                             api_base=tailor_llm.get("api_base"),
                             custom_instructions=custom_instructions,
+                            trace_config=trace_config,
+                            trace_metadata={"user_id": user_id, "job_id": job_id, "feature": "tailor_concise"},
                         )
 
                         if tailor_res and tailor_res.status == "completed":
@@ -245,6 +264,8 @@ async def process_unscored_jobs(
         return {"processed": 0, "passed": 0, "rejected": 0, "tailored": 0, "jobs": []}
 
     unscored_jobs = store.get_unscored_jobs(limit=limit)
+    system_settings = store.get_system_settings() if hasattr(store, "get_system_settings") else {}
+    trace_config = build_trace_config_from_settings(system_settings)
     processed = 0
     passed = 0
     rejected = 0
@@ -254,7 +275,14 @@ async def process_unscored_jobs(
     for job in unscored_jobs:
         job_id = job["id"]
         try:
-            result = await screener.score(job=job, master_resume=master_resume)
+            with trace_context(
+                trace_config=trace_config,
+                trace_metadata={"job_id": job_id, "feature": "score"},
+                span_name="score_job",
+                input_data={"job_id": job_id, "title": job.get("title"), "company": job.get("company")},
+            ) as trace_ctx:
+                result = await screener.score(job=job, master_resume=master_resume)
+                trace_ctx.set_output({"score": result.score, "is_valid_job": getattr(result, "is_valid_job", True)})
             updated_job = store.score_job(job_id=job_id, result=result)
             processed += 1
 
@@ -281,12 +309,16 @@ async def process_unscored_jobs(
                             job=job,
                             master_resume=master_resume,
                             theme="jsonresume-theme-folio",
+                            trace_config=trace_config,
+                            trace_metadata={"job_id": job_id, "feature": "tailor"},
                         )
 
                         concise_res = await tailor_bridge.tailor(
                             job=job,
                             master_resume=master_resume,
                             theme="jsonresume-theme-folio-concise",
+                            trace_config=trace_config,
+                            trace_metadata={"job_id": job_id, "feature": "tailor_concise"},
                         )
 
                         if tailor_res and tailor_res.status == "completed":

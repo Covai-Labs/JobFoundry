@@ -88,7 +88,7 @@ from src.tailor_bridge import TailorBridge, TailorResult
 from src.worker import process_unscored_jobs
 
 class MockTailorBridge(TailorBridge):
-    async def tailor(self, job, master_resume, theme="jsonresume-theme-folio"):
+    async def tailor(self, job, master_resume, theme="jsonresume-theme-folio", **kwargs):
         sample_pdf = b"%PDF-1.4 sample rendered resume pdf bytes"
         return TailorResult(
             resume={"basics": {"name": "Test Candidate", "label": "Staff Engineer"}},

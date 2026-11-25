@@ -21,6 +21,8 @@ class TailorRequest(BaseModel):
     enable_final_check: bool = False
     final_check_model: str | None = None
     prompt_templates: dict[str, str] | None = None
+    trace_config: dict[str, Any] | None = None
+    trace_metadata: dict[str, Any] | None = None
 
 
 class CopilotOutreachRequest(BaseModel):

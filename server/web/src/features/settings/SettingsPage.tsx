@@ -12,6 +12,7 @@ import {
 } from '../../api/client';
 import { useTheme, ACCENT_THEMES, ColorMode, AccentTheme } from '../../context/ThemeContext';
 import { useToast } from '../../context/ToastContext';
+import { useAuth } from '../../context/AuthContext';
 import { ScraperSettingsTab } from './ScraperSettingsTab';
 import { RoleSuggestionModal } from './RoleSuggestionModal';
 import { ResumeManager } from '../resume/ResumeManager';
@@ -777,6 +778,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
   const [activeObservabilityProvider, setActiveObservabilityProvider] = useState<
     'opik' | 'langfuse' | 'langsmith'
   >('opik');
+  const { user } = useAuth();
+  const isAdmin = user ? Boolean(user.isAdmin) : true;
+
+  useEffect(() => {
+    if (!isAdmin && activeTab === 'observability') {
+      setActiveTab('gateway');
+    }
+  }, [isAdmin, activeTab]);
 
   // Default Gateway State
   const [selectedDefaultProvider, setSelectedDefaultProvider] = useState<string>(() => {
@@ -1270,19 +1279,36 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
           } catch {}
         }
       }
-      if (editingOpikKey && newOpikKey.trim()) {
-        payload.opik_api_key = newOpikKey.trim();
+      if (isAdmin) {
+        if (editingOpikKey && newOpikKey.trim()) {
+          payload.opik_api_key = newOpikKey.trim();
+        }
+        if (editingLangfusePubKey && newLangfusePubKey.trim()) {
+          payload.langfuse_public_key = newLangfusePubKey.trim();
+        }
+        if (editingLangfuseSecKey && newLangfuseSecKey.trim()) {
+          payload.langfuse_secret_key = newLangfuseSecKey.trim();
+        }
+        if (editingLangsmithKey && newLangsmithKey.trim()) {
+          payload.langsmith_api_key = newLangsmithKey.trim();
+        }
+        payload.observability_provider = activeObservabilityProvider;
+      } else {
+        delete payload.observability_provider;
+        delete payload.opik_enabled;
+        delete payload.opik_project_name;
+        delete payload.opik_api_key;
+        delete payload.opik_workspace;
+        delete payload.opik_url_override;
+        delete payload.langfuse_enabled;
+        delete payload.langfuse_public_key;
+        delete payload.langfuse_secret_key;
+        delete payload.langfuse_host;
+        delete payload.langsmith_enabled;
+        delete payload.langsmith_api_key;
+        delete payload.langsmith_project;
+        delete payload.langsmith_endpoint;
       }
-      if (editingLangfusePubKey && newLangfusePubKey.trim()) {
-        payload.langfuse_public_key = newLangfusePubKey.trim();
-      }
-      if (editingLangfuseSecKey && newLangfuseSecKey.trim()) {
-        payload.langfuse_secret_key = newLangfuseSecKey.trim();
-      }
-      if (editingLangsmithKey && newLangsmithKey.trim()) {
-        payload.langsmith_api_key = newLangsmithKey.trim();
-      }
-      payload.observability_provider = activeObservabilityProvider;
 
       const res = await api.updateSettings(payload);
       if (res.settings) {
@@ -2037,13 +2063,15 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
             >
               <Sparkles size={16} /> Copilot & Prompts
             </button>
-            <button
-              type="button"
-              onClick={() => handleTabChange('observability')}
-              className={`settings-nav-item ${activeTab === 'observability' ? 'active' : ''}`}
-            >
-              <Activity size={16} /> Observability &amp; Tracing
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={() => handleTabChange('observability')}
+                className={`settings-nav-item ${activeTab === 'observability' ? 'active' : ''}`}
+              >
+                <Activity size={16} /> Observability &amp; Tracing
+              </button>
+            )}
           </div>
 
           {/* GROUP 3: PREFERENCES & SYSTEM */}
@@ -4966,7 +4994,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ settings, onSaveSett
               )}
 
               {/* TAB 4: OBSERVABILITY & TRACING */}
-              {activeTab === 'observability' && (
+              {isAdmin && activeTab === 'observability' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                   <div className="settings-card" style={{ padding: '1.5rem' }}>
                     <div

@@ -23,7 +23,7 @@ Capture jobs from 70+ boards as you browse. Get instant fit scores. Generate tru
 ---
 
 <!-- TODO: Replace with demo GIF/video once recorded -->
-<!-- Recommended: 10-second loop — browse a job page → extension captures it → fit score appears → 1-click tailored resume -->
+<!-- Recommended: 10-second loop: browse a job page → extension captures it → fit score appears → 1-click tailored resume -->
 <p align="center">
   <em>🎬 Demo video coming soon.</em>
 </p>
@@ -34,15 +34,15 @@ Capture jobs from 70+ boards as you browse. Get instant fit scores. Generate tru
 
 I built JobFoundry because I was broke, exhausted, and job hunting in a brutal tech market.
 
-Every tool I tried wanted a \$30/month subscription, tried to lock me into their cloud, or burned expensive AI tokens just to read job descriptions — only to hallucinate fake skills, made-up metrics, and invented employers onto my resume. I couldn't afford the subscriptions. I refused to send recruiters fabricated lies.
+Every tool I tried wanted a \$30/month subscription, tried to lock me into their cloud, or burned expensive AI tokens just to read job descriptions, only to hallucinate fake skills, made-up metrics, and invented employers onto my resume. I couldn't afford the subscriptions. I refused to send recruiters fabricated lies.
 
 So I started building my own tools to survive. What began as a small experiment in honest resume tailoring grew into the full pipeline: capture listings straight from the browser, collapse cross-posted duplicates, score how well each job actually fits, and generate truthful resumes under strict schema constraints.
 
-It worked. I stayed selective — letting fit scores filter out noise, only applying to genuinely high-fit roles — and ended up receiving multiple job offers.
+It worked. I stayed selective, letting fit scores filter out noise and only applying to genuinely high-fit roles, and ended up receiving multiple job offers.
 
 I took a pause to polish this and open-source it under AGPL-3.0. If the tool that got me through the hardest stretch of my life can help even one other person going through the same struggle, it'll have been worth it.
 
-> Mass-apply automation is flooding the market — it buries strong candidates and overwhelms hiring teams. JobFoundry bets the other way: **fewer, better, honest applications**.
+> Mass-apply automation is flooding the market: it buries strong candidates and overwhelms hiring teams. JobFoundry bets the other way: **fewer, better, honest applications**.
 
 ---
 
@@ -55,7 +55,7 @@ Browse normally  →  Extension captures  →  Dedup + Score  →  Tailor + Trac
 ```
 
 1. **Run the app.** One command, your browser is ready.
-2. **Install the extension.** Browse any job site like you always do — listings flow into your dashboard automatically.
+2. **Install the extension.** Browse any job site like you always do, and listings flow into your dashboard automatically.
 3. **Review fit scores.** Generate tailored PDF + ATS-ready resumes for the jobs worth your time.
 4. **Apply yourself.** Track everything in one place.
 
@@ -65,7 +65,7 @@ Browse normally  →  Extension captures  →  Dedup + Score  →  Tailor + Trac
 
 ### 🔍 Capture from 70+ Job Boards
 
-Browse LinkedIn, Indeed, Greenhouse, Lever, Workday, Ashby, and dozens more — the extension captures listings silently in the background. No copy-pasting. No server scraping. Your authenticated browser session does the work, which means it gets through login walls and CAPTCHAs that server scrapers can't.
+Browse LinkedIn, Indeed, Greenhouse, Lever, Workday, Ashby, and dozens more. The extension captures listings silently in the background. No copy-pasting. No server scraping. Your authenticated browser session does the work, which means it gets through login walls and CAPTCHAs that server scrapers can't.
 
 ### 🧹 Automatic Dedup
 
@@ -73,7 +73,7 @@ The same job cross-posted on 5 boards? You see it once. Duplicate detection runs
 
 ### 🎯 AI Fit Scoring
 
-Every captured job gets a 0–100 fit score with strengths and gap analysis. Works with OpenRouter, OpenAI, Anthropic, or **free local models via Ollama** — your choice, your keys, on your machine.
+Every captured job gets a 0–100 fit score with strengths and gap analysis. Works with OpenRouter, OpenAI, Anthropic, or **free local models via Ollama**: your choice, your keys, on your machine.
 
 ### 📄 Truthful Resume Tailoring
 
@@ -99,7 +99,7 @@ Everything runs on your machine. SQLite storage. Zero telemetry. Zero tracking. 
 | **Niche & Remote**   | Wellfound, YC Jobs, We Work Remotely, RemoteOK, Hacker News   |
 | **Regional & Feeds** | 30+ regional boards, RSS feeds, and aggregators               |
 
-Browse the full list: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add one yourself](extension/src/background/providers/ADDING_A_PROVIDER.md) — most adapters are under 100 lines.
+Browse the full list: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add one yourself](extension/src/background/providers/ADDING_A_PROVIDER.md) (most adapters are under 100 lines).
 
 ---
 
@@ -138,7 +138,7 @@ Full walkthrough: **[Quickstart Guide](https://jobfoundry.covai.org/docs/getting
 
 ### Alternative: Linux Desktop App (No Docker)
 
-On x86_64 Linux with glibc 2.39+ (e.g. Ubuntu 24.04+, Fedora 40+, Arch), download the `.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), `chmod +x`, and run. Bundles the full stack — no container runtime needed. On older distributions or ARM Linux, use Docker or Podman instead.
+On x86_64 Linux with glibc 2.39+ (e.g. Ubuntu 24.04+, Fedora 40+, Arch), download the `.AppImage` from [Releases](https://github.com/Covai-Labs/JobFoundry/releases), `chmod +x`, and run. It bundles the full stack, with no container runtime needed. On older distributions or ARM Linux, use Docker or Podman instead.
 
 > Other desktop builds (Windows `.msix`, macOS Homebrew) are also on the [Releases](https://github.com/Covai-Labs/JobFoundry/releases) page.
 
@@ -152,13 +152,13 @@ Coolify, CapRover, and Dokploy templates are in the **[Self-Hosting Guide](docs/
 
 ## Use with AI Assistants (MCP)
 
-JobFoundry includes a Model Context Protocol server — query your saved jobs, fit scores, and Kanban stages from Claude Desktop, Cursor, or any MCP-compatible tool. See [docs/mcp.md](docs/mcp.md).
+JobFoundry includes a Model Context Protocol server to query your saved jobs, fit scores, and Kanban stages from Claude Desktop, Cursor, or any MCP-compatible tool. See [docs/mcp.md](docs/mcp.md).
 
 ---
 
 ## Contributing
 
-Contributions welcome — especially new job board adapters (most are under 100 lines). Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [provider guide](extension/src/background/providers/ADDING_A_PROVIDER.md).
+Contributions welcome, especially new job board adapters (most are under 100 lines). Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [provider guide](extension/src/background/providers/ADDING_A_PROVIDER.md).
 
 How the pieces fit together: [ARCHITECTURE.md](ARCHITECTURE.md) · [MANIFESTO.md](MANIFESTO.md) · [DEVELOPMENT.md](DEVELOPMENT.md)
 
@@ -168,9 +168,9 @@ How the pieces fit together: [ARCHITECTURE.md](ARCHITECTURE.md) · [MANIFESTO.md
 
 No VCs, no subscriptions, no ads, no data selling. Just one developer trying to help.
 
-- ⭐ **[Star this repo](https://github.com/Covai-Labs/JobFoundry)** — takes 2 seconds, helps others find it.
-- 🐛 **[Report bugs or give feedback](https://github.com/Covai-Labs/JobFoundry/issues)** — rough edges exist and every report helps.
-- 💖 **[Sponsor on GitHub](https://github.com/sponsors/deadrat-in)** — fund testing infra and ongoing dev time.
+- ⭐ **[Star this repo](https://github.com/Covai-Labs/JobFoundry)**: takes 2 seconds, helps others find it.
+- 🐛 **[Report bugs or give feedback](https://github.com/Covai-Labs/JobFoundry/issues)**: rough edges exist and every report helps.
+- 💖 **[Sponsor on GitHub](https://github.com/sponsors/deadrat-in)**: fund testing infra and ongoing dev time.
 
 ---
 

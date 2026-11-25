@@ -37,6 +37,8 @@ class TailorBridge:
         api_key: str | None = None,
         api_base: str | None = None,
         custom_instructions: str | None = None,
+        trace_config: dict[str, Any] | None = None,
+        trace_metadata: dict[str, Any] | None = None,
     ) -> TailorResult | None:
         """
         Send a job description and master resume to resume-ops for tailoring.
@@ -68,6 +70,10 @@ class TailorBridge:
             payload["api_base"] = api_base
         if custom_instructions:
             payload["custom_instructions"] = custom_instructions
+        if trace_config:
+            payload["trace_config"] = trace_config
+        if trace_metadata:
+            payload["trace_metadata"] = trace_metadata
 
 
         try:
