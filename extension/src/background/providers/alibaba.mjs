@@ -1,15 +1,9 @@
 // @ts-check
 /** @typedef {import('./_types.js').Provider} Provider */
 
-// Alibaba Group careers provider — browser port of career-ops
-// providers/alibaba.mjs (MIT, vendored; see scripts/vendor.mjs). The only
-// deviation is the CSRF-token source: upstream imports `randomUUID` from
-// node:crypto; the browser port mints the token from WebCrypto (crypto.subtle
-// universe) with a Math.random fallback for non-secure contexts, so the module
-// stays dependency-free and browser-runnable. Everything else is unchanged.
-//
-// Posts to the public talent.alibaba.com JSON API (no auth, no login, no
-// browser). Verified 2026-07 by capturing the site's own XHR:
+// Alibaba Group careers provider — posts to the public talent.alibaba.com
+// JSON API (no auth, no login, no browser). Verified 2026-07 by capturing the
+// site's own XHR:
 //   POST /position/search
 //   { "channel": "group_official_site", "language": "zh",
 //     "key": "大模型", "pageIndex": 1, "pageSize": 100,
@@ -27,18 +21,16 @@
 //     careers_url: https://talent.alibaba.com/off-campus/position-list   # auto-detected
 //     keywords: ["AI", "大模型"]   # each keyword is a separate server-side query, results deduped;
 //                                  # omit to pull the whole board (~4100 postings)
+//     max_pages: 100               # per keyword, pageSize 100
+
+// Browser port: node:crypto randomUUID replaced with WebCrypto + Math.random fallback.
+function makeUuid() {
+  if (typeof globalThis.crypto?.randomUUID === 'function') return globalThis.crypto.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
 import { sleep } from './_http.mjs';
 import { safeEncodeURIComponent } from './_safe-url.mjs';
-
-/** WebCrypto random UUID for the double-submit CSRF token (browser port). */
-function randomUUID() {
-  const c = globalThis.crypto;
-  if (c && typeof c.randomUUID === 'function') return c.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
-    const r = Math.floor(Math.random() * 16);
-    return (ch === 'x' ? r : (r & 0x3) | 0x8).toString(16);
-  });
-}
+import { markTruncated } from '../lib/board-truncation.mjs';
 
 const API_HOST = 'talent.alibaba.com';
 const API = `https://${API_HOST}/position/search`;
@@ -50,7 +42,7 @@ const API = `https://${API_HOST}/position/search`;
 const DETAIL = `https://${API_HOST}/off-campus/position-detail?positionId=`;
 const PAGE_SIZE = 100;
 const DEFAULT_KEYWORDS = [''];  // empty keyword = the whole board, no topical bias
-const DEFAULT_MAX_PAGES = 50;   // whole board is ~4100 postings ≈ 42 pages
+const DEFAULT_MAX_PAGES = 100;  // whole board is ~4100 postings ≈ 42 pages
 // Every request after the first pays it — across pages and keyword switches
 // (same idiom as avature/workday). No rate-limiting observed live, but a
 // whole-board pull is 40+ requests, so pace politely.
@@ -120,7 +112,7 @@ export function parseAlibabaResponse(json, companyName) {
       postedAt: Number(p.publishTime) || Number(p.modifyTime) || undefined,
     });
   }
-  return { jobs, total };
+  return { jobs, total, rawCount: list.length };
 }
 
 /** @type {Provider} */
@@ -143,14 +135,18 @@ export default {
       : DEFAULT_KEYWORDS;
     const entryMaxPages = Number(entry.max_pages) > 0 ? Number(entry.max_pages) : DEFAULT_MAX_PAGES;
     // Honor the ctx.maxPages pagination hint (verify-portals' health probe passes 1).
-    const maxPages = Math.min(entryMaxPages, Number(ctx?.maxPages) > 0 ? Number(ctx.maxPages) : Infinity);
+    const probeMaxPages = Number(ctx?.maxPages) > 0 ? Number(ctx.maxPages) : Infinity;
+    const maxPages = Math.min(entryMaxPages, probeMaxPages);
 
     // One token per run, sent as both cookie and header (see file header).
-    const csrfToken = randomUUID();
+    const csrfToken = makeUuid();
 
     /** @type {Map<string, import('./_types.js').Job>} */
     const seen = new Map();
     let firstRequest = true;
+    // Why part of the board went unread, first cause first; null while it is whole.
+    /** @type {'page-cap' | null} */
+    let partialReason = null;
     let succeededOnce = false;
 
     for (const keyword of keywords) {
@@ -181,20 +177,37 @@ export default {
           // can legitimately match 0 jobs, so seen.size is not the signal.
           if (!succeededOnce) throw err;
           console.error(`  ⚠ alibaba: keyword "${keyword}" page ${page} failed (${err.message}) — keeping the ${seen.size} jobs collected so far`);
-          return [...seen.values()];
+          // The rest of the board was never read: the result says so, so scan.mjs
+          // logs it partial instead of reachable (ADDING_A_PROVIDER.md).
+          return markTruncated([...seen.values()], partialReason ?? 'fetch-error', { fetched: seen.size });
         }
         succeededOnce = true;
-        const { jobs, total } = parseAlibabaResponse(json, entry.name || '阿里巴巴');
+        const { jobs, total, rawCount } = parseAlibabaResponse(json, entry.name || '阿里巴巴');
         if (jobs.length === 0) break;
 
         for (const job of jobs) {
           if (!seen.has(job.url)) seen.set(job.url, job);
         }
 
-        if (page * PAGE_SIZE >= total) break;
+        // Past the end: the reported total says so, or, when the source sent
+        // no total, a short page (meituan reads a missing total the same way).
+        // A missing total used to end the walk after page 1, unmarked.
+        if (total > 0 ? page * PAGE_SIZE >= total : rawCount < PAGE_SIZE) break;
+        // The page cap, not the board, ended this keyword. Stay quiet when the
+        // cap is the health probe's, not max_pages.
+        // A short page is the board's natural end, even at the cap: the cut needs
+        // a full page by the source's own row count, not the filtered jobs.
+        if (page === maxPages && rawCount >= PAGE_SIZE && probeMaxPages > entryMaxPages) {
+          console.error(`  ⚠ alibaba: keyword "${keyword}" truncated at ${page * PAGE_SIZE}${total > 0 ? ` of ${total}` : ''} postings — raise max_pages on this entry for complete coverage`);
+          partialReason ??= 'page-cap';
+        }
       }
     }
 
-    return [...seen.values()];
+    const result = [...seen.values()];
+    // A keyword max_pages cut is a page-cap stop: the warning above says so, and
+    // the result does too, so scan.mjs logs the board partial (lib/board-truncation.mjs).
+    if (partialReason) markTruncated(result, partialReason, { fetched: result.length });
+    return result;
   },
 };

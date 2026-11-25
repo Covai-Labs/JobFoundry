@@ -47,6 +47,9 @@ const VENDOR_MAP = [
   { src: 'ats-payload.mjs', dst: 'server/ingest/src/vendored/ats-payload.mjs' },
   { src: 'lib/cli-flags.mjs', dst: 'server/ingest/src/vendored/lib/cli-flags.mjs' },
   { src: 'lib/is-main-module.mjs', dst: 'server/ingest/src/vendored/lib/is-main-module.mjs' },
+  { src: 'lib/linkedin-url.mjs', dst: 'server/ingest/src/vendored/lib/linkedin-url.mjs' },
+  { src: 'lib/jd-parse.mjs', dst: 'server/ingest/src/vendored/lib/jd-parse.mjs' },
+  { src: 'himalayas-posting.mjs', dst: 'server/ingest/src/vendored/himalayas-posting.mjs' },
   { src: 'templates/ats-rules.yml', dst: 'templates/ats-rules.yml' },
   { src: 'templates/ats/cv-template.ats.html', dst: 'templates/ats/cv-template.ats.html' },
 ];

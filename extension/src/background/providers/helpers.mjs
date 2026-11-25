@@ -1103,3 +1103,21 @@ export function directoryDenyBinds() {
     }
   }
 }
+
+// --- Helpers added from upstream tests/helpers.mjs for newer provider tests ---
+const SANDBOX_DATA_ROOT = mkdtempSync(join(tmpdir(), 'career-ops-test-root-'));
+export function pinSandboxDataRoot() {
+  process.env.CAREER_OPS_TEST_SANDBOX_ROOT = SANDBOX_DATA_ROOT;
+  process.env.CAREER_OPS_ROOT = SANDBOX_DATA_ROOT;
+  process.env.CAREER_OPS_DATA_DIR = '';
+}
+pinSandboxDataRoot();
+
+export async function withLocalServerAs(publicOrigin, localOrigin, fn) {
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = (input, init) => {
+    const url = String(input);
+    return realFetch(url.startsWith(publicOrigin) ? localOrigin + url.slice(publicOrigin.length) : input, init);
+  };
+  try { return await fn(); } finally { globalThis.fetch = realFetch; }
+}

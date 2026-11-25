@@ -145,7 +145,7 @@ export function parseRequisitions(json, cfg) {
   for (const r of list) {
     if (!r || typeof r !== 'object') continue;
     const id = r.requisitionId != null ? String(r.requisitionId) : '';
-    const title = decodeEntities(String(r.displayJobTitle || '').replace(/<[^>]*>/g, ' ')).replace(/\s+/g, ' ').trim();
+    const title = decodeEntities(String(r.displayJobTitle || '').replace(/<[^>]*(>?)/g, (tag, close) => (close ? ' ' : tag))).replace(/\s+/g, ' ').trim();
     if (!id || !title) continue;
     out.push({
       id,
@@ -246,6 +246,10 @@ export default {
         total = typeof json?.data?.totalCount === 'number' ? json.data.totalCount : null;
       }
       const rows = parseRequisitions(json, cfg);
+      // Rows the source returned, before parseRequisitions() dropped any. The
+      // short-page stop below must use this: a full page with one untitled
+      // requisition would otherwise read as the last page.
+      const rawCount = Array.isArray(json?.data?.requisitions) ? json.data.requisitions.length : 0;
       if (rows.length === 0) break;
 
       let fresh = 0;
@@ -262,7 +266,7 @@ export default {
       if (fresh === 0) break;
       if (jobs.length >= MAX_JOBS) break;
       if (total !== null && page * PAGE_SIZE >= total) break;
-      if (rows.length < PAGE_SIZE) break;
+      if (rawCount < PAGE_SIZE) break;
     }
     return jobs;
   },

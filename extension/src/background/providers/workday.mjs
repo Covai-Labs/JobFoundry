@@ -207,9 +207,19 @@ function facetCoverage(facet) {
  *
  * Exported for the test suite, which pins the DSG numbers.
  */
-export function trueTotalFromFacets(facets) {
+export function trueTotalFromFacets(facets, { exclude = [] } = {}) {
+  const skip = new Set(exclude);
   let best = null;
   for (const facet of Array.isArray(facets) ? facets : []) {
+    // Workday counts facets disjunctively: each facet's values are counted
+    // with every OTHER applied filter but not its own, so a multi-select UI can
+    // show the alternatives (Algolia "disjunctive faceting"; Elasticsearch
+    // `post_filter`). An applied facet's counts therefore describe the board
+    // WITHOUT that filter, not this slice. Nvidia, 2026-11-07: slice
+    // jobFamilyGroup=X & workerSubType=Regular reported total 1594 while its
+    // own jobFamilyGroup facet summed to 2308 (the whole Regular board), which
+    // read as an offset clamp on a slice that was already complete.
+    if (skip.has(facet?.facetParameter)) continue;
     const coverage = facetCoverage(facet);
     if (coverage === null) continue;
     if (best === null || coverage > best) best = coverage;
@@ -309,7 +319,10 @@ export function chooseSplitFacet(facets, { exclude = [], locationHints } = {}) {
       .filter(({ values }) => values.length > 0);
     if (locationCandidates.length > 0) {
       locationCandidates.sort((a, b) => b.values.length - a.values.length);
-      return locationCandidates[0];
+      // locationScoped: the slices deliberately cover only the configured
+      // locations, so postings outside them are out of scope by config, not
+      // unread. The split's coverage check must not count them as missing.
+      return { ...locationCandidates[0], locationScoped: true };
     }
   }
 
@@ -349,8 +362,11 @@ const CXS_RE = /^https:\/\/([\w-]+)\.(wd[\w-]*)\.myworkdayjobs\.com\/wday\/cxs\/
 // threw "cannot derive CXS endpoint".
 const SITE_RE = /^https:\/\/([\w-]+)\.myworkdaysite\.com\/recruiting\/([\w-]+)\/([^/?#]+)/;
 
-function makeEndpoint(origin, tenant, site) {
+function makeEndpoint(origin, tenant, site, instance) {
   return {
+    // The board's id in the employer registry, `<tenant>/<wdN>/<site>`: what a
+    // posting's listingIdentity names as its board.
+    boardSlug: `${tenant}/${instance}/${site}`,
     api: `${origin}/wday/cxs/${tenant}/${site}/jobs`,
     // externalPath is relative to the site, not the host root — without the
     // site segment the URL 404s.
@@ -367,9 +383,10 @@ function makeEndpoint(origin, tenant, site) {
 // myworkdaysite's public posting path is /recruiting/{tenant}/{site}{externalPath},
 // unlike myworkdayjobs' /{site}{externalPath} — so jobBase differs even though
 // the CXS shape is identical.
-function makeSiteEndpoint(host, tenant, site) {
+function makeSiteEndpoint(host, tenant, site, instance) {
   const origin = `https://${host}`;
   return {
+    boardSlug: `${tenant}/${instance}/${site}`,
     api: `${origin}/wday/cxs/${tenant}/${site}/jobs`,
     jobBase: `${origin}/recruiting/${tenant}/${site}`,
     cxsBase: `${origin}/wday/cxs/${tenant}/${site}`,
@@ -392,19 +409,97 @@ function resolveEndpoint(entry) {
     const cxs = url.match(CXS_RE);
     if (cxs) {
       const [, host, instance, tenant, site] = cxs;
-      return makeEndpoint(`https://${host}.${instance}.myworkdayjobs.com`, tenant, site);
+      return makeEndpoint(`https://${host}.${instance}.myworkdayjobs.com`, tenant, site, instance);
     }
     const siteMatch = url.match(SITE_RE);
     if (siteMatch) {
       const [, instance, tenant, siteName] = siteMatch;
-      return makeSiteEndpoint(`${instance}.myworkdaysite.com`, tenant, siteName);
+      return makeSiteEndpoint(`${instance}.myworkdaysite.com`, tenant, siteName, instance);
     }
     const m = url.match(CAREERS_RE);
     if (!m) continue;
     const [, tenant, instance, site] = m;
-    return makeEndpoint(`https://${tenant}.${instance}.myworkdayjobs.com`, tenant, site);
+    return makeEndpoint(`https://${tenant}.${instance}.myworkdayjobs.com`, tenant, site, instance);
   }
   return null;
+}
+
+// Workday externalPath is `/job/{Location}/{Title-slug}_{REQ}(-{n})?`. The req token
+// is the ANCHORED trailing segment — that anchoring is the whole point.
+//
+// An earlier version corroborated bulletFields with `externalPath.includes(v)`, which
+// is unanchored, and externalPath always embeds the location slug — so bulletFields
+// ["Burbank"] against /job/Burbank/Sr-Analyst_10154966 was "corroborated" and returned
+// "Burbank" as the requisition id. Two unrelated Burbank reqs then shared an id. The
+// check certified exactly the value it was written to exclude.
+//
+// The token is everything after the FIRST underscore of that segment, the
+// boundary workdayDedupKey() uses: Workday title slugs use hyphens, never
+// underscores, so an id like "JR_2024_00123" stays whole (taking the LAST
+// underscore read it as "00123" while the dedup key read "jr_2024_00123" —
+// CodeRabbit, #4076). Hyphens stay in the token too: Walmart posts
+// "R-2593225", which an earlier `(?:-\d+)?$` tail cut to "R". Workday's own
+// cross-site "-N" repost suffix is stripped by the dedup key's rule. Both
+// callers go through reqTokenFromSegment(), so the captured requisitionId and
+// the key cannot disagree; the id keeps the ATS's casing, only the key lowercases.
+const REQ_TOKEN_CHARS_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+function reqTokenFromSegment(segment) {
+  const underscoreIdx = segment.indexOf('_');
+  if (underscoreIdx === -1) return '';
+  return stripRepostSuffixKeepCase(segment.slice(underscoreIdx + 1));
+}
+
+// Position alone does not identify a req. A segment with no requisition after
+// its underscore — `/job/Remote/Data_Scientist` — leaves the word "Scientist",
+// and two unrelated postings ending in the same word would share an id and a
+// dedup key: the same collision the location slug used to cause, one layer along.
+//
+// A Workday req id always carries at least one digit (R167982, 10154966, JR113711);
+// a title word never does. Validating the token's SHAPE is what separates them, and
+// it is why bulletFields corroboration is not needed: the format check is stronger
+// than a free-text match against a field with no guaranteed slot. The captured id
+// and workdayDedupKey() both go through this check, so neither keys on a word.
+const REQ_SHAPE_RE = /\d/;
+
+/** @param {string} segment @returns {string} the validated token, or '' */
+function validReqToken(segment) {
+  const token = reqTokenFromSegment(segment);
+  if (token.length < 3 || !REQ_TOKEN_CHARS_RE.test(token)) return '';
+  return REQ_SHAPE_RE.test(token) ? token : '';
+}
+
+function reqTokenFromPath(externalPath) {
+  if (typeof externalPath !== 'string') return undefined;
+  return validReqToken(externalPath.split('/').filter(Boolean).pop() || '') || undefined;
+}
+
+// The posting's own id within its site: the requisition token of the last path
+// segment, taken by the rule requisitionId uses (after the FIRST underscore) but
+// WITH its "-N" suffix, then ":" and the place segment of the path, as the path
+// writes it: `/job/<place>/<title>_<token>` -> `<token>:<place>`. One requisition
+// open in two places is two postings, as a candidate sees them; two postings of
+// one site that still share an id are the collector's to quarantine, not to pick
+// between. A path that is not `/job/<place>/<segment>`, or a segment with no
+// valid token, gives no identity.
+export function workdayPostingId(externalPath) {
+  if (typeof externalPath !== 'string') return undefined;
+  const parts = externalPath.split('/').filter(Boolean);
+  if (parts.length !== 3 || parts[0] !== 'job' || !parts[1]) return undefined;
+  const segment = parts[2];
+  const underscoreIdx = segment.indexOf('_');
+  if (underscoreIdx === -1) return undefined;
+  const token = segment.slice(underscoreIdx + 1);
+  if (token.length < 3 || !REQ_TOKEN_CHARS_RE.test(token) || !REQ_SHAPE_RE.test(token)) return undefined;
+  return `${token}:${parts[1]}`;
+}
+
+// bulletFields is deliberately NOT consulted. It is tenant-configurable free text
+// (location, job family, req number, …) with no guaranteed slot, so it cannot
+// identify a req on its own — and as corroboration it added nothing the anchored
+// path match had not already established.
+function reqFromWorkday(j) {
+  return reqTokenFromPath(j.externalPath);
 }
 
 function parsePostedOn(label) {
@@ -479,12 +574,23 @@ function locationFromPath(externalPath) {
  */
 export function stripWorkdayRepostSuffix(raw) {
   const token = raw == null ? '' : String(raw).toLowerCase();
+  return stripRepostSuffixKeepCase(token);
+}
+
+// The same rule without the lowercasing, for the captured requisitionId,
+// which keeps the ATS's own casing ("R-2593225"). Only the
+// dedup key is lowercased.
+function stripRepostSuffixKeepCase(token) {
   const m = token.match(/^(.*?)-(\d{1,2})$/);
   if (!m) return token;
   const base = m[1];
+  // Case-insensitive: the captured requisitionId keeps the ATS's casing
+  // ("R-2593225-1"), so a lowercase-only class would leave its suffix on and
+  // the id would disagree with the base posting's (CodeRabbit, #4076). The
+  // dedup key arrives lowercased already, so /i changes nothing for it.
   const isDisambiguator = base.includes('-')
-    ? /^[a-z-]*\d[a-z0-9_-]*\d{2,}$/.test(base) && /^[1-9]$/.test(m[2])
-    : /^[a-z]*\d[a-z0-9_]*\d{2,}$/.test(base);
+    ? /^[a-z-]*\d[a-z0-9_-]*\d{2,}$/i.test(base) && /^[1-9]$/.test(m[2])
+    : /^[a-z]*\d[a-z0-9_]*\d{2,}$/i.test(base);
   return isDisambiguator ? base : token;
 }
 
@@ -515,9 +621,10 @@ export function workdayDedupKey(job) {
   const segments = parsed.pathname.split('/').filter(Boolean);
   const lastSegment = segments[segments.length - 1];
   if (!lastSegment) return null;
-  const underscoreIdx = lastSegment.indexOf('_');
-  if (underscoreIdx === -1) return null; // no title/requisition-ID separator — nothing to key on
-  const reqId = stripWorkdayRepostSuffix(lastSegment.slice(underscoreIdx + 1));
+  // Same validated token as the captured requisitionId; only the key is
+  // lowercased. No requisition-shaped token (no underscore, or only a title
+  // word after it) means nothing to key on, and URL dedup takes over.
+  const reqId = validReqToken(lastSegment).toLowerCase();
   if (!reqId) return null;
   let scope = parsed.hostname.toLowerCase();
   // One myworkdaysite.com host serves many tenants (/recruiting/{tenant}/{site}):
@@ -549,6 +656,9 @@ export function workdayDedupKey(job) {
 // Anchored, and `Locations?` singular-tolerant: it must not fire on a real
 // place that merely contains a digit and the word ("100 Locations Plaza").
 const MULTI_LOCATION_PLACEHOLDER_RE = /^\s*\d+\s+locations?\s*$/i;
+// The " · Remote" withFullyRemote appends. Both the placeholder check and the
+// detail enrichment read it with this one pattern so they agree on spacing.
+const REMOTE_SUFFIX_RE = /\s*·\s*remote\s*$/i;
 
 /**
  * True when a Workday list location is the count-placeholder rather than a place.
@@ -558,7 +668,22 @@ const MULTI_LOCATION_PLACEHOLDER_RE = /^\s*\d+\s+locations?\s*$/i;
  * @returns {boolean}
  */
 export function isMultiLocationPlaceholder(location) {
-  return typeof location === 'string' && MULTI_LOCATION_PLACEHOLDER_RE.test(location);
+  if (typeof location !== 'string') return false;
+  // A fully-remote count is still a count. The marker is appended before this
+  // check; leave it on and the detail GET never runs.
+  const bare = location.replace(REMOTE_SUFFIX_RE, '');
+  return MULTI_LOCATION_PLACEHOLDER_RE.test(bare);
+}
+
+/** Keep the list endpoint's "Fully Remote" on the location string.
+ *  Partially Remote is hybrid and stays the city. A place that already says
+ *  remote is not doubled.
+ *  @param {string} location
+ *  @param {unknown} remoteType */
+function withFullyRemote(location, remoteType) {
+  const fully = typeof remoteType === 'string' && remoteType.trim().toLowerCase() === 'fully remote';
+  if (!fully || /remote/i.test(location)) return location;
+  return location ? `${location} · Remote` : 'Remote';
 }
 
 // How many detail GETs one entry may spend to resolve placeholders — every
@@ -678,6 +803,13 @@ export function postedAtFromDetail(detail) {
   return Number.isFinite(ms) ? ms : undefined;
 }
 
+/** `{ listingIdentity }` for a posting with a site and a valid posting id, else nothing. */
+function listingIdentityOf(ep, externalPath) {
+  const postingId = workdayPostingId(externalPath);
+  if (!ep?.boardSlug || !postingId) return {};
+  return { listingIdentity: { ats_provider: 'workday', board_slug: ep.boardSlug, posting_id: postingId } };
+}
+
 export function parseWorkdayResponse(json, entry) {
   const ep = resolveEndpoint(entry);
   const jobBase = ep?.jobBase || '';
@@ -690,7 +822,19 @@ export function parseWorkdayResponse(json, entry) {
       title: j.title || '',
       url: jobBase + j.externalPath,
       company: entry.name,
-      location: j.locationsText || locationFromPath(j.externalPath),
+      // The req token, NOT the whole externalPath. externalPath embeds the title
+      // slug, so it changes on exactly the title drift this capture exists to survive
+      // (Adobe: "Associate--Corporate-Strategy_R167982" -> "Sr-Associate--…_R167982-1"
+      // — the path moved, R167982 did not). Abstain when no token is recoverable
+      // rather than emitting an unstable key.
+      //
+      // No externalId: the list API exposes no posting id, and this token is a
+      // REQUISITION — every site a req is cross-posted to carries the same one
+      // (the "-1"/"-2" suffix stripped above), so it cannot be the per-posting key
+      // externalId promises (CodeRabbit, #4297).
+      requisitionId: reqFromWorkday(j),
+      ...(listingIdentityOf(ep, j.externalPath)),
+      location: withFullyRemote(j.locationsText || locationFromPath(j.externalPath), j.remoteType),
       postedAt: parsePostedOn(j.postedOn),
     });
   }
@@ -767,10 +911,10 @@ export default {
      * ceiling while the facet counts — which are not clamped — describe a
      * bigger board. A probe (ctx.maxPages) never splits: it asked for one page.
      */
-    const isClamped = (total, facets) => {
+    const isClamped = (total, facets, appliedFacets = {}) => {
       if (ctxCap !== Infinity) return false;
       if (total === null || total > WORKDAY_OFFSET_CEILING) return false;
-      const trueTotal = trueTotalFromFacets(facets);
+      const trueTotal = trueTotalFromFacets(facets, { exclude: Object.keys(appliedFacets || {}) });
       return trueTotal !== null && trueTotal > WORKDAY_OFFSET_CEILING;
     };
 
@@ -823,7 +967,7 @@ export default {
       // is real and distinct, and it is the coverage floor the split builds on.
       // Only the pages *past* the ceiling are duplicates, and `total` being
       // clamped to the ceiling already stops pagination there.
-      const clamped = stopReason === STOP_REASON.COMPLETE && isClamped(total, facets);
+      const clamped = stopReason === STOP_REASON.COMPLETE && isClamped(total, facets, appliedFacets);
 
       // Sequential, not concurrent (mirrors providers/4dayweek.mjs, thehub.mjs,
       // arbeitnow.mjs, jibeapply.mjs) — a single tenant's API has no reason to
@@ -831,6 +975,9 @@ export default {
       // cleanly with whatever pages were already gathered instead of
       // discarding them (Promise.all would fail the whole batch on one error).
       let page = 1;
+      // Raw row count of the last page read (before parsing drops rows): a
+      // short page is the board's natural end, so it can never be a cap stop.
+      let lastRawCount = firstPostings.length;
       if (stopReason === STOP_REASON.COMPLETE) {
         for (; page < pagesToFetch; page++) {
           if (pagesSpent >= pageBudget) { budgetExhausted = true; break; }
@@ -851,13 +998,14 @@ export default {
           }
           const pageJobs = parseWorkdayResponse(json, entry);
           jobs.push(...pageJobs);
-          if (total === null) {
-            const postings = Array.isArray(json?.jobPostings) ? json.jobPostings : [];
-            if (postings.length < PAGE_SIZE) break; // short page → last page reached
-          }
+          lastRawCount = Array.isArray(json?.jobPostings) ? json.jobPostings.length : 0;
+          if (total === null && lastRawCount < PAGE_SIZE) break; // short page → last page reached
           if (pageIsPastWindow(pageJobs, sinceMs)) { stopReason = STOP_REASON.EARLY_STOP; break; }
         }
-        if (stopReason === STOP_REASON.COMPLETE && page === pagesToFetch && pagesToFetch === maxPages) {
+        // A cap stop needs a full last page and the entry's own cap, not a
+        // probe's ctx.maxPages (verify-portals/discover-ats probe with 1).
+        if (stopReason === STOP_REASON.COMPLETE && page === pagesToFetch && pagesToFetch === maxPages
+          && lastRawCount >= PAGE_SIZE && ctxCap === Infinity) {
           stopReason = STOP_REASON.CAP;
         }
       }
@@ -961,11 +1109,17 @@ export default {
         // badly under-covering facet is itself the minimum, and leaving it in
         // would inflate the bar to exactly the gap it should be judged against.
         const chosenCoverage = facet.values.reduce((sum, v) => sum + v.count, 0);
-        const trueTotal = trueTotalFromFacets(result.facets);
-        if (trueTotal !== null) {
+        const trueTotal = trueTotalFromFacets(result.facets, { exclude: Object.keys(applied) });
+        // A location-scoped split covers less than the board on purpose (Citi:
+        // the US slice is 1,461 of ~4,200 worldwide postings). Judging it
+        // against the whole board flagged every such tenant "still incomplete"
+        // although every in-scope posting was read. Each slice's own clamp is
+        // still checked recursively below, so a truly short slice is caught.
+        if (trueTotal !== null && !facet.locationScoped) {
           const others = [];
           for (const f of Array.isArray(result.facets) ? result.facets : []) {
             if (f?.facetParameter === facet.facetParameter) continue;
+            if (Object.prototype.hasOwnProperty.call(applied, f?.facetParameter)) continue; // disjunctive counts, see trueTotalFromFacets
             const coverage = facetCoverage(f);
             if (coverage !== null) others.push(coverage);
           }
@@ -1033,7 +1187,13 @@ export default {
           referer: `${ep.jobBase}/`,
         },
       };
-      const placeholders = jobs.filter((j) => isMultiLocationPlaceholder(j.location));
+      // A caller that will drop postings on their title (scan.mjs passes its
+      // title_filter as ctx.titleWanted) gets no detail GET spent on them: on a
+      // large tenant most placeholders belong to titles the scan discards.
+      const titleWanted = typeof ctx.titleWanted === 'function' ? ctx.titleWanted : null;
+      const allPlaceholders = jobs.filter((j) => isMultiLocationPlaceholder(j.location));
+      const placeholders = titleWanted ? allPlaceholders.filter((j) => titleWanted(j.title)) : allPlaceholders;
+      const skippedByTitle = allPlaceholders.length - placeholders.length;
       // The detail document lives at the same externalPath under the CXS host.
       // `job.url` is `jobBase + externalPath` (parseWorkdayResponse), so the
       // path is recovered by removing the prefix rather than by re-parsing a
@@ -1094,7 +1254,11 @@ export default {
         }
         const places = locationsFromDetail(detail);
         if (places === '') { failed++; continue; }
+        // The list row may already say "5 Locations · Remote". Replacing it
+        // with the city would drop the only signal a Remote allow-list sees.
+        const wasFullyRemote = typeof job.location === 'string' && REMOTE_SUFFIX_RE.test(job.location);
         job.location = places;
+        if (wasFullyRemote && !/remote/i.test(places)) job.location = `${places} · Remote`;
         resolved++;
         // Only on a posting whose location actually resolved: the date is a
         // by-product of a request made for the location, never a reason to make
@@ -1106,7 +1270,7 @@ export default {
           redated++;
         }
       }
-      if (placeholders.length > 0) {
+      if (allPlaceholders.length > 0) {
         const capped = pending.length > attempted ? `, ${pending.length - attempted} left unresolved by the ${MAX_DETAIL_REQUESTS}-request cap` : '';
         const unreadable = failed > 0 ? `, ${failed} detail document(s) unreadable` : '';
         const unroutable = unaddressable > 0 ? `, ${unaddressable} with no site-relative path` : '';
@@ -1114,7 +1278,8 @@ export default {
         // detail document can carry places but no parseable startDate. Folding
         // them into one number would hide that.
         const dated = redated > 0 ? `, ${redated} dated exactly from the detail document` : '';
-        console.error(`ℹ️  workday: ${entry.name} resolved ${resolved} of ${placeholders.length} multi-location placeholder(s)${unreadable}${unroutable}${capped}${dated}`);
+        const notWanted = skippedByTitle > 0 ? `, ${skippedByTitle} skipped by the title filter` : '';
+        console.error(`ℹ️  workday: ${entry.name} resolved ${resolved} of ${placeholders.length} multi-location placeholder(s)${unreadable}${unroutable}${capped}${dated}${notWanted}`);
       }
     }
 
@@ -1154,6 +1319,16 @@ export default {
         // clamp takes the facet-split path above instead of this warning.
         const suspectTag = total !== null && total === maxPages * PAGE_SIZE ? ' (total may be Workday-capped, not real)' : '';
         console.error(`⚠️  workday: ${entry.name} truncated at ${maxPages} pages (${jobsSummary})${suspectTag}`);
+      }
+      // Canonical partial-read signal for scan.mjs (lib/board-truncation.mjs).
+      // workdayTruncated is left alone: scan-ats-full.mjs reads its values to
+      // decide retries, and a page cap is neither of them. CAP already excludes
+      // probes and short last pages (runQuery). A reported total of exactly
+      // max_pages x PAGE_SIZE is NOT proof of completion: it is the value
+      // Workday's server clamp reports (suspectTag above), so it stays marked,
+      // matching the warning.
+      if (ctxCap === Infinity) {
+        /** @type {any} */ (jobs).truncated = { reason: 'page-cap', fetched: jobs.length, ...(total !== null ? { total } : {}) };
       }
     }
     // 'no-date-skip' hits many tenants in a full-directory scan (a company

@@ -18,7 +18,7 @@ const liftedTests = readdirSync(TESTS)
 
 test('vendored provider tree matches the expected file inventory', () => {
   const nonTest = providerFiles.filter((f) => f !== 'helpers.mjs');
-  assert.equal(nonTest.length, 115, '115 provider modules (116 upstream minus _dns-cache.mjs)');
+  assert.equal(nonTest.length, 178, '178 provider modules (179 upstream minus _dns-cache.mjs)');
   assert.ok(!nonTest.includes('_dns-cache.mjs'), '_dns-cache.mjs must not be vendored');
   assert.ok(existsSync(join(PROVIDERS, '_types.js')), '_types.js present');
   assert.ok(existsSync(join(PROVIDERS, 'README.md')), 'providers README present');
@@ -30,13 +30,46 @@ test('vendored provider tree matches the expected file inventory', () => {
     'title-entity-decode.test.mjs',
     'private-address-guard.test.mjs',
     'local-parser.test.mjs',
+    'local-parser-data-root.test.mjs',
     'jobbankca.test.mjs',
     'mycareersfuture.test.mjs',
     'proxy-egress.test.mjs',
     'startup-jobs.test.mjs',
     'workday-multi-location.test.mjs',
+    '_http-body-cap.test.mjs',
+    'http-cache.test.mjs',
+    'http-timeout.test.mjs',
+    'consider.test.mjs',
+    'eightfold-branded-host.test.mjs',
+    'jobscz.test.mjs',
+    'platsbanken.test.mjs',
+    'pracecz.test.mjs',
+    'registry-loads-every-provider.test.mjs',
+    'apple.test.mjs',
+    'ashby.test.mjs',
+    'bamboohr.test.mjs',
+    'bolt.test.mjs',
+    'cryptocurrencyjobs.test.mjs',
+    'example-portals-routable.test.mjs',
+    'goldman.test.mjs',
+    'inhire.test.mjs',
+    'jobicy-workplace.test.mjs',
+    'join.test.mjs',
+    'oraclecloud.test.mjs',
+    'paycom.test.mjs',
+    'remote-com.test.mjs',
+    'rexx.test.mjs',
+    'rippling.test.mjs',
+    'smartrecruiters-fallback-slug.test.mjs',
+    'smartrecruiters.test.mjs',
+    'successfactors-classic.test.mjs',
+    'taleez.test.mjs',
+    'themuse.test.mjs',
+    'velorahr.test.mjs',
+    'wellfound.test.mjs',
+    'workable.test.mjs',
   ];
-  assert.equal(liftedTests.length, 116, '116 lifted tests');
+  assert.equal(liftedTests.length, 163, '163 lifted tests');
   for (const d of dropped) assert.ok(!liftedTests.includes(d), `${d} must be dropped`);
   assert.ok(
     liftedTests.includes('_profile-keywords.test.mjs'),
@@ -49,8 +82,8 @@ test('vendored provider tree matches the expected file inventory', () => {
 test('registry static index covers every provider with a unique id', async () => {
   const { providerMap } = await import(pathToFileURL(join(PROVIDERS, 'index.js')).href);
   const ids = Object.keys(providerMap);
-  assert.equal(ids.length, 104, '104 provider ids in the static registry');
-  assert.equal(new Set(ids).size, 104, 'provider ids are unique');
+  assert.equal(ids.length, 157, '157 provider ids in the static registry');
+  assert.equal(new Set(ids).size, 157, 'provider ids are unique');
   const providerIds = new Set();
   for (const f of providerFiles) {
     if (f.startsWith('_') || f === 'helpers.mjs') continue;
@@ -58,7 +91,7 @@ test('registry static index covers every provider with a unique id', async () =>
     assert.equal(typeof mod.default?.id, 'string', `${f} has a string default id`);
     providerIds.add(mod.default.id);
   }
-  assert.equal(providerIds.size, 104, '104 unique ids across provider modules');
+  assert.equal(providerIds.size, 157, '157 unique ids across provider modules');
   for (const id of providerIds) {
     assert.ok(id in providerMap, `registry maps ${id}`);
     assert.equal(providerMap[id].id, id, `registry entry for ${id} is the right module`);
@@ -70,7 +103,7 @@ test('registry static index covers every provider with a unique id', async () =>
 // themselves. To detect a failing assertion we spawn each file in its own
 // process and count the ❌ markers, exactly the way upstream test-all.mjs
 // treats pass()/fail() output.
-test('every lifted provider test passes (93 files, failed === 0)', async () => {
+test('every lifted provider test passes (163 files, failed === 0)', async () => {
   const failures = [];
   for (const f of liftedTests) {
     let stdout;

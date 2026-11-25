@@ -18,6 +18,9 @@ deviations in-file. Current ports:
 | `alibaba.mjs` | Upstream imports `randomUUID` from `node:crypto`. Port mints the CSRF token from WebCrypto (`globalThis.crypto.randomUUID`) with a Math.random fallback. |
 | `radancy.mjs` | Upstream imports `randomUUID` from `node:crypto`. Port replaces it with a browser-safe `makeNonce()` function backed by WebCrypto and Math.random fallback. |
 | `mokahr.mjs` | Upstream uses top-level `Buffer.from()` which crashes browser execution at evaluation time (`ReferenceError: Buffer is not defined`). Port removes top-level Buffer usage and guards AES decryption for browser contexts. |
+| `posting-close.mjs` | Upstream imports `../url-key.mjs` (uses `node:fs`/`node:path`) and `./scan-history-columns.mjs` (reads scan-history.tsv from disk). Port keeps the pure `closesAtIso` function unchanged and stubs `closeDatesByUrl`/`closeDateForUrl` as documented no-ops returning empty Map/`''`. Stored in `scripts/ports/` and applied to `src/background/lib/` (not `providers/`). |
+| `robots-check.mjs` | Upstream imports `isIP` from `node:net` and dynamically imports `node:dns/promises`. Port replaces `isIP` with a pure-JS IPv4/IPv6 literal check and skips `node:dns/promises` when no custom resolver is injected (browser owns DNS). Stored in `scripts/ports/` and applied to `src/background/`. |
+| `himalayas-posting.mjs` | Upstream has a CLI `main()` at the bottom importing `node:fs/promises` and `is-main-module.mjs`. Port strips the CLI `main()` block while keeping `resolveHimalayasPosting`, `classifyHimalayasPosting`, and `retrieveHimalayasPosting` intact for `liveness-api.mjs`. Stored in `scripts/ports/` and applied to `src/background/`. |
 
 `tests/` mirrors the lifted provider tests that had to change:
 
