@@ -7,3 +7,14 @@
 reviews:
   path_filters:
     - '!graphify-out/**'
+    - '!extension/src/background/providers/**'
+    - '!extension/src/background/lib/**'
+    - '!extension/src/background/tests/fixtures/**'
+    - '!extension/src/background/user-agent.mjs'
+    - '!extension/src/background/ats-vendor.mjs'
+    - '!extension/src/background/liveness-api.mjs'
+    - '!extension/src/background/himalayas-posting.mjs'
+    - '!extension/src/background/robots-check.mjs'
+    - '!extension/scripts/ports/**'
+    - '!server/ingest/src/vendored/**'
+    - '!templates/**'
