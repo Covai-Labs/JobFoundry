@@ -2101,58 +2101,54 @@ export function buildApp({
       sort_by = 'created_at',
       order = 'desc',
       limit = 100,
+      offset = 0,
     } = request.query || {};
     const userId = request.user.id;
     const isMultiTenant = Boolean(userId && userId !== 'legacy-admin' && userId !== 'dev-user');
     const sortDirection = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const parsedLimit = Math.min(Math.max(1, Number.parseInt(String(limit), 10) || 100), 1000);
+    const parsedOffset = Math.max(0, Number.parseInt(String(offset), 10) || 0);
 
-    let query;
-    const params = [];
+    let fromClause;
+    let whereClause;
+    const whereParams = [];
 
     if (isMultiTenant) {
-      query = `
-        SELECT 
-          j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
-          j.repost_status, j.repost_confidence,
-          COALESCE(uj.fit_score, j.fit_score) as fit_score,
-          COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
-          COALESCE(uj.status, j.status) as status,
-          COALESCE(uj.tailored_resume_id, j.tailored_resume_id) as tailored_resume_id,
-          COALESCE(uj.created_at, j.created_at) as created_at,
-          COALESCE(uj.updated_at, j.updated_at) as updated_at
+      fromClause = `
         FROM user_jobs uj
         JOIN jobs j ON uj.job_id = j.id
-        WHERE uj.user_id = ?
       `;
-      params.push(userId);
+      whereClause = 'WHERE uj.user_id = ?';
+      whereParams.push(userId);
     } else {
-      query = 'SELECT * FROM jobs WHERE 1=1';
+      fromClause = 'FROM jobs';
+      whereClause = 'WHERE 1=1';
     }
 
-    if (status) {
-      query += isMultiTenant ? ' AND uj.status = ?' : ' AND status = ?';
-      params.push(status);
+    if (status && status !== 'all') {
+      whereClause += isMultiTenant ? ' AND uj.status = ?' : ' AND status = ?';
+      whereParams.push(status);
     }
     if (source) {
-      query += isMultiTenant ? ' AND j.source = ?' : ' AND source = ?';
-      params.push(source);
+      whereClause += isMultiTenant ? ' AND j.source = ?' : ' AND source = ?';
+      whereParams.push(source);
     }
     if (company && String(company).trim()) {
-      query += isMultiTenant
+      whereClause += isMultiTenant
         ? ' AND j.company = ? COLLATE NOCASE'
         : ' AND company = ? COLLATE NOCASE';
-      params.push(String(company).trim());
+      whereParams.push(String(company).trim());
     }
     if (min_score !== undefined && min_score !== '') {
-      query += isMultiTenant ? ' AND uj.fit_score >= ?' : ' AND fit_score >= ?';
-      params.push(Number(min_score));
+      whereClause += isMultiTenant ? ' AND uj.fit_score >= ?' : ' AND fit_score >= ?';
+      whereParams.push(Number(min_score));
     }
     if (search) {
-      query += isMultiTenant
+      whereClause += isMultiTenant
         ? ' AND (j.title LIKE ? OR j.company LIKE ? OR j.description LIKE ?)'
         : ' AND (title LIKE ? OR company LIKE ? OR description LIKE ?)';
       const term = `%${search}%`;
-      params.push(term, term, term);
+      whereParams.push(term, term, term);
     }
 
     let orderClause = isMultiTenant ? 'ORDER BY uj.created_at DESC' : 'ORDER BY created_at DESC';
@@ -2172,11 +2168,26 @@ export function buildApp({
       orderClause = `ORDER BY ${isMultiTenant ? 'uj.status' : 'status'} ${sortDirection}`;
     }
 
-    query += ` ${orderClause} LIMIT ?`;
-    params.push(Number(limit));
+    const selectClause = isMultiTenant
+      ? `SELECT 
+          j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
+          j.repost_status, j.repost_confidence,
+          COALESCE(uj.fit_score, j.fit_score) as fit_score,
+          COALESCE(uj.fit_notes, j.fit_notes) as fit_notes,
+          COALESCE(uj.status, j.status) as status,
+          COALESCE(uj.tailored_resume_id, j.tailored_resume_id) as tailored_resume_id,
+          COALESCE(uj.created_at, j.created_at) as created_at,
+          COALESCE(uj.updated_at, j.updated_at) as updated_at`
+      : 'SELECT *';
 
-    const jobs = db.prepare(query).all(...params);
-    return { jobs };
+    const countRow = db
+      .prepare(`SELECT COUNT(*) as total ${fromClause} ${whereClause}`)
+      .get(...whereParams);
+    const total = Number(countRow?.total ?? 0);
+
+    const query = `${selectClause} ${fromClause} ${whereClause} ${orderClause} LIMIT ? OFFSET ?`;
+    const jobs = db.prepare(query).all(...whereParams, parsedLimit, parsedOffset);
+    return { jobs, total, limit: parsedLimit, offset: parsedOffset };
   });
 
   // GET /api/v1/jobs/:id - Get a single job by id

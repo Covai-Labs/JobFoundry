@@ -50,9 +50,13 @@ interface DashboardContentProps {
   settings: AppSettings;
   onSaveSettings: (settings: AppSettings) => void;
   jobs: Job[];
+  totalJobs: number;
+  hasMoreJobs: boolean;
+  loadingMore: boolean;
   loading: boolean;
   error: string | null;
   onRefresh: () => void;
+  onLoadMore: () => void;
   onJobUpdated: (job: Job) => void;
   onJobDeleted: (jobId: string) => void;
   onStatusChange: (jobId: string, status: JobStatus) => Promise<void>;
@@ -173,9 +177,13 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
   settings,
   onSaveSettings,
   jobs,
+  totalJobs,
+  hasMoreJobs,
+  loadingMore,
   loading,
   error,
   onRefresh,
+  onLoadMore,
   onJobUpdated,
   onJobDeleted,
   onStatusChange,
@@ -502,6 +510,10 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
               element={
                 <JobFeed
                   jobs={jobs}
+                  totalJobs={totalJobs}
+                  hasMore={hasMoreJobs}
+                  loadingMore={loadingMore}
+                  onLoadMore={onLoadMore}
                   threshold={settings.threshold}
                   onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                   onJobUpdated={onJobUpdated}
@@ -558,6 +570,10 @@ const DashboardLayout: React.FC<DashboardContentProps> = ({
                 <>
                   <JobFeed
                     jobs={jobs}
+                    totalJobs={totalJobs}
+                    hasMore={hasMoreJobs}
+                    loadingMore={loadingMore}
+                    onLoadMore={onLoadMore}
                     threshold={settings.threshold}
                     onSelectJob={(job) => navigate(`/jobs/${job.id}`)}
                     onJobUpdated={onJobUpdated}
@@ -615,7 +631,9 @@ const DashboardRoot: React.FC = () => {
 
   const [settings, setSettings] = useState<AppSettings>(loadSettings);
   const [jobs, setJobs] = useState<Job[]>([]);
+  const [totalJobs, setTotalJobs] = useState<number>(0);
   const [loading, setLoading] = useState<boolean>(true);
+  const [loadingMore, setLoadingMore] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [userCount, setUserCount] = useState<number | null>(null);
 
@@ -638,6 +656,8 @@ const DashboardRoot: React.FC = () => {
     api.setApiKey(token || settings.apiKey || null);
   }, [settings, token]);
 
+  const PAGE_SIZE = 200;
+
   const fetchJobs = useCallback(async () => {
     if (!token && !settings.apiKey) {
       setLoading(false);
@@ -646,8 +666,14 @@ const DashboardRoot: React.FC = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await api.getJobs({ limit: 200 });
-      setJobs(data);
+      const page = await api.getJobsPage({
+        limit: PAGE_SIZE,
+        offset: 0,
+        sort_by: 'fit_score',
+        order: 'desc',
+      });
+      setJobs(page.jobs);
+      setTotalJobs(page.total);
     } catch (err: any) {
       if (err.status === 401) {
         logout();
@@ -658,6 +684,35 @@ const DashboardRoot: React.FC = () => {
       setLoading(false);
     }
   }, [token, settings.apiKey, logout]);
+
+  const loadMoreJobs = useCallback(async () => {
+    if ((!token && !settings.apiKey) || loadingMore || jobs.length >= totalJobs) {
+      return;
+    }
+    setLoadingMore(true);
+    try {
+      const page = await api.getJobsPage({
+        limit: PAGE_SIZE,
+        offset: jobs.length,
+        sort_by: 'fit_score',
+        order: 'desc',
+      });
+      setJobs((prev) => {
+        const seen = new Set(prev.map((j) => j.id));
+        const next = page.jobs.filter((j) => !seen.has(j.id));
+        return [...prev, ...next];
+      });
+      setTotalJobs(page.total);
+    } catch (err: any) {
+      if (err.status === 401) {
+        logout();
+        return;
+      }
+      toast.error(`Failed to load more jobs: ${err.message || 'Unknown error'}`);
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [token, settings.apiKey, loadingMore, jobs.length, totalJobs, logout, toast]);
 
   useEffect(() => {
     if (user) {
@@ -700,6 +755,7 @@ const DashboardRoot: React.FC = () => {
 
   const handleJobDeleted = (deletedId: string) => {
     setJobs((prev) => prev.filter((j) => j.id !== deletedId));
+    setTotalJobs((prev) => Math.max(0, prev - 1));
   };
 
   const handleSaveSettings = (newSettings: AppSettings) => {
@@ -755,9 +811,13 @@ const DashboardRoot: React.FC = () => {
         settings={settings}
         onSaveSettings={handleSaveSettings}
         jobs={jobs}
+        totalJobs={totalJobs}
+        hasMoreJobs={jobs.length < totalJobs}
+        loadingMore={loadingMore}
         loading={loading}
         error={error}
         onRefresh={fetchJobs}
+        onLoadMore={loadMoreJobs}
         onJobUpdated={handleJobUpdated}
         onJobDeleted={handleJobDeleted}
         onStatusChange={handleStatusChange}
