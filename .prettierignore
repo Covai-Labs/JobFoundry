@@ -2,15 +2,8 @@
 # so `extension/scripts/sync-providers.mjs` content-hash drift checks stay
 # stable. Upstream files intentionally do not match this repo's prettier
 # config; reformatting them would report every vendored file as drifted.
-extension/src/background/providers/
-extension/src/background/lib/
-extension/src/background/user-agent.mjs
-extension/src/background/ats-vendor.mjs
-extension/src/background/liveness-api.mjs
-extension/src/background/himalayas-posting.mjs
-extension/src/background/robots-check.mjs
+extension/src/background/vendored/
 extension/scripts/ports/
-extension/src/background/tests/fixtures/
 server/ingest/src/vendored/
 templates/
 **/.output/

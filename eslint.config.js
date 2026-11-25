@@ -16,12 +16,7 @@ export default [
       // upstream so `sync:providers` content hashes stay stable. Upstream
       // carries its own lint noise (unused vars, irregular whitespace); do not
       // "fix" them here or the drift check will flag every vendored file.
-      'extension/src/background/providers/**',
-      'extension/src/background/lib/**',
-      'extension/src/background/ats-vendor.mjs',
-      'extension/src/background/liveness-api.mjs',
-      'extension/src/background/himalayas-posting.mjs',
-      'extension/src/background/robots-check.mjs',
+      'extension/src/background/vendored/**',
       'extension/scripts/ports/**',
       'server/ingest/src/vendored/**',
       'templates/**',

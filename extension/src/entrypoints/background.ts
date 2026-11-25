@@ -16,7 +16,7 @@ import { checkLiveness } from '../background/liveness/index.js';
 import { normalizeJob, withFingerprint } from '../background/normalize.js';
 import { fingerprintText } from '../background/fingerprint.js';
 import { dedupJobs, createSessionCache } from '../background/dedup.js';
-import { makeHttpCtx } from '../background/providers/_http.mjs';
+import { makeHttpCtx } from '../background/vendored/providers/_http.mjs';
 import { extractKeywordsFromResume } from '../background/filters/resume-keywords.js';
 import { createRelayRunner } from '../background/relay.js';
 import { isSupportedIndeedHost } from '../shared/supported-domains.js';

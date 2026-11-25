@@ -4,8 +4,8 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const mod = await import(join(EXT, 'src', 'background', 'providers', '_http.mjs')).then(
-  () => import(join(EXT, 'src', 'background', 'providers', '_http.mjs'))
+const mod = await import(join(EXT, 'src', 'background', 'vendored', 'providers', '_http.mjs')).then(
+  () => import(join(EXT, 'src', 'background', 'vendored', 'providers', '_http.mjs'))
 );
 const {
   fetchJson,

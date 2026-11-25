@@ -19,7 +19,7 @@ import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PROVIDERS = join(EXT, 'src', 'background', 'providers');
+const PROVIDERS = join(EXT, 'src', 'background', 'vendored', 'providers');
 const OUT = join(PROVIDERS, 'index.js');
 
 const ids = [];

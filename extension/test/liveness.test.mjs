@@ -187,7 +187,9 @@ test('checkLiveness maps to the canonical tri-state', async () => {
 });
 
 test('checkLivenessViaApi: makeHttpCtx() does not infinitely recurse via globalThis.fetch', async () => {
-  const { makeHttpCtx } = await import(join(EXT, 'src', 'background', 'providers', '_http.mjs'));
+  const { makeHttpCtx } = await import(
+    join(EXT, 'src', 'background', 'vendored', 'providers', '_http.mjs')
+  );
   const prevFetch = globalThis.fetch;
   let calls = 0;
   globalThis.fetch = async () => {

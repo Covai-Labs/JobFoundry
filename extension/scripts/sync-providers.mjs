@@ -24,7 +24,7 @@ import { join, resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const EXT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const PROVIDERS = join(EXT, 'src', 'background', 'providers');
+const PROVIDERS = join(EXT, 'src', 'background', 'vendored', 'providers');
 
 function argValue(name) {
   const idx = process.argv.indexOf(name);
