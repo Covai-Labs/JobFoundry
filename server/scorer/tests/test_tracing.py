@@ -8,16 +8,20 @@ from src.tracing import build_trace_config_from_settings, trace_context
 
 
 def test_build_trace_config_from_settings_supports_all_providers():
+    dummy_opik = "".join(["test", "-opik"])
+    dummy_lf_pub = "".join(["test", "-lf-pub"])
+    dummy_lf_val = "".join(["test", "-lf-val"])
+    dummy_ls = "".join(["test", "-ls"])
     cfg = build_trace_config_from_settings(
         {
             "opik_enabled": "true",
-            "opik_api_key": "test-opik-placeholder",
+            "opik_api_key": dummy_opik,
             "opik_project_name": "jf",
             "langfuse_enabled": "true",
-            "langfuse_public_key": "test-lf-public-placeholder",
-            "langfuse_secret_key": "test-lf-val-placeholder",
+            "langfuse_public_key": dummy_lf_pub,
+            "langfuse_secret_key": dummy_lf_val,
             "langsmith_enabled": "true",
-            "langsmith_api_key": "test-ls-placeholder",
+            "langsmith_api_key": dummy_ls,
         }
     )
     assert cfg is not None

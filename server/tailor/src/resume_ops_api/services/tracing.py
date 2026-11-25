@@ -3,7 +3,6 @@ from __future__ import annotations
 import contextvars
 import logging
 import os
-import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone

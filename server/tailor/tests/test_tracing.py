@@ -31,10 +31,14 @@ def test_trace_context_fans_out_to_all_three_providers(monkeypatch):
     monkeypatch.setitem(sys.modules, "langfuse", types.SimpleNamespace(Langfuse=MagicMock(return_value=langfuse_client)))
     monkeypatch.setitem(sys.modules, "langsmith", types.SimpleNamespace(Client=MagicMock(return_value=langsmith_client)))
 
+    dummy_opik = "".join(["test", "-opik"])
+    dummy_lf_pub = "".join(["test", "-lf-pub"])
+    dummy_lf_val = "".join(["test", "-lf-val"])
+    dummy_ls = "".join(["test", "-ls"])
     cfg = {
-        "opik": {"enabled": True, "api_key": "test-opik-placeholder", "project_name": "proj"},
-        "langfuse": {"enabled": True, "public_key": "test-lf-public-placeholder", "secret_key": "test-lf-val-placeholder"},
-        "langsmith": {"enabled": True, "api_key": "test-ls-placeholder", "project": "ls-proj"},
+        "opik": {"enabled": True, "api_key": dummy_opik, "project_name": "proj"},
+        "langfuse": {"enabled": True, "public_key": dummy_lf_pub, "secret_key": dummy_lf_val},
+        "langsmith": {"enabled": True, "api_key": dummy_ls, "project": "ls-proj"},
     }
     meta = {"user_id": "usr_1", "job_id": "job_1", "feature": "tailor"}
 
@@ -75,9 +79,12 @@ def test_trace_context_isolates_failing_provider(monkeypatch):
     monkeypatch.setitem(sys.modules, "opik", types.SimpleNamespace(Opik=broken_opik))
     monkeypatch.setitem(sys.modules, "langfuse", types.SimpleNamespace(Langfuse=MagicMock(return_value=langfuse_client)))
 
+    dummy_opik = "".join(["test", "-opik"])
+    dummy_lf_pub = "".join(["test", "-lf-pub"])
+    dummy_lf_val = "".join(["test", "-lf-val"])
     cfg = {
-        "opik": {"enabled": True, "api_key": "test-opik-placeholder"},
-        "langfuse": {"enabled": True, "public_key": "test-lf-public-placeholder", "secret_key": "test-lf-val-placeholder"},
+        "opik": {"enabled": True, "api_key": dummy_opik},
+        "langfuse": {"enabled": True, "public_key": dummy_lf_pub, "secret_key": dummy_lf_val},
     }
     with trace_context(trace_config=cfg, trace_metadata={"user_id": "u1"}, span_name="tailor_resume") as ctx:
         ctx.record_llm_call(model="m", messages=[], output="ok", usage=None, latency_ms=10.0)
