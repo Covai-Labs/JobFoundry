@@ -30,7 +30,15 @@
 //
 // Usage: node scripts/vendor.mjs --from /path/to/career-ops
 
-import { copyFileSync, existsSync, mkdirSync, readdirSync } from 'node:fs';
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  rmSync,
+  statSync,
+  cpSync,
+} from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -52,7 +60,7 @@ const DROP_PROVIDER_FILES = new Set(['_dns-cache.mjs']);
 // stays byte-identical to upstream; these two markdown files are ours.
 const PRESERVED_DOCS = new Set(['README.md', 'ADDING_A_PROVIDER.md']);
 
-// Node-only provider tests whose fixtures are deliberately not vendored.
+// Node-only provider tests whose fixtures/CLI dependencies are deliberately not vendored.
 const DROP_TEST_FILES = new Set([
   'dns-cache.test.mjs',
   'dns-pacing.test.mjs',
@@ -60,11 +68,45 @@ const DROP_TEST_FILES = new Set([
   'title-entity-decode.test.mjs',
   'private-address-guard.test.mjs',
   'local-parser.test.mjs',
+  'local-parser-data-root.test.mjs',
   'jobbankca.test.mjs',
   'mycareersfuture.test.mjs',
   'proxy-egress.test.mjs',
   'startup-jobs.test.mjs',
   'workday-multi-location.test.mjs',
+  '_http-body-cap.test.mjs',
+  'http-cache.test.mjs',
+  'http-timeout.test.mjs',
+  'consider.test.mjs',
+  'eightfold-branded-host.test.mjs',
+  'jobscz.test.mjs',
+  'platsbanken.test.mjs',
+  'pracecz.test.mjs',
+  'registry-loads-every-provider.test.mjs',
+  // Import non-vendored CLI modules (scan.mjs, audit-portals.mjs, url-key.mjs, liveness-api.mjs, verify-portals.mjs)
+  'apple.test.mjs',
+  'ashby.test.mjs',
+  'bamboohr.test.mjs',
+  'bolt.test.mjs',
+  'cryptocurrencyjobs.test.mjs',
+  'example-portals-routable.test.mjs',
+  'goldman.test.mjs',
+  'inhire.test.mjs',
+  'jobicy-workplace.test.mjs',
+  'join.test.mjs',
+  'oraclecloud.test.mjs',
+  'paycom.test.mjs',
+  'remote-com.test.mjs',
+  'rexx.test.mjs',
+  'rippling.test.mjs',
+  'smartrecruiters-fallback-slug.test.mjs',
+  'smartrecruiters.test.mjs',
+  'successfactors-classic.test.mjs',
+  'taleez.test.mjs',
+  'themuse.test.mjs',
+  'velorahr.test.mjs',
+  'wellfound.test.mjs',
+  'workable.test.mjs',
 ]);
 
 // Provider modules that cannot run in a browser as copied. Each is replaced by
@@ -75,7 +117,9 @@ const PORTED_PROVIDERS = new Set([
   '_profile-keywords.mjs',
   'local-parser.mjs',
   'alibaba.mjs',
+  'deel.mjs',
   'mokahr.mjs',
+  'paylocity.mjs',
   'radancy.mjs',
 ]);
 
@@ -108,8 +152,6 @@ for (const p of [join(SRC, 'providers'), join(SRC, 'tests', 'providers'), join(S
   }
 }
 
-import { rmSync } from 'node:fs';
-
 mkdirSync(PROVIDERS_DST, { recursive: true });
 rmSync(TESTS_DST, { recursive: true, force: true });
 mkdirSync(TESTS_DST, { recursive: true });
@@ -117,6 +159,12 @@ mkdirSync(FIXTURES_DST, { recursive: true });
 mkdirSync(LIB_DST, { recursive: true });
 
 function copy(fromPath, toPath) {
+  const stat = statSync(fromPath);
+  if (stat.isDirectory()) {
+    cpSync(fromPath, toPath, { recursive: true });
+    console.log(`  vendored (dir) ${toPath.replace(EXT + '/', '')}`);
+    return;
+  }
   copyFileSync(fromPath, toPath);
   console.log(`  vendored ${toPath.replace(EXT + '/', '')}`);
 }
@@ -133,6 +181,10 @@ for (const name of readdirSync(join(SRC, 'providers')).sort()) {
 }
 
 copy(join(SRC, 'user-agent.mjs'), join(EXT, 'src', 'background', 'user-agent.mjs'));
+copy(join(SRC, 'ats-vendor.mjs'), join(EXT, 'src', 'background', 'ats-vendor.mjs'));
+copy(join(SRC, 'liveness-api.mjs'), join(EXT, 'src', 'background', 'liveness-api.mjs'));
+copy(join(PORTS, 'robots-check.mjs'), join(EXT, 'src', 'background', 'robots-check.mjs'));
+copy(join(PORTS, 'himalayas-posting.mjs'), join(EXT, 'src', 'background', 'himalayas-posting.mjs'));
 
 let testFiles = 0;
 for (const name of readdirSync(join(SRC, 'tests', 'providers')).sort()) {
@@ -141,7 +193,7 @@ for (const name of readdirSync(join(SRC, 'tests', 'providers')).sort()) {
   testFiles++;
 }
 
-const helpersSrc = join(SRC, 'tests', 'helpers.mjs');
+const helpersSrc = join(PORTS, 'helpers.mjs');
 const helpersDst = join(PROVIDERS_DST, 'helpers.mjs');
 copy(helpersSrc, helpersDst);
 // Vendored helpers live at providers/helpers.mjs (next to the providers, so
@@ -159,12 +211,35 @@ if (existsSync(fixturesSrc)) {
   }
 }
 
-const mjsFilesSrc = join(SRC, 'lib', 'mjs-files.mjs');
-if (existsSync(mjsFilesSrc)) copy(mjsFilesSrc, join(LIB_DST, 'mjs-files.mjs'));
-const scratchDirsSrc = join(SRC, 'lib', 'scratch-dirs.mjs');
-if (existsSync(scratchDirsSrc)) copy(scratchDirsSrc, join(LIB_DST, 'scratch-dirs.mjs'));
-const localTodaySrc = join(SRC, 'lib', 'local-today.mjs');
-if (existsSync(localTodaySrc)) copy(localTodaySrc, join(LIB_DST, 'local-today.mjs'));
+const LIB_FILES = [
+  'mjs-files.mjs',
+  'walk-tree.mjs',
+  'scratch-dirs.mjs',
+  'local-today.mjs',
+  'board-truncation.mjs',
+  'ascii-fold.mjs',
+  'parse-date.mjs',
+  'linkedin-url.mjs',
+  'jd-parse.mjs',
+  'posting-close.mjs', // has a browser port in scripts/ports/ (strips Node-only scan-history/url-key deps)
+];
+// Lib files that have browser ports in scripts/ports/ (applied after verbatim copy below).
+const PORTED_LIB_FILES = new Set(['posting-close.mjs']);
+
+for (const libFile of LIB_FILES) {
+  const src = join(SRC, 'lib', libFile);
+  if (existsSync(src)) copy(src, join(LIB_DST, libFile));
+}
+
+// Apply browser ports for lib files that need adaptation.
+for (const libFile of PORTED_LIB_FILES) {
+  const port = join(PORTS, libFile);
+  if (!existsSync(port)) {
+    console.error(`vendor.mjs: missing lib browser port: ${port}`);
+    process.exit(1);
+  }
+  copy(port, join(LIB_DST, libFile));
+}
 
 for (const name of PORTED_PROVIDERS) {
   const port = join(PORTS, name);

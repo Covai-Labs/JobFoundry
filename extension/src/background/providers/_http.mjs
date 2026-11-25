@@ -29,6 +29,33 @@ import { DEFAULT_USER_AGENT, BROWSER_LIKE_USER_AGENT, MACOS_BROWSER_LIKE_USER_AG
 export { BROWSER_LIKE_USER_AGENT, MACOS_BROWSER_LIKE_USER_AGENT };
 
 const DEFAULT_TIMEOUT_MS = 10_000;
+const MAX_TIMER_MS = 2_147_483_647;
+
+export const DEFAULT_MAX_BODY_BYTES = 10 * 1024 * 1024;
+export const MAX_ERROR_BODY_BYTES = 256 * 1024;
+
+export function resolveDefaultTimeoutMs(raw, fallback = DEFAULT_TIMEOUT_MS) {
+  if (raw === undefined || raw === null || String(raw).trim() === '') return fallback;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed < 1 || parsed > MAX_TIMER_MS) return fallback;
+  return parsed;
+}
+
+const CF_CHALLENGE_RE = /\bchallenge\b/i;
+
+function resolveMaxBytes(raw) {
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_MAX_BODY_BYTES;
+}
+
+function bodyTooLarge(bytes, maxBytes) {
+  const err = new Error(
+    bytes != null
+      ? `Response body (${bytes} bytes) exceeds limit (${maxBytes} bytes)`
+      : `Response body exceeds limit (${maxBytes} bytes)`,
+  );
+  err.code = 'response_too_large';
+  return err;
+}
 
 /** Actual HTTP redirect statuses (NOT 304 Not Modified, which is a cache
  * signal, not a redirect — 304 must survive to the caller as a null-body
@@ -72,7 +99,11 @@ const NULL_BODY_STATUSES = new Set([204, 205, 304]);
 
 async function fetchWithTimeout(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers = {}, method = 'GET', body = null, redirect = 'error', onResponse = null } = {}, consume, allowEmptyBody = false) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timer = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
   try {
     const requestHeaders = new Headers(headers);
     if (!requestHeaders.has('user-agent')) requestHeaders.set('user-agent', DEFAULT_USER_AGENT);
@@ -106,11 +137,17 @@ async function fetchWithTimeout(url, { timeoutMs = DEFAULT_TIMEOUT_MS, headers =
       err.body = responseText;
       err.retryAfter = res.headers.get('retry-after');
       err.location = res.headers.get('location');
+      err.cfMitigated = res.headers.get('cf-mitigated');
       throw err;
     }
     // Body consumption must stay inside the timer window: a server that sends
     // headers and then stalls the body otherwise hangs the caller forever.
     return await consume(res);
+  } catch (err) {
+    if (timedOut && err !== null && (typeof err === 'object' || typeof err === 'function')) {
+      err.timedOut = true;
+    }
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -121,7 +158,103 @@ export async function fetchJson(url, opts = {}) {
 }
 
 export async function fetchText(url, opts = {}) {
-  return fetchWithTimeout(url, opts, (res) => res.text());
+  const maxBytes = resolveMaxBytes(opts.maxBytes);
+  return fetchWithTimeout(url, opts, async (res) => {
+    const reader = res.body?.getReader?.();
+    if (!reader) {
+      const text = await res.text();
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > maxBytes) throw bodyTooLarge(bytes, maxBytes);
+      return text;
+    }
+    const decoder = new TextDecoder('utf-8');
+    let out = '';
+    let bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.length;
+        if (bytes > maxBytes) throw bodyTooLarge(bytes, maxBytes);
+        out += decoder.decode(value, { stream: true });
+      }
+      out += decoder.decode();
+      return out;
+    } finally {
+      try {
+        await reader.cancel();
+      } catch {
+        /* body already closed */
+      }
+    }
+  });
+}
+
+export async function fetchTextHead(url, opts = {}) {
+  const maxBytes = opts.maxBytes ?? 8192;
+  return fetchWithTimeout(url, opts, async (res) => {
+    const reader = res.body?.getReader?.();
+    if (!reader) return String(await res.text()).slice(0, maxBytes);
+    const decoder = new TextDecoder('utf-8');
+    let out = '';
+    let total = 0;
+    try {
+      while (total < maxBytes) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        out += decoder.decode(value, { stream: true });
+        total += value.length;
+      }
+      out += decoder.decode();
+    } finally {
+      try {
+        await reader.cancel();
+      } catch {
+        /* body already closed */
+      }
+    }
+    return out;
+  });
+}
+
+export async function fetchTextStream(url, opts, onText) {
+  if (typeof onText !== 'function') throw new TypeError('fetchTextStream needs an onText callback');
+  const maxBytes = resolveMaxBytes(opts?.maxBytes);
+  const acceptNotModified = Boolean(opts?.acceptNotModified);
+  return fetchWithTimeout(url, opts ?? {}, async (res) => {
+    const lastModified = res.headers.get('last-modified');
+    if (res.status === 304) return { bytes: 0, complete: true, notModified: true, lastModified };
+    const reader = res.body?.getReader?.();
+    if (!reader) {
+      const text = await res.text();
+      const bytes = new TextEncoder().encode(text).length;
+      if (bytes > maxBytes) throw bodyTooLarge(bytes, maxBytes);
+      if (text) await onText(text);
+      return { bytes, complete: true, notModified: false, lastModified };
+    }
+    const decoder = new TextDecoder('utf-8');
+    let bytes = 0;
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        bytes += value.length;
+        if (bytes > maxBytes) throw bodyTooLarge(null, maxBytes);
+        if ((await onText(decoder.decode(value, { stream: true }))) === false) {
+          return { bytes, complete: false, notModified: false, lastModified };
+        }
+      }
+      const tail = decoder.decode();
+      if (tail) await onText(tail);
+      return { bytes, complete: true, notModified: false, lastModified };
+    } finally {
+      try {
+        await reader.cancel();
+      } catch {
+        /* body already closed */
+      }
+    }
+  }, acceptNotModified);
 }
 
 // Returns a Response (after the timeout + non-2xx + redirect guard) so
@@ -160,6 +293,20 @@ export function sleep(ms, ctx) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export function abortableSleep(ms, ctx, signal) {
+  if (!signal) return sleep(ms, ctx);
+  if (signal.aborted) return Promise.resolve();
+  return new Promise((resolve, reject) => {
+    const onAbort = () => { cleanup(); resolve(); };
+    const cleanup = () => signal.removeEventListener('abort', onAbort);
+    signal.addEventListener('abort', onAbort, { once: true });
+    Promise.resolve(sleep(ms, ctx)).then(
+      (value) => { cleanup(); resolve(value); },
+      (err) => { cleanup(); reject(err); },
+    );
+  });
+}
+
 /**
  * Milliseconds from a Retry-After header, in either permitted form (delta
  * seconds or an HTTP-date). Null when absent or unparseable.
@@ -181,11 +328,21 @@ export function parseRetryAfterMs(value) {
  * 'error' TypeError) is deterministic and will never succeed on retry — see
  * REDIRECT_REFUSAL_CAUSE_MESSAGE.
  */
+export function isCloudflareChallenge(err) {
+  return typeof err?.cfMitigated === 'string' && CF_CHALLENGE_RE.test(err.cfMitigated);
+}
+
 export function isRetryableError(err) {
   const status = err?.status;
+  if (isCloudflareChallenge(err)) return false;
   if (status === 429) return true;
   if (typeof status === 'number' && status >= 500) return true;
   if (isRefusedRedirectError(err)) return false;
+  if (err?.code === 'response_too_large') return false;
+  if (err?.code === 'ECAREEROPS_BLOCKED_ADDRESS' || err?.cause?.code === 'ECAREEROPS_BLOCKED_ADDRESS') {
+    return false;
+  }
+  if (err?.timedOut === true) return false;
   return status === undefined; // network error / timeout / abort — no status set
 }
 

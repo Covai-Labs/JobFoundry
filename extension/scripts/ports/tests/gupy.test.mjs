@@ -118,6 +118,53 @@ try {
     fail(`normalizeGupyApiJob confidential = ${JSON.stringify({ confidential, notConfidential })}`);
   }
 
+  // The portal endpoint carries no isConfidentialCareerPage flag: a
+  // confidential posting only says "Confidencial" where the employer goes. The
+  // label must match whole, so an employer that merely has the word in its
+  // name stays.
+  const unflagged = ['Confidencial', 'Empresa Confidencial', '  CONFIDENCIAL  '].map((careerPageName, i) => normalizeGupyApiJob({
+    name: 'Analista', jobUrl: `https://acme.gupy.io/job/u${i}`, careerPageName,
+  }));
+  const namedLikeIt = normalizeGupyApiJob({
+    name: 'Analista', jobUrl: 'https://acme.gupy.io/job/u9', careerPageName: 'Confidencial Seguros',
+  });
+  if (unflagged.every((r) => r === null) && namedLikeIt?.company === 'Confidencial Seguros') {
+    pass('normalizeGupyApiJob drops an unflagged "Confidencial" employer label and keeps a company that only contains the word');
+  } else {
+    fail(`normalizeGupyApiJob unflagged confidential = ${JSON.stringify({ unflagged, namedLikeIt })}`);
+  }
+
+  // A confidential career page can carry any name. The placeholder logo Gupy
+  // gives such a page marks it, on either host it is served from; a company
+  // logo on an ordinary page does not.
+  const byLogo = [
+    'https://career-page-prod.gupy.io/default-creation-images/confidencial_logo.png',
+    'https://gupy5.s3.amazonaws.com/images/public-pages/confidencial_logo.png',
+  ].map((careerPageLogo, i) => normalizeGupyApiJob({
+    name: 'Analista', jobUrl: `https://acme.gupy.io/job/l${i}`, careerPageName: 'Vagas Confidenciais', careerPageLogo,
+  }));
+  const companyLogo = normalizeGupyApiJob({
+    name: 'Analista', jobUrl: 'https://acme.gupy.io/job/l9', careerPageName: 'Acme',
+    careerPageLogo: 'https://career-page-prod.gupy.io/acme/logo.png',
+  });
+  if (byLogo.every((r) => r === null) && companyLogo?.company === 'Acme') {
+    pass('normalizeGupyApiJob drops a page with the confidential placeholder logo and keeps a company logo');
+  } else {
+    fail(`normalizeGupyApiJob confidential logo = ${JSON.stringify({ byLogo, companyLogo })}`);
+  }
+
+  // A confidential page that kept a company logo still says so in its tenant
+  // subdomain. Only the subdomain is read, so the "Confidencial Seguros" row
+  // above, on acme.gupy.io, stays.
+  const byTenant = ['vagasconfidenciaisexemplo', 'confidencialempresa1', 'vagaconfidencial2'].map((tenant, i) => normalizeGupyApiJob({
+    name: 'Analista', jobUrl: `https://${tenant}.gupy.io/job/t${i}`, careerPageName: 'Acme',
+  }));
+  if (byTenant.every((r) => r === null)) {
+    pass('normalizeGupyApiJob drops a posting on a tenant whose subdomain says "confidencial"');
+  } else {
+    fail(`normalizeGupyApiJob confidential tenant = ${JSON.stringify(byTenant)}`);
+  }
+
   // ── extractGupyRows: empty vs broken ─────────────────────────────────────
   const emptyRows = extractGupyRows({ data: [], pagination: { total: 0 } }, 'X', 0);
   if (Array.isArray(emptyRows) && emptyRows.length === 0) pass('extractGupyRows returns [] for a present-and-empty data array');
@@ -150,6 +197,8 @@ try {
   const hitExplicit = provider.detect({ name: 'Gupy', provider: 'gupy' });
   const hitPortal = provider.detect({ careers_url: 'https://portal.gupy.io' });
   const hitPortalPath = provider.detect({ careers_url: 'https://portal.gupy.io/job-search/term=dev' });
+  // An entry written against the API's retired host still resolves here;
+  // fetch() never calls that host.
   const hitApi = provider.detect({ api: 'https://employability-portal.gupy.io/api/v1/jobs' });
   const misses = [
     provider.detect({ careers_url: 'https://acme.gupy.io' }),
@@ -165,7 +214,7 @@ try {
     provider.detect({ name: 'no urls' }),
     provider.detect(null),
   ];
-  if (hitExplicit?.url === 'https://employability-portal.gupy.io/api/v1/jobs'
+  if (hitExplicit?.url === 'https://portal.gupy.io/api/job-search/jobs'
       && hitPortal?.url && hitPortalPath?.url && hitApi?.url && misses.every((m) => m === null)) {
     pass('detect() claims provider: gupy and the platform-wide hosts, never a tenant, the apex, non-HTTPS, lookalikes or junk');
   } else {
@@ -258,6 +307,8 @@ try {
   } else {
     fail(`fetch() pagination = ${JSON.stringify({ offsets, limits, jobs: paged.length })}`);
   }
+  if (paged.truncated === undefined) pass('fetch() leaves a sweep that reached a short page unmarked');
+  else fail(`short-page sweep was marked: ${JSON.stringify(paged.truncated)}`);
 
   // REGRESSION (2026-08-13): pagination.total reports the PAGE SIZE, not the
   // result-set size — the live API answers total=100 at every offset of a
@@ -310,6 +361,28 @@ try {
   }
   if (probeWarnings.length === 0) pass('fetch() stays quiet when ctx.maxPages truncates — a probe is not a misconfiguration');
   else fail(`probe emitted warnings: ${JSON.stringify(probeWarnings)}`);
+  if (probed.truncated === undefined) pass('fetch() leaves a probe cut by ctx.maxPages unmarked');
+  else fail(`probe was marked: ${JSON.stringify(probed.truncated)}`);
+
+  // An entry whose own max_pages is 1 ends the walk on the same page the probe
+  // budget does, but that ceiling belongs to the entry: the probe is still a
+  // probe and must stay quiet and unmarked (#7180).
+  const entryCapWarnings = [];
+  let entryCapped;
+  const beforeEntryCap = console.error;
+  try {
+    console.error = (...args) => entryCapWarnings.push(args.join(' '));
+    entryCapped = await provider.fetch({ gupy: { keywords: ['A'] }, max_pages: 1 }, {
+      maxPages: 1,
+      sleep: noSleep, fetchJson: async () => ({ data: Array.from({ length: 100 }, (_, i) => mk(i)), pagination: { total: 100 } }),
+    });
+  } finally {
+    console.error = beforeEntryCap;
+  }
+  if (entryCapWarnings.length === 0) pass('fetch() stays quiet when the entry max_pages and a probe end on the same page (#7180)');
+  else fail(`entry-capped probe emitted warnings: ${JSON.stringify(entryCapWarnings)}`);
+  if (entryCapped.truncated === undefined) pass('fetch() leaves an entry-capped probe unmarked (#7180)');
+  else fail(`entry-capped probe was marked: ${JSON.stringify(entryCapped.truncated)}`);
 
   // max_pages caps the sweep and warns.
   const capCalls = [];
@@ -330,35 +403,92 @@ try {
   }
   if (capCalls.length === 2 && capped.length === 200) pass('fetch() stops a never-ending feed at max_pages');
   else fail(`fetch() cap = ${JSON.stringify({ calls: capCalls.length, jobs: capped?.length })}`);
-  if (capWarnings.some((w) => w.includes('truncated at max_pages=2'))) pass('fetch() warns when max_pages truncates a keyword sweep');
-  else fail(`truncation warning missing; captured = ${JSON.stringify(capWarnings)}`);
+  if (capWarnings.some((w) => w.includes('truncated at max_pages=2') && w.includes('raise max_pages'))) {
+    pass('fetch() warns when max_pages truncates a keyword sweep');
+  } else {
+    fail(`truncation warning missing; captured = ${JSON.stringify(capWarnings)}`);
+  }
+  // Each warned stop is also marked, so scan.mjs logs the board partial, not reachable.
+  if (capped.truncated?.reason === 'page-cap' && capped.truncated.fetched === 200) pass('fetch() marks the board partial when max_pages truncates a sweep');
+  else fail(`max_pages cut: truncated = ${JSON.stringify(capped.truncated)}`);
 
-  // Optional filters ride along as comma-joined params; unset ones are absent.
+  // The API answers offset 10,000 and beyond with a 400, so no max_pages takes
+  // a sweep past 100 pages, and at that ceiling the warning must not tell the
+  // user to raise max_pages.
+  const deepOffsets = [];
+  const deepWarnings = [];
+  let deep;
+  const beforeDeep = console.error;
+  try {
+    console.error = (...args) => deepWarnings.push(args.join(' '));
+    deep = await provider.fetch({ gupy: { keywords: ['X'] }, max_pages: 500 }, {
+      sleep: noSleep, fetchJson: async (url) => {
+        const offset = Number(new URL(url).searchParams.get('offset'));
+        deepOffsets.push(offset);
+        return { data: Array.from({ length: 100 }, (_, i) => mk(offset + i)), pagination: { total: 100 } };
+      },
+    });
+  } finally {
+    console.error = beforeDeep;
+  }
+  if (deepOffsets.length === 100 && deepOffsets.at(-1) === 9900 && deep.length === 10_000) {
+    pass('fetch() caps max_pages at 100, the deepest page the API serves');
+  } else {
+    fail(`fetch() page ceiling = ${JSON.stringify({ calls: deepOffsets.length, last: deepOffsets.at(-1), jobs: deep?.length })}`);
+  }
+  if (deepWarnings.length === 1 && deepWarnings[0].includes('truncated at max_pages=100')
+      && !deepWarnings[0].includes('raise max_pages')) {
+    pass('fetch() does not suggest raising max_pages once the API ceiling is what truncated the sweep');
+  } else {
+    fail(`ceiling warning = ${JSON.stringify(deepWarnings)}`);
+  }
+  if (deep.truncated?.reason === 'page-cap' && deep.truncated.fetched === 10_000) pass('fetch() marks the board partial when the API ceiling truncates a sweep');
+  else fail(`API ceiling cut: truncated = ${JSON.stringify(deep.truncated)}`);
+
+  // Optional filters ride along comma-joined under the names the API reads,
+  // workplaceType and type, as portal.gupy.io sends them. It ignores the plural
+  // workplaceTypes/jobTypes and answers with the unfiltered feed. It has no
+  // country filter either, so a configured country is not sent and draws a
+  // warning instead.
   const paramCalls = [];
+  const paramWarnings = [];
   const paramCtx = { sleep: noSleep, fetchJson: async (url) => { paramCalls.push(url); return { data: [], pagination: { total: 0 } }; } };
-  await provider.fetch({
-    gupy: {
-      keywords: ['X'],
-      workplace_types: ['remote', 'hybrid'],
-      job_types: ['vacancy_type_effective'],
-      state: 'Rio Grande do Sul',
-      country: 'Brasil',
-    },
-    max_pages: 1,
-  }, paramCtx);
+  const beforeParams = console.error;
+  try {
+    console.error = (...args) => paramWarnings.push(args.join(' '));
+    await provider.fetch({
+      name: 'Gupy',
+      gupy: {
+        keywords: ['X'],
+        workplace_types: ['remote', 'hybrid'],
+        job_types: ['vacancy_type_effective'],
+        state: 'Rio Grande do Sul',
+        country: 'Brasil',
+      },
+      max_pages: 1,
+    }, paramCtx);
+  } finally {
+    console.error = beforeParams;
+  }
   const p = new URL(paramCalls[0]).searchParams;
-  if (p.get('workplaceTypes') === 'remote,hybrid' && p.get('jobTypes') === 'vacancy_type_effective'
-      && p.get('state') === 'Rio Grande do Sul' && p.get('country') === 'Brasil') {
-    pass('fetch() sends workplace_types/job_types comma-joined plus state/country');
+  if (p.get('workplaceType') === 'remote,hybrid' && p.get('type') === 'vacancy_type_effective'
+      && p.get('state') === 'Rio Grande do Sul'
+      && !p.has('workplaceTypes') && !p.has('jobTypes') && !p.has('country')) {
+    pass('fetch() sends workplace_types/job_types as workplaceType/type, comma-joined, plus state');
   } else {
     fail(`fetch() params = ${JSON.stringify(Object.fromEntries(p))}`);
+  }
+  if (paramWarnings.length === 1 && paramWarnings[0].includes('gupy.country') && paramWarnings[0].includes('"Gupy"')) {
+    pass('fetch() warns that gupy.country is ignored instead of sending it');
+  } else {
+    fail(`country warning = ${JSON.stringify(paramWarnings)}`);
   }
 
   const bareCalls = [];
   const bareCtx = { sleep: noSleep, fetchJson: async (url) => { bareCalls.push(url); return { data: [], pagination: { total: 0 } }; } };
   await provider.fetch({ gupy: { keywords: ['X'], workplace_types: [] }, max_pages: 1 }, bareCtx);
   const bp = new URL(bareCalls[0]).searchParams;
-  if (!bp.has('workplaceTypes') && !bp.has('jobTypes') && !bp.has('state') && !bp.has('country')) {
+  if (!bp.has('workplaceType') && !bp.has('type') && !bp.has('state') && !bp.has('country')) {
     pass('fetch() omits optional params entirely when unset or empty');
   } else {
     fail(`fetch() bare params = ${JSON.stringify(Object.fromEntries(bp))}`);
@@ -408,6 +538,8 @@ try {
   } else {
     fail(`sweep isolation = ${JSON.stringify({ jobs: isolated.length, calls: isoCalls, warnings: isoWarnings })}`);
   }
+  if (isolated.truncated?.reason === 'fetch-error' && isolated.truncated.fetched === 2) pass('fetch() marks the board partial when one keyword sweep fails');
+  else fail(`failed sweep: truncated = ${JSON.stringify(isolated.truncated)}`);
 
   // A failure mid-sweep keeps the pages already in hand (newest-first, so a
   // partial sweep is the freshest N pages) and moves on.
@@ -433,6 +565,8 @@ try {
   } else {
     fail(`mid-sweep partial = ${JSON.stringify({ jobs: partial.length, calls: partialCalls })}`);
   }
+  if (partial.truncated?.reason === 'fetch-error' && partial.truncated.fetched === 100) pass('fetch() marks the board partial when a sweep dies mid-pagination');
+  else fail(`mid-sweep failure: truncated = ${JSON.stringify(partial.truncated)}`);
 
   // Every sweep dead = outage, moved endpoint or changed payload. Must rethrow
   // the ORIGINAL error object: verify-portals' classifyFetchError reads
@@ -538,15 +672,22 @@ try {
     const withTmpCwd = async (setup, run) => {
       const tmp = mkdtempSync(join(tmpdir(), 'career-ops-gupy-fallback-'));
       const cwdBefore = process.cwd();
+      const rootEnvBefore = { root: process.env.CAREER_OPS_ROOT, dir: process.env.CAREER_OPS_DATA_DIR };
       const profileEnvBefore = process.env.CAREER_OPS_PROFILE;
       try {
         setup(tmp);
         process.chdir(tmp);
+        process.env.CAREER_OPS_ROOT = tmp;
+        process.env.CAREER_OPS_DATA_DIR = '';
         delete process.env.CAREER_OPS_PROFILE;
         return await run();
       } finally {
         if (profileEnvBefore === undefined) delete process.env.CAREER_OPS_PROFILE;
         else process.env.CAREER_OPS_PROFILE = profileEnvBefore;
+        if (rootEnvBefore.root === undefined) delete process.env.CAREER_OPS_ROOT;
+        else process.env.CAREER_OPS_ROOT = rootEnvBefore.root;
+        if (rootEnvBefore.dir === undefined) delete process.env.CAREER_OPS_DATA_DIR;
+        else process.env.CAREER_OPS_DATA_DIR = rootEnvBefore.dir;
         process.chdir(cwdBefore);
         rmSync(tmp, { recursive: true, force: true });
       }
@@ -572,11 +713,14 @@ try {
       return { calls, threw };
     };
 
-    // Keywords fall back to target_roles in Node, but in browser port resolveProfileKeywords()
-    // is a no-op returning [] (no filesystem). Verify it throws when no entry keywords are set.
+    // Keywords fall back to target_roles (the vdab.mjs pattern), never to a
+    // hardcoded term baked into this system-layer file.
+    // Browser port: _profile-keywords.mjs resolveProfileKeywords() is a no-op
+    // returning [] (no filesystem), so an entry without gupy.keywords[]/gupy.q
+    // throws even when a profile.yml exists on disk.
     const fallback = await sweep({ name: 'Gupy', max_pages: 1 }, withProfile);
     if (fallback.calls.length === 0 && fallback.threw && fallback.threw.includes('no gupy.keywords[]/gupy.q')) {
-      pass('fetch() throws in browser port when neither gupy.keywords[] nor gupy.q is set');
+      pass('fetch() throws in browser port when neither gupy.keywords[] nor gupy.q is set (no fs profile fallback)');
     } else {
       fail(`profile fallback = ${JSON.stringify(fallback)}`);
     }
@@ -713,8 +857,8 @@ try {
   else fail(`q form = ${JSON.stringify(new URL(qCalls[0]).searchParams.get('jobName'))}`);
 
   // Every request must hit the pinned API host over HTTPS (SSRF guard).
-  if (qCalls.every((u) => u.startsWith('https://employability-portal.gupy.io/api/v1/jobs?'))) {
-    pass('fetch() pins every request to https://employability-portal.gupy.io/api/v1/jobs');
+  if (qCalls.every((u) => u.startsWith('https://portal.gupy.io/api/job-search/jobs?'))) {
+    pass('fetch() pins every request to https://portal.gupy.io/api/job-search/jobs');
   } else {
     fail(`api host = ${JSON.stringify(qCalls)}`);
   }
