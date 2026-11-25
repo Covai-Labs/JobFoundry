@@ -26,7 +26,7 @@ invariant).
 > MIT-licensed [career-ops](https://github.com/career-ops) provider
 > collection. Those files keep their original MIT headers. Browser-incompatible
 > modules are ported (never edited in place) — see
-> [`scripts/ports/README.md`](../../../scripts/ports/README.md). `README.md`
+> [`scripts/ports/README.md`](../../../../scripts/ports/README.md). `README.md`
 > (this directory) and this guide are JobFoundry-owned and are excluded from
 > re-vendoring (see `PRESERVED_DOCS` in `scripts/vendor.mjs`).
 
