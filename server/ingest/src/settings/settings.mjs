@@ -14,6 +14,23 @@ export const SENSITIVE_KEYS = new Set([
   'langsmith_api_key',
 ]);
 
+export const OBSERVABILITY_KEYS = new Set([
+  'observability_provider',
+  'opik_enabled',
+  'opik_project_name',
+  'opik_api_key',
+  'opik_workspace',
+  'opik_url_override',
+  'langfuse_enabled',
+  'langfuse_public_key',
+  'langfuse_secret_key',
+  'langfuse_host',
+  'langsmith_enabled',
+  'langsmith_api_key',
+  'langsmith_project',
+  'langsmith_endpoint',
+]);
+
 export const DEFAULT_COPILOT_SYSTEM_PROMPT =
   'You are an articulate candidate ghost writer and career strategist drafting job application content grounded strictly in the candidate master resume.';
 
@@ -548,7 +565,10 @@ function getUserSettings(db, userId) {
  * @param {object} [options.env=process.env]
  * @returns {{ settings: Record<string, any>, meta: Record<string, any> }} Effective settings and provenance metadata.
  */
-export function getAllSettings(db, { userId = null, maskSecrets = true, env = process.env } = {}) {
+export function getAllSettings(
+  db,
+  { userId = null, isAdmin = true, maskSecrets = true, env = process.env } = {}
+) {
   const dbRows = db.prepare('SELECT key, value, updated_at FROM system_settings').all();
   const dbMap = new Map(dbRows.map((r) => [r.key, r]));
   const userSettings = getUserSettings(db, userId);
@@ -557,10 +577,28 @@ export function getAllSettings(db, { userId = null, maskSecrets = true, env = pr
   const meta = {};
 
   for (const [key, spec] of Object.entries(SETTINGS_METADATA)) {
+    if (OBSERVABILITY_KEYS.has(key) && !isAdmin) {
+      result[key] = spec.secret ? '' : spec.default;
+      meta[key] = {
+        source: 'default',
+        hasCustomKey: false,
+        updatedAt: null,
+        type: spec.type,
+        secret: Boolean(spec.secret),
+      };
+      continue;
+    }
+
     // BYOK isolation: a registered user without a user-scoped value for a
     // secret key gets an empty value with no system/env masked fragment (or
     // source) surfaced — the shared platform key is never presented to them.
-    if (spec.secret && userId && isRegisteredUser(db, userId) && !userSettings.has(key)) {
+    if (
+      !OBSERVABILITY_KEYS.has(key) &&
+      spec.secret &&
+      userId &&
+      isRegisteredUser(db, userId) &&
+      !userSettings.has(key)
+    ) {
       result[key] = '';
       meta[key] = {
         source: 'default',
@@ -576,7 +614,26 @@ export function getAllSettings(db, { userId = null, maskSecrets = true, env = pr
     let source;
     let updatedAt = null;
 
-    if (userSettings.has(key)) {
+    if (OBSERVABILITY_KEYS.has(key)) {
+      if (dbMap.has(key)) {
+        rawVal = dbMap.get(key).value;
+        updatedAt = dbMap.get(key).updated_at;
+        source = 'system';
+      } else if (userSettings.has(key)) {
+        rawVal = userSettings.get(key).value;
+        updatedAt = userSettings.get(key).updated_at;
+        source = 'user';
+      } else {
+        const envVal = getEnvValue(spec.env, env);
+        if (envVal !== undefined && envVal !== '') {
+          rawVal = envVal;
+          source = 'env';
+        } else {
+          rawVal = spec.default;
+          source = 'default';
+        }
+      }
+    } else if (userSettings.has(key)) {
       rawVal = userSettings.get(key).value;
       updatedAt = userSettings.get(key).updated_at;
       source = 'user';
@@ -693,43 +750,63 @@ export function isRegisteredUser(db, userId) {
  * (legacy-admin/dev-user) write to system_settings.
  * Preserves existing secrets if user passes masked value or empty string.
  */
-export function updateSettings(db, newValues = {}, userId = null) {
+export function updateSettings(db, newValues = {}, userId = null, { isAdmin = true } = {}) {
   const now = Date.now();
   const table = isRegisteredUser(db, userId) ? 'user_settings' : 'system_settings';
 
-  const insertOrUpdate =
-    table === 'user_settings'
-      ? db.prepare(`
+  const hasObservabilityWrite = Object.keys(newValues || {}).some((k) => OBSERVABILITY_KEYS.has(k));
+  if (hasObservabilityWrite && !isAdmin) {
+    throw new Error('administrator access required to update observability settings');
+  }
+
+  const upsertUserSetting = db.prepare(`
           INSERT INTO user_settings (user_id, key, value, updated_at)
           VALUES (?, ?, ?, ?)
           ON CONFLICT(user_id, key) DO UPDATE SET
             value = excluded.value,
             updated_at = excluded.updated_at
-        `)
-      : db.prepare(`
+        `);
+  const upsertSystemSetting = db.prepare(`
           INSERT INTO system_settings (key, value, updated_at)
           VALUES (?, ?, ?)
           ON CONFLICT(key) DO UPDATE SET
             value = excluded.value,
             updated_at = excluded.updated_at
         `);
-
-  const deleteKey =
-    table === 'user_settings'
-      ? db.prepare('DELETE FROM user_settings WHERE user_id = ? AND key = ?')
-      : db.prepare('DELETE FROM system_settings WHERE key = ?');
+  const deleteUserKey = db.prepare('DELETE FROM user_settings WHERE user_id = ? AND key = ?');
+  const deleteSystemKey = db.prepare('DELETE FROM system_settings WHERE key = ?');
 
   const updateTx = db.transaction((entries) => {
+    if (hasObservabilityWrite && userId && isRegisteredUser(db, userId)) {
+      const legacyRows = db
+        .prepare(
+          `SELECT key, value, updated_at FROM user_settings WHERE user_id = ? AND key IN (${Array.from(
+            OBSERVABILITY_KEYS
+          )
+            .map(() => '?')
+            .join(',')})`
+        )
+        .all(userId, ...OBSERVABILITY_KEYS);
+      const insertIfMissing = db.prepare(
+        'INSERT OR IGNORE INTO system_settings (key, value, updated_at) VALUES (?, ?, ?)'
+      );
+      for (const row of legacyRows) {
+        insertIfMissing.run(row.key, row.value, row.updated_at);
+      }
+    }
+
     for (const [key, val] of Object.entries(entries)) {
       const spec = SETTINGS_METADATA[key];
       if (!spec) continue;
 
+      const targetTable = OBSERVABILITY_KEYS.has(key) ? 'system_settings' : table;
+
       // Handle resetting to default
       if (val === null) {
-        if (table === 'user_settings') {
-          deleteKey.run(userId, key);
+        if (targetTable === 'user_settings') {
+          deleteUserKey.run(userId, key);
         } else {
-          deleteKey.run(key);
+          deleteSystemKey.run(key);
         }
         continue;
       }
@@ -762,16 +839,88 @@ export function updateSettings(db, newValues = {}, userId = null) {
 
       // Coerce & store as string
       const coerced = coerceValue(val, spec.type);
-      if (table === 'user_settings') {
-        insertOrUpdate.run(userId, key, String(coerced), now);
+      if (targetTable === 'user_settings') {
+        upsertUserSetting.run(userId, key, String(coerced), now);
       } else {
-        insertOrUpdate.run(key, String(coerced), now);
+        upsertSystemSetting.run(key, String(coerced), now);
       }
     }
   });
 
   updateTx(newValues);
-  return getAllSettings(db, { userId, maskSecrets: true });
+  return getAllSettings(db, { userId, isAdmin, maskSecrets: true });
+}
+
+/**
+ * Resolves the instance-wide observability trace config from system_settings → env → defaults.
+ * Falls back to the earliest user's user_settings if system_settings has no observability rows yet,
+ * so previously saved admin UI keys work seamlessly without re-entry.
+ */
+export function getObservabilityTraceConfig(db, env = process.env) {
+  let fallbackUserId = null;
+  try {
+    const firstUser = db.prepare('SELECT id FROM users ORDER BY created_at ASC LIMIT 1').get();
+    if (firstUser?.id) fallbackUserId = firstUser.id;
+  } catch {
+    // Ignore if users table is unavailable
+  }
+
+  const { settings, meta } = getAllSettings(db, {
+    userId: fallbackUserId,
+    isAdmin: true,
+    maskSecrets: false,
+    env,
+  });
+
+  const opikEnabled = Boolean(
+    settings.opik_enabled && (settings.opik_api_key || settings.opik_url_override)
+  );
+  const langfuseEnabled = Boolean(
+    settings.langfuse_enabled && settings.langfuse_public_key && settings.langfuse_secret_key
+  );
+  const langsmithEnabled = Boolean(settings.langsmith_enabled && settings.langsmith_api_key);
+
+  if (!opikEnabled && !langfuseEnabled && !langsmithEnabled) {
+    const explicitlyConfigured =
+      meta.opik_enabled?.source !== 'default' ||
+      meta.langfuse_enabled?.source !== 'default' ||
+      meta.langsmith_enabled?.source !== 'default';
+    return explicitlyConfigured ? { disabled: true } : null;
+  }
+
+  return {
+    ...(opikEnabled
+      ? {
+          opik: {
+            enabled: true,
+            api_key: settings.opik_api_key || null,
+            project_name: settings.opik_project_name || 'jobfoundry',
+            workspace: settings.opik_workspace || null,
+            url_override: settings.opik_url_override || null,
+          },
+        }
+      : {}),
+    ...(langfuseEnabled
+      ? {
+          langfuse: {
+            enabled: true,
+            public_key: settings.langfuse_public_key,
+            secret_key: settings.langfuse_secret_key,
+            host: settings.langfuse_host || 'https://cloud.langfuse.com',
+          },
+        }
+      : {}),
+    ...(langsmithEnabled
+      ? {
+          langsmith: {
+            enabled: true,
+            api_key: settings.langsmith_api_key,
+            project: settings.langsmith_project || 'jobfoundry',
+            endpoint: settings.langsmith_endpoint || 'https://api.smith.langchain.com',
+          },
+        }
+      : {}),
+  };
 }
 
 export const DEFAULT_EXTENSION_CONFIG = {

@@ -69,6 +69,7 @@ import {
   getEffectiveSetting,
   getEffectiveSettingWithSource,
   getExtensionConfig,
+  getObservabilityTraceConfig,
   isRegisteredUser,
   updateExtensionConfig,
   updateSettings,
@@ -418,7 +419,11 @@ export function buildApp({
     async (request, reply) => {
       if (!checkRateLimit(request, reply, 60)) return;
       if (!authenticate(request, reply)) return;
-      return getAllSettings(db, { userId: request.user.id, maskSecrets: true });
+      return getAllSettings(db, {
+        userId: request.user.id,
+        isAdmin: Boolean(request.user.isAdmin),
+        maskSecrets: true,
+      });
     }
   );
 
@@ -442,10 +447,13 @@ export function buildApp({
       if (!authenticate(request, reply)) return;
       const body = request.body || {};
       try {
-        const updated = updateSettings(db, body, request.user.id);
+        const updated = updateSettings(db, body, request.user.id, {
+          isAdmin: Boolean(request.user.isAdmin),
+        });
         return { ok: true, ...updated };
       } catch (err) {
-        return reply.code(400).send({ error: err.message });
+        const status = err.message?.includes('administrator access required') ? 403 : 400;
+        return reply.code(status).send({ error: err.message });
       }
     }
   );
@@ -2933,6 +2941,8 @@ export function buildApp({
           getEffectiveSetting(db, 'tailor_prompt_final_check', process.env, userId) || undefined,
       };
 
+      const traceConfig = getObservabilityTraceConfig(db, process.env);
+
       if (resumeOpsUrl) {
         try {
           const resp = await safeFetch(`${resumeOpsUrl.replace(/\/$/, '')}/api/v1/tailor`, {
@@ -2953,6 +2963,12 @@ export function buildApp({
               enable_final_check: tailorEnableFinalCheck,
               ...(tailorFinalCheckModel ? { final_check_model: tailorFinalCheckModel } : {}),
               prompt_templates: promptTemplates,
+              ...(traceConfig ? { trace_config: traceConfig } : {}),
+              trace_metadata: {
+                user_id: userId,
+                job_id: id,
+                feature: 'tailor',
+              },
             }),
           });
 

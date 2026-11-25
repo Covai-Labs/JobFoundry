@@ -9,6 +9,7 @@ from resume_ops_api.api.models import TailorRequest
 from resume_ops_api.core.exceptions import AppError
 from resume_ops_api.services.callbacks import CallbackService
 from resume_ops_api.services.orchestrator import TailorOrchestrator
+from resume_ops_api.services.tracing import trace_context
 from resume_ops_api.services.store import JobStore
 
 
@@ -86,22 +87,33 @@ class AsyncJobRunner:
     async def _run_job(self, job_id: str) -> None:
         job = await self.store.get_or_raise(job_id)
         try:
-            result = await self.orchestrator.run(
-                resume=job.request_payload["resume"],
-                job_description=job.request_payload["job_description"],
-                theme=job.theme,
-                task_id=job.id,
-                sections=job.request_payload.get("sections"),
-                model=job.request_payload.get("model"),
-                api_key=job.request_payload.get("api_key"),
-                api_base=job.request_payload.get("api_base"),
-                style=job.request_payload.get("style"),
-                custom_instructions=job.request_payload.get("custom_instructions"),
-                pipeline_mode=job.request_payload.get("pipeline_mode"),
-                enable_final_check=job.request_payload.get("enable_final_check"),
-                final_check_model=job.request_payload.get("final_check_model"),
-                prompt_templates=job.request_payload.get("prompt_templates"),
-            )
+            with trace_context(
+                trace_config=job.request_payload.get("trace_config"),
+                trace_metadata=job.request_payload.get("trace_metadata") or {"task_id": job.id, "feature": "tailor_async"},
+                span_name="tailor_resume_async",
+                input_data={
+                    "task_id": job.id,
+                    "model": job.request_payload.get("model"),
+                    "theme": job.theme,
+                },
+            ) as trace_ctx:
+                result = await self.orchestrator.run(
+                    resume=job.request_payload["resume"],
+                    job_description=job.request_payload["job_description"],
+                    theme=job.theme,
+                    task_id=job.id,
+                    sections=job.request_payload.get("sections"),
+                    model=job.request_payload.get("model"),
+                    api_key=job.request_payload.get("api_key"),
+                    api_base=job.request_payload.get("api_base"),
+                    style=job.request_payload.get("style"),
+                    custom_instructions=job.request_payload.get("custom_instructions"),
+                    pipeline_mode=job.request_payload.get("pipeline_mode"),
+                    enable_final_check=job.request_payload.get("enable_final_check"),
+                    final_check_model=job.request_payload.get("final_check_model"),
+                    prompt_templates=job.request_payload.get("prompt_templates"),
+                )
+                trace_ctx.set_output({"theme": result.theme, "has_pdf": bool(result.pdf_base64)})
             await self.store.mark_completed(job_id=job.id, resume=result.resume, pdf_path=result.pdf_path)
             if job.callback_url:
                 await self.callback_service.deliver(

@@ -16,6 +16,7 @@ from fastapi import APIRouter, Depends, HTTPException, Response, status
 from fastapi.responses import FileResponse
 from litellm import acompletion
 from resume_ops_api.api.deps import get_container
+from resume_ops_api.services.tracing import trace_context
 from resume_ops_api.api.models import (
     CopilotCoverLetterRequest,
     CopilotCoverLetterResponse,
@@ -295,6 +296,8 @@ async def tailor_resume(
         enable_final_check=payload.enable_final_check,
         final_check_model=payload.final_check_model,
         prompt_templates=payload.prompt_templates,
+        trace_config=payload.trace_config,
+        trace_metadata=payload.trace_metadata,
     )
 
     theme = container.theme_service.resolve(payload.theme)
@@ -303,21 +306,34 @@ async def tailor_resume(
         response.status_code = status.HTTP_202_ACCEPTED
         return QueuedTaskResponse(task_id=task_id, status="queued")
 
-    result = await container.orchestrator.run(
-        resume=resume_data,
-        job_description=payload.job_description,
-        theme=theme,
-        sections=payload.sections,
-        model=payload.model,
-        api_key=payload.api_key,
-        api_base=payload.api_base,
-        style=payload.style,
-        custom_instructions=payload.custom_instructions,
-        pipeline_mode=payload.pipeline_mode,
-        enable_final_check=payload.enable_final_check,
-        final_check_model=payload.final_check_model,
-        prompt_templates=payload.prompt_templates,
-    )
+    with trace_context(
+        trace_config=payload.trace_config,
+        trace_metadata=payload.trace_metadata,
+        fallback_settings=container.settings,
+        span_name="tailor_resume",
+        input_data={
+            "model": effective_model,
+            "pipeline_mode": payload.pipeline_mode,
+            "theme": theme,
+            "enable_final_check": payload.enable_final_check,
+        },
+    ) as trace_ctx:
+        result = await container.orchestrator.run(
+            resume=resume_data,
+            job_description=payload.job_description,
+            theme=theme,
+            sections=payload.sections,
+            model=payload.model,
+            api_key=payload.api_key,
+            api_base=payload.api_base,
+            style=payload.style,
+            custom_instructions=payload.custom_instructions,
+            pipeline_mode=payload.pipeline_mode,
+            enable_final_check=payload.enable_final_check,
+            final_check_model=payload.final_check_model,
+            prompt_templates=payload.prompt_templates,
+        )
+        trace_ctx.set_output({"theme": result.theme, "has_pdf": bool(result.pdf_base64)})
     return TailorResponse(resume=result.resume, pdf_base64=result.pdf_base64, theme=result.theme, plain_text=result.plain_text)
 
 

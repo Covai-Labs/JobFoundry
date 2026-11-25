@@ -80,33 +80,11 @@ def format_resume_for_prompt(resume: dict[str, Any]) -> str:
         return str(resume)
 
 
-def _register_callback(name: str, enabled: bool, success_cb: list[Any], failure_cb: list[Any]) -> None:
-    if not enabled:
-        return
-    if name not in success_cb:
-        success_cb.append(name)
-    if name not in failure_cb:
-        failure_cb.append(name)
-    logger.info("%s LLM tracing activated via LiteLLM callbacks", name.title())
+from src.tracing import ensure_litellm_logger
 
 
 def setup_observability():
-    current_success = list(getattr(litellm, "success_callback", []) or [])
-    current_failure = list(getattr(litellm, "failure_callback", []) or [])
-
-    opik_enabled = bool(os.getenv("OPIK_API_KEY") or os.getenv("OPIK_URL_OVERRIDE"))
-    _register_callback("opik", opik_enabled, current_success, current_failure)
-
-    langfuse_enabled = bool(os.getenv("LANGFUSE_PUBLIC_KEY") and os.getenv("LANGFUSE_SECRET_KEY"))
-    _register_callback("langfuse", langfuse_enabled, current_success, current_failure)
-
-    langsmith_key = os.getenv("LANGSMITH_API_KEY") or os.getenv("LANGCHAIN_API_KEY")
-    if langsmith_key:
-        os.environ["LANGCHAIN_TRACING_V2"] = "true"
-    _register_callback("langsmith", bool(langsmith_key), current_success, current_failure)
-
-    litellm.success_callback = current_success
-    litellm.failure_callback = current_failure
+    ensure_litellm_logger()
 
 
 setup_observability()

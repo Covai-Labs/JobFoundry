@@ -299,3 +299,70 @@ test('POST /api/v1/settings/fetch-models retrieves models and caches results', a
     await app.close();
   }
 });
+
+test('Observability settings are admin-only and stored in system_settings', async () => {
+  const db = openDb({ path: ':memory:' });
+  const app = buildApp({ db, apiKeys: [] });
+
+  try {
+    // First registered user becomes admin
+    const adminReg = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { email: 'admin-obs@example.com', password: 'password123', name: 'Admin' },
+    });
+    assert.equal(adminReg.statusCode, 201);
+    const adminKey = adminReg.json().user.apiKey;
+
+    // Second registered user is non-admin
+    const userReg = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/register',
+      payload: { email: 'user-obs@example.com', password: 'password123', name: 'User' },
+    });
+    assert.equal(userReg.statusCode, 201);
+    const userKey = userReg.json().user.apiKey;
+
+    // Admin enables Opik + Langfuse
+    const adminPut = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/settings',
+      headers: { authorization: `Bearer ${adminKey}` },
+      payload: {
+        opik_enabled: true,
+        opik_api_key: 'test-opik-placeholder',
+        opik_project_name: 'jf-prod',
+        langfuse_enabled: true,
+        langfuse_public_key: 'test-lf-public-placeholder',
+        langfuse_secret_key: 'test-lf-val-placeholder',
+      },
+    });
+    assert.equal(adminPut.statusCode, 200);
+    const adminPutBody = adminPut.json();
+    assert.equal(adminPutBody.settings.opik_enabled, true);
+    assert.equal(adminPutBody.meta.opik_api_key.source, 'system');
+
+    // Non-admin cannot read admin observability keys
+    const userGet = await app.inject({
+      method: 'GET',
+      url: '/api/v1/settings',
+      headers: { authorization: `Bearer ${userKey}` },
+    });
+    assert.equal(userGet.statusCode, 200);
+    const userGetBody = userGet.json();
+    assert.equal(userGetBody.settings.opik_enabled, false);
+    assert.equal(userGetBody.settings.opik_api_key, '');
+    assert.equal(userGetBody.settings.langfuse_enabled, false);
+
+    // Non-admin gets 403 when trying to modify observability settings
+    const userPut = await app.inject({
+      method: 'PUT',
+      url: '/api/v1/settings',
+      headers: { authorization: `Bearer ${userKey}` },
+      payload: { opik_enabled: false },
+    });
+    assert.equal(userPut.statusCode, 403);
+  } finally {
+    await app.close();
+  }
+});
