@@ -67,6 +67,8 @@ const VENDOR_MAP = [
   { src: 'jd-skill-gap.mjs', dst: 'server/ingest/src/vendored/jd-skill-gap.mjs' },
   { src: 'verify-cv-facts.mjs', dst: 'server/ingest/src/vendored/verify-cv-facts.mjs' },
   { src: 'path-resolver.mjs', dst: 'server/ingest/src/vendored/path-resolver.mjs' },
+  { src: 'role-clarity.mjs', dst: 'server/ingest/src/vendored/role-clarity.mjs' },
+  { src: 'jd-similarity.mjs', dst: 'server/ingest/src/vendored/jd-similarity.mjs' },
   { src: 'templates/ats-rules.yml', dst: 'templates/ats-rules.yml' },
   { src: 'templates/ats/cv-template.ats.html', dst: 'templates/ats/cv-template.ats.html' },
 ];
