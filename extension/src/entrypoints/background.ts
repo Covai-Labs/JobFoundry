@@ -450,6 +450,18 @@ export default defineBackground(() => {
     return { ok: true as const, config };
   };
 
+  const sendJobsWithOfflineFallback = async (args: { jobs: any[] }) => {
+    try {
+      return await sendJobs(args);
+    } catch (err: any) {
+      const toQueue = Array.isArray(err?.remainingJobs) ? err.remainingJobs : args.jobs;
+      if (toQueue?.length) {
+        await enqueueOfflineJobs(toQueue);
+      }
+      throw err;
+    }
+  };
+
   onMessage('popup:scanNow', async () => {
     try {
       const prep = await prepareOperation('scan', 'Scanning 38 portal feeds...');
@@ -457,16 +469,7 @@ export default defineBackground(() => {
 
       const jobs = await runScanPipeline({
         getConfig,
-        sendJobs: async (args) => {
-          try {
-            return await sendJobs(args);
-          } catch (err) {
-            if (args.jobs?.length) {
-              await enqueueOfflineJobs(args.jobs);
-            }
-            throw err;
-          }
-        },
+        sendJobs: sendJobsWithOfflineFallback,
       });
       const scannedCount = Array.isArray(jobs) ? jobs.length : 0;
       await setScanState({
@@ -506,16 +509,7 @@ export default defineBackground(() => {
             totalFound: p.foundSoFar,
           });
         },
-        sendJobs: async (args) => {
-          try {
-            return await sendJobs(args);
-          } catch (err) {
-            if (args.jobs?.length) {
-              await enqueueOfflineJobs(args.jobs);
-            }
-            throw err;
-          }
-        },
+        sendJobs: sendJobsWithOfflineFallback,
       });
       await setScanState({
         inProgress: false,

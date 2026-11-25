@@ -378,7 +378,7 @@ export function clearOfflineQueue(opts: { storageImpl?: any } = {}): Promise<voi
   });
 }
 
-const BATCH_SIZE = 200;
+const BATCH_SIZE = 50;
 
 export function flushOfflineJobs(
   sendJobsFn: (params: { jobs: any[]; serverUrl?: string; apiKey?: string }) => Promise<any>,

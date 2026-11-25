@@ -108,6 +108,7 @@ export function buildApp({
   const legacyKeys = new Set(apiKeys ?? []);
   const app = Fastify({
     logger,
+    bodyLimit: 10 * 1024 * 1024, // 10 MiB to accommodate large job-board ingest batches
     requestIdHeader: 'x-request-id',
     genReqId: (req) =>
       req.headers['x-request-id'] || `req_${randomUUID().replace(/-/g, '').slice(0, 12)}`,

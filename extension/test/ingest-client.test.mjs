@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   sendJobs,
+  chunkJobs,
   ConfigError,
   AuthError,
   HttpError,
@@ -134,4 +135,77 @@ test('throws a config error when apiKey is unset', async () => {
     () => sendJobs({ jobs: [JOB], ...config({ apiKey: null }), fetchImpl: async () => {} }),
     (err) => err instanceof ConfigError && /apiKey/i.test(err.message)
   );
+});
+
+test('chunks large batches by count and byte size and aggregates results', async () => {
+  const bigJobs = Array.from({ length: 5 }, (_, i) => ({
+    ...JOB,
+    url: `https://acme.example/j/${i}`,
+    description: 'x'.repeat(200),
+  }));
+
+  const calls = [];
+  const fetchImpl = async (_url, opts) => {
+    const parsed = JSON.parse(opts.body);
+    calls.push(parsed.jobs.length);
+    return jsonResponse({
+      ingested: parsed.jobs.length,
+      deduped: 0,
+      ids: parsed.jobs.map((j) => j.url),
+    });
+  };
+
+  // maxBatchCount = 2 should split 5 jobs into [2, 2, 1]
+  const res = await sendJobs({
+    jobs: bigJobs,
+    ...config(),
+    fetchImpl,
+    maxBatchCount: 2,
+    maxBatchBytes: 100000,
+  });
+
+  assert.deepEqual(calls, [2, 2, 1]);
+  assert.equal(res.ingested, 5);
+  assert.equal(res.ids.length, 5);
+
+  // maxBatchBytes = 350 should split each ~260-byte job into its own batch [1, 1, 1, 1, 1]
+  const byteCalls = [];
+  const byteRes = await sendJobs({
+    jobs: bigJobs,
+    ...config(),
+    fetchImpl: async (_url, opts) => {
+      const parsed = JSON.parse(opts.body);
+      byteCalls.push(parsed.jobs.length);
+      return jsonResponse({ ingested: parsed.jobs.length, deduped: 0, ids: ['id'] });
+    },
+    maxBatchCount: 50,
+    maxBatchBytes: 350,
+  });
+
+  assert.deepEqual(byteCalls, [1, 1, 1, 1, 1]);
+  assert.equal(byteRes.ingested, 5);
+});
+
+test('attaches remainingJobs to error when a subsequent batch fails', async () => {
+  const jobs = [
+    { ...JOB, url: 'https://acme.example/j/1' },
+    { ...JOB, url: 'https://acme.example/j/2' },
+    { ...JOB, url: 'https://acme.example/j/3' },
+  ];
+
+  let attempt = 0;
+  const fetchImpl = async () => {
+    attempt += 1;
+    if (attempt === 1) return jsonResponse({ ingested: 2, deduped: 0, ids: ['1', '2'] });
+    return jsonResponse({ error: 'unauthorized' }, 401, false);
+  };
+
+  await assert.rejects(
+    () => sendJobs({ jobs, ...config(), fetchImpl, maxBatchCount: 2 }),
+    (err) => err instanceof AuthError && err.remainingJobs?.length === 1
+  );
+});
+
+test('chunkJobs handles empty array cleanly', () => {
+  assert.deepEqual(chunkJobs([]), []);
 });
