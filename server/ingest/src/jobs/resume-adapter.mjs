@@ -20,9 +20,24 @@ import {
   analyzeRoleClarity,
   formatSummary as formatRoleClaritySummary,
 } from '../vendored/role-clarity.mjs';
-import { jaccardSimilarity, recommendCvReuse } from '../vendored/jd-similarity.mjs';
+import {
+  jaccardSimilarity,
+  recommendCvReuse as upstreamRecommendCvReuse,
+} from '../vendored/jd-similarity.mjs';
 
-export { analyzeRoleClarity, formatRoleClaritySummary, jaccardSimilarity, recommendCvReuse };
+export { analyzeRoleClarity, formatRoleClaritySummary, jaccardSimilarity };
+
+export function recommendCvReuse(newJd, previousText, options = {}) {
+  if (
+    typeof newJd !== 'string' ||
+    !newJd.trim() ||
+    typeof previousText !== 'string' ||
+    !previousText.trim()
+  ) {
+    return { decision: 'rewrite', score: 0, reason: 'empty-input' };
+  }
+  return upstreamRecommendCvReuse(newJd, previousText, options);
+}
 
 const STANDARD_TOP_KEYS = new Set([
   '$schema',
@@ -56,9 +71,12 @@ function pushExtraValues(lines, obj, handledKeys) {
     if (handledKeys.has(key) || SKIP_ENTRY_KEYS.has(key) || val == null) continue;
     if (typeof val === 'string' && val.trim()) {
       lines.push(`- ${val.trim()}`);
+    } else if (typeof val === 'number' && Number.isFinite(val)) {
+      lines.push(`- ${val}`);
     } else if (Array.isArray(val)) {
       for (const item of val) {
         if (typeof item === 'string' && item.trim()) lines.push(`- ${item.trim()}`);
+        else if (typeof item === 'number' && Number.isFinite(item)) lines.push(`- ${item}`);
         else if (item && typeof item === 'object') pushExtraValues(lines, item, new Set());
       }
     } else if (typeof val === 'object') {
@@ -107,9 +125,12 @@ export function jsonResumeToMarkdown(resumeJson) {
     resumeJson.resume && typeof resumeJson.resume === 'object' ? resumeJson.resume : resumeJson;
   const lines = [];
 
-  if (r.basics?.name) lines.push(`# ${r.basics.name}`);
-  if (r.basics?.label) lines.push(r.basics.label);
-  if (r.basics?.summary) lines.push('', '## Summary', r.basics.summary);
+  if (r.basics && typeof r.basics === 'object') {
+    if (r.basics.name) lines.push(`# ${r.basics.name}`);
+    if (r.basics.label) lines.push(r.basics.label);
+    if (r.basics.summary) lines.push('', '## Summary', r.basics.summary);
+    pushExtraValues(lines, r.basics, new Set(['name', 'label', 'summary', 'location']));
+  }
 
   pushWorkEntries(lines, 'Experience', r.work);
   pushWorkEntries(lines, 'Volunteer', r.volunteer);
@@ -142,52 +163,64 @@ export function jsonResumeToMarkdown(resumeJson) {
 
   if (Array.isArray(r.certificates) && r.certificates.length > 0) {
     lines.push('', '## Certificates');
+    const handled = new Set(['name', 'issuer', 'date']);
     for (const c of r.certificates) {
       const line = [c.name, c.issuer, c.date].filter(Boolean).join(' — ');
       if (line) lines.push(`- ${line}`);
+      pushExtraValues(lines, c, handled);
     }
   }
 
   if (Array.isArray(r.awards) && r.awards.length > 0) {
     lines.push('', '## Awards');
+    const handled = new Set(['title', 'awarder', 'date', 'summary']);
     for (const a of r.awards) {
       const line = [a.title, a.awarder, a.date, a.summary].filter(Boolean).join(' — ');
       if (line) lines.push(`- ${line}`);
+      pushExtraValues(lines, a, handled);
     }
   }
 
   if (Array.isArray(r.publications) && r.publications.length > 0) {
     lines.push('', '## Publications');
+    const handled = new Set(['name', 'publisher', 'releaseDate', 'summary']);
     for (const pub of r.publications) {
       const line = [pub.name, pub.publisher, pub.releaseDate, pub.summary]
         .filter(Boolean)
         .join(' — ');
       if (line) lines.push(`- ${line}`);
+      pushExtraValues(lines, pub, handled);
     }
   }
 
   if (Array.isArray(r.languages) && r.languages.length > 0) {
     lines.push('', '## Languages');
+    const handled = new Set(['language', 'fluency']);
     for (const l of r.languages) {
       const line = [l.language, l.fluency].filter(Boolean).join(' — ');
       if (line) lines.push(`- ${line}`);
+      pushExtraValues(lines, l, handled);
     }
   }
 
   if (Array.isArray(r.interests) && r.interests.length > 0) {
     lines.push('', '## Interests');
+    const handled = new Set(['name', 'keywords']);
     for (const i of r.interests) {
       const kws = Array.isArray(i.keywords) ? i.keywords.filter(Boolean).join(', ') : '';
       const line = [i.name, kws].filter(Boolean).join(': ');
       if (line) lines.push(`- ${line}`);
+      pushExtraValues(lines, i, handled);
     }
   }
 
   if (Array.isArray(r.references) && r.references.length > 0) {
     lines.push('', '## References');
+    const handled = new Set(['name', 'reference']);
     for (const ref of r.references) {
       const line = [ref.name, ref.reference].filter(Boolean).join(' — ');
       if (line) lines.push(`- ${line}`);
+      pushExtraValues(lines, ref, handled);
     }
   }
 
@@ -199,9 +232,12 @@ export function jsonResumeToMarkdown(resumeJson) {
     const sectionLines = [];
     if (typeof val === 'string' && val.trim()) {
       sectionLines.push(val.trim());
+    } else if (typeof val === 'number' && Number.isFinite(val)) {
+      sectionLines.push(String(val));
     } else if (Array.isArray(val)) {
       for (const item of val) {
         if (typeof item === 'string' && item.trim()) sectionLines.push(`- ${item.trim()}`);
+        else if (typeof item === 'number' && Number.isFinite(item)) sectionLines.push(`- ${item}`);
         else if (item && typeof item === 'object') pushExtraValues(sectionLines, item, new Set());
       }
     } else if (typeof val === 'object') {

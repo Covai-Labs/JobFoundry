@@ -381,9 +381,15 @@ test('resume-adapter bridges master-resume.json to jd-skill-gap and verify-cv-fa
 
   const withCustom = {
     ...masterResume,
-    patents: [{ title: 'Zero-latency Cache', summary: 'Served 300k requests per second.' }],
+    certificates: [{ name: 'Cloud', custom: { summary: 'Managed 15 clusters.' } }],
+    patents: [
+      { title: 'Zero-latency Cache', patentNumber: 1234567, summary: 'Served 300k req/s.' },
+    ],
   };
-  const customAudit = auditTailoredResumeFacts('Served 300k requests per second.', withCustom);
+  const customAudit = auditTailoredResumeFacts(
+    'Served 300k req/s under patent 1234567 and managed 15 clusters.',
+    withCustom
+  );
   assert.deepEqual(customAudit.invented, []);
 });
 
@@ -399,4 +405,6 @@ test('role-clarity and jd-similarity evaluate JD quality and CV reuse', () => {
   const reuse = recommendCvReuse(jd2, jd1);
   assert.equal(typeof reuse.score, 'number');
   assert.ok(reuse.score > 0.5);
+
+  assert.equal(recommendCvReuse('', '').decision, 'rewrite');
 });
