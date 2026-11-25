@@ -47,21 +47,17 @@ export function parseLinkedInJobCards(html: string): RawAggregatorJob[] {
         let salaryMax: number | undefined;
         let salaryCurrency: string | undefined;
 
-        if (salaryText) {
-          const numbers = [...salaryText.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*([kKmM])?/g)].map(
-            ([, value, suffix]) => {
-              const multiplier =
-                suffix?.toLowerCase() === 'm'
-                  ? 1_000_000
-                  : suffix?.toLowerCase() === 'k'
-                    ? 1_000
-                    : 1;
-              return Math.round(Number(value.replace(/,/g, '')) * multiplier);
-            }
-          );
-          if (numbers.length > 0) {
+        if (salaryText && !/\b(?:\d+(?:\.\d+)?\s*(?:mm|[mb]illion|[mb])\b)/i.test(salaryText)) {
+          const matches = [...salaryText.matchAll(/(\d[\d,]*(?:\.\d+)?)\s*([kK])?/g)];
+          const hasK = matches.some(([, , suffix]) => Boolean(suffix));
+          const numbers = matches.map(([, value, suffix]) => {
+            const raw = Number(value.replace(/,/g, ''));
+            const scaled = suffix || (hasK && raw < 1000) ? raw * 1000 : raw;
+            return Math.round(scaled * 100) / 100;
+          });
+          if (numbers.length > 0 && numbers[0] >= 1) {
             salaryMin = numbers[0];
-            if (numbers.length > 1) {
+            if (numbers.length > 1 && numbers[1] >= 1) {
               salaryMax = numbers[1];
             }
           }

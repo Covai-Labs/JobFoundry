@@ -167,7 +167,11 @@ export const naukriSearchProvider: AggregatorSearchProvider = {
       params.set('src', 'jobsearchDesk');
 
       if (criteria.location) {
-        params.set('location', criteria.location);
+        const city = criteria.location
+          .split(',')
+          .map((p) => p.trim())
+          .find(Boolean);
+        if (city) params.set('location', city);
       }
       if (criteria.isRemote) {
         params.set('wfhType', '2');

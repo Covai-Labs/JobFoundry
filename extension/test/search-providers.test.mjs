@@ -73,6 +73,26 @@ test('LinkedIn: parseLinkedInJobCards correctly scales K/M salary abbreviations'
   assert.equal(jobs.length, 1);
   assert.equal(jobs[0].salaryMin, 140000);
   assert.equal(jobs[0].salaryMax, 180500);
+
+  const mixedAndCents = `
+    <div class="base-search-card">
+      <a class="base-card__full-link" href="https://www.linkedin.com/jobs/view/mixed-k-1"></a>
+      <h3 class="base-search-card__title">Backend Engineer</h3>
+      <h4 class="base-search-card__subtitle">Acme</h4>
+      <span class="job-search-card__salary-info">$80 - $120K</span>
+    </div>
+    <div class="base-search-card">
+      <a class="base-card__full-link" href="https://www.linkedin.com/jobs/view/hourly-cents-2"></a>
+      <h3 class="base-search-card__title">Support Specialist</h3>
+      <h4 class="base-search-card__subtitle">Beta</h4>
+      <span class="job-search-card__salary-info">$25.50 - $32.75/hr</span>
+    </div>
+  `;
+  const parsedMixed = parseLinkedInJobCards(mixedAndCents);
+  assert.equal(parsedMixed[0].salaryMin, 80000);
+  assert.equal(parsedMixed[0].salaryMax, 120000);
+  assert.equal(parsedMixed[1].salaryMin, 25.5);
+  assert.equal(parsedMixed[1].salaryMax, 32.75);
 });
 
 test('LinkedIn: parseLinkedInJobCards handles empty or invalid HTML', () => {
