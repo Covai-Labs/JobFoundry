@@ -425,3 +425,49 @@ test('POST /api/v1/jobs/:id/score resets scoring status and triggers worker', as
 
   await app.close();
 });
+
+test('GET /api/v1/jobs supports limit, offset, and returns total count', async () => {
+  const { app } = makeApp();
+
+  await app.inject({
+    method: 'POST',
+    url: '/api/v1/jobs/ingest',
+    headers: { authorization: 'Bearer testkey' },
+    payload: [
+      { title: 'Job A', company: 'Co A', url: 'https://example.com/p/1', source: 'linkedin' },
+      { title: 'Job B', company: 'Co B', url: 'https://example.com/p/2', source: 'linkedin' },
+      { title: 'Job C', company: 'Co C', url: 'https://example.com/p/3', source: 'linkedin' },
+    ],
+  });
+
+  const page1 = await app.inject({
+    method: 'GET',
+    url: '/api/v1/jobs?sort_by=title&order=asc&limit=2&offset=0',
+    headers: { authorization: 'Bearer testkey' },
+  });
+  assert.equal(page1.statusCode, 200);
+  const body1 = page1.json();
+  assert.equal(body1.total, 3);
+  assert.equal(body1.limit, 2);
+  assert.equal(body1.offset, 0);
+  assert.deepEqual(
+    body1.jobs.map((j) => j.title),
+    ['Job A', 'Job B']
+  );
+
+  const page2 = await app.inject({
+    method: 'GET',
+    url: '/api/v1/jobs?sort_by=title&order=asc&limit=2&offset=2',
+    headers: { authorization: 'Bearer testkey' },
+  });
+  assert.equal(page2.statusCode, 200);
+  const body2 = page2.json();
+  assert.equal(body2.total, 3);
+  assert.equal(body2.offset, 2);
+  assert.deepEqual(
+    body2.jobs.map((j) => j.title),
+    ['Job C']
+  );
+
+  await app.close();
+});

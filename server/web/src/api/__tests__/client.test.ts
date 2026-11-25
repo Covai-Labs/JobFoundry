@@ -55,6 +55,28 @@ describe('ApiClient', () => {
     expect(jobs).toEqual([mockJob]);
   });
 
+  it('getJobsPage sends offset and returns total pagination metadata', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => ({ jobs: [mockJob], total: 305, limit: 200, offset: 200 }),
+    });
+    global.fetch = fetchMock;
+
+    const page = await client.getJobsPage({
+      limit: 200,
+      offset: 200,
+      sort_by: 'fit_score',
+      order: 'desc',
+    });
+
+    const [url] = fetchMock.mock.calls[0];
+    expect(url).toBe(
+      'http://api.test/api/v1/jobs?sort_by=fit_score&order=desc&limit=200&offset=200'
+    );
+    expect(page).toEqual({ jobs: [mockJob], total: 305, limit: 200, offset: 200 });
+  });
+
   it('getJob fetches single job by id', async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: true,

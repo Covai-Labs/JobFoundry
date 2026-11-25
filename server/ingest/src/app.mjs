@@ -2101,17 +2101,80 @@ export function buildApp({
       sort_by = 'created_at',
       order = 'desc',
       limit = 100,
+      offset = 0,
     } = request.query || {};
     const userId = request.user.id;
     const isMultiTenant = Boolean(userId && userId !== 'legacy-admin' && userId !== 'dev-user');
     const sortDirection = String(order).toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    const rawLimit = Number.parseInt(String(limit), 10);
+    const parsedLimit = Number.isNaN(rawLimit) ? 100 : Math.min(Math.max(1, rawLimit), 1000);
+    const rawOffset = Number.parseInt(String(offset), 10);
+    const parsedOffset = Number.isNaN(rawOffset) ? 0 : Math.max(0, rawOffset);
 
-    let query;
-    const params = [];
+    let fromClause;
+    let whereClause;
+    const whereParams = [];
 
     if (isMultiTenant) {
-      query = `
-        SELECT 
+      fromClause = `
+        FROM user_jobs uj
+        JOIN jobs j ON uj.job_id = j.id
+      `;
+      whereClause = 'WHERE uj.user_id = ?';
+      whereParams.push(userId);
+    } else {
+      fromClause = 'FROM jobs';
+      whereClause = 'WHERE 1=1';
+    }
+
+    if (status && status !== 'all') {
+      whereClause += isMultiTenant ? ' AND uj.status = ?' : ' AND status = ?';
+      whereParams.push(status);
+    }
+    if (source) {
+      whereClause += isMultiTenant ? ' AND j.source = ?' : ' AND source = ?';
+      whereParams.push(source);
+    }
+    if (company && String(company).trim()) {
+      whereClause += isMultiTenant
+        ? ' AND j.company = ? COLLATE NOCASE'
+        : ' AND company = ? COLLATE NOCASE';
+      whereParams.push(String(company).trim());
+    }
+    if (min_score !== undefined && min_score !== '') {
+      whereClause += isMultiTenant ? ' AND uj.fit_score >= ?' : ' AND fit_score >= ?';
+      whereParams.push(Number(min_score));
+    }
+    if (search) {
+      whereClause += isMultiTenant
+        ? ' AND (j.title LIKE ? OR j.company LIKE ? OR j.description LIKE ?)'
+        : ' AND (title LIKE ? OR company LIKE ? OR description LIKE ?)';
+      const term = `%${search}%`;
+      whereParams.push(term, term, term);
+    }
+
+    const idTieBreaker = isMultiTenant ? 'j.id ASC' : 'id ASC';
+    let orderClause = isMultiTenant
+      ? `ORDER BY uj.created_at DESC, ${idTieBreaker}`
+      : `ORDER BY created_at DESC, ${idTieBreaker}`;
+    if (sort_by === 'fit_score') {
+      orderClause = isMultiTenant
+        ? `ORDER BY (uj.fit_score IS NULL), uj.fit_score ${sortDirection}, uj.created_at DESC, ${idTieBreaker}`
+        : `ORDER BY (fit_score IS NULL), fit_score ${sortDirection}, created_at DESC, ${idTieBreaker}`;
+    } else if (sort_by === 'created_at') {
+      orderClause = `ORDER BY ${isMultiTenant ? 'uj.created_at' : 'created_at'} ${sortDirection}, ${idTieBreaker}`;
+    } else if (sort_by === 'updated_at') {
+      orderClause = `ORDER BY ${isMultiTenant ? 'uj.updated_at' : 'updated_at'} ${sortDirection}, ${idTieBreaker}`;
+    } else if (sort_by === 'title') {
+      orderClause = `ORDER BY ${isMultiTenant ? 'j.title' : 'title'} COLLATE NOCASE ${sortDirection}, ${idTieBreaker}`;
+    } else if (sort_by === 'company') {
+      orderClause = `ORDER BY ${isMultiTenant ? 'j.company' : 'company'} COLLATE NOCASE ${sortDirection}, ${idTieBreaker}`;
+    } else if (sort_by === 'status') {
+      orderClause = `ORDER BY ${isMultiTenant ? 'uj.status' : 'status'} ${sortDirection}, ${idTieBreaker}`;
+    }
+
+    const selectClause = isMultiTenant
+      ? `SELECT 
           j.id, j.title, j.company, j.location, j.url, j.source, j.posted_at, j.description, j.fingerprint, j.liveness,
           j.repost_status, j.repost_confidence,
           COALESCE(uj.fit_score, j.fit_score) as fit_score,
@@ -2119,64 +2182,17 @@ export function buildApp({
           COALESCE(uj.status, j.status) as status,
           COALESCE(uj.tailored_resume_id, j.tailored_resume_id) as tailored_resume_id,
           COALESCE(uj.created_at, j.created_at) as created_at,
-          COALESCE(uj.updated_at, j.updated_at) as updated_at
-        FROM user_jobs uj
-        JOIN jobs j ON uj.job_id = j.id
-        WHERE uj.user_id = ?
-      `;
-      params.push(userId);
-    } else {
-      query = 'SELECT * FROM jobs WHERE 1=1';
-    }
+          COALESCE(uj.updated_at, j.updated_at) as updated_at`
+      : 'SELECT *';
 
-    if (status) {
-      query += isMultiTenant ? ' AND uj.status = ?' : ' AND status = ?';
-      params.push(status);
-    }
-    if (source) {
-      query += isMultiTenant ? ' AND j.source = ?' : ' AND source = ?';
-      params.push(source);
-    }
-    if (company && String(company).trim()) {
-      query += isMultiTenant
-        ? ' AND j.company = ? COLLATE NOCASE'
-        : ' AND company = ? COLLATE NOCASE';
-      params.push(String(company).trim());
-    }
-    if (min_score !== undefined && min_score !== '') {
-      query += isMultiTenant ? ' AND uj.fit_score >= ?' : ' AND fit_score >= ?';
-      params.push(Number(min_score));
-    }
-    if (search) {
-      query += isMultiTenant
-        ? ' AND (j.title LIKE ? OR j.company LIKE ? OR j.description LIKE ?)'
-        : ' AND (title LIKE ? OR company LIKE ? OR description LIKE ?)';
-      const term = `%${search}%`;
-      params.push(term, term, term);
-    }
+    const countRow = db
+      .prepare(`SELECT COUNT(*) as total ${fromClause} ${whereClause}`)
+      .get(...whereParams);
+    const total = Number(countRow?.total ?? 0);
 
-    let orderClause = isMultiTenant ? 'ORDER BY uj.created_at DESC' : 'ORDER BY created_at DESC';
-    if (sort_by === 'fit_score') {
-      orderClause = isMultiTenant
-        ? `ORDER BY (uj.fit_score IS NULL), uj.fit_score ${sortDirection}, uj.created_at DESC`
-        : `ORDER BY (fit_score IS NULL), fit_score ${sortDirection}, created_at DESC`;
-    } else if (sort_by === 'created_at') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'uj.created_at' : 'created_at'} ${sortDirection}`;
-    } else if (sort_by === 'updated_at') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'uj.updated_at' : 'updated_at'} ${sortDirection}`;
-    } else if (sort_by === 'title') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'j.title' : 'title'} COLLATE NOCASE ${sortDirection}`;
-    } else if (sort_by === 'company') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'j.company' : 'company'} COLLATE NOCASE ${sortDirection}`;
-    } else if (sort_by === 'status') {
-      orderClause = `ORDER BY ${isMultiTenant ? 'uj.status' : 'status'} ${sortDirection}`;
-    }
-
-    query += ` ${orderClause} LIMIT ?`;
-    params.push(Number(limit));
-
-    const jobs = db.prepare(query).all(...params);
-    return { jobs };
+    const query = `${selectClause} ${fromClause} ${whereClause} ${orderClause} LIMIT ? OFFSET ?`;
+    const jobs = db.prepare(query).all(...whereParams, parsedLimit, parsedOffset);
+    return { jobs, total, limit: parsedLimit, offset: parsedOffset };
   });
 
   // GET /api/v1/jobs/:id - Get a single job by id
