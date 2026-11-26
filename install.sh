@@ -58,6 +58,144 @@ main() {
   echo -e "${NC}"
 
   # ----------------------------------------------------------------------------
+  # Helpers: Privilege Escalation, OS Package Manager & Container Probing
+  # ----------------------------------------------------------------------------
+  PKG_MGR=""
+  APT_UPDATED=false
+
+  run_privileged() {
+    if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+      "$@"
+    elif command -v sudo >/dev/null 2>&1; then
+      sudo "$@"
+    elif command -v doas >/dev/null 2>&1; then
+      doas "$@"
+    else
+      return 1
+    fi
+  }
+
+  privileged_prefix() {
+    if [ "${EUID:-$(id -u)}" -eq 0 ]; then
+      echo ""
+    elif command -v sudo >/dev/null 2>&1; then
+      echo "sudo"
+    elif command -v doas >/dev/null 2>&1; then
+      echo "doas"
+    else
+      echo ""
+    fi
+  }
+
+  detect_pkg_manager() {
+    if [ "$OS" = "Darwin" ]; then
+      if command -v brew >/dev/null 2>&1; then
+        PKG_MGR="brew"
+      fi
+      return
+    fi
+
+    for mgr in apt-get dnf yum pacman zypper apk; do
+      if command -v "$mgr" >/dev/null 2>&1; then
+        PKG_MGR="$mgr"
+        return
+      fi
+    done
+  }
+
+  install_pkgs() {
+    case "$PKG_MGR" in
+      apt-get)
+        if [ "$APT_UPDATED" = false ]; then
+          run_privileged env DEBIAN_FRONTEND=noninteractive apt-get update -qq || return 1
+          APT_UPDATED=true
+        fi
+        run_privileged env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq "$@"
+        ;;
+      dnf)
+        run_privileged dnf install -y "$@"
+        ;;
+      yum)
+        run_privileged yum install -y "$@"
+        ;;
+      pacman)
+        run_privileged pacman -S --noconfirm --needed "$@"
+        ;;
+      zypper)
+        run_privileged zypper --non-interactive install "$@"
+        ;;
+      apk)
+        run_privileged apk add --no-cache "$@"
+        ;;
+      brew)
+        brew install "$@"
+        ;;
+      *)
+        return 1
+        ;;
+    esac
+  }
+
+  start_docker_service() {
+    if command -v systemctl >/dev/null 2>&1; then
+      run_privileged systemctl start docker >/dev/null 2>&1 && return 0
+    fi
+    if command -v service >/dev/null 2>&1; then
+      run_privileged service docker start >/dev/null 2>&1 && return 0
+    fi
+    if command -v rc-service >/dev/null 2>&1; then
+      run_privileged rc-service docker start >/dev/null 2>&1 && return 0
+    fi
+    return 1
+  }
+
+  probe_compose() {
+    local prefix="${1:-}"
+    COMPOSE_CMD=""
+    ENGINE_NAME=""
+    DOCKER_ENGINE_RESPONSIVE=false
+    PODMAN_ENGINE_RESPONSIVE=false
+    NERDCTL_ENGINE_RESPONSIVE=false
+
+    # 1. Probe Docker
+    if command -v docker >/dev/null 2>&1 && $prefix docker info >/dev/null 2>&1; then
+      DOCKER_ENGINE_RESPONSIVE=true
+      if $prefix docker compose version >/dev/null 2>&1; then
+        COMPOSE_CMD="${prefix:+$prefix }docker compose"
+        ENGINE_NAME="Docker (Compose v2)"
+      elif command -v docker-compose >/dev/null 2>&1; then
+        COMPOSE_CMD="${prefix:+$prefix }docker-compose"
+        ENGINE_NAME="Docker (docker-compose)"
+      fi
+    fi
+
+    # 2. Probe Podman (if Docker compose was not selected)
+    if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
+      PODMAN_ENGINE_RESPONSIVE=true
+      if [ -z "$COMPOSE_CMD" ]; then
+        if podman compose version >/dev/null 2>&1; then
+          COMPOSE_CMD="podman compose"
+          ENGINE_NAME="Podman (podman compose)"
+        elif command -v podman-compose >/dev/null 2>&1; then
+          COMPOSE_CMD="podman-compose"
+          ENGINE_NAME="Podman (podman-compose)"
+        fi
+      fi
+    fi
+
+    # 3. Probe nerdctl (if neither Docker nor Podman compose was selected)
+    if command -v nerdctl >/dev/null 2>&1 && $prefix nerdctl info >/dev/null 2>&1; then
+      NERDCTL_ENGINE_RESPONSIVE=true
+      if [ -z "$COMPOSE_CMD" ]; then
+        if $prefix nerdctl compose version >/dev/null 2>&1 || $prefix nerdctl compose --help >/dev/null 2>&1; then
+          COMPOSE_CMD="${prefix:+$prefix }nerdctl compose"
+          ENGINE_NAME="containerd (nerdctl compose)"
+        fi
+      fi
+    fi
+  }
+
+  # ----------------------------------------------------------------------------
   # 1. Check Prerequisites
   # ----------------------------------------------------------------------------
   echo -e "${BLUE}▶ Checking system prerequisites...${NC}"
@@ -85,52 +223,152 @@ main() {
       ;;
   esac
 
-  # Check git
+  detect_pkg_manager
+
+  # Check & auto-install git
   if ! command -v git >/dev/null 2>&1; then
-    echo -e "${RED}✖ git is not installed. Please install git and re-run.${NC}"
-    exit 1
+    echo -e "${YELLOW}▶ git not found; attempting to install git...${NC}"
+    if install_pkgs git; then
+      echo -e "  ${GREEN}✔ git installed${NC}"
+    else
+      echo -e "${RED}✖ git is not installed and automatic installation failed.${NC}"
+      if [ "$OS" = "Darwin" ]; then
+        echo "Please install Xcode Command Line Tools (xcode-select --install) or Homebrew (https://brew.sh), then re-run."
+      else
+        echo "Please install git using your system package manager and re-run."
+      fi
+      exit 1
+    fi
+  fi
+
+  # Check & auto-install curl (required by healthcheck.sh and Docker installer)
+  if ! command -v curl >/dev/null 2>&1; then
+    echo -e "${YELLOW}▶ curl not found; attempting to install curl...${NC}"
+    if install_pkgs curl; then
+      echo -e "  ${GREEN}✔ curl installed${NC}"
+    else
+      echo -e "${RED}✖ curl is not installed and automatic installation failed.${NC}"
+      echo "Please install curl using your system package manager and re-run."
+      exit 1
+    fi
   fi
 
   # Determine container compose command and engine
-  COMPOSE_CMD=""
-  ENGINE_NAME=""
-  DOCKER_ENGINE_RESPONSIVE=false
-  PODMAN_ENGINE_RESPONSIVE=false
-  NERDCTL_ENGINE_RESPONSIVE=false
+  probe_compose
 
-  # 1. Probe Docker
-  if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-    DOCKER_ENGINE_RESPONSIVE=true
-    if docker compose version >/dev/null 2>&1; then
-      COMPOSE_CMD="docker compose"
-      ENGINE_NAME="Docker (Compose v2)"
-    elif command -v docker-compose >/dev/null 2>&1; then
-      COMPOSE_CMD="docker-compose"
-      ENGINE_NAME="Docker (docker-compose)"
-    fi
-  fi
+  install_docker_compose() {
+    case "$PKG_MGR" in
+      apt-get|dnf|yum) install_pkgs docker-compose-plugin || install_pkgs docker-compose || true ;;
+      pacman|zypper)   install_pkgs docker-compose || true ;;
+      apk)             install_pkgs docker-cli-compose || install_pkgs docker-compose || true ;;
+    esac
+  }
 
-  # 2. Probe Podman (if Docker compose was not selected)
-  if command -v podman >/dev/null 2>&1 && podman info >/dev/null 2>&1; then
-    PODMAN_ENGINE_RESPONSIVE=true
-    if [ -z "$COMPOSE_CMD" ]; then
-      if podman compose version >/dev/null 2>&1; then
-        COMPOSE_CMD="podman compose"
-        ENGINE_NAME="Podman (podman compose)"
-      elif command -v podman-compose >/dev/null 2>&1; then
-        COMPOSE_CMD="podman-compose"
-        ENGINE_NAME="Podman (podman-compose)"
+  add_user_to_docker_group() {
+    local current_user
+    current_user="$(id -un 2>/dev/null || true)"
+    if [ "${EUID:-$(id -u)}" -ne 0 ] && [ -n "$current_user" ] && command -v usermod >/dev/null 2>&1; then
+      if run_privileged usermod -aG docker "$current_user" >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}Note: Added $current_user to the 'docker' group. Log out and back in (or run 'newgrp docker') for rootless CLI access.${NC}"
       fi
     fi
-  fi
+  }
 
-  # 3. Probe nerdctl (if neither Docker nor Podman compose was selected)
-  if command -v nerdctl >/dev/null 2>&1 && nerdctl info >/dev/null 2>&1; then
-    NERDCTL_ENGINE_RESPONSIVE=true
-    if [ -z "$COMPOSE_CMD" ]; then
-      if nerdctl compose version >/dev/null 2>&1 || nerdctl compose --help >/dev/null 2>&1; then
-        COMPOSE_CMD="nerdctl compose"
-        ENGINE_NAME="containerd (nerdctl compose)"
+  # Attempt automatic installation/startup of missing container runtime or compose plugin
+  if [ -z "$COMPOSE_CMD" ]; then
+    # Case A: Docker is running, but compose plugin/binary is missing
+    if [ "$DOCKER_ENGINE_RESPONSIVE" = true ]; then
+      echo -e "${YELLOW}▶ Docker is running, but Docker Compose is missing; attempting to install...${NC}"
+      install_docker_compose
+      probe_compose
+    fi
+
+    # Case B: Podman is running, but podman-compose is missing
+    if [ -z "$COMPOSE_CMD" ] && [ "$PODMAN_ENGINE_RESPONSIVE" = true ]; then
+      echo -e "${YELLOW}▶ Podman is running, but podman-compose is missing; attempting to install...${NC}"
+      install_pkgs podman-compose || true
+      probe_compose
+    fi
+
+    # Case C: Docker is installed, but daemon is stopped or socket lacks permissions
+    if [ -z "$COMPOSE_CMD" ] && command -v docker >/dev/null 2>&1 && [ "$DOCKER_ENGINE_RESPONSIVE" = false ]; then
+      DOCKER_INFO_ERR="$(docker info 2>&1 || true)"
+      if echo "$DOCKER_INFO_ERR" | grep -qi "permission denied"; then
+        PRIV_PREFIX="$(privileged_prefix)"
+        if [ -n "$PRIV_PREFIX" ]; then
+          echo -e "${YELLOW}▶ Current user lacks Docker socket permission; using $PRIV_PREFIX for this run...${NC}"
+          add_user_to_docker_group
+          probe_compose "$PRIV_PREFIX"
+        fi
+      elif [ "$OS" = "Linux" ]; then
+        echo -e "${YELLOW}▶ Docker is installed but not running; attempting to start Docker service...${NC}"
+        if start_docker_service; then
+          probe_compose
+          if [ -z "$COMPOSE_CMD" ]; then
+            DOCKER_INFO_ERR="$(docker info 2>&1 || true)"
+            if echo "$DOCKER_INFO_ERR" | grep -qi "permission denied"; then
+              PRIV_PREFIX="$(privileged_prefix)"
+              [ -n "$PRIV_PREFIX" ] && probe_compose "$PRIV_PREFIX"
+            elif [ "$DOCKER_ENGINE_RESPONSIVE" = true ]; then
+              install_docker_compose
+              probe_compose
+            fi
+          fi
+        fi
+      fi
+    fi
+
+    # Case D: Podman is installed, but engine is stopped
+    if [ -z "$COMPOSE_CMD" ] && command -v podman >/dev/null 2>&1 && [ "$PODMAN_ENGINE_RESPONSIVE" = false ]; then
+      if [ "$OS" = "Darwin" ]; then
+        echo -e "${YELLOW}▶ Starting Podman machine...${NC}"
+        podman machine start >/dev/null 2>&1 || (podman machine init >/dev/null 2>&1 && podman machine start >/dev/null 2>&1) || true
+      elif [ "$OS" = "Linux" ] && command -v systemctl >/dev/null 2>&1; then
+        systemctl --user start podman.socket >/dev/null 2>&1 || run_privileged systemctl start podman >/dev/null 2>&1 || true
+      fi
+      probe_compose
+    fi
+
+    # Case E: No container runtime found at all — attempt install
+    if [ -z "$COMPOSE_CMD" ] && ! command -v docker >/dev/null 2>&1 && ! command -v podman >/dev/null 2>&1 && ! command -v nerdctl >/dev/null 2>&1; then
+      if [ "$OS" = "Linux" ]; then
+        echo -e "${YELLOW}▶ No container runtime found; attempting to install Docker...${NC}"
+        DOCKER_INSTALLED=false
+        case "$PKG_MGR" in
+          pacman)
+            if install_pkgs docker docker-compose; then DOCKER_INSTALLED=true; fi
+            ;;
+          apk)
+            if install_pkgs docker docker-cli-compose; then DOCKER_INSTALLED=true; fi
+            ;;
+          *)
+            if command -v curl >/dev/null 2>&1; then
+              if curl -fsSL --proto '=https' --tlsv1.2 https://get.docker.com | run_privileged sh; then
+                DOCKER_INSTALLED=true
+              fi
+            fi
+            ;;
+        esac
+
+        if [ "$DOCKER_INSTALLED" = true ]; then
+          start_docker_service || true
+          add_user_to_docker_group
+          probe_compose
+          if [ -z "$COMPOSE_CMD" ]; then
+            DOCKER_INFO_ERR="$(docker info 2>&1 || true)"
+            if echo "$DOCKER_INFO_ERR" | grep -qi "permission denied"; then
+              PRIV_PREFIX="$(privileged_prefix)"
+              [ -n "$PRIV_PREFIX" ] && probe_compose "$PRIV_PREFIX"
+            fi
+          fi
+        fi
+      elif [ "$OS" = "Darwin" ] && [ "$PKG_MGR" = "brew" ]; then
+        echo -e "${YELLOW}▶ No container runtime found; attempting to install Podman via Homebrew...${NC}"
+        if install_pkgs podman podman-compose; then
+          podman machine init >/dev/null 2>&1 || true
+          podman machine start >/dev/null 2>&1 || true
+          probe_compose
+        fi
       fi
     fi
   fi
