@@ -809,6 +809,14 @@ export class ApiClient {
     return this.request<ExtensionConfig>('/api/v1/extension/config');
   }
 
+  async searchEmployers(q: string, ats = '', limit = 20): Promise<EmployerSearchResponse> {
+    const params = new URLSearchParams();
+    if (q.trim()) params.set('q', q.trim());
+    if (ats.trim()) params.set('ats', ats.trim());
+    params.set('limit', String(limit));
+    return this.request<EmployerSearchResponse>(`/api/v1/employers/search?${params.toString()}`);
+  }
+
   async updateExtensionConfig(
     patch: Partial<ExtensionConfig>
   ): Promise<{ ok: boolean; config: ExtensionConfig }> {
@@ -834,6 +842,20 @@ export interface TrackedCompany {
   name: string;
   careers_url: string;
   enabled: boolean;
+}
+
+export interface EmployerBoard {
+  name: string;
+  ats: string;
+  region: string | null;
+  board: string;
+  careers_url: string;
+}
+
+export interface EmployerSearchResponse {
+  total: number;
+  totalRegistry: number;
+  results: EmployerBoard[];
 }
 
 export interface ExtensionConfig {

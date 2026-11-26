@@ -23,6 +23,7 @@ import {
   analyzeRoleClarity,
   recommendCvReuse,
 } from '../src/jobs/resume-adapter.mjs';
+import { searchEmployers } from '../src/jobs/employers-registry.mjs';
 import { normalizeJob } from '../src/jobs/normalize.mjs';
 import { heuristicParseJd } from '../src/jobs/parse-jd.mjs';
 import { analyzeRepost } from '../src/jobs/detect-reposts.mjs';
@@ -407,4 +408,10 @@ test('role-clarity and jd-similarity evaluate JD quality and CV reuse', () => {
   assert.ok(reuse.score > 0.5);
 
   assert.equal(recommendCvReuse('', '').decision, 'rewrite');
+});
+
+test('employers-registry loads and searches vendored career-ops boards', () => {
+  const res = searchEmployers({ q: 'vercel', limit: 10 });
+  assert.ok(res.totalRegistry > 40000, `expected >40k boards, got ${res.totalRegistry}`);
+  assert.ok(res.results.some((r) => r.board === 'vercel' && r.ats === 'greenhouse'));
 });

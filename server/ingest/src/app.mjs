@@ -26,6 +26,7 @@ import { normalizeJob } from './jobs/normalize.mjs';
 import { fingerprintFor, insertIfNew } from './jobs/dedup.mjs';
 import { analyzeRepost, normalizeCompany } from './jobs/detect-reposts.mjs';
 import { parseJobDescription } from './jobs/parse-jd.mjs';
+import { searchEmployers } from './jobs/employers-registry.mjs';
 import { parseResumeText } from './resume/parse-resume.mjs';
 import { suggestRolesFromResume } from './resume/suggest-roles.mjs';
 import { renderResumeMarkdown } from './resumes/resume-markdown.mjs';
@@ -298,6 +299,16 @@ export function buildApp({
         platform: process.platform,
       },
     };
+  });
+
+  // GET /api/v1/employers/search - Search vendored career-ops employer ATS boards
+  app.get('/api/v1/employers/search', async (request) => {
+    const { q = '', ats = '', limit = '25' } = request.query || {};
+    return searchEmployers({
+      q: String(q || ''),
+      ats: String(ats || ''),
+      limit: Number(limit) || 25,
+    });
   });
 
   // GET /api/v1/extension/config - Seed & runtime config bundle for browser extension
