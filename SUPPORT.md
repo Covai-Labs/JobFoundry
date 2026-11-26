@@ -22,7 +22,7 @@ Stuck? You're in the right place.
 
 Check the [provider directory](https://jobfoundry.covai.org/docs/providers/) first — your board may already be supported. If not, file a **provider request** issue with a link to a sample public job posting.
 
-Comfortable contributing code? The [provider authoring guide](extension/src/background/providers/ADDING_A_PROVIDER.md) walks through the whole process — most adapters are under 100 lines.
+Comfortable contributing code? The [provider authoring guide](extension/src/background/vendored/providers/ADDING_A_PROVIDER.md) walks through the whole process — most adapters are under 100 lines.
 
 ---
 

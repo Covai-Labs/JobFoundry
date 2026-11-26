@@ -10,7 +10,7 @@ for the user-facing story see [README.md](README.md).
 ```
                         ┌────────────────────────────────────────────────┐
                         │               Browser Extension                │
-                        │  (87 Providers + Passive/Active DOM Extract)   │
+                        │  (100+ Providers + Passive/Active DOM Extract) │
                         └──────────────────────┬─────────────────────────┘
                                                │ POST /api/v1/jobs/ingest
                                                ▼
@@ -135,7 +135,7 @@ advisory — the candidate decides what to pursue.
   task leasing, `safe-url.js` SSRF guard (`assertSafeDestination`,
   `fetchWithSafeRedirects` — loopback, private ranges, CGNAT, link-local,
   and `.internal`/`.local` blocked; redirects validated per hop, never
-  followed blindly), `providers/` (87 adapters + shared helpers).
+  followed blindly), `providers/` (100+ adapters + shared helpers).
 - `src/content/` — in-page extractors: `passive.js` / `active.js` plus
   targeted `extractors/` (ATS generics, Glassdoor, Indeed, LinkedIn,
   Naukri) for session-gated boards providers can't reach.

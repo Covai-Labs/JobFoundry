@@ -4,7 +4,7 @@
 
 **Your private, free AI job search copilot.**
 
-Capture jobs from 70+ boards as you browse. Get instant fit scores. Generate truthful, tailored resumes. Track everything. 100% on your machine.
+Capture jobs from 100+ boards as you browse. Get instant fit scores. Generate truthful, tailored resumes. Track everything. 100% on your machine.
 
 [![Website](https://img.shields.io/badge/Website-jobfoundry.covai.org-blueviolet)](https://jobfoundry.covai.org/)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE)
@@ -63,9 +63,9 @@ Browse normally  →  Extension captures  →  Dedup + Score  →  Tailor + Trac
 
 ## Features
 
-### 🔍 Capture from 70+ Job Boards
+### 🔍 Capture From Where You Already Browse
 
-Browse LinkedIn, Indeed, Greenhouse, Lever, Workday, Ashby, and dozens more. The extension captures listings silently in the background. No copy-pasting. No server scraping. Your authenticated browser session does the work, which means it gets through login walls and CAPTCHAs that server scrapers can't.
+Browse LinkedIn, Indeed, Greenhouse, Lever, Workday, Ashby and 100+ other boards. The extension captures listings silently as you go. No copy-pasting, and no server scraping: requests come from your own logged-in browser session, so boards that only render to a signed-in user still work.
 
 ### 🧹 Automatic Dedup
 
@@ -95,11 +95,11 @@ Everything runs on your machine. SQLite storage. Zero telemetry. Zero tracking. 
 | :------------------- | :------------------------------------------------------------ |
 | **Modern ATS**       | Greenhouse, Lever, Ashby, Workable, SmartRecruiters, BambooHR |
 | **Enterprise ATS**   | Workday, SuccessFactors, Taleo, iCIMS, Jobvite, Phenom        |
-| **Major Job Boards** | LinkedIn, Indeed, Dice, Glassdoor, ZipRecruiter, Monster      |
-| **Niche & Remote**   | Wellfound, YC Jobs, We Work Remotely, RemoteOK, Hacker News   |
-| **Regional & Feeds** | 30+ regional boards, RSS feeds, and aggregators               |
+| **Major Job Boards** | LinkedIn, Indeed, Glassdoor, ZipRecruiter                     |
+| **Niche & Remote**   | Wellfound, We Work Remotely, RemoteOK, Remotive, Hacker News  |
+| **Regional & Feeds** | Regional job boards, RSS feeds, and aggregators               |
 
-Browse the full list: **[Provider Directory](https://jobfoundry.covai.org/docs/providers/)**. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add one yourself](extension/src/background/providers/ADDING_A_PROVIDER.md) (most adapters are under 100 lines).
+100+ board and ATS adapters ship with the extension. [Browse a sample](https://jobfoundry.covai.org/docs/providers/) or see the full registry with `npm run gen:provider-index` in the extension workspace. Missing a board? [Request it](https://github.com/Covai-Labs/JobFoundry/issues/new?template=provider_request.yml) or [add one yourself](extension/src/background/vendored/providers/ADDING_A_PROVIDER.md) (most adapters are under 100 lines).
 
 ---
 
@@ -158,7 +158,7 @@ JobFoundry includes a Model Context Protocol server to query your saved jobs, fi
 
 ## Contributing
 
-Contributions welcome, especially new job board adapters (most are under 100 lines). Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [provider guide](extension/src/background/providers/ADDING_A_PROVIDER.md).
+Contributions welcome, especially new job board adapters (most are under 100 lines). Start with [CONTRIBUTING.md](CONTRIBUTING.md) and the [provider guide](extension/src/background/vendored/providers/ADDING_A_PROVIDER.md).
 
 How the pieces fit together: [ARCHITECTURE.md](ARCHITECTURE.md) · [MANIFESTO.md](MANIFESTO.md) · [DEVELOPMENT.md](DEVELOPMENT.md)
 

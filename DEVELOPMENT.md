@@ -10,7 +10,7 @@ This guide covers setting up, running, and testing JobFoundry locally for develo
 JobFoundry/
 ├── extension/            # WXT MV3 browser extension (Chrome + Firefox)
 │   ├── src/background/   # Service worker: scan, relay, safe-url
-│   │   └── providers/    # 70+ ATS/job-board adapters
+│   │   └── providers/    # 100+ ATS/job-board adapters
 │   ├── src/content/      # In-page extractors (LinkedIn, Indeed, Glassdoor …)
 │   ├── src/entrypoints/  # Popup, options, sidepanel, dashboard
 │   └── test/             # node:test suites

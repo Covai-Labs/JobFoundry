@@ -56,11 +56,11 @@ If all checks pass, you are ready to contribute.
 
 ### New Job Board Adapters ← Most Wanted
 
-Adding a new job board is the highest-impact contribution and usually takes under 100 lines of code. See the **[Provider Authoring Guide](extension/src/background/providers/ADDING_A_PROVIDER.md)** for a full walkthrough.
+Adding a new job board is the highest-impact contribution and usually takes under 100 lines of code. See the **[Provider Authoring Guide](extension/src/background/vendored/providers/ADDING_A_PROVIDER.md)** for a full walkthrough.
 
 The short version:
 
-1. Create a provider file in `extension/src/background/providers/`.
+1. The providers under `extension/src/background/vendored/providers/` are vendored from `career-ops` and must stay byte-identical — fix those upstream, then re-sync. Browser-specific overrides go in `extension/scripts/ports/` (see `.agents/AGENTS.md` §2.6).
 2. Export a default object matching the `Provider` interface (see existing providers for examples).
 3. All outbound requests must go through the safe HTTP helpers (`_http.mjs` / `safe-url.js`) — never bypass private IP filtering.
 4. Add test fixtures in `extension/test/fixtures/` and verify with `npm --workspace=extension test`.

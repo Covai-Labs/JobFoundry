@@ -13,7 +13,7 @@ hallucinated fake experience.
 I couldn't afford subscriptions, and I refused to apply with fabricated claims.
 So I started building tools to survive my own search. First came a small CLI experiment in truthful, zero-token resume tailoring —
 needed to be much better, and the whole search cycle needed care: capturing from
-authenticated browser tabs, deduplicating cross-postings across 80+ boards,
+authenticated browser tabs, deduplicating cross-postings across 100+ boards,
 scoring fit locally, and tracking applications. That became JobFoundry.
 
 Used in my own search, the pipeline was deliberately selective: let fit scoring

@@ -480,7 +480,7 @@ export const ExtensionSyncView: React.FC<ExtensionSyncViewProps> = ({ onPairingC
               Built-in Scrapers
             </h4>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.4 }}>
-              Click <strong>Scan portals</strong> to query 80+ zero-token scrapers (RemoteOK,
+              Click <strong>Scan portals</strong> to query 100+ zero-token scrapers (RemoteOK,
               WeWorkRemotely, Himalayas, Greenhouse feeds, etc.).
             </p>
           </div>

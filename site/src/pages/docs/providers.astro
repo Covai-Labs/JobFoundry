@@ -5,41 +5,58 @@ import { resolvePath } from '../../utils/paths.js';
 ---
 
 <DocsLayout
-  title="Supported Providers Directory"
-  description="Catalog of 87 supported ATS platforms, job boards, and aggregators with extraction modes."
+  title="Supported Providers"
+  description="Capture jobs from 100+ ATS platforms and job boards inside your own logged-in browser session — no server-side scraping, no proxies."
   currentPath={resolvePath('/docs/providers/')}
   category="Ecosystem"
 >
-  <h1>Supported Job Boards & ATS Providers</h1>
+  <h1>Where JobFoundry Captures Jobs</h1>
   <p>
-    JobFoundry supports 87 job boards, Applicant Tracking Systems (ATS), and career portals. All extractions are executed locally within your browser using DOM scrapers and JSON-LD structured schemas.
+    The extension's first job is to <strong>read the posting you are already looking at, in the browser you are already logged into</strong>. Capture is a request from your own session — not from a datacenter IP and not through a scraping proxy. That is why a board that blocks anonymous crawlers still works when you are signed in.
+  </p>
+  <p>
+    The extension ships with <strong>100+ adapters</strong>: the ATS platforms most employers actually run on, the large aggregators, and a long tail of regional and remote-first boards. Separately, the bundled employer registry indexes <strong>43,000+ company career pages</strong>, so a scan can target one specific employer instead of a whole board.
   </p>
 
   <div class="doc-callout">
     <div class="callout-title">
       <span>◈</span>
-      <span>Request a New Provider</span>
+      <span>A sample, not the full list</span>
     </div>
     <p>
-      Don't see a job board or enterprise ATS you frequent? Submit a provider request via our <a href={resolvePath('/feedback/')}>Feedback Portal</a> or file an issue on GitHub with a sample job posting URL.
+      The table below is a representative sample of well-known platforms. The full registry is much larger and changes with every sync — run <code>npm run gen:provider-index</code> in the extension workspace to see every adapter that ships. Don't see the board you use? <a href={resolvePath('/feedback/')}>Ask for it</a> and include a sample posting URL.
     </p>
   </div>
 
-  <h2>Provider Directory (87)</h2>
+  <h2>Sample Providers</h2>
   <p>
-    Use the search bar or category filters below to check coverage and extraction mechanics for any platform:
+    Filter by category, or search for a platform by name:
   </p>
 
   <ProvidersDirectory />
 
-  <h2>How Providers Work Under the Hood</h2>
+  <h2>How Capture Works</h2>
   <p>
-    Background providers live in <code>extension/src/background/providers/</code> — one
-    <code>{'{name}'}.mjs</code> module per source, each exporting a standard
-    <code>detect()</code> / <code>fetch()</code> contract. In-page extractors for
-    session-gated boards (LinkedIn, Indeed, Glassdoor, Naukri) live in
-    <code>extension/src/content/extractors/</code>:
+    Three layers, all running inside the browser:
   </p>
+  <ul>
+    <li>
+      <strong>Background adapters</strong> — one module per platform in
+      <code>extension/src/background/vendored/providers/</code>. Each exports a
+      standard <code>detect()</code> / <code>fetch()</code> contract and reads
+      public ATS JSON endpoints, JSON-LD, feeds, or markup. Zero LLM calls.
+    </li>
+    <li>
+      <strong>Session extractors</strong> — for boards that only render results
+      to a logged-in user (LinkedIn, Indeed, Glassdoor, Naukri), readers live in
+      <code>extension/src/content/extractors/</code> and run in the page you
+      already have open.
+    </li>
+    <li>
+      <strong>Generic fallback</strong> — if an unrecognized site publishes
+      standard <code>schema.org/JobPosting</code> JSON-LD, it still gets captured.
+    </li>
+  </ul>
   <pre><code>{`// Provider contract (background)
 export default {
   id: 'greenhouse',       // unique across all providers
@@ -48,16 +65,15 @@ export default {
 };`}</code></pre>
   <p>
     When a scan runs, the extension resolves each configured target to a provider
-    (explicit <code>provider:</code> id wins, otherwise the first matching
-    <code>detect()</code>), fetches listings inside your browser session, then
-    runs liveness checks, normalization, dedup, and ships the survivors to your
-    local ingest API. If an unrecognized site contains standard
-    <code>schema.org/JobPosting</code> JSON-LD, the generic fallback extractor
-    still captures it.
+    (an explicit <code>provider:</code> id wins, otherwise the first matching
+    <code>detect()</code>), fetches listings inside your session, then runs
+    liveness checks, normalization, and dedup before shipping the survivors to
+    your local ingest API. The server never reaches out to a job board — when it
+    needs page content it enqueues a task the extension leases.
   </p>
 
   <h2>Contributing a New Extractor</h2>
   <p>
-    Adding support for a new job board takes fewer than 30 lines of code. Read our <a href="https://github.com/Covai-Labs/JobFoundry/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Contributing Guide</a> to submit a pull request!
+    Adding support for a new job board is usually a small, self-contained module. Read our <a href="https://github.com/Covai-Labs/JobFoundry/blob/main/CONTRIBUTING.md" target="_blank" rel="noopener noreferrer">Contributing Guide</a> to submit a pull request.
   </p>
 </DocsLayout>

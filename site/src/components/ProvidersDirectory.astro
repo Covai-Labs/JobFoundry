@@ -1,63 +1,53 @@
 ---
-// Curated subset for the marketing directory — NOT the full registry.
-// The "87" count labels reflect actual registry ids (CI-asserted in
-// extension/test/providers.test.mjs); update them only when the registry
-// count changes, not when this list does.
+// A short, verified sample of the 100+ adapters that ship with the extension.
+// Deliberately NOT the full registry: every row here maps to real code —
+// either a provider module in `extension/src/background/vendored/providers/`
+// or, for the four big aggregators, a search port in
+// `extension/src/background/search/` plus an in-page session extractor in
+// `extension/src/content/extractors/`.
+// Do not add a platform here unless you can point at the adapter that backs it.
 const providersList = [
   // Modern ATS
-  { name: 'Greenhouse', category: 'Modern ATS', type: 'ATS', extraction: 'JSON-LD + DOM', multipage: 'Yes' },
-  { name: 'Lever', category: 'Modern ATS', type: 'ATS', extraction: 'API / Schema', multipage: 'Yes' },
-  { name: 'Ashby', category: 'Modern ATS', type: 'ATS', extraction: 'JSON-LD + DOM', multipage: 'Yes' },
-  { name: 'Workable', category: 'Modern ATS', type: 'ATS', extraction: 'Structured DOM', multipage: 'Yes' },
-  { name: 'SmartRecruiters', category: 'Modern ATS', type: 'ATS', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'BambooHR', category: 'Modern ATS', type: 'ATS', extraction: 'DOM Table', multipage: 'Yes' },
-  { name: 'Teamtailor', category: 'Modern ATS', type: 'ATS', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'Breezy HR', category: 'Modern ATS', type: 'ATS', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Pinpoint', category: 'Modern ATS', type: 'ATS', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'Recruitee', category: 'Modern ATS', type: 'ATS', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Rippling ATS', category: 'Modern ATS', type: 'ATS', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'JazzHR', category: 'Modern ATS', type: 'ATS', extraction: 'DOM', multipage: 'Yes' },
+  { name: 'Greenhouse', category: 'Modern ATS' },
+  { name: 'Lever', category: 'Modern ATS' },
+  { name: 'Ashby', category: 'Modern ATS' },
+  { name: 'Workable', category: 'Modern ATS' },
+  { name: 'SmartRecruiters', category: 'Modern ATS' },
+  { name: 'BambooHR', category: 'Modern ATS' },
+  { name: 'Teamtailor', category: 'Modern ATS' },
+  { name: 'Breezy HR', category: 'Modern ATS' },
+  { name: 'Pinpoint', category: 'Modern ATS' },
+  { name: 'Recruitee', category: 'Modern ATS' },
+  { name: 'Rippling', category: 'Modern ATS' },
+  { name: 'JazzHR', category: 'Modern ATS' },
 
   // Enterprise ATS
-  { name: 'Workday', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'Browser Session / DOM', multipage: 'Yes' },
-  { name: 'SAP SuccessFactors', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Oracle Taleo', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'iCIMS', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM / JSON-LD', multipage: 'Yes' },
-  { name: 'Jobvite', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Avature', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'BrassRing / Kenexa', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Dayforce', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'UKG Pro', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Phenom People', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'Eightfold AI', category: 'Enterprise ATS', type: 'Enterprise', extraction: 'JSON-LD', multipage: 'Yes' },
+  { name: 'Workday', category: 'Enterprise ATS' },
+  { name: 'SAP SuccessFactors', category: 'Enterprise ATS' },
+  { name: 'Oracle Taleo', category: 'Enterprise ATS' },
+  { name: 'iCIMS', category: 'Enterprise ATS' },
+  { name: 'Jobvite', category: 'Enterprise ATS' },
+  { name: 'Avature', category: 'Enterprise ATS' },
+  { name: 'Phenom', category: 'Enterprise ATS' },
+  { name: 'Eightfold', category: 'Enterprise ATS' },
 
-  // Major Job Boards
-  { name: 'LinkedIn Jobs', category: 'Job Boards', type: 'Job Board', extraction: 'Session DOM', multipage: 'Yes' },
-  { name: 'Indeed', category: 'Job Boards', type: 'Job Board', extraction: 'DOM / Schema', multipage: 'Yes' },
-  { name: 'Dice', category: 'Job Boards', type: 'Job Board', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'Glassdoor', category: 'Job Boards', type: 'Job Board', extraction: 'Session DOM', multipage: 'Yes' },
-  { name: 'ZipRecruiter', category: 'Job Boards', type: 'Job Board', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'Monster', category: 'Job Boards', type: 'Job Board', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'CareerBuilder', category: 'Job Boards', type: 'Job Board', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'SimplyHired', category: 'Job Boards', type: 'Job Board', extraction: 'DOM', multipage: 'Yes' },
+  // Major Job Boards (search ports + in-page session extractors)
+  { name: 'LinkedIn Jobs', category: 'Job Boards' },
+  { name: 'Indeed', category: 'Job Boards' },
+  { name: 'Glassdoor', category: 'Job Boards' },
+  { name: 'ZipRecruiter', category: 'Job Boards' },
 
   // Tech, Niche & Remote
-  { name: 'Wellfound (AngelList)', category: 'Niche & Remote', type: 'Startup', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Y Combinator Jobs', category: 'Niche & Remote', type: 'Startup', extraction: 'DOM / JSON-LD', multipage: 'Yes' },
-  { name: 'BuiltIn', category: 'Niche & Remote', type: 'Tech', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'We Work Remotely', category: 'Niche & Remote', type: 'Remote', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'Remotive', category: 'Niche & Remote', type: 'Remote', extraction: 'JSON-LD', multipage: 'Yes' },
-  { name: 'RemoteOK', category: 'Niche & Remote', type: 'Remote', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Hacker News (Who is Hiring)', category: 'Niche & Remote', type: 'Community', extraction: 'Text Parser', multipage: 'Single' },
-  { name: 'Otta / Welcome to the Jungle', category: 'Niche & Remote', type: 'Tech', extraction: 'Session DOM', multipage: 'Yes' },
-  { name: 'RubyNow', category: 'Niche & Remote', type: 'Specialized', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'CryptoJobsList', category: 'Niche & Remote', type: 'Specialized', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'eFinancialCareers', category: 'Niche & Remote', type: 'Specialized', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'BioSpace', category: 'Niche & Remote', type: 'Specialized', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'ClearanceJobs', category: 'Niche & Remote', type: 'Specialized', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'Idealist', category: 'Niche & Remote', type: 'Non-profit', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'HigherEdJobs', category: 'Niche & Remote', type: 'Specialized', extraction: 'DOM', multipage: 'Yes' },
-  { name: 'USAJobs (gov)', category: 'Niche & Remote', type: 'Government', extraction: 'JSON-LD', multipage: 'Yes' },
+  { name: 'Wellfound (AngelList)', category: 'Niche & Remote' },
+  { name: 'Built In', category: 'Niche & Remote' },
+  { name: 'We Work Remotely', category: 'Niche & Remote' },
+  { name: 'Remotive', category: 'Niche & Remote' },
+  { name: 'Remote OK', category: 'Niche & Remote' },
+  { name: 'Himalayas', category: 'Niche & Remote' },
+  { name: 'Welcome to the Jungle (Otta)', category: 'Niche & Remote' },
+  { name: 'No Fluff Jobs', category: 'Niche & Remote' },
+  { name: 'Just Join IT', category: 'Niche & Remote' },
+  { name: 'Hacker News — Who is Hiring', category: 'Niche & Remote' },
 ];
 ---
 
@@ -72,13 +62,13 @@ const providersList = [
         type="text"
         id="provider-search-input"
         class="search-input"
-        placeholder="Search 87 supported ATS & job boards (e.g., Greenhouse, Workday, Lever)..."
+        placeholder="Search sample ATS & job boards (e.g., Greenhouse, Workday, Lever)..."
         aria-label="Filter providers"
       />
     </div>
 
     <div class="filter-tabs" role="group" aria-label="Category Filters">
-      <button type="button" class="filter-btn active" data-category="ALL">All (87)</button>
+      <button type="button" class="filter-btn active" data-category="ALL">All ({providersList.length})</button>
       <button type="button" class="filter-btn" data-category="Modern ATS">Modern ATS</button>
       <button type="button" class="filter-btn" data-category="Enterprise ATS">Enterprise ATS</button>
       <button type="button" class="filter-btn" data-category="Job Boards">Job Boards</button>
@@ -92,9 +82,6 @@ const providersList = [
         <tr>
           <th>Provider</th>
           <th>Category</th>
-          <th>Type</th>
-          <th>Extraction Mode</th>
-          <th>Multi-Page</th>
         </tr>
       </thead>
       <tbody>
@@ -106,9 +93,6 @@ const providersList = [
             <td>
               <span class="category-pill">{item.category}</span>
             </td>
-            <td class="col-mono">{item.type}</td>
-            <td class="col-mono text-muted">{item.extraction}</td>
-            <td class="col-mono">{item.multipage}</td>
           </tr>
         ))}
       </tbody>
@@ -241,11 +225,6 @@ const providersList = [
     padding: 0.15rem 0.45rem;
     border-radius: var(--radius-xs);
     color: var(--text-secondary);
-  }
-
-  .col-mono {
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
   }
 
   .no-results {
