@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { ExtensionConfig } from '../../api/client';
+import { ExtensionConfig, api, EmployerBoard } from '../../api/client';
 import {
   Compass,
   Search,
@@ -367,6 +367,71 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
   const positiveKeywords = config.titleFilter?.positive || [];
   const negativeKeywords = config.titleFilter?.negative || [];
   const portals = config.portals || {};
+  const trackedCompanies = useMemo(
+    () => (Array.isArray(config.trackedCompanies) ? config.trackedCompanies : []),
+    [config.trackedCompanies]
+  );
+
+  const [employerQuery, setEmployerQuery] = useState('');
+  const [employerResults, setEmployerResults] = useState<EmployerBoard[]>([]);
+  const [employerTotalRegistry, setEmployerTotalRegistry] = useState<number>(0);
+  const [searchingEmployers, setSearchingEmployers] = useState(false);
+
+  useEffect(() => {
+    const q = employerQuery.trim();
+    if (!q) {
+      setEmployerResults([]);
+      return;
+    }
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      setSearchingEmployers(true);
+      try {
+        const res = await api.searchEmployers(q, '', 15);
+        if (!cancelled) {
+          setEmployerResults(res.results || []);
+          setEmployerTotalRegistry(res.totalRegistry || 0);
+        }
+      } catch {
+        if (!cancelled) setEmployerResults([]);
+      } finally {
+        if (!cancelled) setSearchingEmployers(false);
+      }
+    }, 200);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [employerQuery]);
+
+  const handleTrackEmployer = (board: EmployerBoard) => {
+    const exists = trackedCompanies.some((c) => c.careers_url === board.careers_url);
+    if (exists) return;
+    const id = `${board.ats}:${board.board}`;
+    onChange({
+      ...config,
+      trackedCompanies: [
+        ...trackedCompanies,
+        { id, name: board.name, careers_url: board.careers_url, enabled: true },
+      ],
+    });
+  };
+
+  const handleToggleTrackedCompany = (careersUrl: string) => {
+    onChange({
+      ...config,
+      trackedCompanies: trackedCompanies.map((c) =>
+        c.careers_url === careersUrl ? { ...c, enabled: !c.enabled } : c
+      ),
+    });
+  };
+
+  const handleRemoveTrackedCompany = (careersUrl: string) => {
+    onChange({
+      ...config,
+      trackedCompanies: trackedCompanies.filter((c) => c.careers_url !== careersUrl),
+    });
+  };
 
   const [positiveDraft, setPositiveDraft] = useState(() => joinList(config.titleFilter?.positive));
   const [negativeDraft, setNegativeDraft] = useState(() => joinList(config.titleFilter?.negative));
@@ -1200,6 +1265,192 @@ export const ScraperSettingsTab: React.FC<ScraperSettingsTabProps> = ({
             }}
           >
             No scraper portals matching "{portalSearch}".
+          </div>
+        )}
+      </div>
+
+      {/* 5b. Tracked Company ATS Boards (from 43k+ career-ops employer registry) */}
+      <div className="settings-card" style={{ padding: '1.5rem' }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: '0.5rem',
+            marginBottom: '0.25rem',
+            flexWrap: 'wrap',
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Globe size={18} style={{ color: 'var(--accent-primary)' }} />
+            <h3 style={{ fontSize: '1.1rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+              Tracked Company ATS Boards
+            </h3>
+          </div>
+          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+            {trackedCompanies.filter((c) => c.enabled !== false).length} active ·{' '}
+            {trackedCompanies.length} tracked
+          </span>
+        </div>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+          Search{' '}
+          {employerTotalRegistry > 0 ? `${employerTotalRegistry.toLocaleString()}` : '43,000+'}{' '}
+          verified company ATS boards (Greenhouse, Ashby, Lever, Workday, etc.) to scan directly
+          with zero tokens.
+        </p>
+
+        <div style={{ position: 'relative', marginBottom: '1rem' }}>
+          <Search
+            size={16}
+            style={{
+              position: 'absolute',
+              left: '0.75rem',
+              top: '50%',
+              transform: 'translateY(-50%)',
+              color: 'var(--text-muted)',
+            }}
+          />
+          <input
+            type="text"
+            className="input-text"
+            value={employerQuery}
+            onChange={(e) => setEmployerQuery(e.target.value)}
+            placeholder="Search companies (e.g. Stripe, Vercel, Anthropic, Nvidia)..."
+            style={{ width: '100%', paddingLeft: '2.25rem', boxSizing: 'border-box' }}
+          />
+        </div>
+
+        {searchingEmployers && (
+          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
+            Searching employer registry...
+          </div>
+        )}
+
+        {employerResults.length > 0 && (
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+              gap: '0.6rem',
+              marginBottom: '1rem',
+            }}
+          >
+            {employerResults.map((board) => {
+              const isTracked = trackedCompanies.some((c) => c.careers_url === board.careers_url);
+              return (
+                <div
+                  key={board.careers_url}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.5rem',
+                    padding: '0.6rem 0.75rem',
+                    borderRadius: '8px',
+                    background: 'var(--btn-secondary-bg)',
+                    border: '1px solid var(--border-subtle)',
+                  }}
+                >
+                  <div style={{ minWidth: 0 }}>
+                    <div
+                      style={{
+                        fontSize: '0.875rem',
+                        fontWeight: 600,
+                        color: 'var(--text-primary)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {board.name}
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {board.ats}
+                      {board.region ? ` · ${board.region}` : ''}
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    disabled={isTracked}
+                    onClick={() => handleTrackEmployer(board)}
+                    style={{
+                      padding: '0.3rem 0.65rem',
+                      fontSize: '0.78rem',
+                      fontWeight: 600,
+                      borderRadius: '6px',
+                      cursor: isTracked ? 'default' : 'pointer',
+                      border: isTracked
+                        ? '1px solid var(--border-subtle)'
+                        : '1px solid var(--accent-primary)',
+                      background: isTracked ? 'transparent' : 'var(--accent-primary)',
+                      color: isTracked ? 'var(--text-muted)' : '#ffffff',
+                      flexShrink: 0,
+                    }}
+                  >
+                    {isTracked ? 'Tracked' : '+ Track'}
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {trackedCompanies.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+            {trackedCompanies.map((company) => {
+              const active = company.enabled !== false;
+              return (
+                <div
+                  key={company.careers_url}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.45rem',
+                    padding: '0.35rem 0.6rem',
+                    borderRadius: '999px',
+                    fontSize: '0.8rem',
+                    background: active
+                      ? 'color-mix(in srgb, var(--accent-primary) 18%, transparent)'
+                      : 'var(--btn-secondary-bg)',
+                    border: active
+                      ? '1px solid var(--accent-primary)'
+                      : '1px solid var(--border-subtle)',
+                    color: 'var(--text-primary)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => handleToggleTrackedCompany(company.careers_url)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      color: 'inherit',
+                      fontWeight: 500,
+                    }}
+                    title={company.careers_url}
+                  >
+                    {company.name}
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${company.name}`}
+                    onClick={() => handleRemoveTrackedCompany(company.careers_url)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      padding: 0,
+                      cursor: 'pointer',
+                      color: 'var(--text-muted)',
+                      display: 'inline-flex',
+                    }}
+                  >
+                    <X size={13} />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

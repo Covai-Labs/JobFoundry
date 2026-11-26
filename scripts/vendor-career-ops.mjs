@@ -9,7 +9,7 @@
  *   node scripts/vendor-career-ops.mjs --from /path/to/career-ops --check
  */
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -73,8 +73,26 @@ const VENDOR_MAP = [
   { src: 'templates/ats/cv-template.ats.html', dst: 'templates/ats/cv-template.ats.html' },
 ];
 
-// Pre-flight check: verify all upstream source files exist before mutating or comparing
-const missingUpstream = VENDOR_MAP.filter(({ src }) => !existsSync(join(SRC, src)));
+const VENDOR_DIRS = [
+  { src: 'employers/boards', dst: 'server/ingest/src/vendored/employers/boards' },
+];
+
+function listFilesRecursive(dir, base = '') {
+  if (!existsSync(dir)) return [];
+  const out = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const rel = base ? `${base}/${entry.name}` : entry.name;
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...listFilesRecursive(full, rel));
+    else if (entry.isFile()) out.push(rel);
+  }
+  return out.sort();
+}
+
+// Pre-flight check: verify all upstream source files and dirs exist before mutating or comparing
+const missingUpstream = [...VENDOR_MAP, ...VENDOR_DIRS].filter(
+  ({ src }) => !existsSync(join(SRC, src))
+);
 if (missingUpstream.length > 0) {
   console.error(
     `Error: missing upstream source files:\n${missingUpstream.map((m) => `  - ${m.src}`).join('\n')}`
@@ -104,6 +122,37 @@ for (const { src, dst } of VENDOR_MAP) {
     mkdirSync(dirname(fullDst), { recursive: true });
     copyFileSync(fullSrc, fullDst);
     console.log(`Vendored verbatim: ${dst}`);
+  }
+}
+
+for (const { src, dst } of VENDOR_DIRS) {
+  const fullSrcDir = join(SRC, src);
+  const fullDstDir = join(ROOT, dst);
+  const srcFiles = listFilesRecursive(fullSrcDir);
+  if (isCheckOnly) {
+    const dstFiles = new Set(listFilesRecursive(fullDstDir));
+    for (const rel of srcFiles) {
+      if (!dstFiles.has(rel)) {
+        console.error(`Missing vendored file: ${dst}/${rel}`);
+        hasDrift = true;
+      } else if (!readFileSync(join(fullSrcDir, rel)).equals(readFileSync(join(fullDstDir, rel)))) {
+        console.error(`Drifted from upstream: ${dst}/${rel}`);
+        hasDrift = true;
+      }
+      dstFiles.delete(rel);
+    }
+    for (const orphan of dstFiles) {
+      console.error(`Orphan vendored file: ${dst}/${orphan}`);
+      hasDrift = true;
+    }
+  } else {
+    rmSync(fullDstDir, { recursive: true, force: true });
+    for (const rel of srcFiles) {
+      const target = join(fullDstDir, rel);
+      mkdirSync(dirname(target), { recursive: true });
+      copyFileSync(join(fullSrcDir, rel), target);
+    }
+    console.log(`Vendored verbatim dir (${srcFiles.length} files): ${dst}`);
   }
 }
 
