@@ -4,6 +4,45 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.11.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.10.1...v0.11.0) (2026-11-26)
+
+
+### Features
+
+* **employers:** vendor career-ops 43k+ employer boards registry with search API and Tracked Company Boards UI ([#240](https://github.com/Covai-Labs/JobFoundry/issues/240)) ([bf8f537](https://github.com/Covai-Labs/JobFoundry/commit/bf8f537e6f09664b32af490a129dfcab23263df3))
+* **observability:** admin-only multi-provider tracing for tailor and scorer ([c3db8cf](https://github.com/Covai-Labs/JobFoundry/commit/c3db8cf8fe79f63eaf2550991a67f689f02ebbe0))
+* **observability:** admin-only multi-provider tracing for tailor and scorer ([4395277](https://github.com/Covai-Labs/JobFoundry/commit/439527759bd858e340c80b1a934bb2a87365ac35))
+* **pipeline:** add furthest_stage tracking and Sankey funnel visualization ([#242](https://github.com/Covai-Labs/JobFoundry/issues/242)) ([aa7eaa4](https://github.com/Covai-Labs/JobFoundry/commit/aa7eaa42996b676b39a76952eba56c1e9322e68a))
+* **resume:** overhaul AI converter UI with review step, drag-and-drop, PDF extraction & theme contrast ([#222](https://github.com/Covai-Labs/JobFoundry/issues/222)) ([35668b9](https://github.com/Covai-Labs/JobFoundry/commit/35668b9192bb5b60179c58a6927a1373ae99cce8))
+* **resume:** streamline Master Profile with single unified toolbar and segmented control ([#225](https://github.com/Covai-Labs/JobFoundry/issues/225)) ([9c9559a](https://github.com/Covai-Labs/JobFoundry/commit/9c9559a79c4d3536a0f07c11be90aa88545f16ba))
+* **resume:** update JSON Resume schema to latest draft-07 and enhance AI parser with full schema & sanitization ([#219](https://github.com/Covai-Labs/JobFoundry/issues/219)) ([019afa4](https://github.com/Covai-Labs/JobFoundry/commit/019afa4de7819d49514eba2805cecf91b3dc374d))
+* **scrapers:** AI-powered role keyword suggestions with review and select modal ([#227](https://github.com/Covai-Labs/JobFoundry/issues/227)) ([550ff3f](https://github.com/Covai-Labs/JobFoundry/commit/550ff3f725a34df7bbc81c1164313acfa7f8ec87))
+* **settings:** clean redundant header and add modern floating dirty action bar ([#228](https://github.com/Covai-Labs/JobFoundry/issues/228)) ([29ef035](https://github.com/Covai-Labs/JobFoundry/commit/29ef0350d33ec52119acdc25fa9a5296cfccf957))
+* **settings:** declutter profile layout with sub-tabs, dismissible quick setup, and enhanced tooltips ([#223](https://github.com/Covai-Labs/JobFoundry/issues/223)) ([08c27b1](https://github.com/Covai-Labs/JobFoundry/commit/08c27b188f1820ad88d4a571fab4e96fcf4a5738))
+* **sync:** prioritize Firefox and Chromium extension badges with tooltips ([#226](https://github.com/Covai-Labs/JobFoundry/issues/226)) ([ef86e7e](https://github.com/Covai-Labs/JobFoundry/commit/ef86e7e78d75eeb36c533329023b64a2fa5997ea))
+* **ux:** dashboard job discovery toolbar, live ingestion banner, persistent scan state, and theme fixes ([a2a9d73](https://github.com/Covai-Labs/JobFoundry/commit/a2a9d73ec4a253b7ef77d51e610bb8c6ac07aab8))
+* **ux:** dashboard job discovery toolbar, live ingestion banner, persistent scan state, and theme fixes ([91acfaf](https://github.com/Covai-Labs/JobFoundry/commit/91acfaf2d5d6025e23e5ff733818d956305c06b3))
+* **vendor:** add role-clarity, jd-similarity, and custom JSON Resume fallback ([#238](https://github.com/Covai-Labs/JobFoundry/issues/238)) ([74e1669](https://github.com/Covai-Labs/JobFoundry/commit/74e16697ff658d95f70e8ffcbd107286d2ca9258))
+* **vendor:** vendor career-ops skill-gap, fact-audit, fingerprint-core, and posting-close + JSON Resume adapter ([#237](https://github.com/Covai-Labs/JobFoundry/issues/237)) ([18a1160](https://github.com/Covai-Labs/JobFoundry/commit/18a116008264aef397676e083929dbeb93c0911b))
+
+
+### Bug Fixes
+
+* **ci,installer:** add linux/arm64 container build and auto-install prerequisites ([#243](https://github.com/Covai-Labs/JobFoundry/issues/243)) ([6b3fb66](https://github.com/Covai-Labs/JobFoundry/commit/6b3fb665acd92dd46a7f70d21869d69b37273c6f))
+* **deps:** update all dependencies ([#234](https://github.com/Covai-Labs/JobFoundry/issues/234)) ([98686b2](https://github.com/Covai-Labs/JobFoundry/commit/98686b2c44f7e0f728d36f40c515a73bbd74bbc5))
+* **deps:** update all dependencies to v0.2.2 ([#218](https://github.com/Covai-Labs/JobFoundry/issues/218)) ([0cd19e2](https://github.com/Covai-Labs/JobFoundry/commit/0cd19e26ac1d30401d95cf8efbf5b237831584ce))
+* **feed:** add server pagination, true total count, and windowed rendering for 10k+ jobs ([69b14e0](https://github.com/Covai-Labs/JobFoundry/commit/69b14e09b9e4f868e32fe61df140040a1c090987))
+* **feed:** add server pagination, true total count, and windowed rendering for 10k+ jobs ([683272b](https://github.com/Covai-Labs/JobFoundry/commit/683272b5080eb65ca3d80ab0559e840191968c34))
+* **feed:** address PR [#232](https://github.com/Covai-Labs/JobFoundry/issues/232) review feedback and prettier formatting ([0ce142a](https://github.com/Covai-Labs/JobFoundry/commit/0ce142a43d59dd9259136599954ba2ee3ac7fe7f))
+* **ingest:** chunk job batches by size/count and raise bodyLimit to prevent 413 NetworkError ([4068ac8](https://github.com/Covai-Labs/JobFoundry/commit/4068ac84370639863a5462f03d8946354fdb503c))
+* **search:** port JobSpy v1.5.0 fixes for LinkedIn salary ranges and Naukri city lookup ([#239](https://github.com/Covai-Labs/JobFoundry/issues/239)) ([da0e70a](https://github.com/Covai-Labs/JobFoundry/commit/da0e70ac0f4994c8edf4ea5b54b6078d8b439799))
+* **security:** add rate limiting to GET /api/v1/jobs ([3e47907](https://github.com/Covai-Labs/JobFoundry/commit/3e479076270ab3e4183c84025e9f0c869491b585))
+* **security:** enforce strict origin verification, sanitize scan state, and prevent concurrent operations ([68a3045](https://github.com/Covai-Labs/JobFoundry/commit/68a304595692266bb04e7c002362bf057351cc35))
+* **settings:** separate settings and extension dirty states, add stale scan recovery, and paired origin guard ([52db4b6](https://github.com/Covai-Labs/JobFoundry/commit/52db4b614c6fbbbcc7c543e742ab4fd0bfc2a899))
+* **ui:** make auth views and role suggestions theme-aware and establish AI agent UI guidelines ([#229](https://github.com/Covai-Labs/JobFoundry/issues/229)) ([c237a52](https://github.com/Covai-Labs/JobFoundry/commit/c237a52dcd177d23915dac12fd00d12dc32cad6b))
+* **web:** proxy API to 127.0.0.1 to prevent IPv6 localhost connection drop ([e1417e6](https://github.com/Covai-Labs/JobFoundry/commit/e1417e6ca37a365fdffc779c08c2bbdb9892f02c))
+* **web:** reset loadingMore on refresh and adjust nextOffset on delete ([e40ed1c](https://github.com/Covai-Labs/JobFoundry/commit/e40ed1ccc1d76a6ec02aee4b3a9a50178a28f678))
+
 ## [0.10.1](https://github.com/Covai-Labs/JobFoundry/compare/v0.10.0...v0.10.1) (2026-11-22)
 
 
