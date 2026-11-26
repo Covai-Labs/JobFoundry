@@ -493,59 +493,7 @@ main() {
   fi
 
   # ----------------------------------------------------------------------------
-  # 3. Configure Environment (.env)
-  # ----------------------------------------------------------------------------
-  echo -e "${BLUE}▶ Configuring environment...${NC}"
-
-  if [ ! -f ".env" ]; then
-    cp .env.example .env
-
-    # Generate random 32-character API key using sequential fallbacks
-    RANDOM_KEY=""
-    if command -v openssl >/dev/null 2>&1; then
-      RANDOM_KEY="$(openssl rand -hex 16 2>/dev/null || true)"
-    fi
-    if [ -z "$RANDOM_KEY" ] && command -v python3 >/dev/null 2>&1; then
-      RANDOM_KEY="$(python3 -c 'import secrets; print(secrets.token_hex(16))' 2>/dev/null || true)"
-    fi
-    if [ -z "$RANDOM_KEY" ]; then
-      RANDOM_KEY="$(LC_ALL=C tr -dc 'a-zA-Z0-9' </dev/urandom 2>/dev/null | head -c 32 || true)"
-    fi
-
-    if [ -z "$RANDOM_KEY" ]; then
-      rm -f .env
-      echo -e "${RED}✖ Failed to generate a secure random API key.${NC}"
-      echo "Please set API_KEYS in .env manually before starting."
-      exit 1
-    fi
-
-    # Replace placeholder in .env using temp file for universal sed compatibility (GNU/BSD)
-    if ! sed "s/secret-api-key-1,secret-api-key-2/jf_${RANDOM_KEY}/g" .env > .env.tmp; then
-      rm -f .env .env.tmp
-      echo -e "${RED}✖ Failed to write API key to .env.${NC}"
-      exit 1
-    fi
-    mv .env.tmp .env
-
-    # Verify placeholder credentials were removed from active API_KEYS setting
-    if grep -E -q '^[[:space:]]*API_KEYS=.*secret-api-key-[12]' .env; then
-      rm -f .env
-      echo -e "${RED}✖ Failed to replace placeholder API keys in .env.${NC}"
-      exit 1
-    fi
-
-    echo -e "  ${GREEN}✔ Created .env with generated API key${NC}"
-  else
-    if grep -E -q '^[[:space:]]*API_KEYS=.*secret-api-key-[12]' .env; then
-      echo -e "${RED}✖ Existing .env contains insecure template default credentials in API_KEYS (secret-api-key-1 or secret-api-key-2).${NC}"
-      echo "Please replace API_KEYS in .env with a secure random key before starting."
-      exit 1
-    fi
-    echo -e "  ${GREEN}✔ Existing .env preserved${NC}"
-  fi
-
-  # ----------------------------------------------------------------------------
-  # 4. Start Stack
+  # 3. Start Stack
   # ----------------------------------------------------------------------------
   echo -e "${BLUE}▶ Starting JobFoundry services...${NC}"
   echo -e "  Checking for pre-built container images..."
@@ -558,7 +506,7 @@ main() {
   fi
 
   # ----------------------------------------------------------------------------
-  # 5. Run Healthcheck
+  # 4. Run Healthcheck
   # ----------------------------------------------------------------------------
   echo -e "${BLUE}▶ Verifying services health...${NC}"
 
@@ -571,7 +519,7 @@ main() {
   fi
 
   # ----------------------------------------------------------------------------
-  # 6. Completion & Onboarding Instructions
+  # 5. Completion & Onboarding Instructions
   # ----------------------------------------------------------------------------
   echo ""
   echo -e "${GREEN}${BOLD}═════════════════════════════════════════════════════════════════${NC}"
@@ -586,9 +534,6 @@ main() {
   echo "  2. Install the Browser Extension:"
   echo "     👉 Store listings & guide: https://jobfoundry.covai.org/docs/extension/"
   echo "     Or load unpacked from: $TARGET_DIR/extension"
-  echo "  3. Configure your LLM API key in:"
-  echo -e "     ${BLUE}$TARGET_DIR/.env${NC}"
-  echo "     Then restart: $COMPOSE_CMD restart"
   echo ""
   echo -e "${BOLD}Support & Community:${NC}"
   echo "  ⭐ Star on GitHub: https://github.com/Covai-Labs/JobFoundry"
