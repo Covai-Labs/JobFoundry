@@ -31,40 +31,44 @@ const MAX_UNIT = 18; // max pixels per application
 // ---------------------------------------------------------------------------
 // Colour palette — mirrors the existing STAGE_COLORS map
 // ---------------------------------------------------------------------------
-const STAGE_BAR_COLOR: Record<string, string> = {
-  captured: 'var(--color-blue,  #3b82f6)',
-  tailored: 'var(--color-purple,#8b5cf6)',
-  applied: 'var(--color-cyan,  #06b6d4)',
-  interview: 'var(--color-amber, #f59e0b)',
-  offer: 'var(--color-green, #10b981)',
-};
+const STAGE_BAR_COLOR = new Map<string, string>([
+  ['captured', 'var(--color-blue,  #3b82f6)'],
+  ['tailored', 'var(--color-purple,#8b5cf6)'],
+  ['applied', 'var(--color-cyan,  #06b6d4)'],
+  ['interview', 'var(--color-amber, #f59e0b)'],
+  ['offer', 'var(--color-green, #10b981)'],
+]);
 
-const STOPPED_COLOR: Record<string, string> = {
-  open: 'inherit', // resolved at render time from stage colour
-  auto_rejected: '#ef4444',
-  invalid: '#6b7280',
-  error: '#f97316',
-  rejected: '#ef4444',
-  archived: '#9ca3af',
-};
+const STOPPED_COLOR = new Map<string, string>([
+  ['open', 'inherit'], // resolved at render time from stage colour
+  ['auto_rejected', '#ef4444'],
+  ['invalid', '#6b7280'],
+  ['error', '#f97316'],
+  ['rejected', '#ef4444'],
+  ['archived', '#9ca3af'],
+]);
 
 function stageColor(id: string) {
-  return STAGE_BAR_COLOR[id] ?? '#3b82f6';
+  return STAGE_BAR_COLOR.get(id) ?? '#3b82f6';
 }
 
 function stoppedColor(stageId: string, outcome: string) {
   if (outcome === 'open') return stageColor(stageId);
-  return STOPPED_COLOR[outcome] ?? '#6b7280';
+  return STOPPED_COLOR.get(outcome) ?? '#6b7280';
 }
 
-const STOPPED_LABEL: Record<string, string> = {
-  open: 'pending',
-  auto_rejected: 'auto-rejected',
-  invalid: 'invalid/noise',
-  error: 'error',
-  rejected: 'rejected',
-  archived: 'archived',
-};
+const STOPPED_LABEL = new Map<string, string>([
+  ['open', 'pending'],
+  ['auto_rejected', 'auto-rejected'],
+  ['invalid', 'invalid/noise'],
+  ['error', 'error'],
+  ['rejected', 'rejected'],
+  ['archived', 'archived'],
+]);
+
+function stoppedLabel(outcome: string) {
+  return STOPPED_LABEL.get(outcome) ?? outcome;
+}
 
 // ---------------------------------------------------------------------------
 // SVG path helpers (from Dossier)
@@ -100,12 +104,14 @@ interface StopNode {
 
 function layout(stages: FunnelStageData[], unit: number) {
   const last = stages.length - 1;
-  let svgHeight = stages[0].count * unit;
+  let svgHeight = (stages.at(0)?.count ?? 0) * unit;
   const stops: StopNode[] = [];
 
   for (let i = 0; i < last; i++) {
-    const stage = stages[i];
-    const nextCount = stages[i + 1].count;
+    const stage = stages.at(i);
+    const nextStage = stages.at(i + 1);
+    if (!stage || !nextStage) continue;
+    const nextCount = nextStage.count;
     const fromX = col(i, last) + NODE;
     const toX = (col(i, last) + col(i + 1, last)) / 2; // midpoint — where stopped nodes land
 
@@ -259,7 +265,9 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
       follow(e);
     },
     onPointerMove: follow,
-    onPointerLeave: () => setHovered((c) => (c === key ? null : c)),
+    onPointerLeave: () => {
+      setHovered((c) => (c === key ? null : c));
+    },
   });
 
   const bandOpacity = (key: string) => (hovered === null ? 0.32 : hovered === key ? 0.6 : 0.1);
@@ -274,14 +282,15 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
       return {
         color: stoppedColor(stop.stageId, stop.outcome),
         value: stop.count,
-        text: STOPPED_LABEL[stop.outcome] ?? stop.outcome,
+        text: stoppedLabel(stop.outcome),
         detail: `at ${stageLabel.toLowerCase()}`,
       };
     }
     const idx = stages.findIndex((s) => `stage-${s.id}` === hovered);
     if (idx < 0) return null;
-    const stage = stages[idx];
-    const next = stages[idx + 1];
+    const stage = stages.at(idx);
+    if (!stage) return null;
+    const next = stages.at(idx + 1);
     return {
       color: stageColor(stage.id),
       value: stage.count,
@@ -531,7 +540,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
                       >
                         {stop.count}
                       </span>{' '}
-                      {STOPPED_LABEL[stop.outcome] ?? stop.outcome}
+                      {stoppedLabel(stop.outcome)}
                     </span>
                   ))}
                 </div>
@@ -677,7 +686,7 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
               {stages.map((stage) => {
                 const stoppedSummary = Object.entries(stage.stopped ?? {})
                   .filter(([, count]) => count > 0)
-                  .map(([outcome, count]) => `${count} ${STOPPED_LABEL[outcome] ?? outcome}`)
+                  .map(([outcome, count]) => `${count} ${stoppedLabel(outcome)}`)
                   .join(', ');
                 return (
                   <tr key={stage.id}>
