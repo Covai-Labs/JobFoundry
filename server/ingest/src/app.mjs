@@ -92,6 +92,52 @@ function bearerToken(header) {
   return header.startsWith('Bearer ') ? header.slice(7).trim() : '';
 }
 
+// ---------------------------------------------------------------------------
+// Funnel stage ordering — used to track the furthest pipeline stage reached.
+// Only forward-progression statuses advance furthest_stage; terminal states
+// (rejected, archived, error variants) never move it backwards.
+// ---------------------------------------------------------------------------
+const STAGE_RANK = { captured: 0, tailored: 1, applied: 2, interview: 3, offer: 4 };
+
+/** Map a job status value to its funnel stage name, or null for non-stage statuses. */
+function statusToStage(status) {
+  switch (status) {
+    case 'new':
+    case 'saved':
+    case 'rejected_by_score':
+    case 'invalid_job':
+    case 'score_failed':
+      return 'captured';
+    case 'tailored':
+    case 'tailor_failed':
+      return 'tailored';
+    case 'applied':
+      return 'applied';
+    case 'interview':
+      return 'interview';
+    case 'offer':
+      return 'offer';
+    default:
+      return null;
+  }
+}
+
+/**
+ * Returns the furthest_stage value to persist when transitioning to `newStatus`.
+ * Only advances; never retreats (e.g. un-applying keeps furthest_stage = 'applied').
+ *
+ * @param {string|null} current - Current furthest_stage value from the DB row.
+ * @param {string} newStatus    - Incoming job status being written.
+ * @returns {string|null}       - New furthest_stage to store, or null to leave unchanged.
+ */
+function advanceFurthestStage(current, newStatus) {
+  const newStage = statusToStage(newStatus);
+  if (!newStage) return current ?? null; // terminal status — keep what we have
+  const currentRank = current != null ? (STAGE_RANK[current] ?? -1) : -1;
+  const newRank = STAGE_RANK[newStage] ?? -1;
+  return newRank > currentRank ? newStage : (current ?? null);
+}
+
 /**
  * Build the JobFoundry ingest API application.
  *
@@ -2578,11 +2624,15 @@ export function buildApp({
 
       if (status) {
         if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
+          const currentRow = db
+            .prepare('SELECT furthest_stage FROM user_jobs WHERE job_id = ? AND user_id = ?')
+            .get(id, userId);
+          const nextFurthest = advanceFurthestStage(currentRow?.furthest_stage ?? null, status);
           const info = db
             .prepare(
-              'UPDATE user_jobs SET status = ?, updated_at = ? WHERE job_id = ? AND user_id = ?'
+              'UPDATE user_jobs SET status = ?, furthest_stage = ?, updated_at = ? WHERE job_id = ? AND user_id = ?'
             )
-            .run(status, now, id, userId);
+            .run(status, nextFurthest, now, id, userId);
 
           if (info.changes === 0) {
             return reply.code(404).send({ error: 'job not found' });
@@ -3043,9 +3093,13 @@ export function buildApp({
 
       // 4. Update Database on success
       if (userId && userId !== 'legacy-admin' && userId !== 'dev-user') {
+        const currentRow = db
+          .prepare('SELECT furthest_stage FROM user_jobs WHERE job_id = ? AND user_id = ?')
+          .get(id, userId);
+        const nextFurthest = advanceFurthestStage(currentRow?.furthest_stage ?? null, 'tailored');
         db.prepare(
-          'UPDATE user_jobs SET status = ?, tailored_resume_id = ?, updated_at = ? WHERE job_id = ? AND user_id = ?'
-        ).run('tailored', tailoredId, now, id, userId);
+          'UPDATE user_jobs SET status = ?, tailored_resume_id = ?, furthest_stage = ?, updated_at = ? WHERE job_id = ? AND user_id = ?'
+        ).run('tailored', tailoredId, nextFurthest, now, id, userId);
       } else {
         db.prepare(
           'UPDATE jobs SET status = ?, tailored_resume_id = ?, updated_at = ? WHERE id = ?'
@@ -3965,7 +4019,7 @@ export function buildApp({
     }
   );
 
-  // GET /api/v1/analytics/funnel - Conversion funnel aggregated from user_jobs.status (Issue #152)
+  // GET /api/v1/analytics/funnel - Conversion funnel with Sankey stopped-breakdown (Issue #152)
   const funnelHandler = async (request, reply) => {
     if (!checkRateLimit(request, reply, 60)) return;
     if (!authenticate(request, reply)) return;
@@ -3973,65 +4027,145 @@ export function buildApp({
     const isMultiTenant = Boolean(userId && userId !== 'legacy-admin' && userId !== 'dev-user');
 
     const rows = isMultiTenant
-      ? db.prepare('SELECT status, tailored_resume_id FROM user_jobs WHERE user_id = ?').all(userId)
+      ? db
+          .prepare('SELECT status, tailored_resume_id, furthest_stage FROM user_jobs WHERE user_id = ?')
+          .all(userId)
       : db.prepare('SELECT status, tailored_resume_id FROM jobs').all();
 
     const total = rows.length;
+    const byStatus = {};
+
+    // Counts for each stage (how many reached it)
     let tailoredCount = 0;
     let appliedCount = 0;
     let interviewCount = 0;
     let offerCount = 0;
-    const byStatus = {};
+
+    // Stopped breakdown per stage: how many ended at that stage and why
+    // Keys: open | auto_rejected | rejected | archived | error
+    const stopped = {
+      captured: { open: 0, auto_rejected: 0, invalid: 0, error: 0 },
+      tailored: { open: 0, error: 0 },
+      applied:  { open: 0, rejected: 0, archived: 0 },
+      interview: { open: 0, rejected: 0 },
+      offer:    { open: 0 },
+    };
+
     for (const row of rows) {
       const status = row.status || 'new';
       byStatus[status] = (byStatus[status] || 0) + 1;
+
       const hasTailored =
         Boolean(row.tailored_resume_id) ||
         ['tailored', 'applied', 'interview', 'offer'].includes(status);
-      if (hasTailored) {
-        tailoredCount++;
-      }
+
+      if (hasTailored) tailoredCount++;
       if (
         ['applied', 'interview', 'offer'].includes(status) ||
         (status === 'rejected' && hasTailored)
-      ) {
+      )
         appliedCount++;
-      }
-      if (['interview', 'offer'].includes(status)) {
-        interviewCount++;
-      }
-      if (status === 'offer') {
-        offerCount++;
+      if (['interview', 'offer'].includes(status)) interviewCount++;
+      if (status === 'offer') offerCount++;
+
+      // --- stopped breakdown ---
+      // For multi-tenant rows we have furthest_stage; for legacy jobs table we derive it.
+      const furthest = row.furthest_stage ?? statusToStage(status);
+
+      switch (status) {
+        // --- Captured stage exits ---
+        case 'new':
+        case 'saved':
+          stopped.captured.open++;
+          break;
+        case 'rejected_by_score':
+          stopped.captured.auto_rejected++;
+          break;
+        case 'invalid_job':
+          stopped.captured.invalid++;
+          break;
+        case 'score_failed':
+          stopped.captured.error++;
+          break;
+
+        // --- Tailored stage exits ---
+        case 'tailored':
+          stopped.tailored.open++;
+          break;
+        case 'tailor_failed':
+        case 'failed':
+          stopped.tailored.error++;
+          break;
+
+        // --- Applied stage exits ---
+        case 'applied':
+          stopped.applied.open++;
+          break;
+
+        // --- Interview stage exits ---
+        case 'interview':
+          stopped.interview.open++;
+          break;
+
+        // --- Offer ---
+        case 'offer':
+          stopped.offer.open++;
+          break;
+
+        // --- Ambiguous terminal statuses: use furthest_stage to place them ---
+        case 'rejected':
+          if (furthest === 'interview') stopped.interview.rejected++;
+          else if (furthest === 'offer')  stopped.offer.open--; // edge case; count as offer declined
+          else                            stopped.applied.rejected++;
+          break;
+        case 'archived':
+          if (furthest === 'applied')  stopped.applied.archived++;
+          else if (furthest === 'interview') stopped.interview.rejected++;
+          else                              stopped.captured.open++;
+          break;
+
+        default:
+          stopped.captured.open++;
       }
     }
 
     const calcRate = (num, denom) => (denom > 0 ? Math.round((num / denom) * 1000) / 10 : 0);
 
     const stages = [
-      { id: 'captured', label: 'Captured', count: total, conversionRate: total > 0 ? 100 : 0 },
+      {
+        id: 'captured',
+        label: 'Captured',
+        count: total,
+        conversionRate: total > 0 ? 100 : 0,
+        stopped: stopped.captured,
+      },
       {
         id: 'tailored',
         label: 'Tailored',
         count: tailoredCount,
         conversionRate: calcRate(tailoredCount, total),
+        stopped: stopped.tailored,
       },
       {
         id: 'applied',
         label: 'Applied',
         count: appliedCount,
         conversionRate: calcRate(appliedCount, tailoredCount),
+        stopped: stopped.applied,
       },
       {
         id: 'interview',
         label: 'Interview',
         count: interviewCount,
         conversionRate: calcRate(interviewCount, appliedCount),
+        stopped: stopped.interview,
       },
       {
         id: 'offer',
         label: 'Offer',
         count: offerCount,
         conversionRate: calcRate(offerCount, interviewCount),
+        stopped: stopped.offer,
       },
     ];
 

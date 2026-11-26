@@ -79,6 +79,29 @@ export function migrate(db) {
     if (!String(err?.message || err).includes('duplicate column name')) throw err;
   }
   try {
+    db.exec('ALTER TABLE user_jobs ADD COLUMN furthest_stage TEXT');
+  } catch (err) {
+    if (!String(err?.message || err).includes('duplicate column name')) throw err;
+  }
+  // Backfill furthest_stage for existing rows from their current status.
+  // Forward-progression statuses encode the stage they reached; terminal ones
+  // (rejected, archived, error variants) are left NULL so the funnel handler
+  // can approximate them from context.
+  try {
+    db.exec(`
+      UPDATE user_jobs SET furthest_stage = CASE status
+        WHEN 'tailored'          THEN 'tailored'
+        WHEN 'applied'           THEN 'applied'
+        WHEN 'interview'         THEN 'interview'
+        WHEN 'offer'             THEN 'offer'
+        WHEN 'rejected'          THEN 'applied'
+        ELSE NULL
+      END
+      WHERE furthest_stage IS NULL
+    `);
+  } catch {}
+
+  try {
     db.exec(`
       CREATE TABLE IF NOT EXISTS user_facts (
         id TEXT PRIMARY KEY,
