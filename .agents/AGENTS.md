@@ -16,8 +16,10 @@ This document defines behavioral constraints, critical invariants, and internal 
 3. **Truthful Resume Tailoring**
    - The LangGraph tailoring pipeline (`server/tailor`) must only re-rank, highlight, or truthfully rephrase genuine candidate experiences from `master-resume.json`. Never hallucinate skills, metrics, dates, or qualifications not present in the candidate profile.
 
-4. **Preserve Vendored Provider Hashes**
-   - Files in `extension/src/background/providers/` are lifted from upstream toolkits. Do not reformat or modify them unnecessarily to maintain synchronization integrity.
+4. **Never Manually Edit Vendored Code (`vendored/` & `templates/`)**
+   - Files under `extension/src/background/vendored/`, `server/ingest/src/vendored/`, and `templates/` are lifted verbatim from upstream (`career-ops`, MIT) and must stay 100% byte-identical to upstream.
+   - **Never manually edit, reformat, or patch vendored files in place** — even if a linter, security bot, or reviewer flags them.
+   - If a vendored file needs a fix: fix it **upstream** in `career-ops` and re-sync, or wrap/adapt it in our **adapter** or **browser port** layers (see Section 2.6).
 
 5. **Strict Theme Awareness for all UI Elements**
    - JobFoundry natively supports both **Dark Mode** (default `:root`) and **Light Mode** (`html[data-color-mode='light']`, `html.light`), alongside curated accent themes (`indigo`, `cyan`, `emerald`, `purple`, `amber`).
@@ -125,3 +127,27 @@ npm --workspace=server/web test
 npm run format:check
 npm run lint
 ```
+
+---
+
+### 2.6 Vendored Code & Sync Policy
+
+JobFoundry vendors zero-LLM parsers, ATS connectors, and employer registries from upstream open-source projects so we can pull upstream improvements cleanly without merge conflicts:
+
+| Source                                                                                                                                                                                                                                                                           | Destination in JobFoundry                                                                                                                | Sync / Ownership                                                                                             |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| `career-ops` (providers, `liveness-api.mjs`, `ats-vendor.mjs`, `user-agent.mjs`, `lib/`, `tests/fixtures/`)                                                                                                                                                                      | `extension/src/background/vendored/`                                                                                                     | Managed by `extension/scripts/vendor.mjs` & `npm run sync:career-ops`                                        |
+| `career-ops` (browser-incompatible modules: `_http.mjs`, `_registry.mjs`, `alibaba.mjs`, `deel.mjs`, `paylocity.mjs`, `radancy.mjs`, `mokahr.mjs`, `local-parser.mjs`, `_profile-keywords.mjs`, `posting-close.mjs`, `robots-check.mjs`, `himalayas-posting.mjs`, `helpers.mjs`) | `extension/scripts/ports/`                                                                                                               | Browser-adapted ports overlaid by `vendor.mjs`; edit in `extension/scripts/ports/`, never inside `vendored/` |
+| `career-ops` (`ats-vendor.mjs`, `url-key.mjs`, `skill-extract.mjs`, `title-keywords.mjs`, `ats-payload.mjs`, `fingerprint-core.mjs`, `jd-skill-gap.mjs`, `verify-cv-facts.mjs`, `role-clarity.mjs`, `jd-similarity.mjs`, `lib/`, `employers/boards/`, `templates/`)              | `server/ingest/src/vendored/` & `templates/`                                                                                             | Managed by `scripts/vendor-career-ops.mjs` & `npm run sync:career-ops`                                       |
+| `JobSpy` (TypeScript search ports)                                                                                                                                                                                                                                               | `extension/src/background/search/` (`linkedin.ts`, `indeed.ts`, `glassdoor.ts`, `ziprecruiter.ts`, `google.ts`, `naukri.ts`, `types.ts`) | Manual TypeScript ports; check against upstream `speedyapply/JobSpy` when updating                           |
+
+- **Adapters (JobFoundry-owned, safe to edit)**:
+  - `extension/src/background/liveness/index.js` wraps `vendored/liveness-api.mjs` (enforcing `SAFE_SEGMENT` SSRF rules and `checkLiveness()` tri-state).
+  - `server/ingest/src/jobs/resume-adapter.mjs` bridges `master-resume.json` (JSON Resume) to `vendored/jd-skill-gap.mjs`, `vendored/verify-cv-facts.mjs`, `vendored/role-clarity.mjs`, and `vendored/jd-similarity.mjs`.
+  - `server/ingest/src/jobs/employers-registry.mjs` indexes `vendored/employers/boards/` for `GET /api/v1/employers/search`.
+- **JobFoundry-owned docs inside `vendored/providers/`**: `README.md` and `ADDING_A_PROVIDER.md` are preserved by `vendor.mjs` (`PRESERVED_DOCS`).
+- **Sync & drift verification**:
+  ```bash
+  npm run sync:career-ops -- --from /path/to/career-ops
+  npm run sync:career-ops:check -- --from /path/to/career-ops
+  ```
