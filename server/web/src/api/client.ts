@@ -56,6 +56,8 @@ export interface FunnelStageData {
   label: string;
   count: number;
   conversionRate: number;
+  /** Per-stage breakdown of applications that stopped here, keyed by outcome label. */
+  stopped?: Record<string, number>;
 }
 
 export interface FunnelData {
