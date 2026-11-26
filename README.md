@@ -115,7 +115,7 @@ One line, works on Linux, macOS, and Windows (WSL2):
 curl -fsSL https://raw.githubusercontent.com/Covai-Labs/JobFoundry/main/install.sh | bash
 ```
 
-> Auto-detects Docker or Podman, sets up `.env`, and launches the dashboard at `http://localhost:8080`.
+> Auto-detects Docker or Podman (installing missing prerequisites if needed) and launches the dashboard at `http://localhost:8080`. No `.env` file is required (`.env` is optional for advanced overrides; create your admin account and configure LLM API keys directly in the UI).
 
 Or clone and compose directly:
 
