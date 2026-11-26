@@ -4028,7 +4028,9 @@ export function buildApp({
 
     const rows = isMultiTenant
       ? db
-          .prepare('SELECT status, tailored_resume_id, furthest_stage FROM user_jobs WHERE user_id = ?')
+          .prepare(
+            'SELECT status, tailored_resume_id, furthest_stage FROM user_jobs WHERE user_id = ?'
+          )
           .all(userId)
       : db.prepare('SELECT status, tailored_resume_id FROM jobs').all();
 
@@ -4042,13 +4044,13 @@ export function buildApp({
     let offerCount = 0;
 
     // Stopped breakdown per stage: how many ended at that stage and why
-    // Keys: open | auto_rejected | rejected | archived | error
+    // Keys: open | auto_rejected | invalid | rejected | archived | error
     const stopped = {
-      captured: { open: 0, auto_rejected: 0, invalid: 0, error: 0 },
-      tailored: { open: 0, error: 0 },
-      applied:  { open: 0, rejected: 0, archived: 0 },
-      interview: { open: 0, rejected: 0 },
-      offer:    { open: 0 },
+      captured: { open: 0, auto_rejected: 0, invalid: 0, error: 0, archived: 0 },
+      tailored: { open: 0, error: 0, archived: 0 },
+      applied: { open: 0, rejected: 0, archived: 0 },
+      interview: { open: 0, rejected: 0, archived: 0 },
+      offer: { open: 0, rejected: 0, archived: 0 },
     };
 
     for (const row of rows) {
@@ -4059,18 +4061,28 @@ export function buildApp({
         Boolean(row.tailored_resume_id) ||
         ['tailored', 'applied', 'interview', 'offer'].includes(status);
 
-      if (hasTailored) tailoredCount++;
-      if (
-        ['applied', 'interview', 'offer'].includes(status) ||
-        (status === 'rejected' && hasTailored)
-      )
-        appliedCount++;
-      if (['interview', 'offer'].includes(status)) interviewCount++;
-      if (status === 'offer') offerCount++;
-
-      // --- stopped breakdown ---
       // For multi-tenant rows we have furthest_stage; for legacy jobs table we derive it.
-      const furthest = row.furthest_stage ?? statusToStage(status);
+      const furthest = isMultiTenant
+        ? (row.furthest_stage ?? statusToStage(status))
+        : statusToStage(status);
+
+      if (isMultiTenant) {
+        const rank = furthest ? (STAGE_RANK[furthest] ?? -1) : -1;
+        if (rank >= STAGE_RANK.tailored || hasTailored) tailoredCount++;
+        if (rank >= STAGE_RANK.applied || (status === 'rejected' && hasTailored && rank === -1))
+          appliedCount++;
+        if (rank >= STAGE_RANK.interview) interviewCount++;
+        if (rank >= STAGE_RANK.offer) offerCount++;
+      } else {
+        if (hasTailored) tailoredCount++;
+        if (
+          ['applied', 'interview', 'offer'].includes(status) ||
+          (status === 'rejected' && hasTailored)
+        )
+          appliedCount++;
+        if (['interview', 'offer'].includes(status)) interviewCount++;
+        if (status === 'offer') offerCount++;
+      }
 
       switch (status) {
         // --- Captured stage exits ---
@@ -4085,6 +4097,7 @@ export function buildApp({
           stopped.captured.invalid++;
           break;
         case 'score_failed':
+        case 'error':
           stopped.captured.error++;
           break;
 
@@ -4114,14 +4127,17 @@ export function buildApp({
 
         // --- Ambiguous terminal statuses: use furthest_stage to place them ---
         case 'rejected':
-          if (furthest === 'interview') stopped.interview.rejected++;
-          else if (furthest === 'offer')  stopped.offer.open--; // edge case; count as offer declined
-          else                            stopped.applied.rejected++;
+          if (furthest === 'offer') stopped.offer.rejected++;
+          else if (furthest === 'interview') stopped.interview.rejected++;
+          else stopped.applied.rejected++;
           break;
         case 'archived':
-          if (furthest === 'applied')  stopped.applied.archived++;
-          else if (furthest === 'interview') stopped.interview.rejected++;
-          else                              stopped.captured.open++;
+          if (furthest === 'offer') stopped.offer.archived++;
+          else if (furthest === 'interview') stopped.interview.archived++;
+          else if (furthest === 'applied') stopped.applied.archived++;
+          else if (furthest === 'tailored') stopped.tailored.archived++;
+          else if (furthest === 'captured') stopped.captured.archived++;
+          else stopped.captured.open++;
           break;
 
         default:

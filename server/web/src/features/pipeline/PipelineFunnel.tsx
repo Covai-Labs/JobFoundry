@@ -21,31 +21,31 @@ export interface PipelineFunnelProps {
 // Geometry constants (SVG units; width stretches to card, y is pixels)
 // ---------------------------------------------------------------------------
 const WIDTH = 1000;
-const NODE = 14;        // width of each stage bar
-const DROP = 18;        // gap between the onward band and the first stopped node
-const SLOT = 22;        // minimum vertical space for a stopped node's label
-const SPACE = 5;        // gap between consecutive stopped nodes
+const NODE = 14; // width of each stage bar
+const DROP = 18; // gap between the onward band and the first stopped node
+const SLOT = 22; // minimum vertical space for a stopped node's label
+const SPACE = 5; // gap between consecutive stopped nodes
 const MAX_HEIGHT = 150; // tallest the first (Captured) bar can be
-const MAX_UNIT = 18;    // max pixels per application
+const MAX_UNIT = 18; // max pixels per application
 
 // ---------------------------------------------------------------------------
 // Colour palette — mirrors the existing STAGE_COLORS map
 // ---------------------------------------------------------------------------
 const STAGE_BAR_COLOR: Record<string, string> = {
-  captured:  'var(--color-blue,  #3b82f6)',
-  tailored:  'var(--color-purple,#8b5cf6)',
-  applied:   'var(--color-cyan,  #06b6d4)',
+  captured: 'var(--color-blue,  #3b82f6)',
+  tailored: 'var(--color-purple,#8b5cf6)',
+  applied: 'var(--color-cyan,  #06b6d4)',
   interview: 'var(--color-amber, #f59e0b)',
-  offer:     'var(--color-green, #10b981)',
+  offer: 'var(--color-green, #10b981)',
 };
 
 const STOPPED_COLOR: Record<string, string> = {
-  open:         'inherit', // resolved at render time from stage colour
-  auto_rejected:'#ef4444',
-  invalid:      '#6b7280',
-  error:        '#f97316',
-  rejected:     '#ef4444',
-  archived:     '#9ca3af',
+  open: 'inherit', // resolved at render time from stage colour
+  auto_rejected: '#ef4444',
+  invalid: '#6b7280',
+  error: '#f97316',
+  rejected: '#ef4444',
+  archived: '#9ca3af',
 };
 
 function stageColor(id: string) {
@@ -58,12 +58,12 @@ function stoppedColor(stageId: string, outcome: string) {
 }
 
 const STOPPED_LABEL: Record<string, string> = {
-  open:         'pending',
-  auto_rejected:'auto-rejected',
-  invalid:      'invalid/noise',
-  error:        'error',
-  rejected:     'rejected',
-  archived:     'archived',
+  open: 'pending',
+  auto_rejected: 'auto-rejected',
+  invalid: 'invalid/noise',
+  error: 'error',
+  rejected: 'rejected',
+  archived: 'archived',
 };
 
 // ---------------------------------------------------------------------------
@@ -181,20 +181,34 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     api
       .getFunnelStats()
       .then((res) => {
-        if (isMounted) { setData(res); setError(null); }
+        if (isMounted) {
+          setData(res);
+          setError(null);
+        }
       })
       .catch((err: unknown) => {
         if (isMounted) setError(err instanceof Error ? err.message : 'Failed to load funnel stats');
       })
-      .finally(() => { if (isMounted) setLoading(false); });
+      .finally(() => {
+        if (isMounted) setLoading(false);
+      });
 
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [initialData]);
 
   if (loading) {
     return (
       <div className={`funnel-card ${className}`} style={cardStyle}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-muted)' }}>
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.5rem',
+            color: 'var(--text-muted)',
+          }}
+        >
           <Filter size={18} className="animate-spin" />
           <span>Loading funnel metrics…</span>
         </div>
@@ -204,7 +218,10 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
 
   if (error) {
     return (
-      <div className={`funnel-card ${className}`} style={{ ...cardStyle, color: 'var(--color-red,#ef4444)' }}>
+      <div
+        className={`funnel-card ${className}`}
+        style={{ ...cardStyle, color: 'var(--color-red,#ef4444)' }}
+      >
         <span>Error loading conversion funnel: {error}</span>
       </div>
     );
@@ -213,11 +230,11 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
   const funnelData = data ?? {
     total: 0,
     stages: [
-      { id: 'captured',  label: 'Captured',  count: 0, conversionRate: 0, stopped: {} },
-      { id: 'tailored',  label: 'Tailored',  count: 0, conversionRate: 0, stopped: {} },
-      { id: 'applied',   label: 'Applied',   count: 0, conversionRate: 0, stopped: {} },
+      { id: 'captured', label: 'Captured', count: 0, conversionRate: 0, stopped: {} },
+      { id: 'tailored', label: 'Tailored', count: 0, conversionRate: 0, stopped: {} },
+      { id: 'applied', label: 'Applied', count: 0, conversionRate: 0, stopped: {} },
       { id: 'interview', label: 'Interview', count: 0, conversionRate: 0, stopped: {} },
-      { id: 'offer',     label: 'Offer',     count: 0, conversionRate: 0, stopped: {} },
+      { id: 'offer', label: 'Offer', count: 0, conversionRate: 0, stopped: {} },
     ] as FunnelStageData[],
     by_status: {},
   };
@@ -237,15 +254,16 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
     setPointer({ x, y: e.clientY - box.top, left: x > box.width - TOOLTIP_ROOM });
   };
   const hoverHandlers = (key: string) => ({
-    onPointerEnter: (e: PointerEvent) => { setHovered(key); follow(e); },
+    onPointerEnter: (e: PointerEvent) => {
+      setHovered(key);
+      follow(e);
+    },
     onPointerMove: follow,
     onPointerLeave: () => setHovered((c) => (c === key ? null : c)),
   });
 
-  const bandOpacity = (key: string) =>
-    hovered === null ? 0.32 : hovered === key ? 0.6 : 0.1;
-  const nodeOpacity = (key: string) =>
-    hovered === null || hovered === key ? 1 : 0.3;
+  const bandOpacity = (key: string) => (hovered === null ? 0.32 : hovered === key ? 0.6 : 0.1);
+  const nodeOpacity = (key: string) => (hovered === null || hovered === key ? 1 : 0.3);
 
   // Tooltip content
   const tooltip = ((): TooltipData | null => {
@@ -277,9 +295,26 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
   return (
     <div className={`funnel-container ${className}`} style={cardStyle}>
       {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: '1rem' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'baseline',
+          marginBottom: '1rem',
+        }}
+      >
         <div>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 600, margin: 0, display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-primary)' }}>
+          <h3
+            style={{
+              fontSize: '1.1rem',
+              fontWeight: 600,
+              margin: 0,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.5rem',
+              color: 'var(--text-primary)',
+            }}
+          >
             <Filter size={18} style={{ color: 'var(--color-blue,#3b82f6)' }} />
             Application Conversion Funnel
           </h3>
@@ -288,7 +323,15 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
           </p>
         </div>
         {total > 0 && (
-          <div style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <div
+            style={{
+              fontSize: '0.82rem',
+              color: 'var(--text-muted)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+            }}
+          >
             <CheckCircle2 size={14} style={{ color: 'var(--color-green,#10b981)' }} />
             <span>{total} total applications</span>
           </div>
@@ -296,7 +339,16 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
       </div>
 
       {total === 0 ? (
-        <div style={{ padding: '2.5rem 1rem', textAlign: 'center', color: 'var(--text-muted)', borderRadius: '8px', border: '1px dashed var(--border-subtle)', background: 'var(--bg-secondary)' }}>
+        <div
+          style={{
+            padding: '2.5rem 1rem',
+            textAlign: 'center',
+            color: 'var(--text-muted)',
+            borderRadius: '8px',
+            border: '1px dashed var(--border-subtle)',
+            background: 'var(--bg-secondary)',
+          }}
+        >
           <p style={{ margin: 0, fontSize: '0.95rem' }}>
             No applications recorded yet. Browse job listings with the extension or click{' '}
             <strong>Add Job</strong> to start building your pipeline.
@@ -304,142 +356,231 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
         </div>
       ) : (
         <>
-          {/* Stage labels row */}
-          <div style={{ position: 'relative', height: 72, minWidth: 600, overflowX: 'auto' }}>
-            {stages.map((stage, i) => (
-              <div
-                key={stage.id}
+          {/* Outer relative wrapper so tooltips are never clipped by overflowX: 'auto' */}
+          <div ref={pictureRef} style={{ position: 'relative', marginBottom: '1.25rem' }}>
+            <div style={{ width: '100%', overflowX: 'auto' }}>
+              <div style={{ minWidth: 600 }}>
+                {/* Stage labels row (scrolls together with chart) */}
+                <div style={{ position: 'relative', height: 72 }}>
+                  {stages.map((stage, i) => (
+                    <div
+                      key={stage.id}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        ...(i === last
+                          ? { right: 0, textAlign: 'right' }
+                          : { left: pct(col(i, last)) }),
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 2,
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        {stage.label}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: '1.4rem',
+                          fontWeight: 700,
+                          lineHeight: 1,
+                          color: 'var(--text-primary)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {stage.count}
+                      </span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                        {i === 0 ? 'everything captured' : `${stage.conversionRate}% of prev.`}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Sankey SVG */}
+                <div aria-hidden="true" style={{ position: 'relative' }}>
+                  <svg
+                    viewBox={`0 0 ${WIDTH} ${svgHeight}`}
+                    preserveAspectRatio="none"
+                    style={{
+                      width: '100%',
+                      height: svgHeight,
+                      display: 'block',
+                      overflow: 'visible',
+                    }}
+                  >
+                    {/* Stage bars + onward bands */}
+                    {stages.map((stage, i) => {
+                      const key = `stage-${stage.id}`;
+                      const size = Math.max(2, stage.count * unit);
+                      const x = col(i, last);
+                      const color = stageColor(stage.id);
+                      return (
+                        <g
+                          key={stage.id}
+                          style={{ cursor: onStageClick ? 'pointer' : 'default' }}
+                          {...hoverHandlers(key)}
+                          onClick={() => onStageClick?.(stage.id)}
+                        >
+                          {/* Onward band from previous stage to this one */}
+                          {i > 0 && stage.count > 0 && (
+                            <rect
+                              x={col(i - 1, last) + NODE}
+                              width={x - col(i - 1, last) - NODE}
+                              height={size}
+                              style={{
+                                fill: color,
+                                opacity: bandOpacity(key),
+                                transition: 'opacity 0.2s',
+                              }}
+                            />
+                          )}
+                          {/* Stage node bar */}
+                          {stage.count > 0 ? (
+                            <rect
+                              x={x}
+                              width={NODE}
+                              height={size}
+                              rx={3}
+                              style={{
+                                fill: color,
+                                opacity: nodeOpacity(key),
+                                transition: 'opacity 0.2s',
+                              }}
+                            />
+                          ) : (
+                            <rect
+                              x={x}
+                              width={NODE}
+                              height={2}
+                              rx={1}
+                              style={{ fill: 'var(--border-subtle,#e5e7eb)' }}
+                            />
+                          )}
+                          {/* Wider invisible hit target */}
+                          <rect
+                            x={x - NODE / 2}
+                            width={NODE * 2}
+                            height={Math.max(size, 14)}
+                            fill="transparent"
+                          />
+                        </g>
+                      );
+                    })}
+
+                    {/* Stopped sub-bands */}
+                    {stops.map((stop) => {
+                      const color = stoppedColor(stop.stageId, stop.outcome);
+                      return (
+                        <g key={stop.key} {...hoverHandlers(stop.key)}>
+                          <path
+                            d={stop.bandPath}
+                            style={{
+                              fill: color,
+                              opacity: bandOpacity(stop.key),
+                              transition: 'opacity 0.2s',
+                            }}
+                          />
+                          {/* Invisible thick spine for easy hover */}
+                          <path
+                            d={stop.spinePath}
+                            fill="none"
+                            stroke="transparent"
+                            strokeWidth={14}
+                            vectorEffect="non-scaling-stroke"
+                            pointerEvents="stroke"
+                          />
+                          <rect
+                            x={stop.x}
+                            y={stop.y}
+                            width={NODE}
+                            height={Math.max(stop.height, 2)}
+                            rx={2}
+                            style={{
+                              fill: color,
+                              opacity: nodeOpacity(stop.key),
+                              transition: 'opacity 0.2s',
+                            }}
+                          />
+                        </g>
+                      );
+                    })}
+                  </svg>
+
+                  {/* Stopped node labels */}
+                  {stops.map((stop) => (
+                    <span
+                      key={stop.key}
+                      {...hoverHandlers(stop.key)}
+                      style={{
+                        position: 'absolute',
+                        left: `calc(${pct(stop.x + NODE)} + 6px)`,
+                        top: stop.labelMid,
+                        transform: 'translateY(-50%)',
+                        fontSize: '0.72rem',
+                        whiteSpace: 'nowrap',
+                        color: 'var(--text-muted)',
+                        opacity: hovered !== null && hovered !== stop.key ? 0.4 : 1,
+                        transition: 'opacity 0.2s',
+                        pointerEvents: 'none',
+                      }}
+                    >
+                      <span
+                        style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}
+                      >
+                        {stop.count}
+                      </span>{' '}
+                      {STOPPED_LABEL[stop.outcome] ?? stop.outcome}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Tooltip rendered outside scroll container so vertical overflow is never clipped */}
+            {tooltip && (
+              <span
                 style={{
+                  pointerEvents: 'none',
                   position: 'absolute',
-                  top: 0,
-                  ...(i === last
-                    ? { right: 0, textAlign: 'right' }
-                    : { left: pct(col(i, last)) }),
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 2,
+                  zIndex: 10,
+                  left: pointer.x,
+                  top: pointer.y,
+                  marginTop: -12,
+                  transform: `translateY(-100%)${pointer.left ? ' translateX(-100%)' : ''}`,
+                  marginLeft: pointer.left ? -12 : 12,
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-subtle)',
+                  borderRadius: 8,
+                  padding: '0.4rem 0.75rem',
+                  fontSize: '0.78rem',
                   whiteSpace: 'nowrap',
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
                 }}
               >
-                <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>{stage.label}</span>
-                <span style={{ fontSize: '1.4rem', fontWeight: 700, lineHeight: 1, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>
-                  {stage.count}
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: 12,
+                      height: 2,
+                      borderRadius: 2,
+                      background: tooltip.color,
+                    }}
+                  />
+                  <strong
+                    style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}
+                  >
+                    {tooltip.value}
+                  </strong>{' '}
+                  <span style={{ color: 'var(--text-primary)' }}>{tooltip.text}</span>
                 </span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  {i === 0 ? 'everything captured' : `${stage.conversionRate}% of prev.`}
+                <span style={{ display: 'block', color: 'var(--text-muted)', marginTop: 2 }}>
+                  {tooltip.detail}
                 </span>
-              </div>
-            ))}
-          </div>
-
-          {/* Sankey SVG */}
-          <div style={{ width: '100%', overflowX: 'auto', marginBottom: '1.25rem' }}>
-            <div
-              ref={pictureRef}
-              aria-hidden="true"
-              style={{ position: 'relative', minWidth: 600 }}
-            >
-              <svg
-                viewBox={`0 0 ${WIDTH} ${svgHeight}`}
-                preserveAspectRatio="none"
-                style={{ width: '100%', height: svgHeight, display: 'block', overflow: 'visible' }}
-              >
-                {/* Stage bars + onward bands */}
-                {stages.map((stage, i) => {
-                  const key = `stage-${stage.id}`;
-                  const size = Math.max(2, stage.count * unit);
-                  const x = col(i, last);
-                  const color = stageColor(stage.id);
-                  return (
-                    <g key={stage.id} role={onStageClick ? 'button' : undefined} style={{ cursor: onStageClick ? 'pointer' : 'default', outline: 'none' }} tabIndex={onStageClick ? 0 : undefined} {...hoverHandlers(key)} onClick={() => onStageClick?.(stage.id)}>
-                      {/* Onward band from previous stage to this one */}
-                      {i > 0 && stage.count > 0 && (
-                        <rect
-                          x={col(i - 1, last) + NODE}
-                          width={x - col(i - 1, last) - NODE}
-                          height={size}
-                          style={{ fill: color, opacity: bandOpacity(key), transition: 'opacity 0.2s' }}
-                        />
-                      )}
-                      {/* Stage node bar */}
-                      {stage.count > 0 ? (
-                        <rect x={x} width={NODE} height={size} rx={3} style={{ fill: color, opacity: nodeOpacity(key), transition: 'opacity 0.2s' }} />
-                      ) : (
-                        <rect x={x} width={NODE} height={2} rx={1} style={{ fill: 'var(--border-subtle,#e5e7eb)' }} />
-                      )}
-                      {/* Wider invisible hit target */}
-                      <rect x={x - NODE / 2} width={NODE * 2} height={Math.max(size, 14)} fill="transparent" />
-                    </g>
-                  );
-                })}
-
-                {/* Stopped sub-bands */}
-                {stops.map((stop) => {
-                  const color = stoppedColor(stop.stageId, stop.outcome);
-                  return (
-                    <g key={stop.key} {...hoverHandlers(stop.key)}>
-                      <path d={stop.bandPath} style={{ fill: color, opacity: bandOpacity(stop.key), transition: 'opacity 0.2s' }} />
-                      {/* Invisible thick spine for easy hover */}
-                      <path d={stop.spinePath} fill="none" stroke="transparent" strokeWidth={14} vectorEffect="non-scaling-stroke" pointerEvents="stroke" />
-                      <rect x={stop.x} y={stop.y} width={NODE} height={Math.max(stop.height, 2)} rx={2} style={{ fill: color, opacity: nodeOpacity(stop.key), transition: 'opacity 0.2s' }} />
-                    </g>
-                  );
-                })}
-              </svg>
-
-              {/* Stopped node labels */}
-              {stops.map((stop) => (
-                <span
-                  key={stop.key}
-                  {...hoverHandlers(stop.key)}
-                  style={{
-                    position: 'absolute',
-                    left: `calc(${pct(stop.x + NODE)} + 6px)`,
-                    top: stop.labelMid,
-                    transform: 'translateY(-50%)',
-                    fontSize: '0.72rem',
-                    whiteSpace: 'nowrap',
-                    color: 'var(--text-muted)',
-                    opacity: hovered !== null && hovered !== stop.key ? 0.4 : 1,
-                    transition: 'opacity 0.2s',
-                    pointerEvents: 'none',
-                  }}
-                >
-                  <span style={{ color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{stop.count}</span>{' '}
-                  {STOPPED_LABEL[stop.outcome] ?? stop.outcome}
-                </span>
-              ))}
-
-              {/* Tooltip */}
-              {tooltip && (
-                <span
-                  style={{
-                    pointerEvents: 'none',
-                    position: 'absolute',
-                    zIndex: 10,
-                    left: pointer.x,
-                    top: pointer.y,
-                    marginTop: -12,
-                    transform: `translateY(-100%)${pointer.left ? ' translateX(-100%)' : ''}`,
-                    marginLeft: pointer.left ? -12 : 12,
-                    background: 'var(--bg-card)',
-                    border: '1px solid var(--border-subtle)',
-                    borderRadius: 8,
-                    padding: '0.4rem 0.75rem',
-                    fontSize: '0.78rem',
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.12)',
-                  }}
-                >
-                  <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ display: 'inline-block', width: 12, height: 2, borderRadius: 2, background: tooltip.color }} />
-                    <strong style={{ fontVariantNumeric: 'tabular-nums', color: 'var(--text-primary)' }}>{tooltip.value}</strong>{' '}
-                    <span style={{ color: 'var(--text-primary)' }}>{tooltip.text}</span>
-                  </span>
-                  <span style={{ display: 'block', color: 'var(--text-muted)', marginTop: 2 }}>{tooltip.detail}</span>
-                </span>
-              )}
-            </div>
+              </span>
+            )}
           </div>
 
           {/* Summary cards row */}
@@ -452,37 +593,101 @@ export const PipelineFunnel: React.FC<PipelineFunnelProps> = ({
               paddingTop: '1rem',
             }}
           >
-            {stages.map((stage, idx) => {
-              const color = stageColor(stage.id);
-              return (
-                <button
-                  type="button"
-                  key={stage.id}
-                  data-testid={`funnel-stage-${stage.id}`}
-                  onClick={() => onStageClick?.(stage.id)}
-                  disabled={!onStageClick}
-                  aria-label={`${stage.label}: ${stage.count} jobs, ${stage.conversionRate}% conversion rate`}
-                  style={{ display: 'flex', flexDirection: 'column', textAlign: 'left', padding: '0.75rem', borderRadius: 'var(--radius-md,8px)', background: 'var(--bg-secondary)', border: '1px solid var(--border-subtle)', cursor: onStageClick ? 'pointer' : 'default', fontFamily: 'inherit', color: 'inherit' }}
+            {stages.map((stage, idx) => (
+              <button
+                type="button"
+                key={stage.id}
+                data-testid={`funnel-stage-${stage.id}`}
+                onClick={() => onStageClick?.(stage.id)}
+                disabled={!onStageClick}
+                aria-label={`${stage.label}: ${stage.count} jobs, ${stage.conversionRate}% conversion rate`}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  textAlign: 'left',
+                  padding: '0.75rem',
+                  borderRadius: 'var(--radius-md,8px)',
+                  background: 'var(--bg-secondary)',
+                  border: '1px solid var(--border-subtle)',
+                  cursor: onStageClick ? 'pointer' : 'default',
+                  fontFamily: 'inherit',
+                  color: 'inherit',
+                }}
+              >
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    marginBottom: '0.25rem',
+                    width: '100%',
+                  }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem', width: '100%' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color }}>{stage.label}</span>
-                    <span data-testid={`funnel-count-${stage.id}`} style={{ fontSize: '1.05rem', fontWeight: 700, color: 'var(--text-primary)', fontVariantNumeric: 'tabular-nums' }}>{stage.count}</span>
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-                    {idx === 0 ? '100%' : `→ ${stage.conversionRate}% conv.`}
-                  </div>
-                </button>
-              );
-            })}
+                  <span
+                    style={{
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.05em',
+                      color: 'var(--text-primary)',
+                    }}
+                  >
+                    {stage.label}
+                  </span>
+                  <span
+                    data-testid={`funnel-count-${stage.id}`}
+                    style={{
+                      fontSize: '1.05rem',
+                      fontWeight: 700,
+                      color: 'var(--text-primary)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {stage.count}
+                  </span>
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                  {idx === 0 ? '100%' : `→ ${stage.conversionRate}% conv.`}
+                </div>
+              </button>
+            ))}
           </div>
 
           {/* Accessible table (screen readers) */}
-          <table className="sr-only" aria-label="Conversion funnel breakdown" style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0,0,0,0)' }}>
-            <thead><tr><th scope="col">Stage</th><th scope="col">Count</th><th scope="col">Conversion Rate</th></tr></thead>
+          <table
+            className="sr-only"
+            aria-label="Conversion funnel breakdown"
+            style={{
+              position: 'absolute',
+              width: 1,
+              height: 1,
+              overflow: 'hidden',
+              clip: 'rect(0,0,0,0)',
+            }}
+          >
+            <thead>
+              <tr>
+                <th scope="col">Stage</th>
+                <th scope="col">Count</th>
+                <th scope="col">Conversion Rate</th>
+                <th scope="col">Stopped Outcomes</th>
+              </tr>
+            </thead>
             <tbody>
-              {stages.map((stage) => (
-                <tr key={stage.id}><td>{stage.label}</td><td>{stage.count}</td><td>{stage.conversionRate}%</td></tr>
-              ))}
+              {stages.map((stage) => {
+                const stoppedSummary = Object.entries(stage.stopped ?? {})
+                  .filter(([, count]) => count > 0)
+                  .map(([outcome, count]) => `${count} ${STOPPED_LABEL[outcome] ?? outcome}`)
+                  .join(', ');
+                return (
+                  <tr key={stage.id}>
+                    <td>{stage.label}</td>
+                    <td>{stage.count}</td>
+                    <td>{stage.conversionRate}%</td>
+                    <td>{stoppedSummary || 'None'}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </>
