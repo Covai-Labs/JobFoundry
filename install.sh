@@ -119,7 +119,7 @@ main() {
         run_privileged yum install -y "$@"
         ;;
       pacman)
-        run_privileged pacman -Sy --noconfirm --needed "$@"
+        run_privileged pacman -S --noconfirm --needed "$@"
         ;;
       zypper)
         run_privileged zypper --non-interactive install "$@"
@@ -256,16 +256,30 @@ main() {
   # Determine container compose command and engine
   probe_compose
 
+  install_docker_compose() {
+    case "$PKG_MGR" in
+      apt-get|dnf|yum) install_pkgs docker-compose-plugin || install_pkgs docker-compose || true ;;
+      pacman|zypper)   install_pkgs docker-compose || true ;;
+      apk)             install_pkgs docker-cli-compose || install_pkgs docker-compose || true ;;
+    esac
+  }
+
+  add_user_to_docker_group() {
+    local current_user
+    current_user="$(id -un 2>/dev/null || true)"
+    if [ "${EUID:-$(id -u)}" -ne 0 ] && [ -n "$current_user" ] && command -v usermod >/dev/null 2>&1; then
+      if run_privileged usermod -aG docker "$current_user" >/dev/null 2>&1; then
+        echo -e "  ${YELLOW}Note: Added $current_user to the 'docker' group. Log out and back in (or run 'newgrp docker') for rootless CLI access.${NC}"
+      fi
+    fi
+  }
+
   # Attempt automatic installation/startup of missing container runtime or compose plugin
   if [ -z "$COMPOSE_CMD" ]; then
     # Case A: Docker is running, but compose plugin/binary is missing
     if [ "$DOCKER_ENGINE_RESPONSIVE" = true ]; then
       echo -e "${YELLOW}▶ Docker is running, but Docker Compose is missing; attempting to install...${NC}"
-      case "$PKG_MGR" in
-        apt-get|dnf|yum) install_pkgs docker-compose-plugin || install_pkgs docker-compose || true ;;
-        pacman|zypper)   install_pkgs docker-compose || true ;;
-        apk)             install_pkgs docker-cli-compose || install_pkgs docker-compose || true ;;
-      esac
+      install_docker_compose
       probe_compose
     fi
 
@@ -278,23 +292,27 @@ main() {
 
     # Case C: Docker is installed, but daemon is stopped or socket lacks permissions
     if [ -z "$COMPOSE_CMD" ] && command -v docker >/dev/null 2>&1 && [ "$DOCKER_ENGINE_RESPONSIVE" = false ]; then
-      if docker info 2>&1 | grep -qi "permission denied"; then
+      DOCKER_INFO_ERR="$(docker info 2>&1 || true)"
+      if echo "$DOCKER_INFO_ERR" | grep -qi "permission denied"; then
         PRIV_PREFIX="$(privileged_prefix)"
         if [ -n "$PRIV_PREFIX" ]; then
           echo -e "${YELLOW}▶ Current user lacks Docker socket permission; using $PRIV_PREFIX for this run...${NC}"
-          if [ -n "${USER:-}" ] && command -v usermod >/dev/null 2>&1; then
-            run_privileged usermod -aG docker "$USER" >/dev/null 2>&1 || true
-            echo -e "  ${YELLOW}Note: Log out and back in (or run 'newgrp docker') to use docker without $PRIV_PREFIX.${NC}"
-          fi
+          add_user_to_docker_group
           probe_compose "$PRIV_PREFIX"
         fi
       elif [ "$OS" = "Linux" ]; then
         echo -e "${YELLOW}▶ Docker is installed but not running; attempting to start Docker service...${NC}"
         if start_docker_service; then
           probe_compose
-          if [ -z "$COMPOSE_CMD" ] && docker info 2>&1 | grep -qi "permission denied"; then
-            PRIV_PREFIX="$(privileged_prefix)"
-            [ -n "$PRIV_PREFIX" ] && probe_compose "$PRIV_PREFIX"
+          if [ -z "$COMPOSE_CMD" ]; then
+            DOCKER_INFO_ERR="$(docker info 2>&1 || true)"
+            if echo "$DOCKER_INFO_ERR" | grep -qi "permission denied"; then
+              PRIV_PREFIX="$(privileged_prefix)"
+              [ -n "$PRIV_PREFIX" ] && probe_compose "$PRIV_PREFIX"
+            elif [ "$DOCKER_ENGINE_RESPONSIVE" = true ]; then
+              install_docker_compose
+              probe_compose
+            fi
           fi
         fi
       fi
@@ -325,7 +343,7 @@ main() {
             ;;
           *)
             if command -v curl >/dev/null 2>&1; then
-              if curl -fsSL https://get.docker.com | run_privileged sh; then
+              if curl -fsSL --proto '=https' --tlsv1.2 https://get.docker.com | run_privileged sh; then
                 DOCKER_INSTALLED=true
               fi
             fi
@@ -334,14 +352,14 @@ main() {
 
         if [ "$DOCKER_INSTALLED" = true ]; then
           start_docker_service || true
-          if [ "${EUID:-$(id -u)}" -ne 0 ] && [ -n "${USER:-}" ] && command -v usermod >/dev/null 2>&1; then
-            run_privileged usermod -aG docker "$USER" >/dev/null 2>&1 || true
-            echo -e "  ${YELLOW}Note: Added $USER to the 'docker' group. Log out and back in for rootless CLI access.${NC}"
-          fi
+          add_user_to_docker_group
           probe_compose
-          if [ -z "$COMPOSE_CMD" ] && docker info 2>&1 | grep -qi "permission denied"; then
-            PRIV_PREFIX="$(privileged_prefix)"
-            [ -n "$PRIV_PREFIX" ] && probe_compose "$PRIV_PREFIX"
+          if [ -z "$COMPOSE_CMD" ]; then
+            DOCKER_INFO_ERR="$(docker info 2>&1 || true)"
+            if echo "$DOCKER_INFO_ERR" | grep -qi "permission denied"; then
+              PRIV_PREFIX="$(privileged_prefix)"
+              [ -n "$PRIV_PREFIX" ] && probe_compose "$PRIV_PREFIX"
+            fi
           fi
         fi
       elif [ "$OS" = "Darwin" ] && [ "$PKG_MGR" = "brew" ]; then
