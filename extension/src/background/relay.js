@@ -9,7 +9,6 @@
 import { decantHtml } from '../content/extractors/helpers.js';
 import { checkLiveness } from './liveness/index.js';
 import { makeHttpCtx } from './vendored/providers/_http.mjs';
-import { BROWSER_LIKE_USER_AGENT } from './vendored/user-agent.mjs';
 import { assertSafeDestination, fetchWithSafeRedirects } from './safe-url.js';
 
 export const SUPPORTED_TASK_TYPES = new Set([
@@ -71,7 +70,6 @@ export async function executeRelayTask(
       task.url,
       {
         headers: {
-          'User-Agent': BROWSER_LIKE_USER_AGENT,
           Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         },
       },

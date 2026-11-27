@@ -201,8 +201,6 @@ export const indeedSearchProvider: AggregatorSearchProvider = {
             Accept: 'application/json',
             'indeed-api-key': INDEED_PUBLIC_API_KEY,
             'indeed-locale': 'en-US',
-            'user-agent':
-              'Mozilla/5.0 (iPhone; CPU iPhone OS 16_6_1 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148 Indeed App 193.1',
             'indeed-app-info':
               'appv=193.1; appid=com.indeed.jobsearch; osv=16.6.1; os=ios; dtype=phone',
           },
