@@ -169,8 +169,6 @@ export const glassdoorSearchProvider: AggregatorSearchProvider = {
             Accept: '*/*',
             'apollographql-client-name': 'job-search-next',
             'apollographql-client-version': '4.65.5',
-            'User-Agent':
-              'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36',
           },
           body: JSON.stringify({
             operationName: 'JobSearchResultsQuery',
