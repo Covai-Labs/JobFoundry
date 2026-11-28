@@ -4,6 +4,13 @@ JobFoundry follows [Semantic Versioning](https://semver.org/). The current
 version lives in [`VERSION`](VERSION). This file records user-visible changes
 per release; the full commit history is in git.
 
+## [0.11.1](https://github.com/Covai-Labs/JobFoundry/compare/v0.11.0...v0.11.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **installer:** remove automatic .env setup from install.sh ([#245](https://github.com/Covai-Labs/JobFoundry/issues/245)) ([e60c9e5](https://github.com/Covai-Labs/JobFoundry/commit/e60c9e54bbc92501b0356854912fddf35b7ec71d))
+
 ## [0.11.0](https://github.com/Covai-Labs/JobFoundry/compare/v0.10.1...v0.11.0) (2026-11-26)
 
 
